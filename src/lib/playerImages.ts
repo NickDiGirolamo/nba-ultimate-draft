@@ -31,6 +31,8 @@ const directImageOverrides: Record<string, string> = {
     "https://www.jsonline.com/gcdn/presto/2021/04/12/PMJS/22f3502c-f3ef-4f9c-8875-bf7a5b6c9e46-1970_MJS_Milwaukee_Bucks_Kareem_Abdul-Jabbar_Historical_Archive-1.jpg?width=660&height=1036&fit=crop&format=pjpg&auto=webp",
   "karl-malone":
     "https://i.pinimg.com/736x/73/d9/68/73d968077baa340b28ac64d2e9054b84.jpg",
+  "john-stockton":
+    "https://static.wikia.nocookie.net/nba/images/9/99/John_Stockton.jpg/revision/latest?cb=20110427165243",
   "kobe-bryant":
     "https://andscape.com/wp-content/uploads/2020/10/Kobe-Bryant-Game-5-2008-Finals-e1603379029250.jpg?w=800",
   "kyrie-irving":
