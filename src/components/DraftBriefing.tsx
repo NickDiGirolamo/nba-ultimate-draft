@@ -19,7 +19,10 @@ export const DraftBriefing = ({
   categoryChallengesEnabled,
   onBack,
   onBegin,
-}: DraftBriefingProps) => (
+}: DraftBriefingProps) => {
+  const classicMode = challenge.id === "classic";
+
+  return (
   <section className="space-y-8">
     <div className="glass-panel rounded-[34px] p-8 shadow-card lg:p-10">
       <div className="inline-flex rounded-full border border-white/12 bg-white/8 px-3 py-1 text-xs uppercase tracking-[0.24em] text-slate-300">
@@ -40,7 +43,9 @@ export const DraftBriefing = ({
           </div>
           <h2 className="mt-3 font-display text-2xl text-white">{challenge.title}</h2>
           <p className="mt-3 text-sm leading-7 text-slate-200">{challenge.description}</p>
-          <div className="mt-4 text-sm text-amber-100">Reward: +{challenge.reward} legacy</div>
+          <div className="mt-4 text-sm text-amber-100">
+            {classicMode ? "Classic rules only. No extra challenge bonus applies." : `Reward: +${challenge.reward} legacy`}
+          </div>
         </div>
 
         <div className="rounded-[26px] border border-sky-300/18 bg-sky-300/8 p-5">
@@ -50,7 +55,11 @@ export const DraftBriefing = ({
           </div>
           <h2 className="mt-3 font-display text-2xl text-white">{rareEvent.title}</h2>
           <p className="mt-3 text-sm leading-7 text-slate-200">
-            {rareEventsEnabled ? rareEvent.description : "Rare events are disabled for this run, so you are drafting into the standard environment."}
+            {classicMode
+              ? "Classic mode disables rare events, so you are drafting into the standard simulation environment."
+              : rareEventsEnabled
+              ? rareEvent.description
+              : "Rare events are disabled for this run, so you are drafting into the standard environment."}
           </p>
           <div className="mt-4 text-sm text-sky-100">{rareEvent.impact}</div>
         </div>
@@ -61,15 +70,19 @@ export const DraftBriefing = ({
             <span className="text-xs uppercase tracking-[0.22em]">Category Focus</span>
           </div>
           <h2 className="mt-3 font-display text-2xl text-white">
-            {categoryChallengesEnabled && categoryChallenge ? categoryChallenge.metricLabel : "Disabled"}
+            {classicMode ? "Disabled" : categoryChallengesEnabled && categoryChallenge ? categoryChallenge.metricLabel : "Disabled"}
           </h2>
           <p className="mt-3 text-sm leading-7 text-slate-200">
-            {categoryChallengesEnabled && categoryChallenge
+            {classicMode
+              ? "Classic mode uses the standard season-and-playoffs objective instead of a category-focus challenge."
+              : categoryChallengesEnabled && categoryChallenge
               ? categoryChallenge.description
               : "Category challenges are turned off, so this run has no random stat-focus objective."}
           </p>
           <div className="mt-4 text-sm text-emerald-100">
-            {categoryChallengesEnabled && categoryChallenge
+            {classicMode
+              ? "Goal: build the best all-around team you can and see how the season plays out."
+              : categoryChallengesEnabled && categoryChallenge
               ? `Goal: maximize your final ${categoryChallenge.metricLabel.toLowerCase()} score.`
               : "Goal: build the best all-around team you can."}
           </div>
@@ -116,3 +129,4 @@ export const DraftBriefing = ({
     </div>
   </section>
 );
+};

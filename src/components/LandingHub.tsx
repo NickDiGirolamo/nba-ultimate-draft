@@ -43,7 +43,10 @@ export const LandingHub = ({
   categoryChallengeSelection,
   currentCategoryChallenge,
   onCategoryChallengeSelectionChange,
-}: LandingHubProps) => (
+}: LandingHubProps) => {
+  const classicMode = draftChallengeSelection === "classic";
+
+  return (
   <section className="space-y-8">
     <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
       <div className="glass-panel rounded-[34px] bg-hero-mesh p-8 shadow-card lg:p-12">
@@ -85,6 +88,8 @@ export const LandingHub = ({
               <p className="mt-2 text-sm text-amber-100/90">
                 {draftChallengeSelection === "random"
                   ? "A random primary challenge will be locked in on the draft briefing page."
+                  : classicMode
+                  ? "Classic turns off extra run modifiers so the goal is simply to build the strongest team possible."
                   : `Reward: +${currentChallenge.reward} legacy score if you complete it.`}
               </p>
             </div>
@@ -114,13 +119,23 @@ export const LandingHub = ({
                 Rare Event Settings
               </div>
               <h2 className="mt-2 font-display text-2xl text-white">
-                {rareEventsEnabled ? currentRareEvent.title : "Standard Draft Environment"}
+                {classicMode
+                  ? "Classic Mode Environment"
+                  : rareEventsEnabled
+                  ? currentRareEvent.title
+                  : "Standard Draft Environment"}
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
-                {rareEventsEnabled ? currentRareEvent.description : "Rare events are turned off, so this run will use the default simulation environment."}
+                {classicMode
+                  ? "Classic mode disables rare events so the run uses the standard simulation environment."
+                  : rareEventsEnabled
+                  ? currentRareEvent.description
+                  : "Rare events are turned off, so this run will use the default simulation environment."}
               </p>
               <p className="mt-2 text-sm text-amber-100/90">
-                {rareEventSelection === "random" && rareEventsEnabled
+                {classicMode
+                  ? "No event-specific boosts or modifiers will be active."
+                  : rareEventSelection === "random" && rareEventsEnabled
                   ? "This run will roll a random rare event on the draft briefing page."
                   : rareEventsEnabled
                   ? currentRareEvent.impact
@@ -134,6 +149,7 @@ export const LandingHub = ({
                 onRareEventSelectionChange(event.target.value as RareEventSelection)
               }
               className="rounded-2xl border border-white/12 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-300/40"
+              disabled={classicMode}
             >
               <option value="disabled">Disabled</option>
               <option value="random">Random Rare Event</option>
@@ -154,21 +170,27 @@ export const LandingHub = ({
                 Category Challenge
               </div>
               <h2 className="mt-2 font-display text-2xl text-white">
-                {categoryChallengeSelection === "random" && categoryChallengesEnabled
+                {classicMode
+                  ? "Category Challenge Disabled"
+                  : categoryChallengeSelection === "random" && categoryChallengesEnabled
                   ? "Random Category Focus"
                   : categoryChallengesEnabled && currentCategoryChallenge
                   ? currentCategoryChallenge.title
                   : "Category Challenge Disabled"}
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
-                {categoryChallengeSelection === "random" && categoryChallengesEnabled
+                {classicMode
+                  ? "Classic mode disables category-focus play, so this run will be judged as a full season and playoff simulation."
+                  : categoryChallengeSelection === "random" && categoryChallengesEnabled
                   ? "A random team-building category will be selected as your focus for this run. The chosen focus will be revealed on the draft briefing page before the draft begins."
                   : categoryChallengesEnabled && currentCategoryChallenge
                   ? currentCategoryChallenge.description
                   : "Turn this on if you want an extra random objective that pushes you to chase the highest possible score in one specific team category."}
               </p>
               <p className="mt-2 text-sm text-emerald-100/90">
-                {categoryChallengeSelection === "random" && categoryChallengesEnabled
+                {classicMode
+                  ? "No category target will be assigned."
+                  : categoryChallengeSelection === "random" && categoryChallengesEnabled
                   ? "This run will roll a random category focus on the draft briefing page."
                   : categoryChallengesEnabled && currentCategoryChallenge
                   ? `This run's side goal is to maximize ${currentCategoryChallenge.metricLabel.toLowerCase()}.`
@@ -182,6 +204,7 @@ export const LandingHub = ({
                 onCategoryChallengeSelectionChange(event.target.value as CategoryChallengeSelection)
               }
               className="rounded-2xl border border-white/12 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-300/40"
+              disabled={classicMode}
             >
               <option value="disabled">Disabled</option>
               <option value="random">Random Category</option>
@@ -392,3 +415,4 @@ export const LandingHub = ({
     </div>
   </section>
 );
+};

@@ -82,6 +82,12 @@ const seasonRunsOnly = (history: RunHistoryEntry[]) =>
 
 export const draftChallenges: DraftChallenge[] = [
   {
+    id: "classic",
+    title: "Classic",
+    description: "No special challenge modifiers. Draft the best team you can and simulate a full season plus playoffs.",
+    reward: 0,
+  },
+  {
     id: "no-s-tier-shortcut",
     title: "No S-Tier Shortcut",
     description: "Finish the draft without taking any S-tier player.",

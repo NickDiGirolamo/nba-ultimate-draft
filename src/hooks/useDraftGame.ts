@@ -38,6 +38,13 @@ const resolveRunParameters = (
   rng: () => number,
 ) => {
   const challenge = resolveDraftChallenge(draftChallengeSelection, rng);
+  if (challenge.id === "classic") {
+    return {
+      challenge,
+      rareEvent: standardRareEvent,
+      categoryChallenge: null,
+    };
+  }
   const rareEvent =
     rareEventSelection === "random"
       ? selectCompatibleRareEvent(challenge, rng)
@@ -419,13 +426,17 @@ export const useDraftGame = () => {
         draftChallengeSelection: selection,
         currentChallenge: resolvedParameters.challenge,
         currentRareEvent:
-          current.rareEventSelection === "random"
-            ? resolvedParameters.rareEvent
-            : current.currentRareEvent,
+          selection === "classic"
+            ? standardRareEvent
+            : current.rareEventSelection === "random"
+              ? resolvedParameters.rareEvent
+              : current.currentRareEvent,
         currentCategoryChallenge:
-          current.categoryChallengeSelection === "random"
-            ? resolvedParameters.categoryChallenge
-            : current.currentCategoryChallenge,
+          selection === "classic"
+            ? null
+            : current.categoryChallengeSelection === "random"
+              ? resolvedParameters.categoryChallenge
+              : current.currentCategoryChallenge,
       };
     });
   };
