@@ -81,6 +81,8 @@ const directImageOverrides: Record<string, string> = {
     "https://platform.slcdunk.com/wp-content/uploads/sites/145/chorus/uploads/chorus_asset/file/24912240/1094463402.jpg?quality=90&strip=all&crop=0,16.666666666667,100,66.666666666667",
   "penny-hardaway":
     "https://cdn.nba.com/teams/legacy/www.nba.com/magic/sites/magic/files/9_penny-20170112.jpg",
+  "peja-stojakovic":
+    "https://cdn.nba.com/teams/legacy/www.nba.com/kings/sites/kings/files/2_24.jpg",
   "reggie-miller":
     "https://www.tuscaloosanews.com/gcdn/authoring/2007/08/09/NTTN/ghows-DA-956c6365-614f-4280-8405-f5e1f84e025e-1569fd9a.jpeg?width=1200&disable=upscale&format=pjpg&auto=webp",
   "ray-allen":
