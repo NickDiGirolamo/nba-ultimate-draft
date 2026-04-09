@@ -53,6 +53,7 @@ export const bigThrees: PlayerBadgeDefinition[] = [
   { id: "spurs-big-three", title: "Big 3: Spurs Core", type: "big-3", players: ["tim-duncan", "tony-parker", "manu-ginobili"] },
   { id: "celtics-big-three", title: "Big 3: Celtics Core", type: "big-3", players: ["kevin-garnett", "paul-pierce", "rajon-rondo"] },
   { id: "heat-big-three", title: "Big 3: Heat Core", type: "big-3", players: ["dwyane-wade", "chris-bosh", "lebron-james"] },
+  { id: "bulls-big-three", title: "Big 3: Bulls Core", type: "big-3", players: ["michael-jordan", "scottie-pippen", "dennis-rodman"] },
 ];
 
 export const rivalBadges: PlayerBadgeDefinition[] = [
