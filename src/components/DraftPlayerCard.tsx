@@ -75,7 +75,7 @@ export const DraftPlayerCard = ({
             <img
               src={imageUrl}
               alt={player.name}
-              className="absolute inset-0 h-full w-full object-contain object-center"
+              className="absolute inset-4 z-10 h-[calc(100%-2rem)] w-[calc(100%-2rem)] object-contain object-center"
               loading="lazy"
               referrerPolicy="no-referrer"
             />
