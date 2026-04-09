@@ -1,4 +1,17 @@
-import { Player, RosterSlot, SimulationResult, TeamMetrics } from "../types";
+import {
+  DraftChallenge,
+  Player,
+  RareEvent,
+  RosterSlot,
+  SimulationResult,
+  TeamMetrics,
+} from "../types";
+import {
+  calculateLegacyScore,
+  evaluateChallengeCompletion,
+  evaluateRareEventBonus,
+  getChemistryBonuses,
+} from "./meta";
 import { clamp, mulberry32 } from "./random";
 
 const average = (values: number[]) => (values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length);
@@ -63,7 +76,7 @@ export const buildTeamName = (roster: RosterSlot[]) => {
   return `${anchor} ${style}`;
 };
 
-export const evaluateTeam = (roster: RosterSlot[]): TeamMetrics => {
+export const evaluateTeam = (roster: RosterSlot[], rareEvent?: RareEvent) => {
   const players = getPlayers(roster);
   const starters = getStarters(roster);
   const bench = getBench(roster);
@@ -100,6 +113,11 @@ export const evaluateTeam = (roster: RosterSlot[]): TeamMetrics => {
   const defensiveBigs = players.filter((player) => player.interiorDefense >= 88).length;
   const highRebounders = players.filter((player) => player.rebounding >= 85).length;
   const outOfRoleStars = benchEntries.filter((entry) => entry.player.overall >= 90).length;
+  const chemistryBonuses = getChemistryBonuses(players.map((player) => player.id));
+  const chemistryScore = chemistryBonuses.reduce((sum, bonus) => sum + bonus.bonusScore, 0);
+  const rareEventBonus = rareEvent
+    ? evaluateRareEventBonus(rareEvent, players)
+    : { offense: 0, defense: 0, fit: 0, chemistry: 0, summary: "Standard environment." };
 
   let fit = 72;
   let chemistry = weightedAverage(weightedEntries, (entry) => entry.player.intangibles, (entry) => entry.weight);
@@ -125,6 +143,8 @@ export const evaluateTeam = (roster: RosterSlot[]): TeamMetrics => {
   chemistry += eliteShooters * 0.9;
   chemistry += ballHandlers.length * 0.75;
   chemistry -= dominantCreators.length > 3 ? 3 : 0;
+  chemistry += chemistryScore * 0.7 + rareEventBonus.chemistry;
+  fit += chemistryScore * 0.55 + rareEventBonus.fit;
 
   const variance = clamp(
     11 +
@@ -138,8 +158,8 @@ export const evaluateTeam = (roster: RosterSlot[]): TeamMetrics => {
 
   return {
     overall: Math.round(overall * 10) / 10,
-    offense: Math.round(offense * 10) / 10,
-    defense: Math.round(defense * 10) / 10,
+    offense: Math.round(clamp(offense + chemistryScore * 0.3 + rareEventBonus.offense, 35, 99) * 10) / 10,
+    defense: Math.round(clamp(defense + chemistryScore * 0.18 + rareEventBonus.defense, 35, 99) * 10) / 10,
     playmaking: Math.round(playmaking * 10) / 10,
     shooting: Math.round(shooting * 10) / 10,
     rebounding: Math.round(rebounding * 10) / 10,
@@ -234,8 +254,13 @@ const simulatePlayoffs = (power: number, seed: number, variance: number, rng: ()
   return seriesPower >= 92 ? "NBA Champion" : "NBA Finals Loss";
 };
 
-export const runSeasonSimulation = (roster: RosterSlot[], seed: number): SimulationResult => {
-  const metrics = evaluateTeam(roster);
+export const runSeasonSimulation = (
+  roster: RosterSlot[],
+  seed: number,
+  challenge: DraftChallenge,
+  rareEvent: RareEvent,
+): SimulationResult => {
+  const metrics = evaluateTeam(roster, rareEvent);
   const rng = mulberry32(seed + 41023);
   const powerScore = metrics.overall * 0.29 + metrics.offense * 0.18 + metrics.defense * 0.18 + metrics.fit * 0.13 + metrics.depth * 0.08 + metrics.starPower * 0.09 + metrics.chemistry * 0.05;
   const varianceSwing = (rng() - 0.5) * metrics.variance * 1.6;
@@ -248,7 +273,49 @@ export const runSeasonSimulation = (roster: RosterSlot[], seed: number): Simulat
   const titleOdds = clamp(Math.round((powerScore - 72) * 3.5), 1, 78);
   const teamName = buildTeamName(roster);
   const draftGrade = getDraftGrade(metrics.overall, metrics.fit, metrics.depth);
-
+  const rosterPlayers = getPlayers(roster);
+  const chemistryBonuses = getChemistryBonuses(rosterPlayers.map((player) => player.id));
+  const chemistryScore = chemistryBonuses.reduce((sum, bonus) => sum + bonus.bonusScore, 0);
+  const rareEventBonus = evaluateRareEventBonus(rareEvent, rosterPlayers);
+  const baseResult = {
+    metrics,
+    record: { wins, losses },
+    seed: seedResult,
+    conference,
+    playoffFinish,
+    titleOdds,
+    summary: "",
+    reason,
+    mvp,
+    xFactor,
+    strengths,
+    weaknesses,
+    ratingLabel: labelForMetric(metrics.overall),
+    offenseLabel: labelForMetric(metrics.offense),
+    defenseLabel: labelForMetric(metrics.defense),
+    draftGrade,
+    teamName,
+    legacyScore: 0,
+    challenge,
+    challengeCompleted: false,
+    challengeReward: 0,
+    rareEvent,
+    rareEventBonus,
+    chemistryBonuses,
+    chemistryScore,
+  } satisfies SimulationResult;
+  const challengeCompleted = evaluateChallengeCompletion(
+    challenge,
+    rosterPlayers.map((player) => player.id),
+    rosterPlayers.map((player) => player.hallOfFameTier),
+    baseResult,
+  );
+  const challengeReward = challengeCompleted ? challenge.reward : 0;
+  const legacyScore = calculateLegacyScore(
+    { ...baseResult, challengeCompleted, challengeReward },
+    challengeReward,
+    chemistryScore,
+  );
   const summary = (() => {
     const opening = wins >= 58
       ? `Your ${teamName} controlled the regular season, finishing ${wins}-${losses} with a profile that looked like a genuine title favorite.`
@@ -301,5 +368,13 @@ export const runSeasonSimulation = (roster: RosterSlot[], seed: number): Simulat
     defenseLabel: labelForMetric(metrics.defense),
     draftGrade,
     teamName,
+    legacyScore,
+    challenge,
+    challengeCompleted,
+    challengeReward,
+    rareEvent,
+    rareEventBonus,
+    chemistryBonuses,
+    chemistryScore,
   };
 };

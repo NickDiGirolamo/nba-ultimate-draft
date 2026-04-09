@@ -16,6 +16,28 @@ export type PlayerTier = "S" | "A" | "B" | "C";
 
 export type Screen = "landing" | "draft" | "simulating" | "results";
 
+export interface DraftChallenge {
+  id: string;
+  title: string;
+  description: string;
+  reward: number;
+}
+
+export interface RareEvent {
+  id: string;
+  title: string;
+  description: string;
+  impact: string;
+}
+
+export interface ChemistryBonus {
+  id: string;
+  title: string;
+  players: string[];
+  summary: string;
+  bonusScore: number;
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -103,6 +125,90 @@ export interface SimulationResult {
   defenseLabel: string;
   draftGrade: string;
   teamName: string;
+  legacyScore: number;
+  challenge: DraftChallenge;
+  challengeCompleted: boolean;
+  challengeReward: number;
+  rareEvent: RareEvent;
+  rareEventBonus: {
+    offense: number;
+    defense: number;
+    fit: number;
+    chemistry: number;
+    summary: string;
+  };
+  chemistryBonuses: ChemistryBonus[];
+  chemistryScore: number;
+  newPersonalBests?: string[];
+}
+
+export interface RunHistoryEntry {
+  id: string;
+  teamName: string;
+  record: string;
+  wins: number;
+  losses: number;
+  seed: number;
+  conference: "East" | "West";
+  playoffFinish: SimulationResult["playoffFinish"];
+  grade: string;
+  legacyScore: number;
+  createdAt: string;
+  createdAtStamp: number;
+  challengeTitle: string;
+  challengeCompleted: boolean;
+  rareEventTitle: string;
+  titleOdds: number;
+  metrics: TeamMetrics;
+}
+
+export interface PersonalBests {
+  wins: number;
+  overall: number;
+  offense: number;
+  defense: number;
+  fit: number;
+  depth: number;
+  legacyScore: number;
+  titleOdds: number;
+  playoffFinish: SimulationResult["playoffFinish"];
+}
+
+export interface LeaderboardEntry {
+  label: string;
+  value: string;
+  teamName: string;
+}
+
+export interface Trophy {
+  id: string;
+  title: string;
+  description: string;
+  unlocked: boolean;
+}
+
+export interface Streaks {
+  playoff: number;
+  titles: number;
+  fiftyWin: number;
+}
+
+export interface CollectionGoals {
+  draftedPlayers: number;
+  totalPlayers: number;
+  percentage: number;
+  milestones: Array<{
+    label: string;
+    reached: boolean;
+  }>;
+}
+
+export interface MetaProgress {
+  personalBests: PersonalBests;
+  leaderboards: LeaderboardEntry[];
+  trophies: Trophy[];
+  streaks: Streaks;
+  collection: CollectionGoals;
 }
 
 export interface DraftState {
@@ -116,13 +222,9 @@ export interface DraftState {
   lastFilledSlot: RosterSlotType | null;
   simulationResult: SimulationResult | null;
   selectedSlotIndex: number | null;
-  history: Array<{
-    id: string;
-    teamName: string;
-    record: string;
-    playoffFinish: SimulationResult["playoffFinish"];
-    grade: string;
-    createdAt: string;
-  }>;
+  history: RunHistoryEntry[];
+  unlockedPlayerIds: string[];
+  currentChallenge: DraftChallenge;
+  currentRareEvent: RareEvent;
   seed: number;
 }

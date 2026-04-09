@@ -1,6 +1,7 @@
 import {
   Activity,
   BarChart3,
+  Crown,
   Gauge,
   Orbit,
   Radar,
@@ -16,12 +17,14 @@ import {
   Zap,
 } from "lucide-react";
 import { usePlayerImage } from "../hooks/usePlayerImage";
-import { Player, RosterSlot, SimulationResult, TeamMetrics } from "../types";
+import { MetaProgress, Player, RosterSlot, RunHistoryEntry, SimulationResult, TeamMetrics } from "../types";
 
 interface ResultsShowcaseProps {
   result: SimulationResult;
   roster: RosterSlot[];
   onDraftAgain: () => void;
+  meta: MetaProgress;
+  history: RunHistoryEntry[];
 }
 
 const gradeFromMetric = (value: number) => {
@@ -229,6 +232,8 @@ export const ResultsShowcase = ({
   result,
   roster,
   onDraftAgain,
+  meta,
+  history,
 }: ResultsShowcaseProps) => {
   const analytics = buildAnalytics(roster, result.metrics);
   const metricsForDisplay = chartMetrics(result.metrics, result);
@@ -260,6 +265,13 @@ export const ResultsShowcase = ({
       sublabel: "Two-way index",
       icon: ShieldCheck,
       ringValue: analytics.twoWayIndex,
+    },
+    {
+      label: "Legacy Score",
+      value: `${result.legacyScore}`,
+      sublabel: result.newPersonalBests?.includes("Legacy Score") ? "New personal best" : "Meta leaderboard score",
+      icon: Crown,
+      ringValue: Math.min(100, result.legacyScore / 4),
     },
   ];
 
@@ -305,7 +317,7 @@ export const ResultsShowcase = ({
           </button>
         </div>
 
-        <div className="relative mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="relative mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           {highlightCards.map((item) => (
             <div
               key={item.label}
@@ -518,11 +530,82 @@ export const ResultsShowcase = ({
                 </span>{" "}
                 {result.reason}
               </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-2">
+                <div className="rounded-[24px] border border-white/10 bg-white/5 p-5">
+                  <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Draft Challenge</div>
+                  <div className="mt-2 text-xl font-semibold text-white">{result.challenge.title}</div>
+                  <div className="mt-2 text-sm leading-6 text-slate-300">{result.challenge.description}</div>
+                  <div className="mt-4 text-sm text-amber-100">
+                    {result.challengeCompleted
+                      ? `Completed for +${result.challengeReward} legacy`
+                      : `Missed challenge bonus (+${result.challenge.reward} legacy)`}
+                  </div>
+                </div>
+
+                <div className="rounded-[24px] border border-white/10 bg-white/5 p-5">
+                  <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Rare Event</div>
+                  <div className="mt-2 text-xl font-semibold text-white">{result.rareEvent.title}</div>
+                  <div className="mt-2 text-sm leading-6 text-slate-300">{result.rareEvent.description}</div>
+                  <div className="mt-4 text-sm text-sky-100">{result.rareEventBonus.summary}</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="space-y-8">
+          <div className="glass-panel rounded-[30px] p-6 shadow-card">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-[24px] border border-white/10 bg-black/15 p-5">
+                <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Personal Record Watch</div>
+                <div className="mt-3 space-y-2">
+                  {(result.newPersonalBests?.length ?? 0) > 0 ? (
+                    result.newPersonalBests?.map((item) => (
+                      <div key={item} className="rounded-2xl border border-emerald-300/18 bg-emerald-300/10 px-4 py-3 text-sm text-emerald-100">
+                        New personal best: {item}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
+                      No records were broken this run. The chase continues.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-[24px] border border-white/10 bg-black/15 p-5">
+                <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Chemistry + Meta</div>
+                <div className="mt-2 text-3xl font-semibold text-white">{result.chemistryScore}</div>
+                <div className="mt-1 text-sm text-slate-300">Chemistry score from iconic pairings</div>
+                <div className="mt-4 text-sm text-amber-100">
+                  Lifetime best legacy: {meta.personalBests.legacyScore}
+                </div>
+                <div className="mt-1 text-sm text-slate-400">
+                  Total recorded runs: {history.length}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-[24px] border border-white/10 bg-black/15 p-5">
+              <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Chemistry Bonuses</div>
+              <div className="mt-4 grid gap-3">
+                {result.chemistryBonuses.length > 0 ? (
+                  result.chemistryBonuses.map((bonus) => (
+                    <div key={bonus.id} className="rounded-2xl border border-amber-300/16 bg-amber-300/8 p-4">
+                      <div className="font-medium text-white">{bonus.title}</div>
+                      <div className="mt-1 text-sm text-slate-300">{bonus.summary}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+                    No iconic chemistry pairings were completed on this roster.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="glass-panel rounded-[30px] p-6 shadow-card">
             <div className="flex items-center justify-between gap-4">
               <div>

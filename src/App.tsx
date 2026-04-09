@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BrainCircuit, Swords, Trophy } from "lucide-react";
 import { DraftPlayerCard } from "./components/DraftPlayerCard";
-import { LandingScreen } from "./components/LandingScreen";
+import { LandingHub } from "./components/LandingHub";
 import { ProgressHeader } from "./components/ProgressHeader";
 import { ResultsShowcase } from "./components/ResultsShowcase";
 import { RosterSidebar } from "./components/RosterSidebar";
@@ -11,6 +11,7 @@ import { useDraftGame } from "./hooks/useDraftGame";
 function App() {
   const {
     state,
+    metaProgress,
     teamAverage,
     completedRoster,
     startDraft,
@@ -82,7 +83,13 @@ function App() {
           </div>
         </header>
 
-        {state.screen === "landing" && <LandingScreen onStart={startDraft} history={state.history} />}
+        {state.screen === "landing" && (
+          <LandingHub
+            onStart={startDraft}
+            history={state.history}
+            meta={metaProgress}
+          />
+        )}
 
         {state.screen === "draft" && (
           <section className="space-y-6">
@@ -95,6 +102,14 @@ function App() {
                     <div>
                       <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Pick Window</p>
                       <h2 className="mt-2 font-display text-3xl text-white">Choose 1 of 5 legends</h2>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs uppercase tracking-[0.18em] text-slate-300">
+                        <span className="rounded-full border border-amber-200/18 bg-amber-300/10 px-3 py-2 text-amber-100">
+                          Challenge: {state.currentChallenge.title}
+                        </span>
+                        <span className="rounded-full border border-sky-200/18 bg-sky-300/10 px-3 py-2 text-sky-100">
+                          Event: {state.currentRareEvent.title}
+                        </span>
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -177,7 +192,13 @@ function App() {
         {state.screen === "simulating" && <SimulationScreen />}
 
         {state.screen === "results" && state.simulationResult && (
-          <ResultsShowcase result={state.simulationResult} roster={state.roster} onDraftAgain={startDraft} />
+          <ResultsShowcase
+            result={state.simulationResult}
+            roster={state.roster}
+            onDraftAgain={startDraft}
+            meta={metaProgress}
+            history={state.history}
+          />
         )}
       </div>
     </div>
