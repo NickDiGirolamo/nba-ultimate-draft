@@ -56,7 +56,7 @@ function App() {
           <section className="space-y-6">
             <ProgressHeader pickNumber={state.pickNumber} />
 
-            <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+            <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
               <div className="space-y-5">
                 <div className="glass-panel rounded-[28px] p-5 shadow-card">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

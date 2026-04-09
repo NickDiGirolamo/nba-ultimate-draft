@@ -35,7 +35,7 @@ export const DraftPlayerCard = ({
       disabled={disabled}
       className={clsx(
         "tier-shine group relative flex h-full w-full flex-col overflow-hidden rounded-[26px] border bg-gradient-to-br p-5 text-left transition duration-300",
-        compact ? "min-h-[220px]" : "min-h-[360px]",
+        compact ? "min-h-[220px]" : "min-h-[390px]",
         tierStyles[player.hallOfFameTier],
         disabled ? "cursor-default opacity-70" : "hover:-translate-y-2 hover:scale-[1.01]",
         selected && "scale-[1.02] ring-2 ring-glow",
@@ -47,7 +47,7 @@ export const DraftPlayerCard = ({
         className={clsx(
           "relative mb-5 overflow-hidden rounded-[22px] border border-white/10 bg-gradient-to-br",
           visual.bg,
-          compact ? "h-[140px]" : "h-[224px]",
+          compact ? "h-[140px]" : "h-[244px]",
         )}
       >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_32%)]" />
@@ -93,14 +93,14 @@ export const DraftPlayerCard = ({
       </div>
 
       <div className="relative flex items-start justify-between gap-3">
-        <h3 className="max-w-[14ch] font-display text-2xl font-semibold leading-tight text-white">
+        <h3 className="max-w-[13ch] font-display text-[1.7rem] font-semibold leading-tight text-white">
           {player.name}
         </h3>
-        <div className="rounded-2xl border border-white/12 bg-black/20 px-3 py-2 text-center">
+        <div className="min-w-[84px] rounded-2xl border border-white/12 bg-black/20 px-3 py-2 text-center">
           <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">
             Score
           </div>
-          <div className="font-display text-3xl font-semibold text-white">
+          <div className="font-display text-[2rem] font-semibold leading-none text-white">
             {player.overall}
           </div>
         </div>
