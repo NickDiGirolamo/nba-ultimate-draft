@@ -18,6 +18,11 @@ const wikiTitleOverrides: Record<string, string> = {
   "walt-frazier": "Walt_Frazier",
 };
 
+const directImageOverrides: Record<string, string> = {
+  "larry-bird":
+    "https://www.usatoday.com/gcdn/-mm-/6d4245ebf464808df4dc3cdaddd9036c915be31f/c=0-300-3139-4486/local/-/media/2016/12/07/USATODAY/USATODAY/636167048457676560-XXX-LARRY-BIRD-PUTS-UP-A-JUMPSHOT-1706669AB-DNA007-20214831.JPG?width=458&height=610&fit=crop&format=pjpg&auto=webp",
+};
+
 const runtimeCache = new Map<string, string | null>();
 
 const getStorageCache = () => {
@@ -51,6 +56,15 @@ export const getCachedPlayerImage = (player: Player) => {
 };
 
 export const fetchPlayerImage = async (player: Player) => {
+  const directOverride = directImageOverrides[player.id];
+  if (directOverride) {
+    runtimeCache.set(player.id, directOverride);
+    const storageCache = getStorageCache();
+    storageCache[player.id] = directOverride;
+    saveStorageCache(storageCache);
+    return directOverride;
+  }
+
   const cached = getCachedPlayerImage(player);
   if (cached !== null) return cached;
 
