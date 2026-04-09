@@ -47,9 +47,6 @@ export const DraftPlayerCard = ({
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_30%)]" />
 
       <div className="relative mb-4 rounded-[22px] border border-white/12 bg-black/20 px-4 py-3 text-center">
-        <div className="absolute right-3 top-3">
-          <DynamicDuoBadge playerId={player.id} draftedPlayerIds={draftedPlayerIds} />
-        </div>
         <div className="text-[10px] uppercase tracking-[0.28em] text-slate-300">
           Player Score
         </div>
@@ -116,6 +113,9 @@ export const DraftPlayerCard = ({
       <div className="relative mt-auto pt-4">
         <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs uppercase tracking-[0.22em] text-slate-300">
           Tap to draft
+        </div>
+        <div className="mt-3 flex justify-center">
+          <DynamicDuoBadge playerId={player.id} draftedPlayerIds={draftedPlayerIds} />
         </div>
       </div>
     </button>
