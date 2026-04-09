@@ -1,6 +1,6 @@
 import { BarChart3, RotateCcw, ShieldCheck, Star, Swords, Trophy } from "lucide-react";
 import { RosterSlot, SimulationResult } from "../types";
-import { PlayerCard } from "./PlayerCard";
+import { DraftPlayerCard } from "./DraftPlayerCard";
 
 interface ResultsScreenProps {
   result: SimulationResult;
@@ -105,8 +105,8 @@ export const ResultsScreen = ({ result, roster, onDraftAgain }: ResultsScreenPro
 
       <div className="space-y-8">
         <div className="grid gap-4 md:grid-cols-2">
-          <PlayerCard player={result.mvp} compact />
-          <PlayerCard player={result.xFactor} compact />
+          <DraftPlayerCard player={result.mvp} compact />
+          <DraftPlayerCard player={result.xFactor} compact />
         </div>
 
         <div className="glass-panel rounded-[30px] p-6 shadow-card">

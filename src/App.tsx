@@ -1,6 +1,6 @@
 import { BrainCircuit, Swords, Trophy } from "lucide-react";
+import { DraftPlayerCard } from "./components/DraftPlayerCard";
 import { LandingScreen } from "./components/LandingScreen";
-import { PlayerCard } from "./components/PlayerCard";
 import { ProgressHeader } from "./components/ProgressHeader";
 import { ResultsScreen } from "./components/ResultsScreen";
 import { RosterSidebar } from "./components/RosterSidebar";
@@ -8,7 +8,16 @@ import { SimulationScreen } from "./components/SimulationScreen";
 import { useDraftGame } from "./hooks/useDraftGame";
 
 function App() {
-  const { state, teamAverage, completedRoster, startDraft, draftPlayer, beginSimulation, resetDraft } = useDraftGame();
+  const {
+    state,
+    teamAverage,
+    completedRoster,
+    startDraft,
+    draftPlayer,
+    beginSimulation,
+    resetDraft,
+    handleRosterSlotClick,
+  } = useDraftGame();
 
   return (
     <div className="min-h-screen bg-hero-mesh text-white">
@@ -68,7 +77,7 @@ function App() {
 
                 <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
                   {state.currentChoices.map((player) => (
-                    <PlayerCard
+                    <DraftPlayerCard
                       key={player.id}
                       player={player}
                       onSelect={draftPlayer}
@@ -80,7 +89,13 @@ function App() {
               </div>
 
               <div className="space-y-6">
-                <RosterSidebar roster={state.roster} teamAverage={teamAverage} lastFilledSlot={state.lastFilledSlot} />
+                <RosterSidebar
+                  roster={state.roster}
+                  teamAverage={teamAverage}
+                  lastFilledSlot={state.lastFilledSlot}
+                  selectedSlotIndex={state.selectedSlotIndex}
+                  onSlotClick={handleRosterSlotClick}
+                />
                 <div className="glass-panel rounded-[28px] p-5 shadow-card">
                   <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Team Snapshot</div>
                   <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-1">

@@ -19,6 +19,7 @@ const createInitialState = (): DraftState => {
     selectedPlayerId: null,
     lastFilledSlot: null,
     simulationResult: null,
+    selectedSlotIndex: null,
     history: [],
     seed,
   };
@@ -65,6 +66,7 @@ export const useDraftGame = () => {
       roster: assignment.roster,
       draftedPlayerIds,
       selectedPlayerId: player.id,
+      selectedSlotIndex: null,
       lastFilledSlot: assignment.filledSlot,
       currentChoices: nextChoices,
       pickNumber: nextPick,
@@ -99,6 +101,45 @@ export const useDraftGame = () => {
     }, 3200);
   };
 
+  const handleRosterSlotClick = (index: number) => {
+    setState((current) => {
+      const clickedSlot = current.roster[index];
+
+      if (current.selectedSlotIndex === null) {
+        if (!clickedSlot.player) return current;
+        return {
+          ...current,
+          selectedSlotIndex: index,
+        };
+      }
+
+      if (current.selectedSlotIndex === index) {
+        return {
+          ...current,
+          selectedSlotIndex: null,
+        };
+      }
+
+      const nextRoster = [...current.roster];
+      const selectedPlayer = nextRoster[current.selectedSlotIndex].player;
+      nextRoster[current.selectedSlotIndex] = {
+        ...nextRoster[current.selectedSlotIndex],
+        player: nextRoster[index].player,
+      };
+      nextRoster[index] = {
+        ...nextRoster[index],
+        player: selectedPlayer,
+      };
+
+      return {
+        ...current,
+        roster: nextRoster,
+        selectedSlotIndex: null,
+        lastFilledSlot: nextRoster[index].slot,
+      };
+    });
+  };
+
   const resetDraft = () => {
     const fresh = createInitialState();
     setState({ ...fresh, history: state.history, screen: "landing" });
@@ -108,5 +149,15 @@ export const useDraftGame = () => {
     setState((current) => ({ ...current, screen }));
   };
 
-  return { state, teamAverage, completedRoster, startDraft, draftPlayer, beginSimulation, resetDraft, setScreen };
+  return {
+    state,
+    teamAverage,
+    completedRoster,
+    startDraft,
+    draftPlayer,
+    beginSimulation,
+    resetDraft,
+    setScreen,
+    handleRosterSlotClick,
+  };
 };

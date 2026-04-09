@@ -6,6 +6,8 @@ interface RosterSidebarProps {
   roster: RosterSlot[];
   teamAverage: number;
   lastFilledSlot: string | null;
+  selectedSlotIndex: number | null;
+  onSlotClick: (index: number) => void;
 }
 
 const findBestPlayer = (roster: RosterSlot[]) => {
@@ -13,7 +15,13 @@ const findBestPlayer = (roster: RosterSlot[]) => {
   return players.slice().sort((a, b) => b.overall - a.overall)[0] ?? null;
 };
 
-export const RosterSidebar = ({ roster, teamAverage, lastFilledSlot }: RosterSidebarProps) => {
+export const RosterSidebar = ({
+  roster,
+  teamAverage,
+  lastFilledSlot,
+  selectedSlotIndex,
+  onSlotClick,
+}: RosterSidebarProps) => {
   const bestPlayer = findBestPlayer(roster);
   const positions = roster
     .map((slot) => slot.player?.primaryPosition)
@@ -38,12 +46,15 @@ export const RosterSidebar = ({ roster, teamAverage, lastFilledSlot }: RosterSid
 
       <div className="mt-5 space-y-3">
         {roster.map((slot, index) => (
-          <div
+          <button
             key={`${slot.label}-${index}`}
+            type="button"
+            onClick={() => onSlotClick(index)}
             className={clsx(
-              "rounded-2xl border p-3 transition duration-300",
+              "w-full rounded-2xl border p-3 text-left transition duration-300",
               slot.player ? "border-white/10 bg-white/6" : "border-dashed border-white/12 bg-black/10",
               lastFilledSlot === slot.slot && "border-sky-300/50 bg-sky-400/10 shadow-glow",
+              selectedSlotIndex === index && "border-amber-300/60 bg-amber-300/10 shadow-[0_0_0_1px_rgba(251,191,36,0.2)]",
             )}
           >
             <div className="flex items-center justify-between gap-3">
@@ -56,7 +67,7 @@ export const RosterSidebar = ({ roster, teamAverage, lastFilledSlot }: RosterSid
                 <div className="mt-1 text-base font-semibold text-white">{slot.player?.overall ?? "--"}</div>
               </div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -82,6 +93,13 @@ export const RosterSidebar = ({ roster, teamAverage, lastFilledSlot }: RosterSid
             ) : (
               <span className="text-sm text-slate-400">No distribution yet</span>
             )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Lineup Control</div>
+          <div className="mt-2 text-sm leading-6 text-slate-300">
+            Click any drafted player, then click any other slot to move or swap them. You can place any drafted player anywhere before the sim.
           </div>
         </div>
       </div>

@@ -115,6 +115,7 @@ export interface DraftState {
   selectedPlayerId: string | null;
   lastFilledSlot: RosterSlotType | null;
   simulationResult: SimulationResult | null;
+  selectedSlotIndex: number | null;
   history: Array<{
     id: string;
     teamName: string;
