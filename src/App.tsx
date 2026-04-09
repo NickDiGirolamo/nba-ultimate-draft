@@ -229,10 +229,30 @@ function App() {
 
         {state.screen === "draft" && (
           <section className="space-y-6">
-            <div className="flex gap-6 [&>*]:min-w-0 [&>*]:flex-1">
-              <ProgressHeader pickNumber={state.pickNumber} />
+            <div className="flex items-center justify-start">
+              <button
+                type="button"
+                onClick={resetDraft}
+                className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-4 py-2 text-xs uppercase tracking-[0.22em] text-slate-200 transition hover:border-amber-200/40 hover:text-amber-100"
+              >
+                <Trophy size={14} className="text-amber-200" />
+                Home
+              </button>
+            </div>
 
-              <div className="glass-panel flex-1 rounded-[28px] p-5 shadow-card">
+            <div
+              className="gap-6"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+                alignItems: "stretch",
+              }}
+            >
+              <div className="min-w-0">
+                <ProgressHeader pickNumber={state.pickNumber} />
+              </div>
+
+              <div className="glass-panel min-w-0 rounded-[28px] p-5 shadow-card">
                 <div className="flex h-full flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
