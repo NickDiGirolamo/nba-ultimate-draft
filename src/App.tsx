@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { BrainCircuit, Swords, Trophy } from "lucide-react";
 import { DraftPlayerCard } from "./components/DraftPlayerCard";
 import { LandingScreen } from "./components/LandingScreen";
@@ -18,6 +19,37 @@ function App() {
     resetDraft,
     handleRosterSlotClick,
   } = useDraftGame();
+
+  const choiceSignature = useMemo(
+    () => state.currentChoices.map((player) => player.id).join("|"),
+    [state.currentChoices],
+  );
+  const [visibleChoiceCount, setVisibleChoiceCount] = useState(
+    state.currentChoices.length,
+  );
+
+  useEffect(() => {
+    if (state.screen !== "draft") {
+      setVisibleChoiceCount(state.currentChoices.length);
+      return;
+    }
+
+    if (state.currentChoices.length === 0) {
+      setVisibleChoiceCount(0);
+      return;
+    }
+
+    setVisibleChoiceCount(0);
+    const timers = state.currentChoices.map((_, index) =>
+      window.setTimeout(() => {
+        setVisibleChoiceCount((current) => Math.max(current, index + 1));
+      }, 120 + index * 170),
+    );
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [choiceSignature, state.currentChoices, state.screen]);
 
   return (
     <div className="arena-shell text-white">
@@ -76,15 +108,35 @@ function App() {
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                  {state.currentChoices.map((player) => (
-                    <DraftPlayerCard
-                      key={player.id}
-                      player={player}
-                      onSelect={draftPlayer}
-                      disabled={Boolean(state.selectedPlayerId)}
-                      selected={state.selectedPlayerId === player.id}
-                    />
-                  ))}
+                  {state.currentChoices.map((player, index) => {
+                    const revealed = index < visibleChoiceCount;
+
+                    return (
+                      <div
+                        key={player.id}
+                        className={revealed ? "choice-reveal animate-choice-reveal" : "choice-hidden"}
+                        style={{ animationDelay: revealed ? `${index * 45}ms` : "0ms" }}
+                      >
+                        {revealed ? (
+                          <DraftPlayerCard
+                            player={player}
+                            onSelect={draftPlayer}
+                            disabled={Boolean(state.selectedPlayerId)}
+                            selected={state.selectedPlayerId === player.id}
+                          />
+                        ) : (
+                          <div className="choice-placeholder h-full min-h-[390px] rounded-[26px] border border-white/10">
+                            <div className="flex h-full flex-col justify-between p-5">
+                              <div className="h-20 rounded-[22px] bg-white/6" />
+                              <div className="h-[244px] rounded-[22px] bg-white/6" />
+                              <div className="h-8 rounded-xl bg-white/6" />
+                              <div className="h-12 rounded-2xl bg-white/6" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

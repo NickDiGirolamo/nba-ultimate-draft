@@ -77,3 +77,53 @@ textarea {
 .arena-shell > * {
   position: relative;
 }
+
+.choice-hidden {
+  opacity: 1;
+}
+
+.choice-placeholder {
+  background:
+    linear-gradient(180deg, rgba(10, 14, 20, 0.82), rgba(6, 8, 12, 0.92)),
+    rgba(255, 255, 255, 0.03);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+  position: relative;
+  overflow: hidden;
+}
+
+.choice-placeholder::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.08), transparent 80%);
+  transform: translateX(-100%);
+  animation: placeholderSweep 1.4s ease-in-out infinite;
+}
+
+.animate-choice-reveal {
+  animation: choiceReveal 420ms cubic-bezier(0.18, 0.9, 0.24, 1) both;
+}
+
+@keyframes choiceReveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.965);
+    filter: blur(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes placeholderSweep {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}

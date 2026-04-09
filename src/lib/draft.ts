@@ -124,6 +124,17 @@ const fillRemainingChoices = (currentChoices: Player[], pool: Player[], rng: () 
   return [...currentChoices, ...weightedSampleWithoutReplacement(remainder, 5 - currentChoices.length, rng)];
 };
 
+const shuffleChoices = (choices: Player[], rng: () => number) => {
+  const shuffled = [...choices];
+
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(rng() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+
+  return shuffled;
+};
+
 export const generateChoices = (roster: RosterSlot[], draftedPlayerIds: string[], seed: number, pickNumber: number) => {
   const rng = mulberry32(seed + pickNumber * 9973);
   const availablePool = allPlayers.filter((player) => !draftedPlayerIds.includes(player.id));
@@ -149,11 +160,5 @@ export const generateChoices = (roster: RosterSlot[], draftedPlayerIds: string[]
   const fallbackPool = availablePool.filter((player) => !usedIds.has(player.id));
   const completed = fillRemainingChoices(choices, fallbackPool, rng);
 
-  return completed
-    .sort((a, b) => {
-      const tierDiff = b.hallOfFameTier.localeCompare(a.hallOfFameTier);
-      if (tierDiff !== 0) return tierDiff;
-      return randomInt(rng, -2, 2);
-    })
-    .slice(0, 5);
+  return shuffleChoices(completed.slice(0, 5), rng);
 };
