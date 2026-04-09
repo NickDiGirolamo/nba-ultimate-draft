@@ -45,6 +45,8 @@ const directImageOverrides: Record<string, string> = {
     "https://cdn.artphotolimited.com/images/65802cc8bd40b870df716a6a/1000x1000/magic-johnson-leads-the-game-1992.jpg",
   "michael-jordan":
     "https://static.wikia.nocookie.net/nbastreet/images/9/97/FDB1BF72-3F75-446F-B4F2-000331AE638B.jpeg/revision/latest?cb=20210419024456",
+  "vince-carter":
+    "https://slamonline.com/wp-content/uploads/2014/07/vince_1.jpg",
   "oscar-robertson":
     "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Oscar_Robertson1971.jpg/250px-Oscar_Robertson1971.jpg",
   "penny-hardaway":
