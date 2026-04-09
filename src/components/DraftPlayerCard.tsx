@@ -59,7 +59,7 @@ export const DraftPlayerCard = ({
         className={clsx(
           "relative mb-4 w-full flex-none overflow-hidden rounded-[22px]",
           imageUrl ? "bg-black" : visual.bg,
-          compact ? "h-[150px] min-h-[150px] max-h-[150px]" : "h-[760px] min-h-[760px] max-h-[760px]",
+          compact ? "h-[75px] min-h-[75px] max-h-[75px]" : "h-[380px] min-h-[380px] max-h-[380px]",
         )}
       >
         {imageUrl ? (
