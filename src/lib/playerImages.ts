@@ -57,6 +57,8 @@ const directImageOverrides: Record<string, string> = {
     "https://cdn.nba.com/manage/2022/09/ginobili-emotion.jpg",
   "michael-jordan":
     "https://static.wikia.nocookie.net/nbastreet/images/9/97/FDB1BF72-3F75-446F-B4F2-000331AE638B.jpeg/revision/latest?cb=20210419024456",
+  "moses-malone":
+    "https://media.gq.com/photos/55f7333e2de2e54e38605818/1:1/w_1326,h_1326,c_limit/moses-malone-sixers.jpg",
   "vince-carter":
     "https://slamonline.com/wp-content/uploads/2014/07/vince_1.jpg",
   "victor-wembanyama":
