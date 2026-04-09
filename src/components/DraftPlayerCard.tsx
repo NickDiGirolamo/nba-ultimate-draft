@@ -38,7 +38,7 @@ export const DraftPlayerCard = ({
       disabled={disabled}
       className={clsx(
         "tier-shine group relative flex h-full w-full flex-col overflow-hidden rounded-[26px] border bg-gradient-to-br p-5 text-left transition duration-300",
-        compact ? "min-h-[220px]" : "min-h-[760px]",
+        compact ? "min-h-[220px]" : "min-h-[390px]",
         tierStyles[player.hallOfFameTier],
         disabled ? "cursor-default opacity-70" : "hover:-translate-y-2 hover:scale-[1.01]",
         selected && "scale-[1.02] ring-2 ring-glow",
@@ -59,7 +59,7 @@ export const DraftPlayerCard = ({
         className={clsx(
           "relative mb-4 overflow-hidden rounded-[22px] border border-white/10 bg-gradient-to-br",
           visual.bg,
-          compact ? "h-[140px]" : "h-[560px]",
+          compact ? "h-[140px]" : "h-[244px]",
         )}
       >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_32%)]" />
