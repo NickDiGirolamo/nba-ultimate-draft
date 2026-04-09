@@ -149,7 +149,7 @@ function App() {
     const timers = state.currentChoices.map((_, index) =>
       window.setTimeout(() => {
         setVisibleChoiceCount((current) => Math.max(current, index + 1));
-      }, 500 + index * 2200),
+      }, 500 + index * 1700),
     );
 
     return () => {
