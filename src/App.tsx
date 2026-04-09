@@ -62,7 +62,13 @@ function App() {
             </div>
             <div>
               <div className="text-xs uppercase tracking-[0.28em] text-slate-400">Legends Draft</div>
-              <div className="mt-1 font-display text-2xl text-white">All-Time NBA Franchise Builder</div>
+              <button
+                type="button"
+                onClick={resetDraft}
+                className="mt-1 font-display text-2xl text-white transition hover:text-amber-100"
+              >
+                All-Time NBA Franchise Builder
+              </button>
             </div>
           </div>
 
