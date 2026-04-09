@@ -18,9 +18,13 @@ const RivalIcon = ({ compact = false }: { compact?: boolean }) => (
 );
 
 const BigThreeIcon = ({ compact = false }: { compact?: boolean }) => (
-  <div className={clsx("flex items-end gap-0.5 font-black leading-none", compact ? "text-[8px]" : "text-[9px]")}>
-    <span className="tracking-[0.18em]">BIG</span>
-    <span className={compact ? "text-[11px]" : "text-[12px]"}>3</span>
+  <div
+    className={clsx(
+      "flex items-center justify-center rounded-full border border-current font-black leading-none",
+      compact ? "h-4 w-4 text-[9px]" : "h-5 w-5 text-[11px]",
+    )}
+  >
+    3
   </div>
 );
 
