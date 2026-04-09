@@ -84,7 +84,7 @@ const directImageOverrides: Record<string, string> = {
   "chris-paul":
     "https://legacymedia.sportsplatform.io/images_root/slides/photos/000/538/714/106958476_original.jpg?1291243979",
   "chris-mullin":
-    "https://cdn.nba.com/manage/2021/08/chris-mullin-looks.jpg",
+    "https://hoopshallny.org/wp-content/uploads/2023/08/Chris-Mullin.jpg",
   "chris-webber":
     "https://preview.redd.it/how-well-do-you-guys-see-a-prime-chris-webber-doing-in-v0-l2kk3m3vv2xf1.jpeg?width=640&crop=smart&auto=webp&s=5a5b2716a6b1f5db7dca2179333fd4db7077faf7",
   "charles-barkley":
