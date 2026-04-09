@@ -78,52 +78,159 @@ textarea {
   position: relative;
 }
 
-.choice-hidden {
-  opacity: 1;
+.choice-slot {
+  perspective: 1600px;
 }
 
-.choice-placeholder {
-  background:
-    linear-gradient(180deg, rgba(10, 14, 20, 0.82), rgba(6, 8, 12, 0.92)),
-    rgba(255, 255, 255, 0.03);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+.choice-flip-card {
   position: relative;
-  overflow: hidden;
+  min-height: 390px;
+  transform-style: preserve-3d;
+  transition: transform 980ms cubic-bezier(0.22, 0.78, 0.2, 1);
 }
 
-.choice-placeholder::after {
-  content: "";
+.choice-flip-card.is-revealed {
+  transform: rotateY(180deg);
+}
+
+.choice-face {
   position: absolute;
   inset: 0;
-  background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.08), transparent 80%);
-  transform: translateX(-100%);
-  animation: placeholderSweep 3.2s ease-in-out infinite;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
-.animate-choice-reveal {
-  animation: choiceReveal 1320ms cubic-bezier(0.18, 0.9, 0.24, 1) both;
+.choice-face-back {
+  transform: rotateY(0deg);
 }
 
-@keyframes choiceReveal {
+.choice-face-front {
+  transform: rotateY(180deg);
+}
+
+.choice-card-back {
+  background:
+    radial-gradient(circle at top, rgba(245, 158, 11, 0.16), transparent 32%),
+    linear-gradient(160deg, rgba(18, 24, 35, 0.98), rgba(8, 10, 16, 0.98));
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  position: relative;
+}
+
+.choice-card-back::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(251, 191, 36, 0.18);
+  pointer-events: none;
+}
+
+.choice-card-back::after {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background:
+    linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.08), transparent 60%);
+  transform: translateX(-100%) rotate(12deg);
+  animation: cardBackSweep 3.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.choice-card-back__inner {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-height: 390px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 18px;
+}
+
+.choice-card-back__badge {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 999px;
+  color: rgba(226, 232, 240, 0.9);
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  padding: 8px 12px;
+  text-transform: uppercase;
+}
+
+.choice-card-back__crest {
+  position: relative;
+  display: flex;
+  height: 168px;
+  width: 168px;
+  align-items: center;
+  justify-content: center;
+}
+
+.choice-card-back__crest-ring,
+.choice-card-back__crest-ring::before,
+.choice-card-back__crest-ring::after {
+  position: absolute;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  content: "";
+  inset: 0;
+}
+
+.choice-card-back__crest-ring::before {
+  inset: 16px;
+  border-color: rgba(56, 189, 248, 0.18);
+}
+
+.choice-card-back__crest-ring::after {
+  inset: 34px;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.choice-card-back__crest-core {
+  display: flex;
+  height: 84px;
+  width: 84px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.92), rgba(249, 115, 22, 0.92));
+  color: rgba(15, 23, 42, 0.95);
+  font-family: "Bebas Neue", "Outfit", sans-serif;
+  font-size: 28px;
+  letter-spacing: 0.14em;
+  text-indent: 0.14em;
+}
+
+.choice-card-back__pattern {
+  width: 100%;
+  flex: 1;
+  margin: 16px 0;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at center, rgba(251, 191, 36, 0.08), transparent 42%),
+    linear-gradient(90deg, transparent 48%, rgba(255, 255, 255, 0.08) 50%, transparent 52%),
+    linear-gradient(0deg, transparent 48%, rgba(255, 255, 255, 0.08) 50%, transparent 52%);
+  opacity: 0.9;
+}
+
+.choice-card-back__footer {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+@keyframes cardBackSweep {
   from {
-    opacity: 0;
-    transform: translateY(18px) scale(0.965);
-    filter: blur(10px);
+    transform: translateX(-100%) rotate(12deg);
   }
 
   to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
-}
-
-@keyframes placeholderSweep {
-  from {
-    transform: translateX(-100%);
-  }
-
-  to {
-    transform: translateX(100%);
+    transform: translateX(100%) rotate(12deg);
   }
 }

@@ -297,27 +297,37 @@ function App() {
                     return (
                       <div
                         key={player.id}
-                        className={revealed ? "choice-reveal animate-choice-reveal" : "choice-hidden"}
-                        style={{ animationDelay: revealed ? `${index * 220}ms` : "0ms" }}
+                        className="choice-slot"
+                        style={{ animationDelay: `${index * 220}ms` }}
                       >
-                        {revealed ? (
-                          <DraftPlayerCard
-                            player={player}
-                            onSelect={draftPlayer}
-                            disabled={Boolean(state.selectedPlayerId)}
-                            selected={state.selectedPlayerId === player.id}
-                            draftedPlayerIds={state.draftedPlayerIds}
-                          />
-                        ) : (
-                          <div className="choice-placeholder h-full min-h-[390px] rounded-[26px] border border-white/10">
-                            <div className="flex h-full flex-col justify-between p-5">
-                              <div className="h-20 rounded-[22px] bg-white/6" />
-                              <div className="h-[244px] rounded-[22px] bg-white/6" />
-                              <div className="h-8 rounded-xl bg-white/6" />
-                              <div className="h-12 rounded-2xl bg-white/6" />
+                        <div className={`choice-flip-card ${revealed ? "is-revealed" : ""}`}>
+                          <div className="choice-face choice-face-back">
+                            <div className="choice-card-back h-full min-h-[390px] rounded-[26px] border border-white/10">
+                              <div className="choice-card-back__inner">
+                                <div className="choice-card-back__badge">Legends Draft</div>
+                                <div className="choice-card-back__crest">
+                                  <div className="choice-card-back__crest-ring" />
+                                  <div className="choice-card-back__crest-core">NBA</div>
+                                </div>
+                                <div className="choice-card-back__pattern" />
+                                <div className="choice-card-back__footer">
+                                  <span>All-Time</span>
+                                  <span>Reveal</span>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        )}
+
+                          <div className="choice-face choice-face-front">
+                            <DraftPlayerCard
+                              player={player}
+                              onSelect={draftPlayer}
+                              disabled={Boolean(state.selectedPlayerId)}
+                              selected={state.selectedPlayerId === player.id}
+                              draftedPlayerIds={state.draftedPlayerIds}
+                            />
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
