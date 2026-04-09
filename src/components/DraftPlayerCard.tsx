@@ -21,7 +21,7 @@ const playerPhotoFits: Record<
   string,
   { mode?: "cover" | "contain"; scale?: number; position?: string }
 > = {
-  "scottie-pippen": { mode: "cover", scale: 1.28, position: "78% 16%" },
+  "scottie-pippen": { mode: "contain", scale: 0.9, position: "center center" },
   "dominique-wilkins": { mode: "cover", scale: 1.12, position: "center 14%" },
   "michael-jordan": { mode: "cover", scale: 1.1, position: "center 10%" },
   "lebron-james": { mode: "cover", scale: 1.08, position: "center 12%" },
