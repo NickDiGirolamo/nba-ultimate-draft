@@ -50,6 +50,30 @@ const badgeLabel = (type: PlayerBadgeType) => {
   }
 };
 
+const badgeTooltip = (
+  type: PlayerBadgeType,
+  title: string,
+  players: string[],
+  active: boolean,
+) => {
+  if (type === "big-3") {
+    const playerList = players
+      .map((playerId) =>
+        playerId
+          .split("-")
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(" "),
+      )
+      .join(" + ");
+
+    return active
+      ? `${title} active: ${playerList}`
+      : `${title} requires: ${playerList}`;
+  }
+
+  return active ? `${title} active` : `${title} available`;
+};
+
 export const PlayerSynergyBadges = ({
   playerId,
   draftedPlayerIds,
@@ -71,7 +95,7 @@ export const PlayerSynergyBadges = ({
       {badges.map(({ definition, active }) => (
         <div
           key={definition.id}
-          title={active ? `${definition.title} active` : `${definition.title} available`}
+          title={badgeTooltip(definition.type, definition.title, definition.players, active)}
           className={clsx(
             "inline-flex items-center gap-1.5 rounded-full border px-2.5 transition-all duration-300",
             compact ? "h-7 text-[10px]" : "h-8 text-[11px]",
