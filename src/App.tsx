@@ -232,8 +232,8 @@ function App() {
             <div
               className="gap-6"
               style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(0, 0.1fr) minmax(0, 0.45fr) minmax(0, 0.45fr)",
+                display: "flex",
+                width: "100%",
                 alignItems: "stretch",
               }}
             >
@@ -241,6 +241,7 @@ function App() {
                 type="button"
                 onClick={resetDraft}
                 className="glass-panel inline-flex h-full min-w-0 flex-col items-center justify-center gap-3 rounded-[28px] p-5 text-center shadow-card transition hover:border-amber-200/40 hover:text-amber-100"
+                style={{ flex: "0 0 10%", width: "10%" }}
               >
                 <div className="rounded-full border border-white/12 bg-white/8 p-3">
                   <Trophy size={18} className="text-amber-200" />
@@ -248,11 +249,14 @@ function App() {
                 <span className="text-xs uppercase tracking-[0.24em] text-slate-200">Home</span>
               </button>
 
-              <div className="min-w-0">
+              <div className="min-w-0" style={{ flex: "0 0 45%", width: "45%" }}>
                 <ProgressHeader pickNumber={state.pickNumber} />
               </div>
 
-              <div className="glass-panel min-w-0 rounded-[28px] p-5 shadow-card">
+              <div
+                className="glass-panel min-w-0 rounded-[28px] p-5 shadow-card"
+                style={{ flex: "0 0 45%", width: "45%" }}
+              >
                 <div className="flex h-full flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
