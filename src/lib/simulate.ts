@@ -2,6 +2,27 @@ import { Player, RosterSlot, SimulationResult, TeamMetrics } from "../types";
 import { clamp, mulberry32 } from "./random";
 
 const average = (values: number[]) => (values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length);
+const SLOT_IMPACT_WEIGHTS = [1.36, 1.28, 1.22, 1.18, 1.24, 0.72, 0.56, 0.42, 0.3, 0.2];
+
+const getWeightedRosterEntries = (roster: RosterSlot[]) =>
+  roster
+    .map((slot, index) => ({
+      slot,
+      index,
+      player: slot.player,
+      weight: SLOT_IMPACT_WEIGHTS[index] ?? 0.18,
+    }))
+    .filter((entry): entry is { slot: RosterSlot; index: number; player: Player; weight: number } => Boolean(entry.player));
+
+const weightedAverage = <T>(items: T[], getValue: (item: T) => number, getWeight: (item: T) => number) => {
+  if (items.length === 0) return 0;
+
+  const totalWeight = items.reduce((sum, item) => sum + getWeight(item), 0);
+  if (totalWeight <= 0) return 0;
+
+  return items.reduce((sum, item) => sum + getValue(item) * getWeight(item), 0) / totalWeight;
+};
+
 const getPlayers = (roster: RosterSlot[]) => roster.map((slot) => slot.player).filter((player): player is Player => Boolean(player));
 const getStarters = (roster: RosterSlot[]) => roster.slice(0, 5).map((slot) => slot.player).filter((player): player is Player => Boolean(player));
 const getBench = (roster: RosterSlot[]) => roster.slice(5).map((slot) => slot.player).filter((player): player is Player => Boolean(player));
@@ -46,29 +67,42 @@ export const evaluateTeam = (roster: RosterSlot[]): TeamMetrics => {
   const players = getPlayers(roster);
   const starters = getStarters(roster);
   const bench = getBench(roster);
-
-  const starterOverall = average(starters.map((player) => player.overall));
-  const benchOverall = average(bench.map((player) => player.overall));
-  const offense = average(starters.map((player) => player.offense)) * 0.76 + average(bench.map((player) => player.offense)) * 0.24;
-  const defense = average(starters.map((player) => player.defense)) * 0.78 + average(bench.map((player) => player.defense)) * 0.22;
-  const playmaking = average(starters.map((player) => player.playmaking)) * 0.72 + average(bench.map((player) => player.playmaking)) * 0.28;
-  const shooting = average(starters.map((player) => player.shooting)) * 0.75 + average(bench.map((player) => player.shooting)) * 0.25;
-  const rebounding = average(players.map((player) => player.rebounding));
-  const athleticism = average(players.map((player) => player.athleticism));
-  const depth = benchOverall;
-  const starPower = average(players.slice().sort((a, b) => b.overall - a.overall).slice(0, 3).map((player) => player.overall)) + 1.5;
-  const spacing = average(starters.map((player) => player.shooting)) + starters.filter((player) => player.shooting >= 86).length * 1.6;
-  const rimProtection = Math.max(...players.map((player) => player.interiorDefense)) * 0.65 + average(players.map((player) => player.interiorDefense)) * 0.35;
-  const wingDefense = average(players.filter((player) => ["SG", "SF", "PF"].includes(player.primaryPosition)).map((player) => player.perimeterDefense));
-  const benchScoring = average(bench.map((player) => player.offense));
+  const weightedEntries = getWeightedRosterEntries(roster);
+  const starterEntries = weightedEntries.filter((entry) => entry.index < 5);
+  const benchEntries = weightedEntries.filter((entry) => entry.index >= 5);
+  const weightedStarters = weightedAverage(starterEntries, (entry) => entry.player.overall, (entry) => entry.weight);
+  const weightedBench = weightedAverage(benchEntries, (entry) => entry.player.overall, (entry) => entry.weight);
+  const starterOverall = weightedStarters || average(starters.map((player) => player.overall));
+  const benchOverall = weightedBench || average(bench.map((player) => player.overall));
+  const offense = weightedAverage(weightedEntries, (entry) => entry.player.offense, (entry) => entry.weight);
+  const defense = weightedAverage(weightedEntries, (entry) => entry.player.defense, (entry) => entry.weight);
+  const playmaking = weightedAverage(weightedEntries, (entry) => entry.player.playmaking, (entry) => entry.weight);
+  const shooting = weightedAverage(weightedEntries, (entry) => entry.player.shooting, (entry) => entry.weight);
+  const rebounding = weightedAverage(weightedEntries, (entry) => entry.player.rebounding, (entry) => entry.weight);
+  const athleticism = weightedAverage(weightedEntries, (entry) => entry.player.athleticism, (entry) => entry.weight);
+  const depth = weightedAverage(benchEntries, (entry) => entry.player.overall, (entry) => entry.weight * (1.1 - entry.index * 0.03));
+  const starPower = weightedAverage(
+    starterEntries.slice().sort((a, b) => b.player.overall - a.player.overall).slice(0, 3),
+    (entry) => entry.player.overall,
+    (entry) => entry.weight,
+  ) + 1.5;
+  const spacing = weightedAverage(starterEntries, (entry) => entry.player.shooting, (entry) => entry.weight) + starters.filter((player) => player.shooting >= 86).length * 1.6;
+  const rimProtection = Math.max(...weightedEntries.map((entry) => entry.player.interiorDefense)) * 0.68 + weightedAverage(weightedEntries, (entry) => entry.player.interiorDefense, (entry) => entry.weight) * 0.32;
+  const wingDefense = weightedAverage(
+    weightedEntries.filter((entry) => ["SG", "SF", "PF"].includes(entry.player.primaryPosition)),
+    (entry) => entry.player.perimeterDefense,
+    (entry) => entry.weight,
+  );
+  const benchScoring = weightedAverage(benchEntries, (entry) => entry.player.offense, (entry) => entry.weight * (1.16 - entry.index * 0.05));
   const ballHandlers = players.filter((player) => player.playmaking >= 85 || player.primaryPosition === "PG");
   const dominantCreators = players.filter((player) => player.ballDominance >= 88);
   const eliteShooters = starters.filter((player) => player.shooting >= 88).length;
   const defensiveBigs = players.filter((player) => player.interiorDefense >= 88).length;
   const highRebounders = players.filter((player) => player.rebounding >= 85).length;
+  const outOfRoleStars = benchEntries.filter((entry) => entry.player.overall >= 90).length;
 
   let fit = 72;
-  let chemistry = average(players.map((player) => player.intangibles));
+  let chemistry = weightedAverage(weightedEntries, (entry) => entry.player.intangibles, (entry) => entry.weight);
 
   if (ballHandlers.length >= 2) fit += 6;
   else if (ballHandlers.length === 0) fit -= 12;
@@ -85,13 +119,22 @@ export const evaluateTeam = (roster: RosterSlot[]): TeamMetrics => {
   if (players.filter((player) => ["C", "PF"].includes(player.primaryPosition)).length >= 5) fit -= 9;
   if (players.filter((player) => player.primaryPosition === "C").length >= 4) fit -= 10;
   if (players.filter((player) => player.primaryPosition === "PG").length === 0) fit -= 12;
+  if (outOfRoleStars >= 2) fit -= 4;
+  else if (outOfRoleStars === 1) fit -= 2;
 
   chemistry += eliteShooters * 0.9;
   chemistry += ballHandlers.length * 0.75;
   chemistry -= dominantCreators.length > 3 ? 3 : 0;
 
-  const variance = clamp(12 + average(players.map((player) => 96 - player.durability)) * 0.18 + dominantCreators.length * 0.5 - average(players.map((player) => player.intangibles)) * 0.08, 5, 20);
-  const overall = clamp(starterOverall * 0.67 + benchOverall * 0.16 + fit * 0.09 + chemistry * 0.08, 65, 99);
+  const variance = clamp(
+    11 +
+      weightedAverage(weightedEntries, (entry) => 96 - entry.player.durability, (entry) => entry.weight) * 0.18 +
+      dominantCreators.length * 0.5 -
+      weightedAverage(weightedEntries, (entry) => entry.player.intangibles, (entry) => entry.weight) * 0.08,
+    5,
+    20,
+  );
+  const overall = clamp(starterOverall * 0.74 + benchOverall * 0.09 + fit * 0.1 + chemistry * 0.07, 65, 99);
 
   return {
     overall: Math.round(overall * 10) / 10,
