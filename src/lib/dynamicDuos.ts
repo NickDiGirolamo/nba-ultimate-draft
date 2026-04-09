@@ -40,6 +40,7 @@ const bigThreeStatBoost = {
 export const dynamicDuos: PlayerBadgeDefinition[] = [
   { id: "wade-lebron", title: "Dynamic Duos: Wade + LeBron", type: "dynamic-duo", players: ["dwyane-wade", "lebron-james"] },
   { id: "kobe-shaq", title: "Dynamic Duos: Kobe + Shaq", type: "dynamic-duo", players: ["kobe-bryant", "shaquille-o-neal"] },
+  { id: "payton-kemp", title: "Dynamic Duos: Payton + Kemp", type: "dynamic-duo", players: ["gary-payton", "shawn-kemp"] },
   { id: "nash-amare", title: "Dynamic Duos: Nash + Amar'e", type: "dynamic-duo", players: ["steve-nash", "amar-e-stoudemire"] },
   { id: "stockton-malone", title: "Dynamic Duos: Stockton + Malone", type: "dynamic-duo", players: ["john-stockton", "karl-malone"] },
   { id: "jordan-pippen", title: "Dynamic Duos: Jordan + Pippen", type: "dynamic-duo", players: ["michael-jordan", "scottie-pippen"] },
