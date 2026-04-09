@@ -109,8 +109,6 @@ const RosterSlotButton = ({
   selectedSlotIndex,
   onSlotClick,
 }: RosterSlotButtonProps) => {
-  const imageUrl = slot.player ? usePlayerImage(slot.player) : null;
-
   return (
     <button
       type="button"
@@ -128,25 +126,7 @@ const RosterSlotButton = ({
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           {slot.player ? (
-            <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-white/14 bg-black/20">
-              {imageUrl ? (
-                <img
-                  src={imageUrl}
-                  alt={slot.player.name}
-                  className="h-full w-full object-cover object-top"
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-slate-200">
-                  {slot.player.name
-                    .split(" ")
-                    .slice(0, 2)
-                    .map((part) => part[0])
-                    .join("")}
-                </div>
-              )}
-            </div>
+            <RosterThumbnail player={slot.player} />
           ) : (
             <div className="h-11 w-11 shrink-0 rounded-xl border border-dashed border-white/12 bg-black/18" />
           )}
@@ -171,5 +151,31 @@ const RosterSlotButton = ({
         </div>
       </div>
     </button>
+  );
+};
+
+const RosterThumbnail = ({ player }: { player: Player }) => {
+  const imageUrl = usePlayerImage(player);
+
+  return (
+    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-white/14 bg-black/20">
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt={player.name}
+          className="h-full w-full object-cover object-top"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-slate-200">
+          {player.name
+            .split(" ")
+            .slice(0, 2)
+            .map((part) => part[0])
+            .join("")}
+        </div>
+      )}
+    </div>
   );
 };
