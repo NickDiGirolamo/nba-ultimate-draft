@@ -229,25 +229,25 @@ function App() {
 
         {state.screen === "draft" && (
           <section className="space-y-6">
-            <div className="flex items-center justify-start">
-              <button
-                type="button"
-                onClick={resetDraft}
-                className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-4 py-2 text-xs uppercase tracking-[0.22em] text-slate-200 transition hover:border-amber-200/40 hover:text-amber-100"
-              >
-                <Trophy size={14} className="text-amber-200" />
-                Home
-              </button>
-            </div>
-
             <div
               className="gap-6"
               style={{
                 display: "grid",
-                gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+                gridTemplateColumns: "minmax(0, 0.1fr) minmax(0, 0.45fr) minmax(0, 0.45fr)",
                 alignItems: "stretch",
               }}
             >
+              <button
+                type="button"
+                onClick={resetDraft}
+                className="glass-panel inline-flex h-full min-w-0 flex-col items-center justify-center gap-3 rounded-[28px] p-5 text-center shadow-card transition hover:border-amber-200/40 hover:text-amber-100"
+              >
+                <div className="rounded-full border border-white/12 bg-white/8 p-3">
+                  <Trophy size={18} className="text-amber-200" />
+                </div>
+                <span className="text-xs uppercase tracking-[0.24em] text-slate-200">Home</span>
+              </button>
+
               <div className="min-w-0">
                 <ProgressHeader pickNumber={state.pickNumber} />
               </div>
