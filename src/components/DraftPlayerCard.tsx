@@ -57,23 +57,22 @@ export const DraftPlayerCard = ({
 
       <div
         className={clsx(
-          "relative mb-4 overflow-hidden rounded-[22px] border border-white/10 bg-gradient-to-br",
-          visual.bg,
+          "relative mb-4 overflow-hidden rounded-[22px]",
+          imageUrl ? "bg-black" : visual.bg,
           compact ? "h-[150px]" : "h-[380px]",
         )}
       >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_32%)]" />
-
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={player.name}
-            className="absolute inset-0 h-full w-full object-cover object-top"
+            className="absolute inset-0 h-full w-full object-cover object-center"
             loading="lazy"
             referrerPolicy="no-referrer"
           />
         ) : (
           <>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_32%)]" />
             <div
               className={clsx(
                 "absolute -right-6 -top-6 h-24 w-24 rounded-full blur-2xl",
