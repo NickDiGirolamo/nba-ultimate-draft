@@ -37,6 +37,8 @@ const directImageOverrides: Record<string, string> = {
     "https://cdn.nba.com/teams/legacy/www.nba.com/magic/sites/magic/files/9_penny-20170112.jpg",
   "ray-allen":
     "https://www.sportsnet.ca/wp-content/uploads/2013/07/allen_ray640.jpg",
+  "shawn-kemp":
+    "https://i.ebayimg.com/images/g/K9IAAOSwH-9emMX0/s-l1200.jpg",
   "steph-curry":
     "https://compote.slate.com/images/24605cda-82b1-4342-9af9-4b86f684174b.jpg",
 };
