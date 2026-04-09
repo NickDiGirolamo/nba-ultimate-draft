@@ -14,7 +14,7 @@ export type RosterSlotType =
 
 export type PlayerTier = "S" | "A" | "B" | "C";
 
-export type Screen = "landing" | "draft" | "simulating" | "results";
+export type Screen = "landing" | "briefing" | "draft" | "simulating" | "results";
 
 export interface DraftChallenge {
   id: string;
@@ -28,6 +28,14 @@ export interface RareEvent {
   title: string;
   description: string;
   impact: string;
+}
+
+export interface CategoryChallenge {
+  id: string;
+  title: string;
+  description: string;
+  metric: keyof TeamMetrics;
+  metricLabel: string;
 }
 
 export interface ChemistryBonus {
@@ -227,5 +235,7 @@ export interface DraftState {
   currentChallenge: DraftChallenge;
   currentRareEvent: RareEvent;
   rareEventsEnabled: boolean;
+  categoryChallengesEnabled: boolean;
+  currentCategoryChallenge: CategoryChallenge | null;
   seed: number;
 }

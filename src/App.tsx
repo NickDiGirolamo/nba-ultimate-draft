@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { BrainCircuit, Sparkles, Swords, Trophy } from "lucide-react";
+import { DraftBriefing } from "./components/DraftBriefing";
 import { DraftPlayerCard } from "./components/DraftPlayerCard";
 import { LandingHub } from "./components/LandingHub";
 import { ProgressHeader } from "./components/ProgressHeader";
@@ -20,6 +21,8 @@ function App() {
     resetDraft,
     handleRosterSlotClick,
     setRareEventsEnabled,
+    setCategoryChallengesEnabled,
+    beginDraftFromBriefing,
   } = useDraftGame();
 
   const choiceSignature = useMemo(
@@ -98,6 +101,21 @@ function App() {
             rareEventsEnabled={state.rareEventsEnabled}
             currentRareEvent={state.currentRareEvent}
             onRareEventsToggle={setRareEventsEnabled}
+            categoryChallengesEnabled={state.categoryChallengesEnabled}
+            currentCategoryChallenge={state.currentCategoryChallenge}
+            onCategoryChallengesToggle={setCategoryChallengesEnabled}
+          />
+        )}
+
+        {state.screen === "briefing" && (
+          <DraftBriefing
+            challenge={state.currentChallenge}
+            rareEvent={state.currentRareEvent}
+            rareEventsEnabled={state.rareEventsEnabled}
+            categoryChallenge={state.currentCategoryChallenge}
+            categoryChallengesEnabled={state.categoryChallengesEnabled}
+            onBack={resetDraft}
+            onBegin={beginDraftFromBriefing}
           />
         )}
 
@@ -121,6 +139,11 @@ function App() {
                           : "rounded-full border border-white/12 bg-white/8 px-3 py-2 text-slate-300"}>
                           Event: {state.currentRareEvent.title}
                         </span>
+                        {state.categoryChallengesEnabled && state.currentCategoryChallenge ? (
+                          <span className="rounded-full border border-emerald-200/18 bg-emerald-300/10 px-3 py-2 text-emerald-100">
+                            Focus: {state.currentCategoryChallenge.metricLabel}
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                     <button

@@ -1,6 +1,6 @@
 import clsx from "clsx";
-import { ChevronRight, Crown, Medal, Radar, Sparkles, Trophy, Zap } from "lucide-react";
-import { MetaProgress, RareEvent, RunHistoryEntry } from "../types";
+import { ChevronRight, Crown, Medal, Radar, Sparkles, Target, Trophy, Zap } from "lucide-react";
+import { CategoryChallenge, MetaProgress, RareEvent, RunHistoryEntry } from "../types";
 
 interface LandingHubProps {
   onStart: () => void;
@@ -9,6 +9,9 @@ interface LandingHubProps {
   rareEventsEnabled: boolean;
   currentRareEvent: RareEvent;
   onRareEventsToggle: (enabled: boolean) => void;
+  categoryChallengesEnabled: boolean;
+  currentCategoryChallenge: CategoryChallenge | null;
+  onCategoryChallengesToggle: (enabled: boolean) => void;
 }
 
 export const LandingHub = ({
@@ -18,6 +21,9 @@ export const LandingHub = ({
   rareEventsEnabled,
   currentRareEvent,
   onRareEventsToggle,
+  categoryChallengesEnabled,
+  currentCategoryChallenge,
+  onCategoryChallengesToggle,
 }: LandingHubProps) => (
   <section className="space-y-8">
     <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
@@ -72,6 +78,51 @@ export const LandingHub = ({
                   className={clsx(
                     "rounded-full px-4 py-2 text-sm font-medium transition",
                     rareEventsEnabled === option.value
+                      ? "bg-white text-slate-950"
+                      : "text-slate-300 hover:text-white",
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-[28px] border border-white/10 bg-black/20 p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-slate-400">
+                <Target size={14} className={categoryChallengesEnabled ? "text-emerald-200" : "text-slate-500"} />
+                Category Challenge
+              </div>
+              <h2 className="mt-2 font-display text-2xl text-white">
+                {categoryChallengesEnabled && currentCategoryChallenge ? currentCategoryChallenge.title : "Category Challenge Disabled"}
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
+                {categoryChallengesEnabled && currentCategoryChallenge
+                  ? currentCategoryChallenge.description
+                  : "Turn this on if you want an extra random objective that pushes you to chase the highest possible score in one specific team category."}
+              </p>
+              <p className="mt-2 text-sm text-emerald-100/90">
+                {categoryChallengesEnabled && currentCategoryChallenge
+                  ? `This run's side goal is to maximize ${currentCategoryChallenge.metricLabel.toLowerCase()}.`
+                  : "No random category target will be assigned."}
+              </p>
+            </div>
+
+            <div className="inline-flex rounded-full border border-white/12 bg-black/30 p-1">
+              {[
+                { label: "Enabled", value: true },
+                { label: "Disabled", value: false },
+              ].map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  onClick={() => onCategoryChallengesToggle(option.value)}
+                  className={clsx(
+                    "rounded-full px-4 py-2 text-sm font-medium transition",
+                    categoryChallengesEnabled === option.value
                       ? "bg-white text-slate-950"
                       : "text-slate-300 hover:text-white",
                   )}

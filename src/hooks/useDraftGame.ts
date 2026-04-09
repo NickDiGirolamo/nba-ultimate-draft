@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DraftState, Player, RunHistoryEntry, Screen } from "../types";
 import { STORAGE_KEY, assignPlayerToRoster, createSeed, generateChoices, rosterTemplate } from "../lib/draft";
 import { runSeasonSimulation } from "../lib/simulate";
-import { buildMetaProgress, selectDraftChallenge, selectRareEvent, standardRareEvent } from "../lib/meta";
+import { buildMetaProgress, selectCategoryChallenge, selectDraftChallenge, selectRareEvent, standardRareEvent } from "../lib/meta";
 import { mulberry32 } from "../lib/random";
 
 const HISTORY_LIMIT = 24;
@@ -49,6 +49,7 @@ const createInitialState = (): DraftState => {
   const roster = rosterTemplate();
   const rng = mulberry32(seed + 77);
   const rareEventsEnabled = true;
+  const categoryChallengesEnabled = true;
 
   return {
     screen: "landing",
@@ -66,6 +67,8 @@ const createInitialState = (): DraftState => {
     currentChallenge: selectDraftChallenge(rng),
     currentRareEvent: rareEventsEnabled ? selectRareEvent(rng) : standardRareEvent,
     rareEventsEnabled,
+    categoryChallengesEnabled,
+    currentCategoryChallenge: categoryChallengesEnabled ? selectCategoryChallenge(rng) : null,
     seed,
   };
 };
@@ -82,6 +85,8 @@ const normalizeState = (value: DraftState): DraftState => {
     currentChallenge: value.currentChallenge ?? selectDraftChallenge(rng),
     rareEventsEnabled: value.rareEventsEnabled ?? true,
     currentRareEvent: value.currentRareEvent ?? ((value.rareEventsEnabled ?? true) ? selectRareEvent(rng) : standardRareEvent),
+    categoryChallengesEnabled: value.categoryChallengesEnabled ?? true,
+    currentCategoryChallenge: value.currentCategoryChallenge ?? ((value.categoryChallengesEnabled ?? true) ? selectCategoryChallenge(rng) : null),
     seed,
   };
 };
@@ -133,9 +138,17 @@ export const useDraftGame = () => {
       unlockedPlayerIds: state.unlockedPlayerIds,
       currentChallenge: selectDraftChallenge(rng),
       currentRareEvent: state.rareEventsEnabled ? selectRareEvent(rng) : standardRareEvent,
+      currentCategoryChallenge: state.categoryChallengesEnabled ? selectCategoryChallenge(rng) : null,
       seed,
-      screen: "draft",
+      screen: "briefing",
     });
+  };
+
+  const beginDraftFromBriefing = () => {
+    setState((current) => ({
+      ...current,
+      screen: "draft",
+    }));
   };
 
   const draftPlayer = (player: Player) => {
@@ -261,6 +274,8 @@ export const useDraftGame = () => {
       unlockedPlayerIds: state.unlockedPlayerIds,
       rareEventsEnabled: state.rareEventsEnabled,
       currentRareEvent: state.rareEventsEnabled ? fresh.currentRareEvent : standardRareEvent,
+      categoryChallengesEnabled: state.categoryChallengesEnabled,
+      currentCategoryChallenge: state.categoryChallengesEnabled ? fresh.currentCategoryChallenge : null,
       screen: "landing",
     });
   };
@@ -276,6 +291,17 @@ export const useDraftGame = () => {
     });
   };
 
+  const setCategoryChallengesEnabled = (enabled: boolean) => {
+    setState((current) => {
+      const rng = mulberry32(current.seed + 177);
+      return {
+        ...current,
+        categoryChallengesEnabled: enabled,
+        currentCategoryChallenge: enabled ? selectCategoryChallenge(rng) : null,
+      };
+    });
+  };
+
   const setScreen = (screen: Screen) => {
     setState((current) => ({ ...current, screen }));
   };
@@ -286,11 +312,13 @@ export const useDraftGame = () => {
     teamAverage,
     completedRoster,
     startDraft,
+    beginDraftFromBriefing,
     draftPlayer,
     beginSimulation,
     resetDraft,
     setScreen,
     handleRosterSlotClick,
     setRareEventsEnabled,
+    setCategoryChallengesEnabled,
   };
 };

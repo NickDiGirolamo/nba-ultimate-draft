@@ -1,5 +1,6 @@
 import { allPlayers } from "../data/players";
 import {
+  CategoryChallenge,
   ChemistryBonus,
   CollectionGoals,
   DraftChallenge,
@@ -102,6 +103,65 @@ export const standardRareEvent: RareEvent = {
   impact: "No extra event bonus will be applied this run.",
 };
 
+export const categoryChallenges: CategoryChallenge[] = [
+  {
+    id: "offense-lab",
+    title: "Category Focus: Offense",
+    description: "Draft for the highest offensive score you can produce, even if the roster gets a little volatile.",
+    metric: "offense",
+    metricLabel: "Offense",
+  },
+  {
+    id: "defense-lab",
+    title: "Category Focus: Defense",
+    description: "Prioritize stoppers, rim deterrence, and two-way balance to post the best defense score possible.",
+    metric: "defense",
+    metricLabel: "Defense",
+  },
+  {
+    id: "playmaking-lab",
+    title: "Category Focus: Playmaking",
+    description: "Stack elite creators and connectors to push the team's playmaking ceiling.",
+    metric: "playmaking",
+    metricLabel: "Playmaking",
+  },
+  {
+    id: "shooting-lab",
+    title: "Category Focus: Shooting",
+    description: "Chase the most dangerous spacing profile in the draft by loading up on shooting.",
+    metric: "shooting",
+    metricLabel: "Shooting",
+  },
+  {
+    id: "rebounding-lab",
+    title: "Category Focus: Rebounding",
+    description: "Build a glass-dominant roster and try to max out the rebounding score.",
+    metric: "rebounding",
+    metricLabel: "Rebounding",
+  },
+  {
+    id: "fit-lab",
+    title: "Category Focus: Fit",
+    description: "Build the cleanest, most complementary roster possible and aim for the highest fit score.",
+    metric: "fit",
+    metricLabel: "Fit",
+  },
+  {
+    id: "chemistry-lab",
+    title: "Category Focus: Chemistry",
+    description: "Lean into synergy systems and lineup balance to produce the strongest chemistry score.",
+    metric: "chemistry",
+    metricLabel: "Chemistry",
+  },
+  {
+    id: "depth-lab",
+    title: "Category Focus: Depth",
+    description: "Treat the full 10-man roster seriously and try to post the highest depth grade.",
+    metric: "depth",
+    metricLabel: "Depth",
+  },
+];
+
 const chemistryDefinitions = [
   {
     id: "stockton-malone",
@@ -163,6 +223,7 @@ const chemistryDefinitions = [
 
 export const selectDraftChallenge = (rng: () => number) => randomItem(draftChallenges, rng);
 export const selectRareEvent = (rng: () => number) => randomItem(rareEvents, rng);
+export const selectCategoryChallenge = (rng: () => number) => randomItem(categoryChallenges, rng);
 
 export const getChemistryBonuses = (playerIds: string[]): ChemistryBonus[] => {
   const owned = new Set(playerIds);
