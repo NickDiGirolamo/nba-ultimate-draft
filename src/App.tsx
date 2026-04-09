@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BrainCircuit, Sparkles, Swords, Trophy } from "lucide-react";
+import { BrainCircuit, Flag, Shield, Sparkles, Swords, Target, Trophy } from "lucide-react";
 import { DraftBriefing } from "./components/DraftBriefing";
 import { DraftPlayerCard } from "./components/DraftPlayerCard";
 import { LandingHub } from "./components/LandingHub";
@@ -8,6 +8,35 @@ import { ResultsShowcase } from "./components/ResultsShowcase";
 import { RosterSidebar } from "./components/RosterSidebar";
 import { SimulationScreen } from "./components/SimulationScreen";
 import { useDraftGame } from "./hooks/useDraftGame";
+
+const challengeStrategyMap: Record<string, string> = {
+  "no-s-tier-shortcut": "Pass on raw ceiling and hunt efficient value, lineup fit, and synergy chains that can overperform their overall totals.",
+  "floor-spacers": "Prioritize elite shooters early, then protect the spacing with playmakers and at least one dependable big.",
+  "fortress-build": "Chase interior anchors, point-of-attack defenders, and rangy wings before you worry about pure scoring punch.",
+  "creator-collective": "Stack initiators and secondary creators so every lineup unit has a real offensive organizer.",
+  "dynasty-depth": "Treat the bench as a weapon. Balanced support slots and smart lineup order matter more than one extra star swing.",
+  "title-or-bust": "Draft for playoff survivability: two-way stars, real size, late-game creation, and as few lineup holes as possible.",
+};
+
+const rareEventStrategyMap: Record<string, string> = {
+  "rare-events-disabled": "No environment trick here. Draft the cleanest all-around roster you can and lean into broad team fit.",
+  "nineties-night": "Old-school wings, bruising bigs, and 90s cores get more love than usual, so nostalgia-heavy builds have extra upside.",
+  "pace-and-space": "Spacing matters more than normal. Prioritize shooting at guard and wing, and avoid clogging the floor with too many non-shooters.",
+  "defense-travels": "This is the run to chase stoppers. Wing defense, rim deterrence, and lineup versatility will hold value deep into the playoffs.",
+  "point-forward-era": "Large creators are premium. Wings and forwards who can initiate offense give your lineup a bigger boost than usual.",
+  "tower-ball": "Don't be afraid to go big. Rebounding, interior defense, and frontcourt depth get a friendlier translation this run.",
+};
+
+const categoryStrategyMap: Record<string, string> = {
+  offense: "Lean toward primary scorers, shot creators, and guards or wings who can keep pressure on the defense every possession.",
+  defense: "Value stoppers, rim protectors, and lineup versatility over microwave offense.",
+  playmaking: "Prioritize lead initiators and connective passers so every unit can generate easy looks.",
+  shooting: "Load up on elite perimeter threats and avoid too many spacing liabilities in the same lineup.",
+  rebounding: "Target size, physicality, and multiple frontcourt contributors who can control the glass.",
+  fit: "Draft complementary skill sets instead of redundant stars. Cover creation, spacing, defense, and size in one coherent build.",
+  chemistry: "Chase badge synergies, iconic pairings, and clean lineup balance that amplifies everyone else.",
+  depth: "Treat the sixth through eighth spots like real rotation anchors and avoid letting the bench fall off a cliff.",
+};
 
 function App() {
   const {
@@ -33,6 +62,82 @@ function App() {
   const [visibleChoiceCount, setVisibleChoiceCount] = useState(
     state.currentChoices.length,
   );
+  const draftIntel = useMemo(() => {
+    const cards = [
+      {
+        id: "challenge",
+        label: "Primary Challenge",
+        title: state.currentChallenge.title,
+        summary: state.currentChallenge.description,
+        detail: `Reward: +${state.currentChallenge.reward} legacy if you complete it.`,
+        strategy:
+          challengeStrategyMap[state.currentChallenge.id] ??
+          "Draft with the active objective in mind and let it break ties between similar players.",
+        icon: Flag,
+        wrapperClass:
+          "rounded-[26px] border border-amber-300/18 bg-[linear-gradient(135deg,rgba(252,211,77,0.14),rgba(15,23,42,0.82))] p-5",
+        iconClass: "rounded-2xl bg-amber-300/16 p-3 text-amber-100",
+        detailClass: "text-amber-100",
+      },
+      {
+        id: "event",
+        label: state.rareEventsEnabled ? "Rare Event Active" : "Environment",
+        title: state.currentRareEvent.title,
+        summary: state.rareEventsEnabled
+          ? state.currentRareEvent.description
+          : "Rare events are disabled, so this run uses the standard simulation environment.",
+        detail: state.currentRareEvent.impact,
+        strategy:
+          rareEventStrategyMap[state.currentRareEvent.id] ??
+          "Use the event as a tiebreaker whenever you are choosing between otherwise similar roster directions.",
+        icon: Sparkles,
+        wrapperClass: state.rareEventsEnabled
+          ? "rounded-[26px] border border-sky-300/18 bg-[linear-gradient(135deg,rgba(34,211,238,0.16),rgba(15,23,42,0.78))] p-5"
+          : "rounded-[26px] border border-white/10 bg-black/20 p-5",
+        iconClass: state.rareEventsEnabled
+          ? "rounded-2xl bg-sky-300/16 p-3 text-sky-100"
+          : "rounded-2xl bg-white/8 p-3 text-slate-300",
+        detailClass: state.rareEventsEnabled ? "text-sky-100" : "text-slate-300",
+      },
+      {
+        id: "category",
+        label: "Category Focus",
+        title:
+          state.categoryChallengesEnabled && state.currentCategoryChallenge
+            ? state.currentCategoryChallenge.metricLabel
+            : "Disabled",
+        summary:
+          state.categoryChallengesEnabled && state.currentCategoryChallenge
+            ? state.currentCategoryChallenge.description
+            : "No category-focus objective is active, so you can draft for the best all-around outcome.",
+        detail:
+          state.categoryChallengesEnabled && state.currentCategoryChallenge
+            ? `Goal: maximize your final ${state.currentCategoryChallenge.metricLabel.toLowerCase()} score.`
+            : "Goal: maximize total team quality instead of chasing one specific metric.",
+        strategy:
+          state.categoryChallengesEnabled && state.currentCategoryChallenge
+            ? categoryStrategyMap[state.currentCategoryChallenge.metric] ??
+              "Let the focus category break ties between players while still protecting overall roster balance."
+            : "Use this flexibility to build the strongest balanced roster possible.",
+        icon: Target,
+        wrapperClass: state.categoryChallengesEnabled
+          ? "rounded-[26px] border border-emerald-300/18 bg-[linear-gradient(135deg,rgba(74,222,128,0.14),rgba(15,23,42,0.82))] p-5"
+          : "rounded-[26px] border border-white/10 bg-black/20 p-5",
+        iconClass: state.categoryChallengesEnabled
+          ? "rounded-2xl bg-emerald-300/16 p-3 text-emerald-100"
+          : "rounded-2xl bg-white/8 p-3 text-slate-300",
+        detailClass: state.categoryChallengesEnabled ? "text-emerald-100" : "text-slate-300",
+      },
+    ];
+
+    return cards;
+  }, [
+    state.categoryChallengesEnabled,
+    state.currentCategoryChallenge,
+    state.currentChallenge,
+    state.currentRareEvent,
+    state.rareEventsEnabled,
+  ]);
 
   useEffect(() => {
     if (state.screen !== "draft") {
@@ -163,29 +268,40 @@ function App() {
                   </div>
                 </div>
 
-                <div className={state.rareEventsEnabled
-                  ? "glass-panel rounded-[28px] border border-sky-300/18 bg-[linear-gradient(135deg,rgba(34,211,238,0.16),rgba(15,23,42,0.78))] p-5 shadow-card"
-                  : "glass-panel rounded-[28px] border border-white/10 bg-black/20 p-5 shadow-card"}>
-                  <div className="flex items-start gap-4">
-                    <div className={state.rareEventsEnabled
-                      ? "rounded-2xl bg-sky-300/16 p-3 text-sky-100"
-                      : "rounded-2xl bg-white/8 p-3 text-slate-300"}>
-                      <Sparkles size={20} />
+                <div className="glass-panel rounded-[28px] p-5 shadow-card">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-2xl bg-white/8 p-3 text-slate-200">
+                      <Shield size={20} />
                     </div>
-                    <div className="min-w-0">
-                      <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
-                        {state.rareEventsEnabled ? "Rare Event Active" : "Standard Environment"}
-                      </div>
-                      <h3 className="mt-2 font-display text-2xl text-white">
-                        {state.currentRareEvent.title}
-                      </h3>
-                      <p className="mt-2 text-sm leading-7 text-slate-200">
-                        {state.currentRareEvent.description}
-                      </p>
-                      <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-slate-200">
-                        {state.currentRareEvent.impact}
-                      </div>
+                    <div>
+                      <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Run Intel</div>
+                      <h3 className="mt-1 font-display text-2xl text-white">Active parameters and draft strategy</h3>
                     </div>
+                  </div>
+
+                  <div className="mt-5 grid gap-4 xl:grid-cols-3">
+                    {draftIntel.map((item) => (
+                      <div key={item.id} className={item.wrapperClass}>
+                        <div className="flex items-start gap-4">
+                          <div className={item.iconClass}>
+                            <item.icon size={20} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs uppercase tracking-[0.22em] text-slate-400">
+                              {item.label}
+                            </div>
+                            <h4 className="mt-2 font-display text-2xl text-white">{item.title}</h4>
+                            <p className="mt-3 text-sm leading-7 text-slate-200">{item.summary}</p>
+                            <div className={`mt-3 text-sm ${item.detailClass}`}>{item.detail}</div>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                          <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Draft Strategy</div>
+                          <div className="mt-2 text-sm leading-7 text-slate-200">{item.strategy}</div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
