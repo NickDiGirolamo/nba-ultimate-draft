@@ -12,8 +12,19 @@ interface PlayerSynergyBadgesProps {
 
 const RivalIcon = ({ compact = false }: { compact?: boolean }) => (
   <div className={clsx("relative", compact ? "h-3 w-5" : "h-3.5 w-6")}>
-    <span className="absolute left-0 top-0.5 h-2.5 w-2.5 rounded-t-full rounded-bl-full border-2 border-current border-r-0" />
-    <span className="absolute right-0 top-0.5 h-2.5 w-2.5 rounded-t-full rounded-br-full border-2 border-current border-l-0" />
+    <span
+      className={clsx(
+        "absolute left-0 top-0.5 block border-b-[2px] border-l-[1px] border-current",
+        compact ? "h-2 w-2.5 skew-y-[18deg]" : "h-2.5 w-3 skew-y-[18deg]",
+      )}
+    />
+    <span
+      className={clsx(
+        "absolute right-0 top-0.5 block border-b-[2px] border-r-[1px] border-current",
+        compact ? "h-2 w-2.5 -skew-y-[18deg]" : "h-2.5 w-3 -skew-y-[18deg]",
+      )}
+    />
+    <span className="absolute inset-x-[32%] top-0 h-px bg-current/55" />
   </div>
 );
 
