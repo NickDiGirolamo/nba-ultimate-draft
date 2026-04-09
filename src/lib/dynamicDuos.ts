@@ -1,9 +1,12 @@
 import { Player } from "../types";
 
-export interface DynamicDuo {
+export type PlayerBadgeType = "dynamic-duo" | "big-3" | "rival";
+
+export interface PlayerBadgeDefinition {
   id: string;
   title: string;
-  players: [string, string];
+  type: PlayerBadgeType;
+  players: string[];
 }
 
 const duoStatBoost = {
@@ -15,93 +18,107 @@ const duoStatBoost = {
   rebounding: 1,
   athleticism: 1,
   intangibles: 2,
-  durability: 0,
   ballDominance: 1,
   interiorDefense: 1,
   perimeterDefense: 1,
 } as const;
 
-export const dynamicDuos: DynamicDuo[] = [
-  {
-    id: "wade-lebron",
-    title: "Dynamic Duos: Wade + LeBron",
-    players: ["dwyane-wade", "lebron-james"],
-  },
-  {
-    id: "kobe-shaq",
-    title: "Dynamic Duos: Kobe + Shaq",
-    players: ["kobe-bryant", "shaquille-o-neal"],
-  },
-  {
-    id: "nash-amare",
-    title: "Dynamic Duos: Nash + Amar'e",
-    players: ["steve-nash", "amar-e-stoudemire"],
-  },
-  {
-    id: "stockton-malone",
-    title: "Dynamic Duos: Stockton + Malone",
-    players: ["john-stockton", "karl-malone"],
-  },
-  {
-    id: "jordan-pippen",
-    title: "Dynamic Duos: Jordan + Pippen",
-    players: ["michael-jordan", "scottie-pippen"],
-  },
-  {
-    id: "magic-kareem",
-    title: "Dynamic Duos: Magic + Kareem",
-    players: ["magic-johnson", "kareem-abdul-jabbar"],
-  },
-  {
-    id: "steph-klay",
-    title: "Dynamic Duos: Steph + Klay",
-    players: ["steph-curry", "klay-thompson"],
-  },
-  {
-    id: "tmac-yao",
-    title: "Dynamic Duos: T-Mac + Yao",
-    players: ["tracy-mcgrady", "yao-ming"],
-  },
-  {
-    id: "duncan-parker",
-    title: "Dynamic Duos: Duncan + Parker",
-    players: ["tim-duncan", "tony-parker"],
-  },
+const bigThreeStatBoost = {
+  overall: 1,
+  offense: 1,
+  defense: 1,
+  playmaking: 1,
+  shooting: 1,
+  rebounding: 1,
+  athleticism: 1,
+  intangibles: 2,
+  ballDominance: 1,
+  interiorDefense: 1,
+  perimeterDefense: 1,
+} as const;
+
+export const dynamicDuos: PlayerBadgeDefinition[] = [
+  { id: "wade-lebron", title: "Dynamic Duos: Wade + LeBron", type: "dynamic-duo", players: ["dwyane-wade", "lebron-james"] },
+  { id: "kobe-shaq", title: "Dynamic Duos: Kobe + Shaq", type: "dynamic-duo", players: ["kobe-bryant", "shaquille-o-neal"] },
+  { id: "nash-amare", title: "Dynamic Duos: Nash + Amar'e", type: "dynamic-duo", players: ["steve-nash", "amar-e-stoudemire"] },
+  { id: "stockton-malone", title: "Dynamic Duos: Stockton + Malone", type: "dynamic-duo", players: ["john-stockton", "karl-malone"] },
+  { id: "jordan-pippen", title: "Dynamic Duos: Jordan + Pippen", type: "dynamic-duo", players: ["michael-jordan", "scottie-pippen"] },
+  { id: "magic-kareem", title: "Dynamic Duos: Magic + Kareem", type: "dynamic-duo", players: ["magic-johnson", "kareem-abdul-jabbar"] },
+  { id: "steph-klay", title: "Dynamic Duos: Steph + Klay", type: "dynamic-duo", players: ["steph-curry", "klay-thompson"] },
+  { id: "tmac-yao", title: "Dynamic Duos: T-Mac + Yao", type: "dynamic-duo", players: ["tracy-mcgrady", "yao-ming"] },
+  { id: "duncan-parker", title: "Dynamic Duos: Duncan + Parker", type: "dynamic-duo", players: ["tim-duncan", "tony-parker"] },
 ];
+
+export const bigThrees: PlayerBadgeDefinition[] = [
+  { id: "spurs-big-three", title: "Big 3: Spurs Core", type: "big-3", players: ["tim-duncan", "tony-parker", "manu-ginobili"] },
+  { id: "celtics-big-three", title: "Big 3: Celtics Core", type: "big-3", players: ["kevin-garnett", "paul-pierce", "rajon-rondo"] },
+  { id: "heat-big-three", title: "Big 3: Heat Core", type: "big-3", players: ["dwyane-wade", "chris-bosh", "lebron-james"] },
+];
+
+export const rivalBadges: PlayerBadgeDefinition[] = [];
+
+export const playerBadges: PlayerBadgeDefinition[] = [...dynamicDuos, ...bigThrees, ...rivalBadges];
+
+const getActiveBadges = (badges: PlayerBadgeDefinition[], playerIds: string[]) => {
+  const owned = new Set(playerIds);
+  return badges.filter((badge) => badge.players.every((playerId) => owned.has(playerId)));
+};
 
 export const getPlayerDynamicDuo = (playerId: string) =>
   dynamicDuos.find((duo) => duo.players.includes(playerId));
 
-export const getActiveDynamicDuos = (playerIds: string[]) => {
+export const getActiveDynamicDuos = (playerIds: string[]) => getActiveBadges(dynamicDuos, playerIds);
+
+export const getActiveBigThrees = (playerIds: string[]) => getActiveBadges(bigThrees, playerIds);
+
+export const getPlayerBadgeStates = (playerId: string, playerIds: string[]) => {
   const owned = new Set(playerIds);
-  return dynamicDuos.filter((duo) => duo.players.every((playerId) => owned.has(playerId)));
+
+  return playerBadges
+    .filter((badge) => badge.players.includes(playerId))
+    .map((definition) => ({
+      definition,
+      active: definition.players.every((memberId) => owned.has(memberId)),
+    }));
 };
 
 export const isDynamicDuoActiveForPlayer = (playerId: string, playerIds: string[]) =>
   getActiveDynamicDuos(playerIds).some((duo) => duo.players.includes(playerId));
 
-export const applyDynamicDuoBonuses = (players: Player[]) => {
-  const activeDuos = getActiveDynamicDuos(players.map((player) => player.id));
-  if (activeDuos.length === 0) return players;
+const applyBoost = (
+  players: Player[],
+  activeGroups: PlayerBadgeDefinition[],
+  boost: typeof duoStatBoost | typeof bigThreeStatBoost,
+) => {
+  if (activeGroups.length === 0) return players;
 
-  const boostedIds = new Set(activeDuos.flatMap((duo) => duo.players));
+  const boostedIds = new Set(activeGroups.flatMap((group) => group.players));
 
   return players.map((player) =>
     boostedIds.has(player.id)
       ? {
           ...player,
-          overall: Math.min(99, player.overall + duoStatBoost.overall),
-          offense: Math.min(99, player.offense + duoStatBoost.offense),
-          defense: Math.min(99, player.defense + duoStatBoost.defense),
-          playmaking: Math.min(99, player.playmaking + duoStatBoost.playmaking),
-          shooting: Math.min(99, player.shooting + duoStatBoost.shooting),
-          rebounding: Math.min(99, player.rebounding + duoStatBoost.rebounding),
-          athleticism: Math.min(99, player.athleticism + duoStatBoost.athleticism),
-          intangibles: Math.min(99, player.intangibles + duoStatBoost.intangibles),
-          ballDominance: Math.min(99, player.ballDominance + duoStatBoost.ballDominance),
-          interiorDefense: Math.min(99, player.interiorDefense + duoStatBoost.interiorDefense),
-          perimeterDefense: Math.min(99, player.perimeterDefense + duoStatBoost.perimeterDefense),
+          overall: Math.min(99, player.overall + boost.overall),
+          offense: Math.min(99, player.offense + boost.offense),
+          defense: Math.min(99, player.defense + boost.defense),
+          playmaking: Math.min(99, player.playmaking + boost.playmaking),
+          shooting: Math.min(99, player.shooting + boost.shooting),
+          rebounding: Math.min(99, player.rebounding + boost.rebounding),
+          athleticism: Math.min(99, player.athleticism + boost.athleticism),
+          intangibles: Math.min(99, player.intangibles + boost.intangibles),
+          ballDominance: Math.min(99, player.ballDominance + boost.ballDominance),
+          interiorDefense: Math.min(99, player.interiorDefense + boost.interiorDefense),
+          perimeterDefense: Math.min(99, player.perimeterDefense + boost.perimeterDefense),
         }
       : player,
   );
 };
+
+export const applyDynamicDuoBonuses = (players: Player[]) =>
+  applyBoost(players, getActiveDynamicDuos(players.map((player) => player.id)), duoStatBoost);
+
+export const applyBigThreeBonuses = (players: Player[]) =>
+  applyBoost(players, getActiveBigThrees(players.map((player) => player.id)), bigThreeStatBoost);
+
+export const applySynergyBonuses = (players: Player[]) =>
+  applyBigThreeBonuses(applyDynamicDuoBonuses(players));

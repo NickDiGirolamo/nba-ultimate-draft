@@ -12,7 +12,7 @@ import {
   evaluateRareEventBonus,
   getChemistryBonuses,
 } from "./meta";
-import { applyDynamicDuoBonuses, getActiveDynamicDuos } from "./dynamicDuos";
+import { applySynergyBonuses, getActiveBigThrees, getActiveDynamicDuos } from "./dynamicDuos";
 import { clamp, mulberry32 } from "./random";
 
 const average = (values: number[]) => (values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length);
@@ -78,7 +78,7 @@ export const buildTeamName = (roster: RosterSlot[]) => {
 };
 
 export const evaluateTeam = (roster: RosterSlot[], rareEvent?: RareEvent) => {
-  const boostedPlayers = applyDynamicDuoBonuses(getPlayers(roster));
+  const boostedPlayers = applySynergyBonuses(getPlayers(roster));
   const boostedPlayerMap = new Map(boostedPlayers.map((player) => [player.id, player]));
   const players = getPlayers(roster).map((player) => boostedPlayerMap.get(player.id) ?? player);
   const starters = getStarters(roster).map((player) => boostedPlayerMap.get(player.id) ?? player);
@@ -122,6 +122,8 @@ export const evaluateTeam = (roster: RosterSlot[], rareEvent?: RareEvent) => {
   const outOfRoleStars = benchEntries.filter((entry) => entry.player.overall >= 90).length;
   const chemistryBonuses = getChemistryBonuses(players.map((player) => player.id));
   const chemistryScore = chemistryBonuses.reduce((sum, bonus) => sum + bonus.bonusScore, 0);
+  const activeDynamicDuos = getActiveDynamicDuos(players.map((player) => player.id));
+  const activeBigThrees = getActiveBigThrees(players.map((player) => player.id));
   const rareEventBonus = rareEvent
     ? evaluateRareEventBonus(rareEvent, players)
     : { offense: 0, defense: 0, fit: 0, chemistry: 0, summary: "Standard environment." };
@@ -150,13 +152,15 @@ export const evaluateTeam = (roster: RosterSlot[], rareEvent?: RareEvent) => {
   chemistry += eliteShooters * 0.9;
   chemistry += ballHandlers.length * 0.75;
   chemistry -= dominantCreators.length > 3 ? 3 : 0;
+  chemistry += activeDynamicDuos.length * 1.4 + activeBigThrees.length * 2.2;
   chemistry += chemistryScore * 0.7 + rareEventBonus.chemistry;
-  fit += chemistryScore * 0.55 + rareEventBonus.fit;
+  fit += chemistryScore * 0.55 + activeBigThrees.length * 1.25 + rareEventBonus.fit;
 
   const variance = clamp(
     11 +
       weightedAverage(weightedEntries, (entry) => 96 - entry.player.durability, (entry) => entry.weight) * 0.18 +
-      getActiveDynamicDuos(players.map((player) => player.id)).length * -0.35 +
+      activeDynamicDuos.length * -0.35 +
+      activeBigThrees.length * -0.55 +
       dominantCreators.length * 0.5 -
       weightedAverage(weightedBoostedEntries, (entry) => entry.player.intangibles, (entry) => entry.weight) * 0.08,
     5,

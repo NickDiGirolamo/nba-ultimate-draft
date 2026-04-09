@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { Star } from "lucide-react";
-import { DynamicDuoBadge } from "./DynamicDuoBadge";
+import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { Player, RosterSlot } from "../types";
 
@@ -147,10 +147,11 @@ const RosterSlotButton = ({
                 {slot.player?.name ?? slot.label}
               </div>
               {slot.player ? (
-                <DynamicDuoBadge
+                <PlayerSynergyBadges
                   playerId={slot.player.id}
                   draftedPlayerIds={draftedPlayerIds}
                   compact
+                  align="start"
                   className="shrink-0"
                 />
               ) : null}

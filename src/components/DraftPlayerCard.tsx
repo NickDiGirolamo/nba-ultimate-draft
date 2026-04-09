@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { DynamicDuoBadge } from "./DynamicDuoBadge";
+import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { getPlayerVisual } from "../lib/playerVisuals";
 import { Player } from "../types";
@@ -114,9 +114,11 @@ export const DraftPlayerCard = ({
         <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs uppercase tracking-[0.22em] text-slate-300">
           Tap to draft
         </div>
-        <div className="mt-3 flex justify-center">
-          <DynamicDuoBadge playerId={player.id} draftedPlayerIds={draftedPlayerIds} />
-        </div>
+        <PlayerSynergyBadges
+          playerId={player.id}
+          draftedPlayerIds={draftedPlayerIds}
+          className="mt-3"
+        />
       </div>
     </button>
   );
