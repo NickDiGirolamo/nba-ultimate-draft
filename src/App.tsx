@@ -161,21 +161,25 @@ function App() {
     <div className="arena-shell text-white">
       <div className="mx-auto max-w-[1520px] px-4 py-6 md:px-6 lg:px-8 lg:py-8">
         <header className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <button
-            type="button"
-            onClick={resetDraft}
-            className="flex items-center gap-3 text-left transition hover:text-amber-100"
-          >
-            <div className="rounded-[20px] border border-white/12 bg-white/8 p-2.5 shadow-card">
-              <Trophy size={22} className="text-amber-200" />
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.28em] text-slate-400">Legends Draft</div>
-              <div className="mt-1 font-display text-xl text-white">
-                All-Time NBA Franchise Builder
+          {state.screen !== "draft" ? (
+            <button
+              type="button"
+              onClick={resetDraft}
+              className="flex items-center gap-3 text-left transition hover:text-amber-100"
+            >
+              <div className="rounded-[20px] border border-white/12 bg-white/8 p-2.5 shadow-card">
+                <Trophy size={22} className="text-amber-200" />
               </div>
-            </div>
-          </button>
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.28em] text-slate-400">Legends Draft</div>
+                <div className="mt-1 font-display text-xl text-white">
+                  All-Time NBA Franchise Builder
+                </div>
+              </div>
+            </button>
+          ) : (
+            <div />
+          )}
 
           <div className="grid gap-3 md:grid-cols-3">
             {[
