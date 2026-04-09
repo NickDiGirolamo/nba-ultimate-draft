@@ -71,9 +71,6 @@ export const DraftPlayerCard = ({
               loading="lazy"
               referrerPolicy="no-referrer"
             />
-            <div className="absolute left-3 top-3 z-20 rounded-full border border-emerald-300/55 bg-emerald-400 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-950 shadow-lg">
-              Photo Mode B
-            </div>
           </>
         ) : (
           <>
