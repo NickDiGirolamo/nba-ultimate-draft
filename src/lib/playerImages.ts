@@ -21,6 +21,8 @@ const wikiTitleOverrides: Record<string, string> = {
 const directImageOverrides: Record<string, string> = {
   "dennis-rodman":
     "https://legacymedia.sportsplatform.io/images_root/slides/photos/000/537/881/245838_original.jpg?1291222858",
+  "david-robinson":
+    "https://image.tmdb.org/t/p/w500/iFhzUGajalDsdS7AkfK4F6LpnwL.jpg",
   "hakeem-olajuwon":
     "https://preview.redd.it/i-asked-gemini-to-argue-why-hakeem-olajuwon-is-the-greatest-v0-098c1wd77ege1.jpeg?width=640&crop=smart&auto=webp&s=ba0ec03f9f7f9a70bdb2f5d9d9737c66f624f8bd",
   "isiah-thomas":
