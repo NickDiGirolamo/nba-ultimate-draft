@@ -45,6 +45,8 @@ const directImageOverrides: Record<string, string> = {
     "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Oscar_Robertson1971.jpg/250px-Oscar_Robertson1971.jpg",
   "penny-hardaway":
     "https://cdn.nba.com/teams/legacy/www.nba.com/magic/sites/magic/files/9_penny-20170112.jpg",
+  "reggie-miller":
+    "https://m.media-amazon.com/images/M/MV5BMTUxODg1Nzg5OV5BMl5BanBnXkFtZTcwNTMzMjkwMw@@._V1_.jpg",
   "ray-allen":
     "https://www.sportsnet.ca/wp-content/uploads/2013/07/allen_ray640.jpg",
   "shawn-kemp":
