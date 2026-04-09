@@ -97,11 +97,11 @@ textarea {
   inset: 0;
   background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.08), transparent 80%);
   transform: translateX(-100%);
-  animation: placeholderSweep 2.3s ease-in-out infinite;
+  animation: placeholderSweep 2.8s ease-in-out infinite;
 }
 
 .animate-choice-reveal {
-  animation: choiceReveal 980ms cubic-bezier(0.18, 0.9, 0.24, 1) both;
+  animation: choiceReveal 1180ms cubic-bezier(0.18, 0.9, 0.24, 1) both;
 }
 
 @keyframes choiceReveal {
