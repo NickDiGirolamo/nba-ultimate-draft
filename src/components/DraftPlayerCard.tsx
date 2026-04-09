@@ -63,14 +63,23 @@ export const DraftPlayerCard = ({
         )}
       >
         {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={player.name}
-            className="absolute inset-0 h-full w-full object-cover"
-            style={{ objectPosition: "center top" }}
-            loading="lazy"
-            referrerPolicy="no-referrer"
-          />
+          <>
+            <img
+              src={imageUrl}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full scale-110 object-cover object-center opacity-35 blur-xl"
+              loading="lazy"
+              referrerPolicy="no-referrer"
+            />
+            <img
+              src={imageUrl}
+              alt={player.name}
+              className="absolute inset-0 h-full w-full object-contain object-center"
+              loading="lazy"
+              referrerPolicy="no-referrer"
+            />
+          </>
         ) : (
           <>
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_32%)]" />
