@@ -25,6 +25,8 @@ const directImageOverrides: Record<string, string> = {
     "https://image.tmdb.org/t/p/w500/iFhzUGajalDsdS7AkfK4F6LpnwL.jpg",
   "hakeem-olajuwon":
     "https://preview.redd.it/i-asked-gemini-to-argue-why-hakeem-olajuwon-is-the-greatest-v0-098c1wd77ege1.jpeg?width=640&crop=smart&auto=webp&s=ba0ec03f9f7f9a70bdb2f5d9d9737c66f624f8bd",
+  "dominique-wilkins":
+    "https://i.namu.wiki/i/_p4r0n_sWZahVy6vsCWg4dK1KcNNx2vBCbSJjwbjB0B365GupjEiopY2yTuP-jncxj9LCC3gJA60vmcfXrebCg.webp",
   "isiah-thomas":
     "https://www.detroitnews.com/gcdn/presto/2023/04/08/PDTN/683e207e-aa13-4650-8b14-be9707cdc8bd-dtncent02-7a8uqlzs9eesbdjuq08_original.jpg?width=527&height=610&fit=crop&format=pjpg&auto=webp",
   "julius-erving":
