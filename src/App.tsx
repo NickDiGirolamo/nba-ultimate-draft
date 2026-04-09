@@ -20,7 +20,7 @@ function App() {
   } = useDraftGame();
 
   return (
-    <div className="min-h-screen bg-hero-mesh text-white">
+    <div className="arena-shell text-white">
       <div className="mx-auto max-w-[1520px] px-4 py-6 md:px-6 lg:px-8 lg:py-8">
         <header className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-4">
