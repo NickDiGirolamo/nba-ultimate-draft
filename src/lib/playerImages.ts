@@ -95,6 +95,8 @@ const directImageOverrides: Record<string, string> = {
     "https://cdn.nba.com/teams/uploads/sites/1610612755/2023/01/barkley2.png",
   "anthony-davis":
     "https://www.usatoday.com/gcdn/presto/2019/01/25/USAT/8face4bf-fda9-4585-8fce-19d456e2fe5d-2019-01-24_Anthony_Davis1.jpg?crop=1744,2326,x365,y211",
+  "adrian-dantley":
+    "https://cdn.nba.com/teams/uploads/sites/1610612762/2023/11/GettyImages-499320108.jpg",
   "clyde-drexler":
     "https://images.imagerenderer.com/images/artworkimages/mediumlarge/3/clyde-drexler-dale-tait.jpg",
   "shaquille-o-neal":
