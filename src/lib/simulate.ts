@@ -2,7 +2,7 @@ import { Player, RosterSlot, SimulationResult, TeamMetrics } from "../types";
 import { clamp, mulberry32 } from "./random";
 
 const average = (values: number[]) => (values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length);
-const SLOT_IMPACT_WEIGHTS = [1.36, 1.28, 1.22, 1.18, 1.24, 0.72, 0.56, 0.42, 0.3, 0.2];
+const SLOT_IMPACT_WEIGHTS = [1.36, 1.28, 1.22, 1.18, 1.24, 0.62, 0.62, 0.62, 0.34, 0.24];
 
 const getWeightedRosterEntries = (roster: RosterSlot[]) =>
   roster
