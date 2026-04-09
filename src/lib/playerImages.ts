@@ -65,6 +65,8 @@ const directImageOverrides: Record<string, string> = {
     "https://slamonline.com/wp-content/uploads/2014/07/vince_1.jpg",
   "victor-wembanyama":
     "https://cdn.nba.com/manage/2026/02/wemby-pistons2.jpg",
+  "walt-frazier":
+    "https://cdn.britannica.com/07/258007-050-4F67E33A/Basketball-player-Walt-Frazier-dribbles-the-ball-against-the-Baltimore-Bullets-during-an-NBA-basketball-game-1971.jpg",
   "oscar-robertson":
     "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Oscar_Robertson1971.jpg/250px-Oscar_Robertson1971.jpg",
   "pau-gasol":
