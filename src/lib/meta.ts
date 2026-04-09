@@ -14,6 +14,61 @@ import {
 } from "../types";
 import { randomItem } from "./random";
 
+const CATEGORY_IDS = [
+  "offense-lab",
+  "defense-lab",
+  "playmaking-lab",
+  "shooting-lab",
+  "rebounding-lab",
+  "fit-lab",
+  "chemistry-lab",
+  "depth-lab",
+] as const;
+
+const categoryLabelsById: Record<(typeof CATEGORY_IDS)[number], string> = {
+  "offense-lab": "offense",
+  "defense-lab": "defense",
+  "playmaking-lab": "playmaking",
+  "shooting-lab": "shooting",
+  "rebounding-lab": "rebounding",
+  "fit-lab": "fit",
+  "chemistry-lab": "chemistry",
+  "depth-lab": "depth",
+};
+
+const challengeCategoryCompatibility: Record<string, string[]> = {
+  "no-s-tier-shortcut": ["fit-lab", "chemistry-lab", "depth-lab", "defense-lab"],
+  "floor-spacers": ["shooting-lab", "offense-lab", "fit-lab", "playmaking-lab"],
+  "fortress-build": ["defense-lab", "rebounding-lab", "fit-lab", "chemistry-lab"],
+  "creator-collective": ["playmaking-lab", "offense-lab", "shooting-lab", "fit-lab"],
+  "dynasty-depth": ["depth-lab", "fit-lab", "chemistry-lab", "defense-lab"],
+  "title-or-bust": ["fit-lab", "defense-lab", "chemistry-lab", "depth-lab"],
+};
+
+const rareEventCategoryCompatibility: Record<string, string[]> = {
+  "rare-events-disabled": [...CATEGORY_IDS],
+  "nineties-night": ["defense-lab", "chemistry-lab", "fit-lab", "rebounding-lab"],
+  "pace-and-space": ["shooting-lab", "offense-lab", "playmaking-lab", "fit-lab"],
+  "defense-travels": ["defense-lab", "chemistry-lab", "fit-lab", "rebounding-lab"],
+  "point-forward-era": ["playmaking-lab", "fit-lab", "offense-lab", "chemistry-lab"],
+  "tower-ball": ["rebounding-lab", "defense-lab", "fit-lab", "depth-lab"],
+};
+
+const challengeRareEventCompatibility: Record<string, string[]> = {
+  "no-s-tier-shortcut": ["nineties-night", "defense-travels", "point-forward-era", "tower-ball"],
+  "floor-spacers": ["pace-and-space", "point-forward-era", "nineties-night"],
+  "fortress-build": ["defense-travels", "tower-ball", "nineties-night"],
+  "creator-collective": ["point-forward-era", "pace-and-space", "nineties-night"],
+  "dynasty-depth": ["tower-ball", "defense-travels", "nineties-night", "point-forward-era"],
+  "title-or-bust": ["defense-travels", "point-forward-era", "tower-ball"],
+};
+
+const fallbackChallengeStrategy = (challengeId: string) =>
+  challengeCategoryCompatibility[challengeId] ?? [...CATEGORY_IDS];
+
+const fallbackEventStrategy = (eventId: string) =>
+  rareEventCategoryCompatibility[eventId] ?? [...CATEGORY_IDS];
+
 const playoffFinishRank: Record<SimulationResult["playoffFinish"], number> = {
   "Missed Playoffs": 0,
   "Lost in Play-In": 1,
@@ -230,6 +285,62 @@ export const getRareEventById = (id: string) =>
   rareEvents.find((event) => event.id === id) ?? standardRareEvent;
 export const getCategoryChallengeById = (id: string) =>
   categoryChallenges.find((challenge) => challenge.id === id) ?? null;
+
+export const selectCompatibleRareEvent = (
+  challenge: DraftChallenge,
+  rng: () => number,
+) => {
+  const allowedIds = challengeRareEventCompatibility[challenge.id];
+  if (!allowedIds?.length) return selectRareEvent(rng);
+  const pool = rareEvents.filter((event) => allowedIds.includes(event.id));
+  return pool.length ? randomItem(pool, rng) : selectRareEvent(rng);
+};
+
+export const selectCompatibleCategoryChallenge = (
+  challenge: DraftChallenge,
+  rareEvent: RareEvent,
+  rng: () => number,
+) => {
+  const challengeAllowed = new Set(fallbackChallengeStrategy(challenge.id));
+  const eventAllowed = new Set(fallbackEventStrategy(rareEvent.id));
+  const intersection = categoryChallenges.filter(
+    (category) => challengeAllowed.has(category.id) && eventAllowed.has(category.id),
+  );
+  if (intersection.length) return randomItem(intersection, rng);
+
+  const eventOnly = categoryChallenges.filter((category) => eventAllowed.has(category.id));
+  if (eventOnly.length) return randomItem(eventOnly, rng);
+
+  const challengeOnly = categoryChallenges.filter((category) => challengeAllowed.has(category.id));
+  if (challengeOnly.length) return randomItem(challengeOnly, rng);
+
+  return selectCategoryChallenge(rng);
+};
+
+export const isCategoryCompatibleWithRun = (
+  categoryId: string,
+  challenge: DraftChallenge,
+  rareEvent: RareEvent,
+) =>
+  fallbackChallengeStrategy(challenge.id).includes(categoryId) &&
+  fallbackEventStrategy(rareEvent.id).includes(categoryId);
+
+export const describeRunCompatibility = (
+  challenge: DraftChallenge,
+  rareEvent: RareEvent,
+  category: CategoryChallenge | null,
+) => {
+  if (!category) {
+    return "No category focus is active, so draft toward the cleanest overall winning profile.";
+  }
+
+  if (isCategoryCompatibleWithRun(category.id, challenge, rareEvent)) {
+    return `${category.metricLabel} supports this run's broader objective, so chasing it should reinforce your overall build instead of pulling against it.`;
+  }
+
+  const metricText = categoryLabelsById[category.id as keyof typeof categoryLabelsById] ?? category.metricLabel.toLowerCase();
+  return `${category.metricLabel} is more of a side quest than a pure win condition here, so use ${metricText} as a tiebreaker and keep overall roster balance first.`;
+};
 
 export const getChemistryBonuses = (playerIds: string[]): ChemistryBonus[] => {
   const owned = new Set(playerIds);
