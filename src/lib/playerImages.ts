@@ -31,6 +31,8 @@ const directImageOverrides: Record<string, string> = {
     "https://cdn.artphotolimited.com/images/65802cc8bd40b870df716a6a/1000x1000/magic-johnson-leads-the-game-1992.jpg",
   "penny-hardaway":
     "https://cdn.nba.com/teams/legacy/www.nba.com/magic/sites/magic/files/9_penny-20170112.jpg",
+  "ray-allen":
+    "https://www.sportsnet.ca/wp-content/uploads/2013/07/allen_ray640.jpg",
   "steph-curry":
     "https://compote.slate.com/images/24605cda-82b1-4342-9af9-4b86f684174b.jpg",
 };
