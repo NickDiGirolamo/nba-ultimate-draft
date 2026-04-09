@@ -22,7 +22,6 @@ const CATEGORY_IDS = [
   "rebounding-lab",
   "fit-lab",
   "chemistry-lab",
-  "depth-lab",
 ] as const;
 
 const categoryLabelsById: Record<(typeof CATEGORY_IDS)[number], string> = {
@@ -33,16 +32,15 @@ const categoryLabelsById: Record<(typeof CATEGORY_IDS)[number], string> = {
   "rebounding-lab": "rebounding",
   "fit-lab": "fit",
   "chemistry-lab": "chemistry",
-  "depth-lab": "depth",
 };
 
 const challengeCategoryCompatibility: Record<string, string[]> = {
-  "no-s-tier-shortcut": ["fit-lab", "chemistry-lab", "depth-lab", "defense-lab"],
+  "no-s-tier-shortcut": ["fit-lab", "chemistry-lab", "defense-lab"],
   "floor-spacers": ["shooting-lab", "offense-lab", "fit-lab", "playmaking-lab"],
   "fortress-build": ["defense-lab", "rebounding-lab", "fit-lab", "chemistry-lab"],
   "creator-collective": ["playmaking-lab", "offense-lab", "shooting-lab", "fit-lab"],
-  "dynasty-depth": ["depth-lab", "fit-lab", "chemistry-lab", "defense-lab"],
-  "title-or-bust": ["fit-lab", "defense-lab", "chemistry-lab", "depth-lab"],
+  "dynasty-depth": ["fit-lab", "chemistry-lab", "defense-lab", "rebounding-lab"],
+  "title-or-bust": ["fit-lab", "defense-lab", "chemistry-lab"],
 };
 
 const rareEventCategoryCompatibility: Record<string, string[]> = {
@@ -51,7 +49,7 @@ const rareEventCategoryCompatibility: Record<string, string[]> = {
   "pace-and-space": ["shooting-lab", "offense-lab", "playmaking-lab", "fit-lab"],
   "defense-travels": ["defense-lab", "chemistry-lab", "fit-lab", "rebounding-lab"],
   "point-forward-era": ["playmaking-lab", "fit-lab", "offense-lab", "chemistry-lab"],
-  "tower-ball": ["rebounding-lab", "defense-lab", "fit-lab", "depth-lab"],
+  "tower-ball": ["rebounding-lab", "defense-lab", "fit-lab", "chemistry-lab"],
 };
 
 const challengeRareEventCompatibility: Record<string, string[]> = {
@@ -207,13 +205,6 @@ export const categoryChallenges: CategoryChallenge[] = [
     description: "Lean into synergy systems and lineup balance to produce the strongest chemistry score.",
     metric: "chemistry",
     metricLabel: "Chemistry",
-  },
-  {
-    id: "depth-lab",
-    title: "Category Focus: Depth",
-    description: "Treat the full 10-man roster seriously and try to post the highest depth grade.",
-    metric: "depth",
-    metricLabel: "Depth",
   },
 ];
 
