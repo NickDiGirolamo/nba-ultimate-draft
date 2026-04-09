@@ -154,10 +154,16 @@ export const LandingHub = ({
                 Category Challenge
               </div>
               <h2 className="mt-2 font-display text-2xl text-white">
-                {categoryChallengesEnabled && currentCategoryChallenge ? currentCategoryChallenge.title : "Category Challenge Disabled"}
+                {categoryChallengeSelection === "random" && categoryChallengesEnabled
+                  ? "Random Category Focus"
+                  : categoryChallengesEnabled && currentCategoryChallenge
+                  ? currentCategoryChallenge.title
+                  : "Category Challenge Disabled"}
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
-                {categoryChallengesEnabled && currentCategoryChallenge
+                {categoryChallengeSelection === "random" && categoryChallengesEnabled
+                  ? "A random team-building category will be selected as your focus for this run. The chosen focus will be revealed on the draft briefing page before the draft begins."
+                  : categoryChallengesEnabled && currentCategoryChallenge
                   ? currentCategoryChallenge.description
                   : "Turn this on if you want an extra random objective that pushes you to chase the highest possible score in one specific team category."}
               </p>
