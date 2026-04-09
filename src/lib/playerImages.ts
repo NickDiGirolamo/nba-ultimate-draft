@@ -53,6 +53,8 @@ const directImageOverrides: Record<string, string> = {
     "https://cdn.nba.com/teams/legacy/www.nba.com/suns/sites/suns/files/shawn_marion_retires_35.jpg",
   "steph-curry":
     "https://compote.slate.com/images/24605cda-82b1-4342-9af9-4b86f684174b.jpg",
+  "yao-ming":
+    "https://content.api.news/v3/images/bin/306b97c2277466d4e3ab4e23efb38ce6",
 };
 
 const runtimeCache = new Map<string, string | null>();
