@@ -43,7 +43,7 @@ function App() {
     const timers = state.currentChoices.map((_, index) =>
       window.setTimeout(() => {
         setVisibleChoiceCount((current) => Math.max(current, index + 1));
-      }, 220 + index * 320),
+      }, 320 + index * 480),
     );
 
     return () => {
@@ -115,7 +115,7 @@ function App() {
                       <div
                         key={player.id}
                         className={revealed ? "choice-reveal animate-choice-reveal" : "choice-hidden"}
-                        style={{ animationDelay: revealed ? `${index * 85}ms` : "0ms" }}
+                        style={{ animationDelay: revealed ? `${index * 120}ms` : "0ms" }}
                       >
                         {revealed ? (
                           <DraftPlayerCard
