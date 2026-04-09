@@ -2,7 +2,7 @@ import { BrainCircuit, Swords, Trophy } from "lucide-react";
 import { DraftPlayerCard } from "./components/DraftPlayerCard";
 import { LandingScreen } from "./components/LandingScreen";
 import { ProgressHeader } from "./components/ProgressHeader";
-import { ResultsScreen } from "./components/ResultsScreen";
+import { ResultsShowcase } from "./components/ResultsShowcase";
 import { RosterSidebar } from "./components/RosterSidebar";
 import { SimulationScreen } from "./components/SimulationScreen";
 import { useDraftGame } from "./hooks/useDraftGame";
@@ -125,7 +125,7 @@ function App() {
         {state.screen === "simulating" && <SimulationScreen />}
 
         {state.screen === "results" && state.simulationResult && (
-          <ResultsScreen result={state.simulationResult} roster={state.roster} onDraftAgain={startDraft} />
+          <ResultsShowcase result={state.simulationResult} roster={state.roster} onDraftAgain={startDraft} />
         )}
       </div>
     </div>

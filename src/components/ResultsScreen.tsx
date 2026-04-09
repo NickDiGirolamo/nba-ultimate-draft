@@ -1,12 +1,141 @@
-import { BarChart3, RotateCcw, ShieldCheck, Star, Swords, Trophy } from "lucide-react";
-import { RosterSlot, SimulationResult } from "../types";
+import {
+  Activity,
+  BarChart3,
+  Gauge,
+  Orbit,
+  Radar,
+  RefreshCcw,
+  RotateCcw,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  Swords,
+  Target,
+  Trophy,
+  Users,
+  Zap,
+} from "lucide-react";
 import { DraftPlayerCard } from "./DraftPlayerCard";
+import { usePlayerImage } from "../hooks/usePlayerImage";
+import { Player, RosterSlot, SimulationResult, TeamMetrics } from "../types";
 
 interface ResultsScreenProps {
   result: SimulationResult;
   roster: RosterSlot[];
   onDraftAgain: () => void;
 }
+
+const gradeFromMetric = (value: number) => {
+  if (value >= 95) return "A+";
+  if (value >= 91) return "A";
+  if (value >= 87) return "A-";
+  if (value >= 83) return "B+";
+  if (value >= 79) return "B";
+  if (value >= 75) return "B-";
+  if (value >= 71) return "C+";
+  if (value >= 67) return "C";
+  return "D";
+};
+
+const metricTone = (value: number) => {
+  if (value >= 90) return "from-amber-300 via-orange-300 to-rose-400";
+  if (value >= 84) return "from-sky-300 via-cyan-300 to-blue-400";
+  if (value >= 76) return "from-emerald-300 via-lime-300 to-teal-400";
+  return "from-rose-300 via-orange-300 to-amber-400";
+};
+
+const scoreRing = (value: number) => ({
+  background: `conic-gradient(rgba(251,191,36,0.95) ${Math.max(8, value)}%, rgba(255,255,255,0.08) ${Math.max(8, value)}% 100%)`,
+});
+
+const buildAnalytics = (roster: RosterSlot[], metrics: TeamMetrics) => {
+  const players = roster.map((slot) => slot.player).filter((player): player is Player => Boolean(player));
+  const starters = players.slice(0, 5);
+  const bench = players.slice(5);
+  const starterAverage = starters.reduce((sum, player) => sum + player.overall, 0) / Math.max(starters.length, 1);
+  const benchAverage = bench.reduce((sum, player) => sum + player.overall, 0) / Math.max(bench.length, 1);
+  const topThreeAverage =
+    players
+      .slice()
+      .sort((a, b) => b.overall - a.overall)
+      .slice(0, 3)
+      .reduce((sum, player) => sum + player.overall, 0) / Math.min(Math.max(players.length, 1), 3);
+
+  return {
+    starterAverage: Math.round(starterAverage * 10) / 10,
+    benchAverage: Math.round(benchAverage * 10) / 10,
+    topThreeAverage: Math.round(topThreeAverage * 10) / 10,
+    twoWayIndex: Math.round(((metrics.offense + metrics.defense + metrics.fit) / 3) * 10) / 10,
+    spacingPressure: Math.round(((metrics.shooting + metrics.spacing) / 2) * 10) / 10,
+    stabilityIndex: Math.round((100 - metrics.variance + metrics.chemistry * 0.35 + metrics.depth * 0.25) * 10) / 10,
+  };
+};
+
+const chartMetrics = (metrics: TeamMetrics, result: SimulationResult) => [
+  { label: "Overall", value: metrics.overall, icon: Trophy, note: result.ratingLabel },
+  { label: "Offense", value: metrics.offense, icon: Zap, note: result.offenseLabel },
+  { label: "Defense", value: metrics.defense, icon: ShieldCheck, note: result.defenseLabel },
+  { label: "Playmaking", value: metrics.playmaking, icon: Orbit, note: "Creation flow" },
+  { label: "Shooting", value: metrics.shooting, icon: Target, note: "Spacing gravity" },
+  { label: "Rebounding", value: metrics.rebounding, icon: Activity, note: "Extra possessions" },
+  { label: "Depth", value: metrics.depth, icon: Users, note: "Bench resilience" },
+  { label: "Fit", value: metrics.fit, icon: Sparkles, note: "Lineup synergy" },
+  { label: "Chemistry", value: metrics.chemistry, icon: RefreshCcw, note: "Role acceptance" },
+  { label: "Star Power", value: metrics.starPower, icon: Star, note: "Ceiling raiser" },
+  { label: "Spacing", value: metrics.spacing, icon: Radar, note: "Floor balance" },
+  { label: "Rim Protection", value: metrics.rimProtection, icon: Gauge, note: "Paint security" },
+];
+
+const CompactRosterCard = ({ slot, isStarter }: { slot: RosterSlot; isStarter: boolean }) => {
+  const imageUrl = slot.player ? usePlayerImage(slot.player) : null;
+
+  return (
+    <div className="rounded-[22px] border border-white/10 bg-black/20 p-3">
+      <div className="flex items-center gap-3">
+        <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-white/10 bg-white/6">
+          {slot.player && imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={slot.player.name}
+              className="h-full w-full object-cover object-top"
+              loading="lazy"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-700 to-slate-900 font-display text-lg text-white/70">
+              {slot.player?.name.charAt(0) ?? slot.slot.charAt(0)}
+            </div>
+          )}
+          <div className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-center text-[9px] uppercase tracking-[0.24em] text-white/85">
+            {slot.player?.primaryPosition ?? slot.slot}
+          </div>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-white/10 bg-white/8 px-2 py-1 text-[10px] uppercase tracking-[0.24em] text-slate-300">
+              {slot.slot}
+            </span>
+            <span
+              className={`rounded-full px-2 py-1 text-[10px] uppercase tracking-[0.24em] ${
+                isStarter ? "bg-amber-300/16 text-amber-100" : "bg-sky-300/14 text-sky-100"
+              }`}
+            >
+              {isStarter ? "Starter" : "Bench"}
+            </span>
+          </div>
+          <div className="mt-2 truncate font-semibold text-white">{slot.player?.name ?? "Empty slot"}</div>
+          <div className="mt-1 text-xs text-slate-400">{slot.player?.teamLabel ?? "No player assigned"}</div>
+        </div>
+
+        <div className="text-right">
+          <div className="text-[10px] uppercase tracking-[0.24em] text-slate-500">OVR</div>
+          <div className="mt-1 text-2xl font-semibold text-white">{slot.player?.overall ?? "--"}</div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const ResultsScreen = ({ result, roster, onDraftAgain }: ResultsScreenProps) => (
   <section className="space-y-8">
