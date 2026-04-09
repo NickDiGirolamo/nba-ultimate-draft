@@ -8,6 +8,10 @@ export const usePlayerImage = (player: Player) => {
   );
 
   useEffect(() => {
+    setImageUrl(getCachedPlayerImage(player));
+  }, [player]);
+
+  useEffect(() => {
     let active = true;
 
     const loadImage = async () => {
