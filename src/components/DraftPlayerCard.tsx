@@ -11,29 +11,6 @@ const tierStyles = {
   C: "from-slate-300/14 via-slate-100/5 to-slate-500/14 border-slate-200/15 shadow-card",
 };
 
-const defaultDraftPhotoProfile = {
-  scale: 1.34,
-  position: "center 18%",
-};
-
-const draftPhotoProfiles: Record<string, { scale: number; position: string }> = {
-  "dominique-wilkins": { scale: 1.62, position: "center 16%" },
-  "lebron-james": { scale: 1.44, position: "center 18%" },
-  "magic-johnson": { scale: 1.48, position: "center 18%" },
-  "michael-jordan": { scale: 1.48, position: "center 16%" },
-  "steph-curry": { scale: 1.46, position: "center 16%" },
-  "wilt-chamberlain": { scale: 1.52, position: "center 20%" },
-  "draymond-green": { scale: 1.5, position: "center 18%" },
-  "kevin-durant": { scale: 1.46, position: "center 18%" },
-  "luka-doncic": { scale: 1.48, position: "center 18%" },
-  "yao-ming": { scale: 1.5, position: "center 18%" },
-  "shaquille-o-neal": { scale: 1.56, position: "center 18%" },
-  "steve-nash": { scale: 1.5, position: "center 18%" },
-  "patrick-ewing": { scale: 1.46, position: "center 18%" },
-  "kawhi-leonard": { scale: 1.46, position: "center 18%" },
-  "victor-wembanyama": { scale: 1.42, position: "center 14%" },
-};
-
 interface DraftPlayerCardProps {
   player: Player;
   onSelect?: (player: Player) => void;
@@ -53,7 +30,6 @@ export const DraftPlayerCard = ({
 }: DraftPlayerCardProps) => {
   const visual = getPlayerVisual(player);
   const imageUrl = usePlayerImage(player);
-  const photoProfile = draftPhotoProfiles[player.id] ?? defaultDraftPhotoProfile;
 
   return (
     <button
@@ -90,11 +66,7 @@ export const DraftPlayerCard = ({
           <img
             src={imageUrl}
             alt={player.name}
-            className="absolute inset-0 h-full w-full object-cover object-center"
-            style={{
-              objectPosition: photoProfile.position,
-              transform: `scale(${photoProfile.scale})`,
-            }}
+            className="absolute inset-0 h-full w-full object-contain object-center"
             loading="lazy"
             referrerPolicy="no-referrer"
           />
