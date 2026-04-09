@@ -65,19 +65,13 @@ export const DraftPlayerCard = ({
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_32%)]" />
 
         {imageUrl ? (
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center_bottom,rgba(255,255,255,0.14),transparent_44%)]" />
-        ) : null}
-
-        {imageUrl ? (
-          <div className="absolute inset-[10px] overflow-hidden rounded-[18px] border border-white/8 bg-black/12">
-            <img
-              src={imageUrl}
-              alt={player.name}
-              className="absolute inset-0 h-full w-full scale-[1.06] object-contain object-center"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
-          </div>
+          <img
+            src={imageUrl}
+            alt={player.name}
+            className="absolute inset-0 h-full w-full object-cover object-top"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
         ) : (
           <>
             <div
