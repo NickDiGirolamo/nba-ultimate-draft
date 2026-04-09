@@ -19,6 +19,8 @@ const wikiTitleOverrides: Record<string, string> = {
 };
 
 const directImageOverrides: Record<string, string> = {
+  "kobe-bryant":
+    "https://andscape.com/wp-content/uploads/2020/10/Kobe-Bryant-Game-5-2008-Finals-e1603379029250.jpg?w=800",
   "larry-bird":
     "https://www.usatoday.com/gcdn/-mm-/6d4245ebf464808df4dc3cdaddd9036c915be31f/c=0-300-3139-4486/local/-/media/2016/12/07/USATODAY/USATODAY/636167048457676560-XXX-LARRY-BIRD-PUTS-UP-A-JUMPSHOT-1706669AB-DNA007-20214831.JPG?width=458&height=610&fit=crop&format=pjpg&auto=webp",
 };
