@@ -106,7 +106,7 @@ const directImageOverrides: Record<string, string> = {
   "allen-iverson":
     "https://cdn.nba.com/manage/2022/03/ai3-scaled.jpg",
   "carmelo-anthony":
-    "https://www.sportsmole.co.uk/thumbor/8Y23V80eA0bTX_L331opfn_RqQ4=/720x540/smart/filters:format(webp)/https%3A%2F%2Fsportsmole-media-prod.s3.gra.io.cloud.ovh.net%2F13%2F43%2Fcarmelo-anthony-new-york-knicks.jpg",
+    "https://images.imagerenderer.com/images/artworkimages/mediumlarge/3/carmelo-anthony-andrew-d-bernstein.jpg",
   "clyde-drexler":
     "https://images.imagerenderer.com/images/artworkimages/mediumlarge/3/clyde-drexler-dale-tait.jpg",
   "shaquille-o-neal":
