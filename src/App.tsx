@@ -229,10 +229,10 @@ function App() {
 
         {state.screen === "draft" && (
           <section className="space-y-6">
-            <div className="grid grid-cols-2 gap-6">
+            <div className="flex gap-6 [&>*]:min-w-0 [&>*]:flex-1">
               <ProgressHeader pickNumber={state.pickNumber} />
 
-              <div className="glass-panel rounded-[28px] p-5 shadow-card">
+              <div className="glass-panel flex-1 rounded-[28px] p-5 shadow-card">
                 <div className="flex h-full flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
