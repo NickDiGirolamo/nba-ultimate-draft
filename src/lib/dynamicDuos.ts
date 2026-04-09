@@ -24,17 +24,17 @@ const duoStatBoost = {
 } as const;
 
 const bigThreeStatBoost = {
-  overall: 1,
-  offense: 1,
-  defense: 1,
-  playmaking: 1,
-  shooting: 1,
-  rebounding: 1,
+  overall: 2,
+  offense: 3,
+  defense: 2,
+  playmaking: 2,
+  shooting: 2,
+  rebounding: 2,
   athleticism: 1,
-  intangibles: 2,
-  ballDominance: 1,
-  interiorDefense: 1,
-  perimeterDefense: 1,
+  intangibles: 3,
+  ballDominance: 2,
+  interiorDefense: 2,
+  perimeterDefense: 2,
 } as const;
 
 export const dynamicDuos: PlayerBadgeDefinition[] = [
