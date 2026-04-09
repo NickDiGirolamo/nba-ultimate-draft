@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DraftState, Player, RunHistoryEntry, Screen } from "../types";
 import { STORAGE_KEY, assignPlayerToRoster, createSeed, generateChoices, rosterTemplate } from "../lib/draft";
 import { runSeasonSimulation } from "../lib/simulate";
-import { buildMetaProgress, selectCategoryChallenge, selectDraftChallenge, selectRareEvent, standardRareEvent } from "../lib/meta";
+import { buildMetaProgress, getCategoryChallengeById, selectCategoryChallenge, selectDraftChallenge, selectRareEvent, standardRareEvent } from "../lib/meta";
 import { mulberry32 } from "../lib/random";
 
 const HISTORY_LIMIT = 24;
@@ -50,6 +50,7 @@ const createInitialState = (): DraftState => {
   const rng = mulberry32(seed + 77);
   const rareEventsEnabled = true;
   const categoryChallengesEnabled = true;
+  const categoryChallengeSelection = "random";
 
   return {
     screen: "landing",
@@ -68,6 +69,7 @@ const createInitialState = (): DraftState => {
     currentRareEvent: rareEventsEnabled ? selectRareEvent(rng) : standardRareEvent,
     rareEventsEnabled,
     categoryChallengesEnabled,
+    categoryChallengeSelection,
     currentCategoryChallenge: categoryChallengesEnabled ? selectCategoryChallenge(rng) : null,
     seed,
   };
@@ -86,7 +88,14 @@ const normalizeState = (value: DraftState): DraftState => {
     rareEventsEnabled: value.rareEventsEnabled ?? true,
     currentRareEvent: value.currentRareEvent ?? ((value.rareEventsEnabled ?? true) ? selectRareEvent(rng) : standardRareEvent),
     categoryChallengesEnabled: value.categoryChallengesEnabled ?? true,
-    currentCategoryChallenge: value.currentCategoryChallenge ?? ((value.categoryChallengesEnabled ?? true) ? selectCategoryChallenge(rng) : null),
+    categoryChallengeSelection: value.categoryChallengeSelection ?? ((value.categoryChallengesEnabled ?? true) ? "random" : "disabled"),
+    currentCategoryChallenge:
+      value.currentCategoryChallenge ??
+      ((value.categoryChallengesEnabled ?? true)
+        ? ((value.categoryChallengeSelection && value.categoryChallengeSelection !== "random" && value.categoryChallengeSelection !== "disabled")
+            ? getCategoryChallengeById(value.categoryChallengeSelection)
+            : selectCategoryChallenge(rng))
+        : null),
     seed,
   };
 };
@@ -123,6 +132,11 @@ export const useDraftGame = () => {
     const roster = rosterTemplate();
     const rng = mulberry32(seed + 77);
     const currentChoices = generateChoices(roster, [], seed, 1);
+    const resolvedCategoryChallenge = !state.categoryChallengesEnabled || state.categoryChallengeSelection === "disabled"
+      ? null
+      : state.categoryChallengeSelection === "random"
+        ? selectCategoryChallenge(rng)
+        : getCategoryChallengeById(state.categoryChallengeSelection);
     setState({
       ...state,
       roster,
@@ -138,7 +152,8 @@ export const useDraftGame = () => {
       unlockedPlayerIds: state.unlockedPlayerIds,
       currentChallenge: selectDraftChallenge(rng),
       currentRareEvent: state.rareEventsEnabled ? selectRareEvent(rng) : standardRareEvent,
-      currentCategoryChallenge: state.categoryChallengesEnabled ? selectCategoryChallenge(rng) : null,
+      categoryChallengeSelection: state.categoryChallengesEnabled ? state.categoryChallengeSelection : "disabled",
+      currentCategoryChallenge: resolvedCategoryChallenge,
       seed,
       screen: "briefing",
     });
@@ -275,7 +290,13 @@ export const useDraftGame = () => {
       rareEventsEnabled: state.rareEventsEnabled,
       currentRareEvent: state.rareEventsEnabled ? fresh.currentRareEvent : standardRareEvent,
       categoryChallengesEnabled: state.categoryChallengesEnabled,
-      currentCategoryChallenge: state.categoryChallengesEnabled ? fresh.currentCategoryChallenge : null,
+      categoryChallengeSelection: state.categoryChallengesEnabled ? state.categoryChallengeSelection : "disabled",
+      currentCategoryChallenge:
+        !state.categoryChallengesEnabled || state.categoryChallengeSelection === "disabled"
+          ? null
+          : state.categoryChallengeSelection === "random"
+            ? fresh.currentCategoryChallenge
+            : getCategoryChallengeById(state.categoryChallengeSelection),
       screen: "landing",
     });
   };
@@ -294,10 +315,39 @@ export const useDraftGame = () => {
   const setCategoryChallengesEnabled = (enabled: boolean) => {
     setState((current) => {
       const rng = mulberry32(current.seed + 177);
+      const selection = enabled
+        ? current.categoryChallengeSelection === "disabled"
+          ? "random"
+          : current.categoryChallengeSelection
+        : "disabled";
       return {
         ...current,
         categoryChallengesEnabled: enabled,
-        currentCategoryChallenge: enabled ? selectCategoryChallenge(rng) : null,
+        categoryChallengeSelection: selection,
+        currentCategoryChallenge:
+          !enabled
+            ? null
+            : selection === "random"
+              ? selectCategoryChallenge(rng)
+              : getCategoryChallengeById(selection),
+      };
+    });
+  };
+
+  const setCategoryChallengeSelection = (selection: "disabled" | "random" | string) => {
+    setState((current) => {
+      const rng = mulberry32(current.seed + 177);
+      const enabled = selection !== "disabled";
+      return {
+        ...current,
+        categoryChallengesEnabled: enabled,
+        categoryChallengeSelection: selection,
+        currentCategoryChallenge:
+          selection === "disabled"
+            ? null
+            : selection === "random"
+              ? selectCategoryChallenge(rng)
+              : getCategoryChallengeById(selection),
       };
     });
   };
@@ -320,5 +370,6 @@ export const useDraftGame = () => {
     handleRosterSlotClick,
     setRareEventsEnabled,
     setCategoryChallengesEnabled,
+    setCategoryChallengeSelection,
   };
 };

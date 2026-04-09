@@ -224,6 +224,8 @@ const chemistryDefinitions = [
 export const selectDraftChallenge = (rng: () => number) => randomItem(draftChallenges, rng);
 export const selectRareEvent = (rng: () => number) => randomItem(rareEvents, rng);
 export const selectCategoryChallenge = (rng: () => number) => randomItem(categoryChallenges, rng);
+export const getCategoryChallengeById = (id: string) =>
+  categoryChallenges.find((challenge) => challenge.id === id) ?? null;
 
 export const getChemistryBonuses = (playerIds: string[]): ChemistryBonus[] => {
   const owned = new Set(playerIds);

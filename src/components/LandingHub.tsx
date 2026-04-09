@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { ChevronRight, Crown, Medal, Radar, Sparkles, Target, Trophy, Zap } from "lucide-react";
-import { CategoryChallenge, MetaProgress, RareEvent, RunHistoryEntry } from "../types";
+import { CategoryChallenge, CategoryChallengeSelection, MetaProgress, RareEvent, RunHistoryEntry } from "../types";
+import { categoryChallenges } from "../lib/meta";
 
 interface LandingHubProps {
   onStart: () => void;
@@ -10,8 +11,10 @@ interface LandingHubProps {
   currentRareEvent: RareEvent;
   onRareEventsToggle: (enabled: boolean) => void;
   categoryChallengesEnabled: boolean;
+  categoryChallengeSelection: CategoryChallengeSelection;
   currentCategoryChallenge: CategoryChallenge | null;
   onCategoryChallengesToggle: (enabled: boolean) => void;
+  onCategoryChallengeSelectionChange: (selection: CategoryChallengeSelection) => void;
 }
 
 export const LandingHub = ({
@@ -22,8 +25,10 @@ export const LandingHub = ({
   currentRareEvent,
   onRareEventsToggle,
   categoryChallengesEnabled,
+  categoryChallengeSelection,
   currentCategoryChallenge,
   onCategoryChallengesToggle,
+  onCategoryChallengeSelectionChange,
 }: LandingHubProps) => (
   <section className="space-y-8">
     <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
@@ -105,31 +110,51 @@ export const LandingHub = ({
                   : "Turn this on if you want an extra random objective that pushes you to chase the highest possible score in one specific team category."}
               </p>
               <p className="mt-2 text-sm text-emerald-100/90">
-                {categoryChallengesEnabled && currentCategoryChallenge
+                {categoryChallengeSelection === "random" && categoryChallengesEnabled
+                  ? "This run will roll a random category focus on the draft briefing page."
+                  : categoryChallengesEnabled && currentCategoryChallenge
                   ? `This run's side goal is to maximize ${currentCategoryChallenge.metricLabel.toLowerCase()}.`
                   : "No random category target will be assigned."}
               </p>
             </div>
 
-            <div className="inline-flex rounded-full border border-white/12 bg-black/30 p-1">
-              {[
-                { label: "Enabled", value: true },
-                { label: "Disabled", value: false },
-              ].map((option) => (
-                <button
-                  key={option.label}
-                  type="button"
-                  onClick={() => onCategoryChallengesToggle(option.value)}
-                  className={clsx(
-                    "rounded-full px-4 py-2 text-sm font-medium transition",
-                    categoryChallengesEnabled === option.value
-                      ? "bg-white text-slate-950"
-                      : "text-slate-300 hover:text-white",
-                  )}
-                >
-                  {option.label}
-                </button>
-              ))}
+            <div className="flex flex-col gap-3">
+              <div className="inline-flex rounded-full border border-white/12 bg-black/30 p-1">
+                {[
+                  { label: "Enabled", value: true },
+                  { label: "Disabled", value: false },
+                ].map((option) => (
+                  <button
+                    key={option.label}
+                    type="button"
+                    onClick={() => onCategoryChallengesToggle(option.value)}
+                    className={clsx(
+                      "rounded-full px-4 py-2 text-sm font-medium transition",
+                      categoryChallengesEnabled === option.value
+                        ? "bg-white text-slate-950"
+                        : "text-slate-300 hover:text-white",
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+
+              <select
+                value={categoryChallengesEnabled ? categoryChallengeSelection : "disabled"}
+                onChange={(event) =>
+                  onCategoryChallengeSelectionChange(event.target.value as CategoryChallengeSelection)
+                }
+                className="rounded-2xl border border-white/12 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-300/40"
+                disabled={!categoryChallengesEnabled}
+              >
+                <option value="random">Random Category</option>
+                {categoryChallenges.map((challenge) => (
+                  <option key={challenge.id} value={challenge.id}>
+                    {challenge.metricLabel}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>

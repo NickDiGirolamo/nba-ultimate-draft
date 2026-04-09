@@ -38,6 +38,11 @@ export interface CategoryChallenge {
   metricLabel: string;
 }
 
+export type CategoryChallengeSelection =
+  | "disabled"
+  | "random"
+  | CategoryChallenge["id"];
+
 export interface ChemistryBonus {
   id: string;
   title: string;
@@ -236,6 +241,7 @@ export interface DraftState {
   currentRareEvent: RareEvent;
   rareEventsEnabled: boolean;
   categoryChallengesEnabled: boolean;
+  categoryChallengeSelection: CategoryChallengeSelection;
   currentCategoryChallenge: CategoryChallenge | null;
   seed: number;
 }

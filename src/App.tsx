@@ -22,6 +22,7 @@ function App() {
     handleRosterSlotClick,
     setRareEventsEnabled,
     setCategoryChallengesEnabled,
+    setCategoryChallengeSelection,
     beginDraftFromBriefing,
   } = useDraftGame();
 
@@ -102,8 +103,10 @@ function App() {
             currentRareEvent={state.currentRareEvent}
             onRareEventsToggle={setRareEventsEnabled}
             categoryChallengesEnabled={state.categoryChallengesEnabled}
+            categoryChallengeSelection={state.categoryChallengeSelection}
             currentCategoryChallenge={state.currentCategoryChallenge}
             onCategoryChallengesToggle={setCategoryChallengesEnabled}
+            onCategoryChallengeSelectionChange={setCategoryChallengeSelection}
           />
         )}
 
