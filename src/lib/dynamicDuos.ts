@@ -55,7 +55,20 @@ export const bigThrees: PlayerBadgeDefinition[] = [
   { id: "heat-big-three", title: "Big 3: Heat Core", type: "big-3", players: ["dwyane-wade", "chris-bosh", "lebron-james"] },
 ];
 
-export const rivalBadges: PlayerBadgeDefinition[] = [];
+export const rivalBadges: PlayerBadgeDefinition[] = [
+  {
+    id: "lebron-steph-rivals",
+    title: "Rivals: LeBron vs Steph",
+    type: "rival",
+    players: ["lebron-james", "steph-curry"],
+  },
+  {
+    id: "bird-magic-rivals",
+    title: "Rivals: Bird vs Magic",
+    type: "rival",
+    players: ["larry-bird", "magic-johnson"],
+  },
+];
 
 export const playerBadges: PlayerBadgeDefinition[] = [...dynamicDuos, ...bigThrees, ...rivalBadges];
 
