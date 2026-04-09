@@ -11,21 +11,6 @@ const tierStyles = {
   C: "from-slate-300/14 via-slate-100/5 to-slate-500/14 border-slate-200/15 shadow-card",
 };
 
-const playerForegroundFits: Record<
-  string,
-  {
-    maxHeight: string;
-    maxWidth: string;
-    paddingClass: string;
-  }
-> = {
-  "michael-jordan": {
-    maxHeight: "99%",
-    maxWidth: "99%",
-    paddingClass: "p-4",
-  },
-};
-
 interface DraftPlayerCardProps {
   player: Player;
   onSelect?: (player: Player) => void;
@@ -45,11 +30,6 @@ export const DraftPlayerCard = ({
 }: DraftPlayerCardProps) => {
   const visual = getPlayerVisual(player);
   const imageUrl = usePlayerImage(player);
-  const foregroundFit = playerForegroundFits[player.id] ?? {
-    maxHeight: "100%",
-    maxWidth: "100%",
-    paddingClass: "p-3",
-  };
 
   return (
     <button
@@ -83,29 +63,13 @@ export const DraftPlayerCard = ({
         )}
       >
         {imageUrl ? (
-          <>
-            <img
-              src={imageUrl}
-              alt=""
-              aria-hidden="true"
-              className="absolute inset-0 h-full w-full scale-110 object-cover object-top opacity-45 blur-xl"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
-            <div className={clsx("absolute inset-0 z-10 flex items-center justify-center", foregroundFit.paddingClass)}>
-              <img
-                src={imageUrl}
-                alt={player.name}
-                className="object-contain object-center"
-                style={{
-                  maxHeight: foregroundFit.maxHeight,
-                  maxWidth: foregroundFit.maxWidth,
-                }}
-                loading="lazy"
-                referrerPolicy="no-referrer"
-              />
-            </div>
-          </>
+          <img
+            src={imageUrl}
+            alt={player.name}
+            className="absolute inset-0 h-full w-full object-cover object-center"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
         ) : (
           <>
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_32%)]" />
