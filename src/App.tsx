@@ -10,32 +10,32 @@ import { SimulationScreen } from "./components/SimulationScreen";
 import { useDraftGame } from "./hooks/useDraftGame";
 
 const challengeStrategyMap: Record<string, string> = {
-  "no-s-tier-shortcut": "Pass on raw ceiling and hunt efficient value, lineup fit, and synergy chains that can overperform their overall totals.",
-  "floor-spacers": "Prioritize elite shooters early, then protect the spacing with playmakers and at least one dependable big.",
-  "fortress-build": "Chase interior anchors, point-of-attack defenders, and rangy wings before you worry about pure scoring punch.",
-  "creator-collective": "Stack initiators and secondary creators so every lineup unit has a real offensive organizer.",
-  "dynasty-depth": "Treat the bench as a weapon. Balanced support slots and smart lineup order matter more than one extra star swing.",
-  "title-or-bust": "Draft for playoff survivability: two-way stars, real size, late-game creation, and as few lineup holes as possible.",
+  "classic": "Take the best long-term team, not the flashiest individual player.",
+  "no-s-tier-shortcut": "Lean into fit, value, and synergy instead of pure ceiling.",
+  "floor-spacers": "Protect spacing with shooters, creators, and at least one stable big.",
+  "fortress-build": "Prioritize stoppers, rim protection, and versatile size.",
+  "creator-collective": "Stack initiators so every lineup unit has an organizer.",
+  "dynasty-depth": "Treat the middle of the rotation like real winning equity.",
+  "title-or-bust": "Draft for playoff survivability with as few weak spots as possible.",
 };
 
 const rareEventStrategyMap: Record<string, string> = {
-  "rare-events-disabled": "No environment trick here. Draft the cleanest all-around roster you can and lean into broad team fit.",
-  "nineties-night": "Old-school wings, bruising bigs, and 90s cores get more love than usual, so nostalgia-heavy builds have extra upside.",
-  "pace-and-space": "Spacing matters more than normal. Prioritize shooting at guard and wing, and avoid clogging the floor with too many non-shooters.",
-  "defense-travels": "This is the run to chase stoppers. Wing defense, rim deterrence, and lineup versatility will hold value deep into the playoffs.",
-  "point-forward-era": "Large creators are premium. Wings and forwards who can initiate offense give your lineup a bigger boost than usual.",
-  "tower-ball": "Don't be afraid to go big. Rebounding, interior defense, and frontcourt depth get a friendlier translation this run.",
+  "rare-events-disabled": "Draft the cleanest all-around roster you can.",
+  "nineties-night": "90s cores, physical wings, and classic bigs get extra lift.",
+  "pace-and-space": "Shooting and spacing matter more than usual here.",
+  "defense-travels": "Stops, length, and versatility carry more weight.",
+  "point-forward-era": "Big initiators and jumbo creators get a boost.",
+  "tower-ball": "Size, rebounding, and paint control play better here.",
 };
 
 const categoryStrategyMap: Record<string, string> = {
-  offense: "Lean toward primary scorers, shot creators, and guards or wings who can keep pressure on the defense every possession.",
-  defense: "Value stoppers, rim protectors, and lineup versatility over microwave offense.",
-  playmaking: "Prioritize lead initiators and connective passers so every unit can generate easy looks.",
-  shooting: "Load up on elite perimeter threats and avoid too many spacing liabilities in the same lineup.",
-  rebounding: "Target size, physicality, and multiple frontcourt contributors who can control the glass.",
-  fit: "Draft complementary skill sets instead of redundant stars. Cover creation, spacing, defense, and size in one coherent build.",
-  chemistry: "Chase badge synergies, iconic pairings, and clean lineup balance that amplifies everyone else.",
-  depth: "Treat the sixth through eighth spots like real rotation anchors and avoid letting the bench fall off a cliff.",
+  offense: "Prioritize scoring gravity, creators, and shot pressure.",
+  defense: "Value stoppers, rim protection, and switchable size.",
+  playmaking: "Stack initiators and connective passers.",
+  shooting: "Load up on elite spacing and avoid floor-cloggers.",
+  rebounding: "Target size, strength, and multiple glass-crashers.",
+  fit: "Draft complementary roles instead of redundant stars.",
+  chemistry: "Chase synergy badges and clean lineup balance.",
 };
 
 function App() {
@@ -68,14 +68,17 @@ function App() {
         id: "challenge",
         label: "Primary Challenge",
         title: state.currentChallenge.title,
-        summary: `+${state.currentChallenge.reward} legacy if completed.`,
+        summary:
+          state.currentChallenge.reward > 0
+            ? `+${state.currentChallenge.reward} legacy`
+            : "Standard season sim",
         strategy:
           challengeStrategyMap[state.currentChallenge.id] ??
           "Draft with the active objective in mind and let it break ties between similar players.",
         icon: Flag,
         wrapperClass:
-          "rounded-2xl border border-amber-300/18 bg-amber-300/10 p-4",
-        iconClass: "rounded-xl bg-amber-300/16 p-2.5 text-amber-100",
+          "rounded-xl border border-amber-300/18 bg-amber-300/10 p-3",
+        iconClass: "rounded-lg bg-amber-300/16 p-2 text-amber-100",
         summaryClass: "text-amber-100",
       },
       {
@@ -88,11 +91,11 @@ function App() {
           "Use the event as a tiebreaker whenever you are choosing between otherwise similar roster directions.",
         icon: Sparkles,
         wrapperClass: state.rareEventsEnabled
-          ? "rounded-2xl border border-sky-300/18 bg-sky-300/10 p-4"
-          : "rounded-2xl border border-white/10 bg-black/20 p-4",
+          ? "rounded-xl border border-sky-300/18 bg-sky-300/10 p-3"
+          : "rounded-xl border border-white/10 bg-black/20 p-3",
         iconClass: state.rareEventsEnabled
-          ? "rounded-xl bg-sky-300/16 p-2.5 text-sky-100"
-          : "rounded-xl bg-white/8 p-2.5 text-slate-300",
+          ? "rounded-lg bg-sky-300/16 p-2 text-sky-100"
+          : "rounded-lg bg-white/8 p-2 text-slate-300",
         summaryClass: state.rareEventsEnabled ? "text-sky-100" : "text-slate-300",
       },
       {
@@ -113,11 +116,11 @@ function App() {
             : "Use this flexibility to build the strongest balanced roster possible.",
         icon: Target,
         wrapperClass: state.categoryChallengesEnabled
-          ? "rounded-2xl border border-emerald-300/18 bg-emerald-300/10 p-4"
-          : "rounded-2xl border border-white/10 bg-black/20 p-4",
+          ? "rounded-xl border border-emerald-300/18 bg-emerald-300/10 p-3"
+          : "rounded-xl border border-white/10 bg-black/20 p-3",
         iconClass: state.categoryChallengesEnabled
-          ? "rounded-xl bg-emerald-300/16 p-2.5 text-emerald-100"
-          : "rounded-xl bg-white/8 p-2.5 text-slate-300",
+          ? "rounded-lg bg-emerald-300/16 p-2 text-emerald-100"
+          : "rounded-lg bg-white/8 p-2 text-slate-300",
         summaryClass: state.categoryChallengesEnabled ? "text-emerald-100" : "text-slate-300",
       },
     ];
@@ -260,10 +263,10 @@ function App() {
                   </div>
                 </div>
 
-                <div className="glass-panel rounded-[24px] p-4 shadow-card">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Run Intel</div>
-                    <div className="text-xs text-slate-500">Draft around these modifiers</div>
+                <div className="glass-panel rounded-[20px] p-3 shadow-card">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Run Intel</div>
+                    <div className="text-[11px] text-slate-500">Quick modifiers</div>
                   </div>
 
                   <div className="grid gap-3 xl:grid-cols-3">
@@ -271,20 +274,16 @@ function App() {
                       <div key={item.id} className={item.wrapperClass}>
                         <div className="flex items-start gap-3">
                           <div className={item.iconClass}>
-                            <item.icon size={16} />
+                            <item.icon size={14} />
                           </div>
                           <div className="min-w-0">
-                            <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-400">
                               {item.label}
                             </div>
-                            <h4 className="mt-1 font-display text-lg text-white">{item.title}</h4>
-                            <p className={`mt-2 text-xs leading-5 ${item.summaryClass}`}>{item.summary}</p>
+                            <h4 className="mt-0.5 font-display text-base text-white">{item.title}</h4>
+                            <p className={`mt-1 text-[11px] leading-4 ${item.summaryClass}`}>{item.summary}</p>
+                            <p className="mt-1 text-[11px] leading-4 text-slate-300">{item.strategy}</p>
                           </div>
-                        </div>
-
-                        <div className="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5">
-                          <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">How to draft</div>
-                          <div className="mt-1.5 text-xs leading-5 text-slate-200">{item.strategy}</div>
                         </div>
                       </div>
                     ))}
