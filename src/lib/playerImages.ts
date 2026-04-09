@@ -57,6 +57,8 @@ const directImageOverrides: Record<string, string> = {
     "https://static.wikia.nocookie.net/nbastreet/images/9/97/FDB1BF72-3F75-446F-B4F2-000331AE638B.jpeg/revision/latest?cb=20210419024456",
   "vince-carter":
     "https://slamonline.com/wp-content/uploads/2014/07/vince_1.jpg",
+  "victor-wembanyama":
+    "https://cdn.nba.com/manage/2026/02/wemby-pistons2.jpg",
   "oscar-robertson":
     "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Oscar_Robertson1971.jpg/250px-Oscar_Robertson1971.jpg",
   "pau-gasol":
