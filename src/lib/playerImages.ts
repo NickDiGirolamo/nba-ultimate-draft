@@ -41,6 +41,8 @@ const directImageOverrides: Record<string, string> = {
     "https://www.sportsnet.ca/wp-content/uploads/2013/07/allen_ray640.jpg",
   "shawn-kemp":
     "https://i.ebayimg.com/images/g/K9IAAOSwH-9emMX0/s-l1200.jpg",
+  "shai-gilgeous-alexander":
+    "https://cdn.prod.website-files.com/64da5279f1559b26fb07550e/6834c822e2ddaf129383c171_Best%20Shai%20Gilgeous-Alexander%20Pick%20for%20Timberwolves%20vs.%20Thunder%20Game%204.jpg",
   "steph-curry":
     "https://compote.slate.com/images/24605cda-82b1-4342-9af9-4b86f684174b.jpg",
 };
