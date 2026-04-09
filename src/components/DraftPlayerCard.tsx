@@ -11,31 +11,6 @@ const tierStyles = {
   C: "from-slate-300/14 via-slate-100/5 to-slate-500/14 border-slate-200/15 shadow-card",
 };
 
-const defaultPhotoFit = {
-  mode: "cover" as const,
-  scale: 1.06,
-  position: "center 12%",
-};
-
-const playerPhotoFits: Record<
-  string,
-  { mode?: "cover" | "contain"; scale?: number; position?: string }
-> = {
-  "scottie-pippen": { mode: "contain", scale: 0.9, position: "center center" },
-  "dominique-wilkins": { mode: "cover", scale: 1.12, position: "center 14%" },
-  "michael-jordan": { mode: "cover", scale: 1.1, position: "center 10%" },
-  "lebron-james": { mode: "cover", scale: 1.08, position: "center 12%" },
-  "larry-bird": { mode: "cover", scale: 1.08, position: "center 12%" },
-  "magic-johnson": { mode: "cover", scale: 1.1, position: "center 12%" },
-  "kobe-bryant": { mode: "cover", scale: 1.08, position: "center 12%" },
-  "shaquille-o-neal": { mode: "cover", scale: 1.14, position: "center 12%" },
-  "wilt-chamberlain": { mode: "cover", scale: 1.08, position: "center 10%" },
-  "dennis-rodman": { mode: "cover", scale: 1.1, position: "center 12%" },
-  "yao-ming": { mode: "cover", scale: 1.1, position: "center 12%" },
-  "kevin-durant": { mode: "cover", scale: 1.08, position: "center 12%" },
-  "victor-wembanyama": { mode: "cover", scale: 1.06, position: "center 10%" },
-};
-
 interface DraftPlayerCardProps {
   player: Player;
   onSelect?: (player: Player) => void;
@@ -55,7 +30,6 @@ export const DraftPlayerCard = ({
 }: DraftPlayerCardProps) => {
   const visual = getPlayerVisual(player);
   const imageUrl = usePlayerImage(player);
-  const photoFit = { ...defaultPhotoFit, ...(playerPhotoFits[player.id] ?? {}) };
 
   return (
     <button
@@ -89,30 +63,13 @@ export const DraftPlayerCard = ({
         )}
       >
         {imageUrl ? (
-          <>
-            <img
-              src={imageUrl}
-              alt=""
-              aria-hidden="true"
-              className="absolute inset-0 h-full w-full scale-110 object-cover object-center opacity-35 blur-xl"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
-            <img
-              src={imageUrl}
-              alt={player.name}
-              className={clsx(
-                "absolute inset-0 z-10 h-full w-full",
-                photoFit.mode === "contain" ? "object-contain" : "object-cover",
-              )}
-              style={{
-                objectPosition: photoFit.position,
-                transform: `scale(${photoFit.scale})`,
-              }}
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
-          </>
+          <img
+            src={imageUrl}
+            alt={player.name}
+            className="absolute inset-0 h-full w-full object-cover object-top"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
         ) : (
           <>
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_32%)]" />
