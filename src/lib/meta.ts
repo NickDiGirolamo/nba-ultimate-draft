@@ -224,6 +224,10 @@ const chemistryDefinitions = [
 export const selectDraftChallenge = (rng: () => number) => randomItem(draftChallenges, rng);
 export const selectRareEvent = (rng: () => number) => randomItem(rareEvents, rng);
 export const selectCategoryChallenge = (rng: () => number) => randomItem(categoryChallenges, rng);
+export const getDraftChallengeById = (id: string) =>
+  draftChallenges.find((challenge) => challenge.id === id) ?? draftChallenges[0];
+export const getRareEventById = (id: string) =>
+  rareEvents.find((event) => event.id === id) ?? standardRareEvent;
 export const getCategoryChallengeById = (id: string) =>
   categoryChallenges.find((challenge) => challenge.id === id) ?? null;
 

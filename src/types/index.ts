@@ -38,6 +38,15 @@ export interface CategoryChallenge {
   metricLabel: string;
 }
 
+export type DraftChallengeSelection =
+  | "random"
+  | DraftChallenge["id"];
+
+export type RareEventSelection =
+  | "disabled"
+  | "random"
+  | RareEvent["id"];
+
 export type CategoryChallengeSelection =
   | "disabled"
   | "random"
@@ -237,7 +246,9 @@ export interface DraftState {
   selectedSlotIndex: number | null;
   history: RunHistoryEntry[];
   unlockedPlayerIds: string[];
+  draftChallengeSelection: DraftChallengeSelection;
   currentChallenge: DraftChallenge;
+  rareEventSelection: RareEventSelection;
   currentRareEvent: RareEvent;
   rareEventsEnabled: boolean;
   categoryChallengesEnabled: boolean;

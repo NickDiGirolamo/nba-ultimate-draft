@@ -1,19 +1,30 @@
-import clsx from "clsx";
 import { ChevronRight, Crown, Medal, Radar, Sparkles, Target, Trophy, Zap } from "lucide-react";
-import { CategoryChallenge, CategoryChallengeSelection, MetaProgress, RareEvent, RunHistoryEntry } from "../types";
-import { categoryChallenges } from "../lib/meta";
+import {
+  CategoryChallenge,
+  CategoryChallengeSelection,
+  DraftChallenge,
+  DraftChallengeSelection,
+  MetaProgress,
+  RareEvent,
+  RareEventSelection,
+  RunHistoryEntry,
+} from "../types";
+import { categoryChallenges, draftChallenges, rareEvents } from "../lib/meta";
 
 interface LandingHubProps {
   onStart: () => void;
   history: RunHistoryEntry[];
   meta: MetaProgress;
+  draftChallengeSelection: DraftChallengeSelection;
+  currentChallenge: DraftChallenge;
+  onDraftChallengeSelectionChange: (selection: DraftChallengeSelection) => void;
   rareEventsEnabled: boolean;
+  rareEventSelection: RareEventSelection;
   currentRareEvent: RareEvent;
-  onRareEventsToggle: (enabled: boolean) => void;
+  onRareEventSelectionChange: (selection: RareEventSelection) => void;
   categoryChallengesEnabled: boolean;
   categoryChallengeSelection: CategoryChallengeSelection;
   currentCategoryChallenge: CategoryChallenge | null;
-  onCategoryChallengesToggle: (enabled: boolean) => void;
   onCategoryChallengeSelectionChange: (selection: CategoryChallengeSelection) => void;
 }
 
@@ -21,13 +32,16 @@ export const LandingHub = ({
   onStart,
   history,
   meta,
+  draftChallengeSelection,
+  currentChallenge,
+  onDraftChallengeSelectionChange,
   rareEventsEnabled,
+  rareEventSelection,
   currentRareEvent,
-  onRareEventsToggle,
+  onRareEventSelectionChange,
   categoryChallengesEnabled,
   categoryChallengeSelection,
   currentCategoryChallenge,
-  onCategoryChallengesToggle,
   onCategoryChallengeSelectionChange,
 }: LandingHubProps) => (
   <section className="space-y-8">
@@ -57,6 +71,45 @@ export const LandingHub = ({
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-slate-400">
+                <Trophy size={14} className="text-amber-200" />
+                Primary Challenge
+              </div>
+              <h2 className="mt-2 font-display text-2xl text-white">
+                {draftChallengeSelection === "random" ? "Random Challenge" : currentChallenge.title}
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
+                {draftChallengeSelection === "random"
+                  ? "Let the game assign a fresh featured objective for each run."
+                  : currentChallenge.description}
+              </p>
+              <p className="mt-2 text-sm text-amber-100/90">
+                {draftChallengeSelection === "random"
+                  ? "A random primary challenge will be locked in on the draft briefing page."
+                  : `Reward: +${currentChallenge.reward} legacy score if you complete it.`}
+              </p>
+            </div>
+
+            <select
+              value={draftChallengeSelection}
+              onChange={(event) =>
+                onDraftChallengeSelectionChange(event.target.value as DraftChallengeSelection)
+              }
+              className="rounded-2xl border border-white/12 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/40"
+            >
+              <option value="random">Random Challenge</option>
+              {draftChallenges.map((challenge) => (
+                <option key={challenge.id} value={challenge.id}>
+                  {challenge.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-[28px] border border-white/10 bg-black/20 p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-slate-400">
                 <Zap size={14} className={rareEventsEnabled ? "text-amber-200" : "text-slate-500"} />
                 Rare Event Settings
               </div>
@@ -67,30 +120,29 @@ export const LandingHub = ({
                 {rareEventsEnabled ? currentRareEvent.description : "Rare events are turned off, so this run will use the default simulation environment."}
               </p>
               <p className="mt-2 text-sm text-amber-100/90">
-                {rareEventsEnabled ? currentRareEvent.impact : "No event-specific boosts or modifiers will be active."}
+                {rareEventSelection === "random" && rareEventsEnabled
+                  ? "This run will roll a random rare event on the draft briefing page."
+                  : rareEventsEnabled
+                  ? currentRareEvent.impact
+                  : "No event-specific boosts or modifiers will be active."}
               </p>
             </div>
 
-            <div className="inline-flex rounded-full border border-white/12 bg-black/30 p-1">
-              {[
-                { label: "Enabled", value: true },
-                { label: "Disabled", value: false },
-              ].map((option) => (
-                <button
-                  key={option.label}
-                  type="button"
-                  onClick={() => onRareEventsToggle(option.value)}
-                  className={clsx(
-                    "rounded-full px-4 py-2 text-sm font-medium transition",
-                    rareEventsEnabled === option.value
-                      ? "bg-white text-slate-950"
-                      : "text-slate-300 hover:text-white",
-                  )}
-                >
-                  {option.label}
-                </button>
+            <select
+              value={rareEventSelection}
+              onChange={(event) =>
+                onRareEventSelectionChange(event.target.value as RareEventSelection)
+              }
+              className="rounded-2xl border border-white/12 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-300/40"
+            >
+              <option value="disabled">Disabled</option>
+              <option value="random">Random Rare Event</option>
+              {rareEvents.map((event) => (
+                <option key={event.id} value={event.id}>
+                  {event.title}
+                </option>
               ))}
-            </div>
+            </select>
           </div>
         </div>
 
@@ -118,44 +170,21 @@ export const LandingHub = ({
               </p>
             </div>
 
-            <div className="flex flex-col gap-3">
-              <div className="inline-flex rounded-full border border-white/12 bg-black/30 p-1">
-                {[
-                  { label: "Enabled", value: true },
-                  { label: "Disabled", value: false },
-                ].map((option) => (
-                  <button
-                    key={option.label}
-                    type="button"
-                    onClick={() => onCategoryChallengesToggle(option.value)}
-                    className={clsx(
-                      "rounded-full px-4 py-2 text-sm font-medium transition",
-                      categoryChallengesEnabled === option.value
-                        ? "bg-white text-slate-950"
-                        : "text-slate-300 hover:text-white",
-                    )}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-
-              <select
-                value={categoryChallengesEnabled ? categoryChallengeSelection : "disabled"}
-                onChange={(event) =>
-                  onCategoryChallengeSelectionChange(event.target.value as CategoryChallengeSelection)
-                }
-                className="rounded-2xl border border-white/12 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-300/40"
-                disabled={!categoryChallengesEnabled}
-              >
-                <option value="random">Random Category</option>
-                {categoryChallenges.map((challenge) => (
-                  <option key={challenge.id} value={challenge.id}>
-                    {challenge.metricLabel}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={categoryChallengeSelection}
+              onChange={(event) =>
+                onCategoryChallengeSelectionChange(event.target.value as CategoryChallengeSelection)
+              }
+              className="rounded-2xl border border-white/12 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-300/40"
+            >
+              <option value="disabled">Disabled</option>
+              <option value="random">Random Category</option>
+              {categoryChallenges.map((challenge) => (
+                <option key={challenge.id} value={challenge.id}>
+                  {challenge.metricLabel}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

@@ -20,8 +20,8 @@ function App() {
     beginSimulation,
     resetDraft,
     handleRosterSlotClick,
-    setRareEventsEnabled,
-    setCategoryChallengesEnabled,
+    setDraftChallengeSelection,
+    setRareEventSelection,
     setCategoryChallengeSelection,
     beginDraftFromBriefing,
   } = useDraftGame();
@@ -99,13 +99,16 @@ function App() {
             onStart={startDraft}
             history={state.history}
             meta={metaProgress}
+            draftChallengeSelection={state.draftChallengeSelection}
+            currentChallenge={state.currentChallenge}
+            onDraftChallengeSelectionChange={setDraftChallengeSelection}
             rareEventsEnabled={state.rareEventsEnabled}
+            rareEventSelection={state.rareEventSelection}
             currentRareEvent={state.currentRareEvent}
-            onRareEventsToggle={setRareEventsEnabled}
+            onRareEventSelectionChange={setRareEventSelection}
             categoryChallengesEnabled={state.categoryChallengesEnabled}
             categoryChallengeSelection={state.categoryChallengeSelection}
             currentCategoryChallenge={state.currentCategoryChallenge}
-            onCategoryChallengesToggle={setCategoryChallengesEnabled}
             onCategoryChallengeSelectionChange={setCategoryChallengeSelection}
           />
         )}
