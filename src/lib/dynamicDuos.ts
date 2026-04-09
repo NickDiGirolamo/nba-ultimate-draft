@@ -53,6 +53,11 @@ export const dynamicDuos: DynamicDuo[] = [
     players: ["magic-johnson", "kareem-abdul-jabbar"],
   },
   {
+    id: "steph-klay",
+    title: "Dynamic Duos: Steph + Klay",
+    players: ["steph-curry", "klay-thompson"],
+  },
+  {
     id: "tmac-yao",
     title: "Dynamic Duos: T-Mac + Yao",
     players: ["tracy-mcgrady", "yao-ming"],
