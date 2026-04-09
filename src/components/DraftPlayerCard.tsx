@@ -20,8 +20,8 @@ const playerForegroundFits: Record<
   }
 > = {
   "michael-jordan": {
-    maxHeight: "79.2%",
-    maxWidth: "79.2%",
+    maxHeight: "99%",
+    maxWidth: "99%",
     paddingClass: "p-4",
   },
 };
@@ -46,8 +46,8 @@ export const DraftPlayerCard = ({
   const visual = getPlayerVisual(player);
   const imageUrl = usePlayerImage(player);
   const foregroundFit = playerForegroundFits[player.id] ?? {
-    maxHeight: "94.6%",
-    maxWidth: "94.6%",
+    maxHeight: "100%",
+    maxWidth: "100%",
     paddingClass: "p-3",
   };
 
