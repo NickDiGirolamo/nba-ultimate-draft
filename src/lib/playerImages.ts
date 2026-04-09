@@ -39,6 +39,8 @@ const directImageOverrides: Record<string, string> = {
     "https://www.detroitnews.com/gcdn/presto/2023/04/08/PDTN/683e207e-aa13-4650-8b14-be9707cdc8bd-dtncent02-7a8uqlzs9eesbdjuq08_original.jpg?width=527&height=610&fit=crop&format=pjpg&auto=webp",
   "julius-erving":
     "https://cdn.nba.com/manage/2020/10/julius-erving-nets-392x588.jpg",
+  "jrue-holiday":
+    "https://s7d2.scene7.com/is/image/TWCNews/ap-jrue-holiday-bucks_02032023",
   "kareem-abdul-jabbar":
     "https://www.jsonline.com/gcdn/presto/2021/04/12/PMJS/22f3502c-f3ef-4f9c-8875-bf7a5b6c9e46-1970_MJS_Milwaukee_Bucks_Kareem_Abdul-Jabbar_Historical_Archive-1.jpg?width=660&height=1036&fit=crop&format=pjpg&auto=webp",
   "karl-malone":
