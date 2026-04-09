@@ -67,7 +67,7 @@ export const DraftPlayerCard = ({
             src={imageUrl}
             alt={player.name}
             className="absolute inset-0 h-full w-full object-cover"
-            style={{ objectPosition: "center 8%" }}
+            style={{ objectPosition: "center top" }}
             loading="lazy"
             referrerPolicy="no-referrer"
           />
