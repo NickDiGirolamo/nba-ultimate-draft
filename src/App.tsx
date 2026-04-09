@@ -161,21 +161,21 @@ function App() {
     <div className="arena-shell text-white">
       <div className="mx-auto max-w-[1520px] px-4 py-6 md:px-6 lg:px-8 lg:py-8">
         <header className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="rounded-[24px] border border-white/12 bg-white/8 p-3 shadow-card">
-              <Trophy size={26} className="text-amber-200" />
+          <button
+            type="button"
+            onClick={resetDraft}
+            className="flex items-center gap-3 text-left transition hover:text-amber-100"
+          >
+            <div className="rounded-[20px] border border-white/12 bg-white/8 p-2.5 shadow-card">
+              <Trophy size={22} className="text-amber-200" />
             </div>
             <div>
-              <div className="text-xs uppercase tracking-[0.28em] text-slate-400">Legends Draft</div>
-              <button
-                type="button"
-                onClick={resetDraft}
-                className="mt-1 font-display text-2xl text-white transition hover:text-amber-100"
-              >
+              <div className="text-[10px] uppercase tracking-[0.28em] text-slate-400">Legends Draft</div>
+              <div className="mt-1 font-display text-xl text-white">
                 All-Time NBA Franchise Builder
-              </button>
+              </div>
             </div>
-          </div>
+          </button>
 
           <div className="grid gap-3 md:grid-cols-3">
             {[
@@ -234,7 +234,12 @@ function App() {
                 <div className="glass-panel rounded-[28px] p-5 shadow-card">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Pick Window</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] text-slate-300">
+                          Legends Draft
+                        </span>
+                        <span className="text-xs uppercase tracking-[0.25em] text-slate-400">Pick Window</span>
+                      </div>
                       <h2 className="mt-2 font-display text-3xl text-white">Choose 1 of 5 legends</h2>
                       <div className="mt-3 flex flex-wrap gap-2 text-xs uppercase tracking-[0.18em] text-slate-300">
                         <span className="rounded-full border border-amber-200/18 bg-amber-300/10 px-3 py-2 text-amber-100">
