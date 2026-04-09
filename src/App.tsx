@@ -160,8 +160,8 @@ function App() {
   return (
     <div className="arena-shell text-white">
       <div className="mx-auto max-w-[1520px] px-4 py-6 md:px-6 lg:px-8 lg:py-8">
-        <header className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          {state.screen !== "draft" ? (
+        {state.screen !== "draft" && (
+          <header className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <button
               type="button"
               onClick={resetDraft}
@@ -177,26 +177,24 @@ function App() {
                 </div>
               </div>
             </button>
-          ) : (
-            <div />
-          )}
 
-          <div className="grid gap-3 md:grid-cols-3">
-            {[
-              { label: "Draft Mode", value: "1 of 5", icon: Swords },
-              { label: "Simulation", value: "82 + Playoffs", icon: BrainCircuit },
-              { label: "Team Building", value: "Fit Matters", icon: Trophy },
-            ].map((item) => (
-              <div key={item.label} className="glass-panel rounded-2xl px-4 py-3">
-                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-slate-400">
-                  <item.icon size={14} />
-                  {item.label}
+            <div className="grid gap-3 md:grid-cols-3">
+              {[
+                { label: "Draft Mode", value: "1 of 5", icon: Swords },
+                { label: "Simulation", value: "82 + Playoffs", icon: BrainCircuit },
+                { label: "Team Building", value: "Fit Matters", icon: Trophy },
+              ].map((item) => (
+                <div key={item.label} className="glass-panel rounded-2xl px-4 py-3">
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-slate-400">
+                    <item.icon size={14} />
+                    {item.label}
+                  </div>
+                  <div className="mt-2 text-base font-semibold text-white">{item.value}</div>
                 </div>
-                <div className="mt-2 text-base font-semibold text-white">{item.value}</div>
-              </div>
-            ))}
-          </div>
-        </header>
+              ))}
+            </div>
+          </header>
+        )}
 
         {state.screen === "landing" && (
           <LandingHub
@@ -311,7 +309,7 @@ function App() {
                       >
                         <div className={`choice-flip-card ${revealed ? "is-revealed" : ""}`}>
                           <div className="choice-face choice-face-back">
-                            <div className="choice-card-back h-full min-h-[390px] rounded-[26px] border border-white/10">
+                            <div className="choice-card-back h-full min-h-[440px] rounded-[26px] border border-white/10">
                               <div className="choice-card-back__inner">
                                 <div className="choice-card-back__badge">Legends Draft</div>
                                 <div className="choice-card-back__crest">
