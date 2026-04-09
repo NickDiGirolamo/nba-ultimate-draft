@@ -114,8 +114,9 @@ export const useDraftGame = () => {
   }, [state.roster]);
 
   const startDraft = () => {
-    const seed = state.seed ?? createSeed();
+    const seed = createSeed();
     const roster = rosterTemplate();
+    const rng = mulberry32(seed + 77);
     const currentChoices = generateChoices(roster, [], seed, 1);
     setState({
       ...state,
@@ -130,6 +131,9 @@ export const useDraftGame = () => {
       selectedSlotIndex: null,
       history: state.history,
       unlockedPlayerIds: state.unlockedPlayerIds,
+      currentChallenge: selectDraftChallenge(rng),
+      currentRareEvent: state.rareEventsEnabled ? selectRareEvent(rng) : standardRareEvent,
+      seed,
       screen: "draft",
     });
   };
