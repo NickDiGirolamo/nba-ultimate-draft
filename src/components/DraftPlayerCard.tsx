@@ -12,24 +12,28 @@ const tierStyles = {
 };
 
 const defaultPhotoFit = {
-  scale: 1.22,
-  translateY: "0%",
+  mode: "cover" as const,
+  scale: 1.06,
+  position: "center 12%",
 };
 
-const playerPhotoFits: Record<string, { scale: number; translateY?: string }> = {
-  "scottie-pippen": { scale: 1.62, translateY: "2%" },
-  "dominique-wilkins": { scale: 1.46, translateY: "1%" },
-  "michael-jordan": { scale: 1.38, translateY: "1%" },
-  "lebron-james": { scale: 1.34, translateY: "1%" },
-  "larry-bird": { scale: 1.3, translateY: "0%" },
-  "magic-johnson": { scale: 1.32, translateY: "1%" },
-  "kobe-bryant": { scale: 1.34, translateY: "1%" },
-  "shaquille-o-neal": { scale: 1.42, translateY: "1%" },
-  "wilt-chamberlain": { scale: 1.34, translateY: "1%" },
-  "dennis-rodman": { scale: 1.42, translateY: "1%" },
-  "yao-ming": { scale: 1.4, translateY: "1%" },
-  "kevin-durant": { scale: 1.3, translateY: "1%" },
-  "victor-wembanyama": { scale: 1.26, translateY: "0%" },
+const playerPhotoFits: Record<
+  string,
+  { mode?: "cover" | "contain"; scale?: number; position?: string }
+> = {
+  "scottie-pippen": { mode: "cover", scale: 1.28, position: "78% 16%" },
+  "dominique-wilkins": { mode: "cover", scale: 1.12, position: "center 14%" },
+  "michael-jordan": { mode: "cover", scale: 1.1, position: "center 10%" },
+  "lebron-james": { mode: "cover", scale: 1.08, position: "center 12%" },
+  "larry-bird": { mode: "cover", scale: 1.08, position: "center 12%" },
+  "magic-johnson": { mode: "cover", scale: 1.1, position: "center 12%" },
+  "kobe-bryant": { mode: "cover", scale: 1.08, position: "center 12%" },
+  "shaquille-o-neal": { mode: "cover", scale: 1.14, position: "center 12%" },
+  "wilt-chamberlain": { mode: "cover", scale: 1.08, position: "center 10%" },
+  "dennis-rodman": { mode: "cover", scale: 1.1, position: "center 12%" },
+  "yao-ming": { mode: "cover", scale: 1.1, position: "center 12%" },
+  "kevin-durant": { mode: "cover", scale: 1.08, position: "center 12%" },
+  "victor-wembanyama": { mode: "cover", scale: 1.06, position: "center 10%" },
 };
 
 interface DraftPlayerCardProps {
@@ -51,7 +55,7 @@ export const DraftPlayerCard = ({
 }: DraftPlayerCardProps) => {
   const visual = getPlayerVisual(player);
   const imageUrl = usePlayerImage(player);
-  const photoFit = playerPhotoFits[player.id] ?? defaultPhotoFit;
+  const photoFit = { ...defaultPhotoFit, ...(playerPhotoFits[player.id] ?? {}) };
 
   return (
     <button
@@ -97,9 +101,13 @@ export const DraftPlayerCard = ({
             <img
               src={imageUrl}
               alt={player.name}
-              className="absolute inset-0 z-10 h-full w-full object-contain object-center"
+              className={clsx(
+                "absolute inset-0 z-10 h-full w-full",
+                photoFit.mode === "contain" ? "object-contain" : "object-cover",
+              )}
               style={{
-                transform: `translateY(${photoFit.translateY ?? "0%"}) scale(${photoFit.scale})`,
+                objectPosition: photoFit.position,
+                transform: `scale(${photoFit.scale})`,
               }}
               loading="lazy"
               referrerPolicy="no-referrer"
