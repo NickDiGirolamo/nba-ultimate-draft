@@ -53,7 +53,7 @@ const directImageOverrides: Record<string, string> = {
     "https://www.sportsnet.ca/wp-content/uploads/2013/07/allen_ray640.jpg",
   "ben-wallace":
     "https://michigansportshof.org/mshof/wp-content/uploads/2019/01/ben-wallace.jpg",
-  "shaquille-oneal":
+  "shaquille-o-neal":
     "https://preview.redd.it/who-would-you-rather-have-prime-shaq-or-prime-giannis-v0-d0ogt1n4r6pe1.jpg?width=640&crop=smart&auto=webp&s=d72c0c9849e683ce07b4bfbe0ed627556c0247c5",
   "shawn-kemp":
     "https://i.ebayimg.com/images/g/K9IAAOSwH-9emMX0/s-l1200.jpg",
