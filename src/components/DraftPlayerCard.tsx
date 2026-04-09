@@ -107,17 +107,17 @@ export const DraftPlayerCard = ({
         <h3 className="font-display text-[1.65rem] font-semibold leading-tight text-white">
           {player.name}
         </h3>
+        <PlayerSynergyBadges
+          playerId={player.id}
+          draftedPlayerIds={draftedPlayerIds}
+          className="mt-3"
+        />
       </div>
 
       <div className="relative mt-auto flex flex-col justify-end pt-3">
         <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-300 whitespace-nowrap text-center">
           Tap to draft
         </div>
-        <PlayerSynergyBadges
-          playerId={player.id}
-          draftedPlayerIds={draftedPlayerIds}
-          className="mt-3"
-        />
       </div>
     </button>
   );
