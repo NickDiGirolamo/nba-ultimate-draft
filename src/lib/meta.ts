@@ -95,6 +95,13 @@ export const rareEvents: RareEvent[] = [
   },
 ];
 
+export const standardRareEvent: RareEvent = {
+  id: "rare-events-disabled",
+  title: "Rare Events Disabled",
+  description: "This run uses the standard simulation environment with no rare-event modifier.",
+  impact: "No extra event bonus will be applied this run.",
+};
+
 const chemistryDefinitions = [
   {
     id: "stockton-malone",

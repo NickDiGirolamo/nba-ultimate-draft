@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DraftState, Player, RunHistoryEntry, Screen } from "../types";
 import { STORAGE_KEY, assignPlayerToRoster, createSeed, generateChoices, rosterTemplate } from "../lib/draft";
 import { runSeasonSimulation } from "../lib/simulate";
-import { buildMetaProgress, selectDraftChallenge, selectRareEvent } from "../lib/meta";
+import { buildMetaProgress, selectDraftChallenge, selectRareEvent, standardRareEvent } from "../lib/meta";
 import { mulberry32 } from "../lib/random";
 
 const HISTORY_LIMIT = 24;
@@ -48,6 +48,7 @@ const createInitialState = (): DraftState => {
   const seed = createSeed();
   const roster = rosterTemplate();
   const rng = mulberry32(seed + 77);
+  const rareEventsEnabled = true;
 
   return {
     screen: "landing",
@@ -63,7 +64,8 @@ const createInitialState = (): DraftState => {
     history: [],
     unlockedPlayerIds: [],
     currentChallenge: selectDraftChallenge(rng),
-    currentRareEvent: selectRareEvent(rng),
+    currentRareEvent: rareEventsEnabled ? selectRareEvent(rng) : standardRareEvent,
+    rareEventsEnabled,
     seed,
   };
 };
@@ -78,7 +80,8 @@ const normalizeState = (value: DraftState): DraftState => {
     history: Array.isArray(value.history) ? value.history.map((entry) => upgradeHistoryEntry(entry as unknown as Record<string, unknown>)) : [],
     unlockedPlayerIds: Array.isArray(value.unlockedPlayerIds) ? value.unlockedPlayerIds : [],
     currentChallenge: value.currentChallenge ?? selectDraftChallenge(rng),
-    currentRareEvent: value.currentRareEvent ?? selectRareEvent(rng),
+    rareEventsEnabled: value.rareEventsEnabled ?? true,
+    currentRareEvent: value.currentRareEvent ?? ((value.rareEventsEnabled ?? true) ? selectRareEvent(rng) : standardRareEvent),
     seed,
   };
 };
@@ -111,9 +114,20 @@ export const useDraftGame = () => {
   }, [state.roster]);
 
   const startDraft = () => {
-    const fresh = createInitialState();
+    const seed = state.seed ?? createSeed();
+    const roster = rosterTemplate();
+    const currentChoices = generateChoices(roster, [], seed, 1);
     setState({
-      ...fresh,
+      ...state,
+      roster,
+      currentChoices,
+      availablePlayers: [],
+      draftedPlayerIds: [],
+      pickNumber: 1,
+      selectedPlayerId: null,
+      lastFilledSlot: null,
+      simulationResult: null,
+      selectedSlotIndex: null,
       history: state.history,
       unlockedPlayerIds: state.unlockedPlayerIds,
       screen: "draft",
@@ -241,7 +255,20 @@ export const useDraftGame = () => {
       ...fresh,
       history: state.history,
       unlockedPlayerIds: state.unlockedPlayerIds,
+      rareEventsEnabled: state.rareEventsEnabled,
+      currentRareEvent: state.rareEventsEnabled ? fresh.currentRareEvent : standardRareEvent,
       screen: "landing",
+    });
+  };
+
+  const setRareEventsEnabled = (enabled: boolean) => {
+    setState((current) => {
+      const rng = mulberry32(current.seed + 77);
+      return {
+        ...current,
+        rareEventsEnabled: enabled,
+        currentRareEvent: enabled ? selectRareEvent(rng) : standardRareEvent,
+      };
     });
   };
 
@@ -260,5 +287,6 @@ export const useDraftGame = () => {
     resetDraft,
     setScreen,
     handleRosterSlotClick,
+    setRareEventsEnabled,
   };
 };

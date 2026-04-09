@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BrainCircuit, Swords, Trophy } from "lucide-react";
+import { BrainCircuit, Sparkles, Swords, Trophy } from "lucide-react";
 import { DraftPlayerCard } from "./components/DraftPlayerCard";
 import { LandingHub } from "./components/LandingHub";
 import { ProgressHeader } from "./components/ProgressHeader";
@@ -19,6 +19,7 @@ function App() {
     beginSimulation,
     resetDraft,
     handleRosterSlotClick,
+    setRareEventsEnabled,
   } = useDraftGame();
 
   const choiceSignature = useMemo(
@@ -94,6 +95,9 @@ function App() {
             onStart={startDraft}
             history={state.history}
             meta={metaProgress}
+            rareEventsEnabled={state.rareEventsEnabled}
+            currentRareEvent={state.currentRareEvent}
+            onRareEventsToggle={setRareEventsEnabled}
           />
         )}
 
@@ -112,7 +116,9 @@ function App() {
                         <span className="rounded-full border border-amber-200/18 bg-amber-300/10 px-3 py-2 text-amber-100">
                           Challenge: {state.currentChallenge.title}
                         </span>
-                        <span className="rounded-full border border-sky-200/18 bg-sky-300/10 px-3 py-2 text-sky-100">
+                        <span className={state.rareEventsEnabled
+                          ? "rounded-full border border-sky-200/18 bg-sky-300/10 px-3 py-2 text-sky-100"
+                          : "rounded-full border border-white/12 bg-white/8 px-3 py-2 text-slate-300"}>
                           Event: {state.currentRareEvent.title}
                         </span>
                       </div>
@@ -125,6 +131,32 @@ function App() {
                     >
                       Simulate Season
                     </button>
+                  </div>
+                </div>
+
+                <div className={state.rareEventsEnabled
+                  ? "glass-panel rounded-[28px] border border-sky-300/18 bg-[linear-gradient(135deg,rgba(34,211,238,0.16),rgba(15,23,42,0.78))] p-5 shadow-card"
+                  : "glass-panel rounded-[28px] border border-white/10 bg-black/20 p-5 shadow-card"}>
+                  <div className="flex items-start gap-4">
+                    <div className={state.rareEventsEnabled
+                      ? "rounded-2xl bg-sky-300/16 p-3 text-sky-100"
+                      : "rounded-2xl bg-white/8 p-3 text-slate-300"}>
+                      <Sparkles size={20} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
+                        {state.rareEventsEnabled ? "Rare Event Active" : "Standard Environment"}
+                      </div>
+                      <h3 className="mt-2 font-display text-2xl text-white">
+                        {state.currentRareEvent.title}
+                      </h3>
+                      <p className="mt-2 text-sm leading-7 text-slate-200">
+                        {state.currentRareEvent.description}
+                      </p>
+                      <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-slate-200">
+                        {state.currentRareEvent.impact}
+                      </div>
+                    </div>
                   </div>
                 </div>
 

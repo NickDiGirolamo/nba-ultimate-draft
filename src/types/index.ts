@@ -226,5 +226,6 @@ export interface DraftState {
   unlockedPlayerIds: string[];
   currentChallenge: DraftChallenge;
   currentRareEvent: RareEvent;
+  rareEventsEnabled: boolean;
   seed: number;
 }
