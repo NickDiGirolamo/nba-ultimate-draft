@@ -11,6 +11,27 @@ const tierStyles = {
   C: "from-slate-300/14 via-slate-100/5 to-slate-500/14 border-slate-200/15 shadow-card",
 };
 
+const defaultPhotoFit = {
+  scale: 1.22,
+  translateY: "0%",
+};
+
+const playerPhotoFits: Record<string, { scale: number; translateY?: string }> = {
+  "scottie-pippen": { scale: 1.62, translateY: "2%" },
+  "dominique-wilkins": { scale: 1.46, translateY: "1%" },
+  "michael-jordan": { scale: 1.38, translateY: "1%" },
+  "lebron-james": { scale: 1.34, translateY: "1%" },
+  "larry-bird": { scale: 1.3, translateY: "0%" },
+  "magic-johnson": { scale: 1.32, translateY: "1%" },
+  "kobe-bryant": { scale: 1.34, translateY: "1%" },
+  "shaquille-o-neal": { scale: 1.42, translateY: "1%" },
+  "wilt-chamberlain": { scale: 1.34, translateY: "1%" },
+  "dennis-rodman": { scale: 1.42, translateY: "1%" },
+  "yao-ming": { scale: 1.4, translateY: "1%" },
+  "kevin-durant": { scale: 1.3, translateY: "1%" },
+  "victor-wembanyama": { scale: 1.26, translateY: "0%" },
+};
+
 interface DraftPlayerCardProps {
   player: Player;
   onSelect?: (player: Player) => void;
@@ -30,6 +51,7 @@ export const DraftPlayerCard = ({
 }: DraftPlayerCardProps) => {
   const visual = getPlayerVisual(player);
   const imageUrl = usePlayerImage(player);
+  const photoFit = playerPhotoFits[player.id] ?? defaultPhotoFit;
 
   return (
     <button
@@ -75,7 +97,10 @@ export const DraftPlayerCard = ({
             <img
               src={imageUrl}
               alt={player.name}
-              className="absolute inset-4 z-10 h-[calc(100%-2rem)] w-[calc(100%-2rem)] object-contain object-center"
+              className="absolute inset-0 z-10 h-full w-full object-contain object-center"
+              style={{
+                transform: `translateY(${photoFit.translateY ?? "0%"}) scale(${photoFit.scale})`,
+              }}
               loading="lazy"
               referrerPolicy="no-referrer"
             />
