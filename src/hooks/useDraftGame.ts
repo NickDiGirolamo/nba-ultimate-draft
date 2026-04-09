@@ -52,6 +52,7 @@ const resolveRunParameters = (
 
 const upgradeHistoryEntry = (entry: Record<string, unknown>): RunHistoryEntry => ({
   id: String(entry.id ?? `legacy-${Date.now()}`),
+  mode: entry.mode === "category-focus" ? "category-focus" : "season",
   teamName: String(entry.teamName ?? "Legends Dynasty"),
   record: String(entry.record ?? "0-82"),
   wins: Number(entry.wins ?? 0),
@@ -66,6 +67,9 @@ const upgradeHistoryEntry = (entry: Record<string, unknown>): RunHistoryEntry =>
   challengeTitle: String(entry.challengeTitle ?? "No active challenge"),
   challengeCompleted: Boolean(entry.challengeCompleted),
   rareEventTitle: String(entry.rareEventTitle ?? "Standard environment"),
+  categoryFocusId: entry.categoryFocusId ? String(entry.categoryFocusId) : null,
+  categoryFocusTitle: entry.categoryFocusTitle ? String(entry.categoryFocusTitle) : null,
+  focusScore: entry.focusScore === undefined || entry.focusScore === null ? null : Number(entry.focusScore),
   titleOdds: Number(entry.titleOdds ?? 0),
   metrics: (entry.metrics as RunHistoryEntry["metrics"]) ?? {
     overall: 0,
@@ -269,9 +273,10 @@ export const useDraftGame = () => {
         state.seed,
         state.currentChallenge,
         state.currentRareEvent,
+        state.currentCategoryChallenge,
       );
       const newPersonalBests = [
-        simulationResult.record.wins > previousMeta.personalBests.wins ? "Wins" : null,
+        simulationResult.mode === "season" && simulationResult.record.wins > previousMeta.personalBests.wins ? "Wins" : null,
         simulationResult.metrics.overall > previousMeta.personalBests.overall ? "Overall" : null,
         simulationResult.metrics.offense > previousMeta.personalBests.offense ? "Offense" : null,
         simulationResult.metrics.defense > previousMeta.personalBests.defense ? "Defense" : null,
@@ -280,8 +285,12 @@ export const useDraftGame = () => {
       ].filter((value): value is string => Boolean(value));
       const historyEntry = {
         id: `${state.seed}-${Date.now()}`,
+        mode: simulationResult.mode,
         teamName: simulationResult.teamName,
-        record: `${simulationResult.record.wins}-${simulationResult.record.losses}`,
+        record:
+          simulationResult.mode === "category-focus" && simulationResult.categoryChallenge
+            ? `${simulationResult.categoryChallenge.metricLabel} ${simulationResult.focusScore}`
+            : `${simulationResult.record.wins}-${simulationResult.record.losses}`,
         wins: simulationResult.record.wins,
         losses: simulationResult.record.losses,
         seed: simulationResult.seed,
@@ -294,6 +303,9 @@ export const useDraftGame = () => {
         challengeTitle: simulationResult.challenge.title,
         challengeCompleted: simulationResult.challengeCompleted,
         rareEventTitle: simulationResult.rareEvent.title,
+        categoryFocusId: simulationResult.categoryChallenge?.id ?? null,
+        categoryFocusTitle: simulationResult.categoryChallenge?.metricLabel ?? null,
+        focusScore: simulationResult.focusScore,
         titleOdds: simulationResult.titleOdds,
         metrics: simulationResult.metrics,
       };

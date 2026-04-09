@@ -1,4 +1,5 @@
 import {
+  CategoryChallenge,
   DraftChallenge,
   Player,
   RareEvent,
@@ -60,6 +61,18 @@ const getDraftGrade = (overall: number, fit: number, depth: number) => {
   if (score >= 78) return "B-";
   if (score >= 75) return "C+";
   if (score >= 72) return "C";
+  return "D";
+};
+
+const getCategoryGrade = (value: number) => {
+  if (value >= 95) return "A+";
+  if (value >= 91) return "A";
+  if (value >= 87) return "A-";
+  if (value >= 83) return "B+";
+  if (value >= 79) return "B";
+  if (value >= 75) return "B-";
+  if (value >= 71) return "C+";
+  if (value >= 67) return "C";
   return "D";
 };
 
@@ -271,9 +284,85 @@ export const runSeasonSimulation = (
   seed: number,
   challenge: DraftChallenge,
   rareEvent: RareEvent,
+  categoryChallenge: CategoryChallenge | null,
 ): SimulationResult => {
   const metrics = evaluateTeam(roster, rareEvent);
   const rng = mulberry32(seed + 41023);
+  const rosterPlayers = getPlayers(roster);
+  const chemistryBonuses = getChemistryBonuses(rosterPlayers.map((player) => player.id));
+  const chemistryScore = chemistryBonuses.reduce((sum, bonus) => sum + bonus.bonusScore, 0);
+  const rareEventBonus = evaluateRareEventBonus(rareEvent, rosterPlayers);
+
+  if (categoryChallenge) {
+    const focusScore = Math.round(metrics[categoryChallenge.metric] * 10) / 10;
+    const { strengths, weaknesses, mvp, xFactor } = getStrengthsAndWeaknesses(
+      roster,
+      metrics,
+      "Missed Playoffs",
+    );
+    const focusSummary =
+      focusScore >= 94
+        ? `This run was all about maximizing ${categoryChallenge.metricLabel.toLowerCase()}, and your roster delivered an elite ${focusScore} ${categoryChallenge.metricLabel.toLowerCase()} score.`
+        : focusScore >= 88
+          ? `Your roster posted a strong ${focusScore} in ${categoryChallenge.metricLabel.toLowerCase()}, putting together a credible specialist build in that category.`
+          : focusScore >= 82
+            ? `The build reached a respectable ${focusScore} in ${categoryChallenge.metricLabel.toLowerCase()}, though there was still room to push the specialization further.`
+            : `This run only reached ${focusScore} in ${categoryChallenge.metricLabel.toLowerCase()}, so the roster never fully committed to the category focus objective.`;
+
+    const focusReason =
+      categoryChallenge.metric === "offense"
+        ? "Shot creation, spacing, and star-level scoring gravity were the biggest drivers of the final offense score."
+        : categoryChallenge.metric === "defense"
+          ? "Perimeter resistance, rim protection, and lineup versatility were the biggest swing factors in the final defense score."
+          : categoryChallenge.metric === "playmaking"
+            ? "Primary initiators and connective passers did the most to lift the playmaking profile."
+            : categoryChallenge.metric === "shooting"
+              ? "Floor spacing and the sheer number of credible shooting threats decided the final shooting grade."
+              : categoryChallenge.metric === "rebounding"
+                ? "Size, physicality, and frontcourt depth dictated the final rebounding result."
+                : categoryChallenge.metric === "chemistry"
+                  ? "Synergy bonuses, lineup fit, and role balance did the most to raise the chemistry score."
+                  : "Complementary skill overlap and lineup coherence were the biggest levers behind the final fit grade.";
+
+    const focusLegacyScore = Math.round(
+      metrics[categoryChallenge.metric] * 8 +
+        metrics.fit * 1.1 +
+        chemistryScore * 2 +
+        metrics.overall * 0.6,
+    );
+
+    return {
+      mode: "category-focus",
+      categoryChallenge,
+      focusScore,
+      metrics,
+      record: { wins: 0, losses: 0 },
+      seed: 0,
+      conference: "East",
+      playoffFinish: "Missed Playoffs",
+      titleOdds: 0,
+      summary: focusSummary,
+      reason: focusReason,
+      mvp,
+      xFactor,
+      strengths,
+      weaknesses,
+      ratingLabel: labelForMetric(metrics.overall),
+      offenseLabel: labelForMetric(metrics.offense),
+      defenseLabel: labelForMetric(metrics.defense),
+      draftGrade: getCategoryGrade(focusScore),
+      teamName: buildTeamName(roster),
+      legacyScore: focusLegacyScore,
+      challenge,
+      challengeCompleted: false,
+      challengeReward: 0,
+      rareEvent,
+      rareEventBonus,
+      chemistryBonuses,
+      chemistryScore,
+    };
+  }
+
   const powerScore = metrics.overall * 0.29 + metrics.offense * 0.18 + metrics.defense * 0.18 + metrics.fit * 0.13 + metrics.depth * 0.08 + metrics.starPower * 0.09 + metrics.chemistry * 0.05;
   const varianceSwing = (rng() - 0.5) * metrics.variance * 1.6;
   const wins = clamp(Math.round(16 + (powerScore - 70) * 1.38 + varianceSwing), 18, 74);
@@ -285,11 +374,10 @@ export const runSeasonSimulation = (
   const titleOdds = clamp(Math.round((powerScore - 72) * 3.5), 1, 78);
   const teamName = buildTeamName(roster);
   const draftGrade = getDraftGrade(metrics.overall, metrics.fit, metrics.depth);
-  const rosterPlayers = getPlayers(roster);
-  const chemistryBonuses = getChemistryBonuses(rosterPlayers.map((player) => player.id));
-  const chemistryScore = chemistryBonuses.reduce((sum, bonus) => sum + bonus.bonusScore, 0);
-  const rareEventBonus = evaluateRareEventBonus(rareEvent, rosterPlayers);
   const baseResult = {
+    mode: "season" as const,
+    categoryChallenge: null,
+    focusScore: null,
     metrics,
     record: { wins, losses },
     seed: seedResult,
@@ -363,6 +451,9 @@ export const runSeasonSimulation = (
   })();
 
   return {
+    mode: "season",
+    categoryChallenge: null,
+    focusScore: null,
     metrics,
     record: { wins, losses },
     seed: seedResult,

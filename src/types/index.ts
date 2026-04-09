@@ -15,6 +15,7 @@ export type RosterSlotType =
 export type PlayerTier = "S" | "A" | "B" | "C";
 
 export type Screen = "landing" | "briefing" | "draft" | "simulating" | "results";
+export type SimulationMode = "season" | "category-focus";
 
 export interface DraftChallenge {
   id: string;
@@ -120,7 +121,10 @@ export interface TeamStrengths {
 }
 
 export interface SimulationResult {
+  mode: SimulationMode;
   metrics: TeamMetrics;
+  categoryChallenge: CategoryChallenge | null;
+  focusScore: number | null;
   record: {
     wins: number;
     losses: number;
@@ -166,6 +170,7 @@ export interface SimulationResult {
 
 export interface RunHistoryEntry {
   id: string;
+  mode: SimulationMode;
   teamName: string;
   record: string;
   wins: number;
@@ -180,6 +185,9 @@ export interface RunHistoryEntry {
   challengeTitle: string;
   challengeCompleted: boolean;
   rareEventTitle: string;
+  categoryFocusId?: string | null;
+  categoryFocusTitle?: string | null;
+  focusScore?: number | null;
   titleOdds: number;
   metrics: TeamMetrics;
 }

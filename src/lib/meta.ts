@@ -77,6 +77,9 @@ const playoffFinishRank: Record<SimulationResult["playoffFinish"], number> = {
   "NBA Champion": 6,
 };
 
+const seasonRunsOnly = (history: RunHistoryEntry[]) =>
+  history.filter((run) => run.mode !== "category-focus");
+
 export const draftChallenges: DraftChallenge[] = [
   {
     id: "no-s-tier-shortcut",
@@ -417,6 +420,7 @@ export const evaluateChallengeCompletion = (
   playerTiers: string[],
   result: SimulationResult,
 ) => {
+  if (result.mode === "category-focus") return false;
   switch (challenge.id) {
     case "no-s-tier-shortcut":
       return !playerTiers.includes("S");
@@ -475,17 +479,18 @@ const defaultBests = (): PersonalBests => ({
 
 export const buildPersonalBests = (history: RunHistoryEntry[]): PersonalBests => {
   if (history.length === 0) return defaultBests();
+  const seasonHistory = seasonRunsOnly(history);
 
   return {
-    wins: Math.max(...history.map((run) => run.wins)),
+    wins: seasonHistory.length ? Math.max(...seasonHistory.map((run) => run.wins)) : 0,
     overall: Math.max(...history.map((run) => run.metrics.overall)),
     offense: Math.max(...history.map((run) => run.metrics.offense)),
     defense: Math.max(...history.map((run) => run.metrics.defense)),
     fit: Math.max(...history.map((run) => run.metrics.fit)),
     depth: Math.max(...history.map((run) => run.metrics.depth)),
     legacyScore: Math.max(...history.map((run) => run.legacyScore)),
-    titleOdds: Math.max(...history.map((run) => run.titleOdds)),
-    playoffFinish: bestPlayoffFinish(history),
+    titleOdds: seasonHistory.length ? Math.max(...seasonHistory.map((run) => run.titleOdds)) : 0,
+    playoffFinish: seasonHistory.length ? bestPlayoffFinish(seasonHistory) : "Missed Playoffs",
   };
 };
 
@@ -537,7 +542,7 @@ export const buildCollectionGoals = (unlockedPlayerIds: string[]): CollectionGoa
 };
 
 export const buildStreaks = (history: RunHistoryEntry[]) => {
-  const ordered = [...history].sort((a, b) => b.createdAtStamp - a.createdAtStamp);
+  const ordered = [...seasonRunsOnly(history)].sort((a, b) => b.createdAtStamp - a.createdAtStamp);
   let playoff = 0;
   let titles = 0;
   let fiftyWin = 0;
@@ -564,10 +569,11 @@ export const buildTrophies = (
   history: RunHistoryEntry[],
   collection: CollectionGoals,
 ): Trophy[] => {
-  const highestWins = history.length ? Math.max(...history.map((run) => run.wins)) : 0;
+  const seasonHistory = seasonRunsOnly(history);
+  const highestWins = seasonHistory.length ? Math.max(...seasonHistory.map((run) => run.wins)) : 0;
   const highestDefense = history.length ? Math.max(...history.map((run) => run.metrics.defense)) : 0;
   const highestOffense = history.length ? Math.max(...history.map((run) => run.metrics.offense)) : 0;
-  const titles = history.filter((run) => run.playoffFinish === "NBA Champion").length;
+  const titles = seasonHistory.filter((run) => run.playoffFinish === "NBA Champion").length;
 
   return [
     {

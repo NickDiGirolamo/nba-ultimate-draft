@@ -235,6 +235,250 @@ export const ResultsShowcase = ({
   meta,
   history,
 }: ResultsShowcaseProps) => {
+  if (result.mode === "category-focus" && result.categoryChallenge) {
+    const focusHistory = history
+      .filter((entry) => entry.mode === "category-focus" && entry.categoryFocusId === result.categoryChallenge?.id)
+      .sort((a, b) => b.createdAtStamp - a.createdAtStamp)
+      .slice(0, 5);
+    const personalBestForCategory = Math.max(
+      result.focusScore ?? 0,
+      ...focusHistory.map((entry) => entry.focusScore ?? 0),
+    );
+    const gapToBest = Math.round(((result.focusScore ?? 0) - personalBestForCategory) * 10) / 10;
+    const focusMetricCards = [
+      { label: result.categoryChallenge.metricLabel, value: result.focusScore ?? 0, icon: Target },
+      { label: "Personal Best", value: personalBestForCategory, icon: Crown },
+      { label: "Overall", value: result.metrics.overall, icon: Trophy },
+      { label: "Chemistry", value: result.metrics.chemistry, icon: Sparkles },
+    ];
+    const supportMetrics = [
+      { label: "Offense", value: result.metrics.offense },
+      { label: "Defense", value: result.metrics.defense },
+      { label: "Playmaking", value: result.metrics.playmaking },
+      { label: "Shooting", value: result.metrics.shooting },
+      { label: "Rebounding", value: result.metrics.rebounding },
+      { label: "Fit", value: result.metrics.fit },
+    ];
+
+    return (
+      <section className="space-y-8">
+        <div className="glass-panel overflow-hidden rounded-[34px] p-8 shadow-card lg:p-10">
+          <div className="relative flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
+            <div className="max-w-4xl">
+              <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/85">
+                Category Focus Results
+              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-4">
+                <h1 className="font-display text-4xl text-white lg:text-6xl">
+                  {result.categoryChallenge.metricLabel} Run
+                </h1>
+                <div className="inline-flex items-center gap-3 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-4 py-2">
+                  <div className="rounded-full bg-emerald-300/20 p-2 text-emerald-100">
+                    <Target size={18} />
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.26em] text-emerald-100/70">
+                      Focus Score
+                    </div>
+                    <div className="text-lg font-semibold text-white">
+                      {result.focusScore}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-200">
+                {result.summary}
+              </p>
+            </div>
+
+            <button
+              onClick={onDraftAgain}
+              className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900"
+            >
+              <RotateCcw size={18} />
+              Draft Again
+            </button>
+          </div>
+
+          <div className="relative mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {focusMetricCards.map((item) => (
+              <div
+                key={item.label}
+                className="rounded-[24px] border border-white/10 bg-black/20 p-5 backdrop-blur-sm"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="rounded-2xl bg-white/8 p-3 text-emerald-100">
+                    <item.icon size={18} />
+                  </div>
+                  <div className="text-3xl font-semibold text-white">{item.value}</div>
+                </div>
+                <div className="mt-4 text-xs uppercase tracking-[0.24em] text-slate-400">
+                  {item.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-8 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="space-y-8">
+            <div className="glass-panel rounded-[30px] p-6 shadow-card">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400">
+                    Focus Breakdown
+                  </p>
+                  <h2 className="mt-1 font-display text-2xl text-white">
+                    {result.categoryChallenge.metricLabel} Dashboard
+                  </h2>
+                </div>
+                <div className="rounded-full border border-white/10 bg-white/6 px-4 py-2 text-xs uppercase tracking-[0.22em] text-slate-300">
+                  Specialist mode
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-2">
+                {supportMetrics.map((metric) => (
+                  <div
+                    key={metric.label}
+                    className="rounded-[24px] border border-white/10 bg-white/5 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-xs uppercase tracking-[0.22em] text-slate-400">
+                          {metric.label}
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-white">
+                          {metric.value}
+                        </div>
+                      </div>
+                      <div className="text-xs uppercase tracking-[0.22em] text-emerald-100">
+                        {gradeFromMetric(metric.value)}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/8">
+                      <div
+                        className={`h-full rounded-full bg-gradient-to-r ${metricTone(metric.value)}`}
+                        style={{
+                          width: `${Math.max(12, Math.min(metric.value, 100))}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 rounded-[24px] border border-white/10 bg-black/15 p-5 text-sm leading-7 text-slate-300">
+                <span className="font-semibold text-white">What drove the score:</span>{" "}
+                {result.reason}
+              </div>
+            </div>
+
+            <div className="glass-panel rounded-[30px] p-6 shadow-card">
+              <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
+                Recent Focus Runs
+              </div>
+              <h2 className="mt-1 font-display text-2xl text-white">
+                Last 5 {result.categoryChallenge.metricLabel} Attempts
+              </h2>
+
+              <div className="mt-5 space-y-3">
+                {focusHistory.length > 0 ? (
+                  focusHistory.map((entry) => (
+                    <div key={entry.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="font-medium text-white">{entry.teamName}</div>
+                          <div className="mt-1 text-sm text-slate-300">
+                            {entry.categoryFocusTitle} score: {entry.focusScore ?? "--"}
+                          </div>
+                          <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
+                            {entry.rareEventTitle}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-semibold text-white">{entry.grade}</div>
+                          <div className="text-xs text-slate-400">{entry.createdAt}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-white/10 bg-black/15 p-6 text-sm leading-7 text-slate-300">
+                    This is your first recorded run for this category focus.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-8">
+            <div className="glass-panel rounded-[30px] p-6 shadow-card">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-[24px] border border-white/10 bg-black/15 p-5">
+                  <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Personal Best</div>
+                  <div className="mt-2 text-4xl font-semibold text-white">{personalBestForCategory}</div>
+                  <div className="mt-2 text-sm text-slate-300">
+                    Best recorded {result.categoryChallenge.metricLabel.toLowerCase()} score in this mode.
+                  </div>
+                </div>
+                <div className="rounded-[24px] border border-white/10 bg-black/15 p-5">
+                  <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Current Run Delta</div>
+                  <div className="mt-2 text-4xl font-semibold text-white">
+                    {gapToBest === 0 ? "Tied" : gapToBest > 0 ? `+${gapToBest}` : `${gapToBest}`}
+                  </div>
+                  <div className="mt-2 text-sm text-slate-300">
+                    Difference versus your best-ever {result.categoryChallenge.metricLabel.toLowerCase()} run.
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-2">
+                <SpotlightCard
+                  title="Best Driver"
+                  player={result.mvp}
+                  accent="from-emerald-300/25 to-lime-400/20"
+                />
+                <SpotlightCard
+                  title="Key Support"
+                  player={result.xFactor}
+                  accent="from-sky-300/25 to-cyan-400/20"
+                />
+              </div>
+            </div>
+
+            <div className="glass-panel rounded-[30px] p-6 shadow-card">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
+                    Final Roster
+                  </div>
+                  <h2 className="mt-1 font-display text-2xl text-white">
+                    Team Film Strip
+                  </h2>
+                </div>
+                <div className="rounded-full border border-white/10 bg-white/6 px-4 py-2 text-xs uppercase tracking-[0.22em] text-slate-300">
+                  10-player rotation
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3">
+                {roster.map((slot, index) => (
+                  <CompactRosterCard
+                    key={`${slot.label}-${index}`}
+                    slot={slot}
+                    isStarter={index < 5}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   const analytics = buildAnalytics(roster, result.metrics);
   const metricsForDisplay = chartMetrics(result.metrics, result);
   const highlightCards = [

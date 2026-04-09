@@ -364,10 +364,14 @@ export const LandingHub = ({
                   <div>
                     <div className="font-medium text-white">{item.teamName}</div>
                     <div className="mt-1 text-sm text-slate-300">
-                      {item.record} • {item.playoffFinish}
+                      {item.mode === "category-focus"
+                        ? `${item.categoryFocusTitle ?? "Category Focus"} • ${item.focusScore ?? "--"}`
+                        : `${item.record} • ${item.playoffFinish}`}
                     </div>
                     <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
-                      {item.challengeTitle} • {item.rareEventTitle}
+                      {item.mode === "category-focus"
+                        ? `${item.categoryFocusTitle ?? "Category Focus"} mode • ${item.rareEventTitle}`
+                        : `${item.challengeTitle} • ${item.rareEventTitle}`}
                     </div>
                   </div>
                   <div className="text-right">
