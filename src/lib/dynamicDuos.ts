@@ -68,6 +68,12 @@ export const rivalBadges: PlayerBadgeDefinition[] = [
     type: "rival",
     players: ["larry-bird", "magic-johnson"],
   },
+  {
+    id: "wilt-russell-rivals",
+    title: "Rivals: Wilt vs Russell",
+    type: "rival",
+    players: ["wilt-chamberlain", "bill-russell"],
+  },
 ];
 
 export const playerBadges: PlayerBadgeDefinition[] = [...dynamicDuos, ...bigThrees, ...rivalBadges];
