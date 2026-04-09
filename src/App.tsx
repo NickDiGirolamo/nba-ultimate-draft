@@ -309,7 +309,7 @@ function App() {
                       >
                         <div className={`choice-flip-card ${revealed ? "is-revealed" : ""}`}>
                           <div className="choice-face choice-face-back">
-                            <div className="choice-card-back h-full min-h-[440px] rounded-[26px] border border-white/10">
+                            <div className="choice-card-back h-full min-h-[520px] rounded-[26px] border border-white/10">
                               <div className="choice-card-back__inner">
                                 <div className="choice-card-back__badge">Legends Draft</div>
                                 <div className="choice-card-back__crest">
