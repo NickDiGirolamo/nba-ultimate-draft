@@ -72,13 +72,15 @@ export const DraftPlayerCard = ({
               loading="lazy"
               referrerPolicy="no-referrer"
             />
-            <img
-              src={imageUrl}
-              alt={player.name}
-              className="absolute inset-0 z-10 h-full w-full object-contain object-center p-2"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
+            <div className="absolute inset-0 z-10 flex items-center justify-center p-3">
+              <img
+                src={imageUrl}
+                alt={player.name}
+                className="max-h-[86%] max-w-[86%] object-contain object-center"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+            </div>
           </>
         ) : (
           <>
