@@ -229,46 +229,49 @@ function App() {
 
         {state.screen === "draft" && (
           <section className="space-y-6">
-            <ProgressHeader pickNumber={state.pickNumber} />
+            <div className="grid gap-6 xl:grid-cols-2">
+              <ProgressHeader pickNumber={state.pickNumber} />
+
+              <div className="glass-panel rounded-[28px] p-5 shadow-card">
+                <div className="flex h-full flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] text-slate-300">
+                        Legends Draft
+                      </span>
+                      <span className="text-xs uppercase tracking-[0.25em] text-slate-400">Pick Window</span>
+                    </div>
+                    <h2 className="mt-2 font-display text-3xl text-white">Choose 1 of 5 legends</h2>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs uppercase tracking-[0.18em] text-slate-300">
+                      <span className="rounded-full border border-amber-200/18 bg-amber-300/10 px-3 py-2 text-amber-100">
+                        Challenge: {state.currentChallenge.title}
+                      </span>
+                      <span className={state.rareEventsEnabled
+                        ? "rounded-full border border-sky-200/18 bg-sky-300/10 px-3 py-2 text-sky-100"
+                        : "rounded-full border border-white/12 bg-white/8 px-3 py-2 text-slate-300"}>
+                        Event: {state.currentRareEvent.title}
+                      </span>
+                      {state.categoryChallengesEnabled && state.currentCategoryChallenge ? (
+                        <span className="rounded-full border border-emerald-200/18 bg-emerald-300/10 px-3 py-2 text-emerald-100">
+                          Focus: {state.currentCategoryChallenge.metricLabel}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={beginSimulation}
+                    disabled={!completedRoster}
+                    className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-900 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-slate-400"
+                  >
+                    Simulate Season
+                  </button>
+                </div>
+              </div>
+            </div>
 
             <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
               <div className="space-y-5">
-                <div className="glass-panel rounded-[28px] p-5 shadow-card">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] text-slate-300">
-                          Legends Draft
-                        </span>
-                        <span className="text-xs uppercase tracking-[0.25em] text-slate-400">Pick Window</span>
-                      </div>
-                      <h2 className="mt-2 font-display text-3xl text-white">Choose 1 of 5 legends</h2>
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs uppercase tracking-[0.18em] text-slate-300">
-                        <span className="rounded-full border border-amber-200/18 bg-amber-300/10 px-3 py-2 text-amber-100">
-                          Challenge: {state.currentChallenge.title}
-                        </span>
-                        <span className={state.rareEventsEnabled
-                          ? "rounded-full border border-sky-200/18 bg-sky-300/10 px-3 py-2 text-sky-100"
-                          : "rounded-full border border-white/12 bg-white/8 px-3 py-2 text-slate-300"}>
-                          Event: {state.currentRareEvent.title}
-                        </span>
-                        {state.categoryChallengesEnabled && state.currentCategoryChallenge ? (
-                          <span className="rounded-full border border-emerald-200/18 bg-emerald-300/10 px-3 py-2 text-emerald-100">
-                            Focus: {state.currentCategoryChallenge.metricLabel}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={beginSimulation}
-                      disabled={!completedRoster}
-                      className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-900 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-slate-400"
-                    >
-                      Simulate Season
-                    </button>
-                  </div>
-                </div>
 
                 <div className="glass-panel rounded-[20px] p-3 shadow-card">
                   <div className="mb-2 flex items-center justify-between gap-3">
