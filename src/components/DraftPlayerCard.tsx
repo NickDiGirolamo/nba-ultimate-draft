@@ -109,8 +109,8 @@ export const DraftPlayerCard = ({
         </h3>
       </div>
 
-      <div className="relative mt-auto pt-3">
-        <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs uppercase tracking-[0.22em] text-slate-300">
+      <div className="relative mt-auto flex flex-col justify-end pt-3">
+        <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-300 whitespace-nowrap text-center">
           Tap to draft
         </div>
         <PlayerSynergyBadges
