@@ -59,19 +59,25 @@ export const DraftPlayerCard = ({
         className={clsx(
           "relative mb-4 overflow-hidden rounded-[22px] border border-white/10 bg-gradient-to-br",
           visual.bg,
-          compact ? "h-[140px]" : "h-[360px]",
+          compact ? "h-[150px]" : "h-[380px]",
         )}
       >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_32%)]" />
 
         {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={player.name}
-            className="absolute inset-0 h-full w-full object-cover object-top"
-            loading="lazy"
-            referrerPolicy="no-referrer"
-          />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center_bottom,rgba(255,255,255,0.14),transparent_44%)]" />
+        ) : null}
+
+        {imageUrl ? (
+          <div className="absolute inset-[10px] overflow-hidden rounded-[18px] border border-white/8 bg-black/12">
+            <img
+              src={imageUrl}
+              alt={player.name}
+              className="absolute inset-0 h-full w-full scale-[1.06] object-contain object-center"
+              loading="lazy"
+              referrerPolicy="no-referrer"
+            />
+          </div>
         ) : (
           <>
             <div
