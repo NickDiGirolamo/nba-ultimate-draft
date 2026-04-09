@@ -43,9 +43,20 @@ export const DraftPlayerCard = ({
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_30%)]" />
 
+      <div className="relative mb-4 flex items-center justify-between gap-3">
+        <div className="rounded-full border border-white/12 bg-white/8 px-3 py-1 text-[10px] uppercase tracking-[0.24em] text-slate-300">
+          Score
+        </div>
+        <div className="min-w-[92px] rounded-2xl border border-white/12 bg-black/20 px-4 py-2 text-center">
+          <div className="font-display text-[2.25rem] font-semibold leading-none text-white">
+            {player.overall}
+          </div>
+        </div>
+      </div>
+
       <div
         className={clsx(
-          "relative mb-5 overflow-hidden rounded-[22px] border border-white/10 bg-gradient-to-br",
+          "relative mb-4 overflow-hidden rounded-[22px] border border-white/10 bg-gradient-to-br",
           visual.bg,
           compact ? "h-[140px]" : "h-[244px]",
         )}
@@ -92,21 +103,13 @@ export const DraftPlayerCard = ({
         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
       </div>
 
-      <div className="relative flex items-start justify-between gap-3">
-        <h3 className="max-w-[13ch] font-display text-[1.7rem] font-semibold leading-tight text-white">
+      <div className="relative">
+        <h3 className="font-display text-[1.65rem] font-semibold leading-tight text-white">
           {player.name}
         </h3>
-        <div className="min-w-[84px] rounded-2xl border border-white/12 bg-black/20 px-3 py-2 text-center">
-          <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">
-            Score
-          </div>
-          <div className="font-display text-[2rem] font-semibold leading-none text-white">
-            {player.overall}
-          </div>
-        </div>
       </div>
 
-      <div className="relative mt-auto pt-5">
+      <div className="relative mt-auto pt-4">
         <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs uppercase tracking-[0.22em] text-slate-300">
           Tap to draft
         </div>
