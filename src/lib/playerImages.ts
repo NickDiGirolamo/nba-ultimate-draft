@@ -48,7 +48,7 @@ const directImageOverrides: Record<string, string> = {
   "penny-hardaway":
     "https://cdn.nba.com/teams/legacy/www.nba.com/magic/sites/magic/files/9_penny-20170112.jpg",
   "reggie-miller":
-    "https://m.media-amazon.com/images/M/MV5BMTUxODg1Nzg5OV5BMl5BanBnXkFtZTcwNTMzMjkwMw@@._V1_.jpg",
+    "https://www.tuscaloosanews.com/gcdn/authoring/2007/08/09/NTTN/ghows-DA-956c6365-614f-4280-8405-f5e1f84e025e-1569fd9a.jpeg?width=1200&disable=upscale&format=pjpg&auto=webp",
   "ray-allen":
     "https://www.sportsnet.ca/wp-content/uploads/2013/07/allen_ray640.jpg",
   "shawn-kemp":
