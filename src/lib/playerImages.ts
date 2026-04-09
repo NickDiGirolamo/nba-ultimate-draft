@@ -75,6 +75,8 @@ const directImageOverrides: Record<string, string> = {
     "https://michigansportshof.org/mshof/wp-content/uploads/2019/01/ben-wallace.jpg",
   "chris-paul":
     "https://legacymedia.sportsplatform.io/images_root/slides/photos/000/538/714/106958476_original.jpg?1291243979",
+  "charles-barkley":
+    "https://cdn.nba.com/teams/uploads/sites/1610612755/2023/01/barkley2.png",
   "anthony-davis":
     "https://www.usatoday.com/gcdn/presto/2019/01/25/USAT/8face4bf-fda9-4585-8fce-19d456e2fe5d-2019-01-24_Anthony_Davis1.jpg?crop=1744,2326,x365,y211",
   "shaquille-o-neal":
