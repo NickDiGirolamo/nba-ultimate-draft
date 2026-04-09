@@ -97,6 +97,8 @@ const directImageOverrides: Record<string, string> = {
     "https://michigansportshof.org/mshof/wp-content/uploads/2019/01/ben-wallace.jpg",
   "chris-paul":
     "https://legacymedia.sportsplatform.io/images_root/slides/photos/000/538/714/106958476_original.jpg?1291243979",
+  "chris-bosh":
+    "https://cdn.hoopsrumors.com/files/2017/07/USATSI_9094830.jpg",
   "chris-mullin":
     "https://hoopshallny.org/wp-content/uploads/2023/08/Chris-Mullin.jpg",
   "chris-webber":
