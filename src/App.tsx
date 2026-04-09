@@ -75,7 +75,7 @@ function App() {
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                   {state.currentChoices.map((player) => (
                     <DraftPlayerCard
                       key={player.id}
