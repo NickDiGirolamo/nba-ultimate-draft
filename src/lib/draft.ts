@@ -1,0 +1,159 @@
+import { allPlayers } from "../data/players";
+import { Player, Position, RosterSlot, RosterSlotType } from "../types";
+import { clamp, mulberry32, randomItem, randomInt } from "./random";
+
+export const STORAGE_KEY = "legends-draft-state-v1";
+
+export const rosterTemplate = (): RosterSlot[] => [
+  { slot: "PG", label: "Starting PG", allowedPositions: ["PG"], player: null },
+  { slot: "SG", label: "Starting SG", allowedPositions: ["SG"], player: null },
+  { slot: "SF", label: "Starting SF", allowedPositions: ["SF"], player: null },
+  { slot: "PF", label: "Starting PF", allowedPositions: ["PF"], player: null },
+  { slot: "C", label: "Starting C", allowedPositions: ["C"], player: null },
+  { slot: "G", label: "Bench Guard", allowedPositions: ["PG", "SG"], player: null },
+  { slot: "G/F", label: "Wing Flex", allowedPositions: ["SG", "SF", "PF"], player: null },
+  { slot: "F/C", label: "Frontcourt Flex", allowedPositions: ["PF", "C"], player: null },
+  { slot: "UTIL", label: "Utility", allowedPositions: ["PG", "SG", "SF", "PF", "C"], player: null },
+  { slot: "UTIL", label: "Utility", allowedPositions: ["PG", "SG", "SF", "PF", "C"], player: null },
+];
+
+const tierWeights: Record<string, number> = { S: 1.2, A: 2.4, B: 3.6, C: 1.7 };
+const choiceTierProfiles = [
+  { S: 2, A: 2, B: 1, C: 0 },
+  { S: 1, A: 2, B: 2, C: 0 },
+  { S: 1, A: 1, B: 2, C: 1 },
+  { S: 0, A: 2, B: 2, C: 1 },
+  { S: 0, A: 1, B: 3, C: 1 },
+];
+
+const slotPriority: Record<RosterSlotType, number> = {
+  PG: 12,
+  SG: 12,
+  SF: 12,
+  PF: 12,
+  C: 12,
+  G: 9,
+  "G/F": 8,
+  "F/C": 8,
+  UTIL: 4,
+};
+
+export const createSeed = () =>
+  Math.floor(Date.now() % 1_000_000_000) + Math.floor(Math.random() * 10000);
+
+const getPlayerPositions = (player: Player) => [player.primaryPosition, ...player.secondaryPositions];
+
+const scorePlayerForSlot = (player: Player, slot: RosterSlot) => {
+  const positions = getPlayerPositions(player);
+  const isNatural = slot.allowedPositions.includes(player.primaryPosition);
+  const hasFit = positions.some((position) => slot.allowedPositions.includes(position));
+  if (!hasFit) return -Infinity;
+
+  let score = slotPriority[slot.slot];
+  if (isNatural) score += 18;
+  score += clamp(player.overall - 80, 0, 25);
+  score += clamp((player.playmaking - 70) / 3, 0, 7);
+  score += clamp((player.defense - 70) / 4, 0, 6);
+  if (slot.slot === "PG" && player.primaryPosition === "PG") score += 10;
+  if (slot.slot === "C" && player.primaryPosition === "C") score += 10;
+  if (slot.slot === "G" && ["PG", "SG"].includes(player.primaryPosition)) score += 4;
+  if (slot.slot === "F/C" && ["PF", "C"].includes(player.primaryPosition)) score += 4;
+  return score;
+};
+
+export const assignPlayerToRoster = (roster: RosterSlot[], player: Player) => {
+  const openSlots = roster.map((slot, index) => ({ slot, index })).filter(({ slot }) => slot.player === null);
+  let bestIndex = -1;
+  let bestScore = -Infinity;
+
+  for (const { slot, index } of openSlots) {
+    const score = scorePlayerForSlot(player, slot);
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  }
+
+  if (bestIndex === -1) bestIndex = roster.findIndex((slot) => slot.player === null);
+
+  const updatedRoster = roster.map((slot, index) => (index === bestIndex ? { ...slot, player } : slot));
+  return { roster: updatedRoster, filledSlot: updatedRoster[bestIndex].slot };
+};
+
+const weightedSampleWithoutReplacement = (pool: Player[], count: number, rng: () => number) => {
+  const available = [...pool];
+  const results: Player[] = [];
+
+  while (results.length < count && available.length > 0) {
+    const totalWeight = available.reduce((sum, player) => sum + (tierWeights[player.hallOfFameTier] ?? 1), 0);
+    let threshold = rng() * totalWeight;
+    let selectedIndex = 0;
+
+    for (let index = 0; index < available.length; index += 1) {
+      threshold -= tierWeights[available[index].hallOfFameTier] ?? 1;
+      if (threshold <= 0) {
+        selectedIndex = index;
+        break;
+      }
+    }
+
+    results.push(available[selectedIndex]);
+    available.splice(selectedIndex, 1);
+  }
+
+  return results;
+};
+
+const chooseNeededPositions = (roster: RosterSlot[]) => {
+  const openSlots = roster.filter((slot) => slot.player === null);
+  const frequency = new Map<Position, number>();
+
+  openSlots.forEach((slot) => {
+    slot.allowedPositions.forEach((position) => {
+      frequency.set(position, (frequency.get(position) ?? 0) + 1);
+    });
+  });
+
+  return [...frequency.entries()].sort((a, b) => b[1] - a[1]).map(([position]) => position);
+};
+
+const fillRemainingChoices = (currentChoices: Player[], pool: Player[], rng: () => number) => {
+  if (currentChoices.length >= 5) return currentChoices;
+  const usedIds = new Set(currentChoices.map((player) => player.id));
+  const remainder = pool.filter((player) => !usedIds.has(player.id));
+  return [...currentChoices, ...weightedSampleWithoutReplacement(remainder, 5 - currentChoices.length, rng)];
+};
+
+export const generateChoices = (roster: RosterSlot[], draftedPlayerIds: string[], seed: number, pickNumber: number) => {
+  const rng = mulberry32(seed + pickNumber * 9973);
+  const availablePool = allPlayers.filter((player) => !draftedPlayerIds.includes(player.id));
+  const neededPositions = chooseNeededPositions(roster);
+  const profile = randomItem(choiceTierProfiles, rng);
+  const choices: Player[] = [];
+  const usedIds = new Set<string>();
+
+  for (const [tier, count] of Object.entries(profile)) {
+    if (count <= 0) continue;
+    const tierPool = availablePool.filter(
+      (player) =>
+        player.hallOfFameTier === tier &&
+        !usedIds.has(player.id) &&
+        getPlayerPositions(player).some((position) => neededPositions.includes(position)),
+    );
+    weightedSampleWithoutReplacement(tierPool, count, rng).forEach((player) => {
+      choices.push(player);
+      usedIds.add(player.id);
+    });
+  }
+
+  const fallbackPool = availablePool.filter((player) => !usedIds.has(player.id));
+  const completed = fillRemainingChoices(choices, fallbackPool, rng);
+
+  return completed
+    .sort((a, b) => {
+      const tierDiff = b.hallOfFameTier.localeCompare(a.hallOfFameTier);
+      if (tierDiff !== 0) return tierDiff;
+      return randomInt(rng, -2, 2);
+    })
+    .slice(0, 5);
+};

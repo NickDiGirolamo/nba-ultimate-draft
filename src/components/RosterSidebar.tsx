@@ -1,0 +1,90 @@
+import clsx from "clsx";
+import { Star } from "lucide-react";
+import { Player, RosterSlot } from "../types";
+
+interface RosterSidebarProps {
+  roster: RosterSlot[];
+  teamAverage: number;
+  lastFilledSlot: string | null;
+}
+
+const findBestPlayer = (roster: RosterSlot[]) => {
+  const players = roster.map((slot) => slot.player).filter(Boolean) as Player[];
+  return players.slice().sort((a, b) => b.overall - a.overall)[0] ?? null;
+};
+
+export const RosterSidebar = ({ roster, teamAverage, lastFilledSlot }: RosterSidebarProps) => {
+  const bestPlayer = findBestPlayer(roster);
+  const positions = roster
+    .map((slot) => slot.player?.primaryPosition)
+    .filter(Boolean)
+    .reduce<Record<string, number>>((acc, position) => {
+      acc[position!] = (acc[position!] ?? 0) + 1;
+      return acc;
+    }, {});
+
+  return (
+    <aside className="glass-panel rounded-[28px] p-5 shadow-card">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Current Roster</p>
+          <h3 className="mt-2 font-display text-2xl text-white">Lineup Board</h3>
+        </div>
+        <div className="rounded-2xl border border-white/12 bg-white/6 px-4 py-3 text-right">
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Avg OVR</div>
+          <div className="mt-1 font-display text-3xl text-white">{teamAverage || "--"}</div>
+        </div>
+      </div>
+
+      <div className="mt-5 space-y-3">
+        {roster.map((slot, index) => (
+          <div
+            key={`${slot.label}-${index}`}
+            className={clsx(
+              "rounded-2xl border p-3 transition duration-300",
+              slot.player ? "border-white/10 bg-white/6" : "border-dashed border-white/12 bg-black/10",
+              lastFilledSlot === slot.slot && "border-sky-300/50 bg-sky-400/10 shadow-glow",
+            )}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">{slot.slot}</div>
+                <div className="mt-1 text-sm font-medium text-white">{slot.player?.name ?? slot.label}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-slate-400">{slot.player?.primaryPosition ?? "Open"}</div>
+                <div className="mt-1 text-base font-semibold text-white">{slot.player?.overall ?? "--"}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-1">
+        <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-slate-400">
+            <Star size={14} />
+            Best Player
+          </div>
+          <div className="mt-2 text-lg font-semibold text-white">{bestPlayer?.name ?? "Not drafted yet"}</div>
+          <div className="text-sm text-slate-300">{bestPlayer ? `${bestPlayer.primaryPosition} • ${bestPlayer.overall} OVR` : "Make your first pick"}</div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Position Mix</div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {Object.entries(positions).length > 0 ? (
+              Object.entries(positions).map(([position, count]) => (
+                <span key={position} className="rounded-full border border-white/10 bg-white/8 px-2.5 py-1 text-xs text-slate-200">
+                  {position} x{count}
+                </span>
+              ))
+            ) : (
+              <span className="text-sm text-slate-400">No distribution yet</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+};
