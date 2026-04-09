@@ -12,6 +12,7 @@ import {
   evaluateRareEventBonus,
   getChemistryBonuses,
 } from "./meta";
+import { applyDynamicDuoBonuses, getActiveDynamicDuos } from "./dynamicDuos";
 import { clamp, mulberry32 } from "./random";
 
 const average = (values: number[]) => (values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length);
@@ -77,22 +78,28 @@ export const buildTeamName = (roster: RosterSlot[]) => {
 };
 
 export const evaluateTeam = (roster: RosterSlot[], rareEvent?: RareEvent) => {
-  const players = getPlayers(roster);
-  const starters = getStarters(roster);
-  const bench = getBench(roster);
+  const boostedPlayers = applyDynamicDuoBonuses(getPlayers(roster));
+  const boostedPlayerMap = new Map(boostedPlayers.map((player) => [player.id, player]));
+  const players = getPlayers(roster).map((player) => boostedPlayerMap.get(player.id) ?? player);
+  const starters = getStarters(roster).map((player) => boostedPlayerMap.get(player.id) ?? player);
+  const bench = getBench(roster).map((player) => boostedPlayerMap.get(player.id) ?? player);
   const weightedEntries = getWeightedRosterEntries(roster);
-  const starterEntries = weightedEntries.filter((entry) => entry.index < 5);
-  const benchEntries = weightedEntries.filter((entry) => entry.index >= 5);
+  const weightedBoostedEntries = weightedEntries.map((entry) => ({
+    ...entry,
+    player: boostedPlayerMap.get(entry.player.id) ?? entry.player,
+  }));
+  const starterEntries = weightedBoostedEntries.filter((entry) => entry.index < 5);
+  const benchEntries = weightedBoostedEntries.filter((entry) => entry.index >= 5);
   const weightedStarters = weightedAverage(starterEntries, (entry) => entry.player.overall, (entry) => entry.weight);
   const weightedBench = weightedAverage(benchEntries, (entry) => entry.player.overall, (entry) => entry.weight);
   const starterOverall = weightedStarters || average(starters.map((player) => player.overall));
   const benchOverall = weightedBench || average(bench.map((player) => player.overall));
-  const offense = weightedAverage(weightedEntries, (entry) => entry.player.offense, (entry) => entry.weight);
-  const defense = weightedAverage(weightedEntries, (entry) => entry.player.defense, (entry) => entry.weight);
-  const playmaking = weightedAverage(weightedEntries, (entry) => entry.player.playmaking, (entry) => entry.weight);
-  const shooting = weightedAverage(weightedEntries, (entry) => entry.player.shooting, (entry) => entry.weight);
-  const rebounding = weightedAverage(weightedEntries, (entry) => entry.player.rebounding, (entry) => entry.weight);
-  const athleticism = weightedAverage(weightedEntries, (entry) => entry.player.athleticism, (entry) => entry.weight);
+  const offense = weightedAverage(weightedBoostedEntries, (entry) => entry.player.offense, (entry) => entry.weight);
+  const defense = weightedAverage(weightedBoostedEntries, (entry) => entry.player.defense, (entry) => entry.weight);
+  const playmaking = weightedAverage(weightedBoostedEntries, (entry) => entry.player.playmaking, (entry) => entry.weight);
+  const shooting = weightedAverage(weightedBoostedEntries, (entry) => entry.player.shooting, (entry) => entry.weight);
+  const rebounding = weightedAverage(weightedBoostedEntries, (entry) => entry.player.rebounding, (entry) => entry.weight);
+  const athleticism = weightedAverage(weightedBoostedEntries, (entry) => entry.player.athleticism, (entry) => entry.weight);
   const depth = weightedAverage(benchEntries, (entry) => entry.player.overall, (entry) => entry.weight * (1.1 - entry.index * 0.03));
   const starPower = weightedAverage(
     starterEntries.slice().sort((a, b) => b.player.overall - a.player.overall).slice(0, 3),
@@ -100,9 +107,9 @@ export const evaluateTeam = (roster: RosterSlot[], rareEvent?: RareEvent) => {
     (entry) => entry.weight,
   ) + 1.5;
   const spacing = weightedAverage(starterEntries, (entry) => entry.player.shooting, (entry) => entry.weight) + starters.filter((player) => player.shooting >= 86).length * 1.6;
-  const rimProtection = Math.max(...weightedEntries.map((entry) => entry.player.interiorDefense)) * 0.68 + weightedAverage(weightedEntries, (entry) => entry.player.interiorDefense, (entry) => entry.weight) * 0.32;
+  const rimProtection = Math.max(...weightedBoostedEntries.map((entry) => entry.player.interiorDefense)) * 0.68 + weightedAverage(weightedBoostedEntries, (entry) => entry.player.interiorDefense, (entry) => entry.weight) * 0.32;
   const wingDefense = weightedAverage(
-    weightedEntries.filter((entry) => ["SG", "SF", "PF"].includes(entry.player.primaryPosition)),
+    weightedBoostedEntries.filter((entry) => ["SG", "SF", "PF"].includes(entry.player.primaryPosition)),
     (entry) => entry.player.perimeterDefense,
     (entry) => entry.weight,
   );
@@ -120,7 +127,7 @@ export const evaluateTeam = (roster: RosterSlot[], rareEvent?: RareEvent) => {
     : { offense: 0, defense: 0, fit: 0, chemistry: 0, summary: "Standard environment." };
 
   let fit = 72;
-  let chemistry = weightedAverage(weightedEntries, (entry) => entry.player.intangibles, (entry) => entry.weight);
+  let chemistry = weightedAverage(weightedBoostedEntries, (entry) => entry.player.intangibles, (entry) => entry.weight);
 
   if (ballHandlers.length >= 2) fit += 6;
   else if (ballHandlers.length === 0) fit -= 12;
@@ -149,8 +156,9 @@ export const evaluateTeam = (roster: RosterSlot[], rareEvent?: RareEvent) => {
   const variance = clamp(
     11 +
       weightedAverage(weightedEntries, (entry) => 96 - entry.player.durability, (entry) => entry.weight) * 0.18 +
+      getActiveDynamicDuos(players.map((player) => player.id)).length * -0.35 +
       dominantCreators.length * 0.5 -
-      weightedAverage(weightedEntries, (entry) => entry.player.intangibles, (entry) => entry.weight) * 0.08,
+      weightedAverage(weightedBoostedEntries, (entry) => entry.player.intangibles, (entry) => entry.weight) * 0.08,
     5,
     20,
   );

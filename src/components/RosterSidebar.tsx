@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { Star } from "lucide-react";
+import { DynamicDuoBadge } from "./DynamicDuoBadge";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { Player, RosterSlot } from "../types";
 
@@ -24,6 +25,9 @@ export const RosterSidebar = ({
   onSlotClick,
 }: RosterSidebarProps) => {
   const bestPlayer = findBestPlayer(roster);
+  const draftedPlayerIds = roster
+    .map((slot) => slot.player?.id)
+    .filter((playerId): playerId is string => Boolean(playerId));
   const positions = roster
     .map((slot) => slot.player?.primaryPosition)
     .filter(Boolean)
@@ -54,6 +58,7 @@ export const RosterSidebar = ({
             lastFilledSlot={lastFilledSlot}
             selectedSlotIndex={selectedSlotIndex}
             onSlotClick={onSlotClick}
+            draftedPlayerIds={draftedPlayerIds}
           />
         ))}
       </div>
@@ -100,6 +105,7 @@ interface RosterSlotButtonProps {
   lastFilledSlot: string | null;
   selectedSlotIndex: number | null;
   onSlotClick: (index: number) => void;
+  draftedPlayerIds: string[];
 }
 
 const RosterSlotButton = ({
@@ -108,6 +114,7 @@ const RosterSlotButton = ({
   lastFilledSlot,
   selectedSlotIndex,
   onSlotClick,
+  draftedPlayerIds,
 }: RosterSlotButtonProps) => {
   return (
     <button
@@ -135,8 +142,18 @@ const RosterSlotButton = ({
             <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
               {slot.slot}
             </div>
-            <div className="mt-1 truncate text-sm font-medium text-white">
-              {slot.player?.name ?? slot.label}
+            <div className="mt-1 flex items-center gap-2">
+              <div className="truncate text-sm font-medium text-white">
+                {slot.player?.name ?? slot.label}
+              </div>
+              {slot.player ? (
+                <DynamicDuoBadge
+                  playerId={slot.player.id}
+                  draftedPlayerIds={draftedPlayerIds}
+                  compact
+                  className="shrink-0"
+                />
+              ) : null}
             </div>
           </div>
         </div>

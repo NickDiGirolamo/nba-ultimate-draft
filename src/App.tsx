@@ -144,6 +144,7 @@ function App() {
                             onSelect={draftPlayer}
                             disabled={Boolean(state.selectedPlayerId)}
                             selected={state.selectedPlayerId === player.id}
+                            draftedPlayerIds={state.draftedPlayerIds}
                           />
                         ) : (
                           <div className="choice-placeholder h-full min-h-[390px] rounded-[26px] border border-white/10">

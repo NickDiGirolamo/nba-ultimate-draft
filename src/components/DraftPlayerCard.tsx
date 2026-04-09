@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { DynamicDuoBadge } from "./DynamicDuoBadge";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { getPlayerVisual } from "../lib/playerVisuals";
 import { Player } from "../types";
@@ -16,6 +17,7 @@ interface DraftPlayerCardProps {
   selected?: boolean;
   disabled?: boolean;
   compact?: boolean;
+  draftedPlayerIds?: string[];
 }
 
 export const DraftPlayerCard = ({
@@ -24,6 +26,7 @@ export const DraftPlayerCard = ({
   selected,
   disabled,
   compact = false,
+  draftedPlayerIds = [],
 }: DraftPlayerCardProps) => {
   const visual = getPlayerVisual(player);
   const imageUrl = usePlayerImage(player);
@@ -44,6 +47,9 @@ export const DraftPlayerCard = ({
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_30%)]" />
 
       <div className="relative mb-4 rounded-[22px] border border-white/12 bg-black/20 px-4 py-3 text-center">
+        <div className="absolute right-3 top-3">
+          <DynamicDuoBadge playerId={player.id} draftedPlayerIds={draftedPlayerIds} />
+        </div>
         <div className="text-[10px] uppercase tracking-[0.28em] text-slate-300">
           Player Score
         </div>
