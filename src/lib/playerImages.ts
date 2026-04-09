@@ -56,6 +56,17 @@ const getWikiTitle = (player: Player) =>
   wikiTitleOverrides[player.id] ?? encodeURIComponent(player.name.replace(/\./g, ""));
 
 export const getCachedPlayerImage = (player: Player) => {
+  const directOverride = directImageOverrides[player.id];
+  if (directOverride) {
+    runtimeCache.set(player.id, directOverride);
+    const storageCache = getStorageCache();
+    if (storageCache[player.id] !== directOverride) {
+      storageCache[player.id] = directOverride;
+      saveStorageCache(storageCache);
+    }
+    return directOverride;
+  }
+
   if (runtimeCache.has(player.id)) return runtimeCache.get(player.id) ?? null;
   const storageCache = getStorageCache();
   if (player.id in storageCache) {
