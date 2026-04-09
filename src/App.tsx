@@ -229,7 +229,7 @@ function App() {
 
         {state.screen === "draft" && (
           <section className="space-y-6">
-            <div className="grid gap-6 xl:grid-cols-2">
+            <div className="grid gap-6 lg:grid-cols-2">
               <ProgressHeader pickNumber={state.pickNumber} />
 
               <div className="glass-panel rounded-[28px] p-5 shadow-card">
