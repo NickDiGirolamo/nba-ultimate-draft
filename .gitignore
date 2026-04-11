@@ -5,3 +5,5 @@ dist/
 .DS_Store
 Thumbs.db
 nba-ultimate-draft/
+
+.vercel

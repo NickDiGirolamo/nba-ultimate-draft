@@ -8,23 +8,17 @@ interface PlayerSynergyBadgesProps {
   compact?: boolean;
   align?: "start" | "center";
   className?: string;
+  excludeTypes?: PlayerBadgeType[];
 }
 
 const RivalIcon = ({ compact = false }: { compact?: boolean }) => (
-  <div className={clsx("relative", compact ? "h-3 w-5" : "h-3.5 w-6")}>
-    <span
-      className={clsx(
-        "absolute left-0 top-0.5 block border-b-[2px] border-l-[1px] border-current",
-        compact ? "h-2 w-2.5 skew-y-[18deg]" : "h-2.5 w-3 skew-y-[18deg]",
-      )}
-    />
-    <span
-      className={clsx(
-        "absolute right-0 top-0.5 block border-b-[2px] border-r-[1px] border-current",
-        compact ? "h-2 w-2.5 -skew-y-[18deg]" : "h-2.5 w-3 -skew-y-[18deg]",
-      )}
-    />
-    <span className="absolute inset-x-[32%] top-0 h-px bg-current/55" />
+  <div
+    className={clsx(
+      "flex items-center justify-center rounded-full border border-current font-black leading-none",
+      compact ? "h-4 w-4 text-[9px]" : "h-5 w-5 text-[11px]",
+    )}
+  >
+    R
   </div>
 );
 
@@ -95,8 +89,11 @@ export const PlayerSynergyBadges = ({
   compact = false,
   align = "center",
   className,
+  excludeTypes = [],
 }: PlayerSynergyBadgesProps) => {
-  const badges = getPlayerBadgeStates(playerId, draftedPlayerIds);
+  const badges = getPlayerBadgeStates(playerId, draftedPlayerIds).filter(
+    ({ definition }) => !excludeTypes.includes(definition.type),
+  );
   if (badges.length === 0) return null;
 
   return (

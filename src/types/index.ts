@@ -120,6 +120,30 @@ export interface TeamStrengths {
   xFactor: Player;
 }
 
+export interface LeagueContenderProfile {
+  teamName: string;
+  seed: number;
+  conference: "East" | "West";
+  projectedWins: number;
+  power: number;
+  style: string;
+  summary: string;
+  stars: Player[];
+  isUserTeam?: boolean;
+}
+
+export interface OpponentStory {
+  teamName: string;
+  seed: number;
+  conference: "East" | "West";
+  projectedWins: number;
+  power: number;
+  style: string;
+  summary: string;
+  stars: Player[];
+  matchupReason: string;
+}
+
 export interface SimulationResult {
   mode: SimulationMode;
   metrics: TeamMetrics;
@@ -165,6 +189,10 @@ export interface SimulationResult {
   };
   chemistryBonuses: ChemistryBonus[];
   chemistryScore: number;
+  leagueContext: string;
+  leagueLandscape: LeagueContenderProfile[];
+  eliminatedBy: OpponentStory | null;
+  signatureWin: OpponentStory | null;
   newPersonalBests?: string[];
 }
 
@@ -197,8 +225,15 @@ export interface PersonalBests {
   overall: number;
   offense: number;
   defense: number;
+  playmaking: number;
+  shooting: number;
+  rebounding: number;
   fit: number;
   depth: number;
+  chemistry: number;
+  starPower: number;
+  spacing: number;
+  rimProtection: number;
   legacyScore: number;
   titleOdds: number;
   playoffFinish: SimulationResult["playoffFinish"];

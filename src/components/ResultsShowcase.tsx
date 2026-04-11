@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import {
   Activity,
   BarChart3,
@@ -17,7 +18,14 @@ import {
   Zap,
 } from "lucide-react";
 import { usePlayerImage } from "../hooks/usePlayerImage";
-import { MetaProgress, Player, RosterSlot, RunHistoryEntry, SimulationResult, TeamMetrics } from "../types";
+import {
+  MetaProgress,
+  Player,
+  RosterSlot,
+  RunHistoryEntry,
+  SimulationResult,
+  TeamMetrics,
+} from "../types";
 
 interface ResultsShowcaseProps {
   result: SimulationResult;
@@ -104,6 +112,67 @@ const chartMetrics = (metrics: TeamMetrics, result: SimulationResult) => [
   { label: "Spacing", value: metrics.spacing, icon: Radar, note: "Floor balance" },
   { label: "Rim Protection", value: metrics.rimProtection, icon: Gauge, note: "Paint security" },
 ];
+
+const personalBestForMetric = (label: string, meta: MetaProgress) => {
+  switch (label) {
+    case "Overall":
+      return meta.personalBests.overall;
+    case "Offense":
+      return meta.personalBests.offense;
+    case "Defense":
+      return meta.personalBests.defense;
+    case "Playmaking":
+      return meta.personalBests.playmaking;
+    case "Shooting":
+      return meta.personalBests.shooting;
+    case "Rebounding":
+      return meta.personalBests.rebounding;
+    case "Depth":
+      return meta.personalBests.depth;
+    case "Fit":
+      return meta.personalBests.fit;
+    case "Chemistry":
+      return meta.personalBests.chemistry;
+    case "Star Power":
+      return meta.personalBests.starPower;
+    case "Spacing":
+      return meta.personalBests.spacing;
+    case "Rim Protection":
+      return meta.personalBests.rimProtection;
+    default:
+      return 0;
+  }
+};
+
+const getPrimaryStrengthMetric = (metrics: TeamMetrics) => {
+  const entries = [
+    { label: "Offense", value: metrics.offense, note: "Scoring ceiling traveled all year." },
+    { label: "Defense", value: metrics.defense, note: "Stops gave this roster real playoff credibility." },
+    { label: "Playmaking", value: metrics.playmaking, note: "Creation flow kept the attack organized." },
+    { label: "Shooting", value: metrics.shooting, note: "Spacing helped every lineup breathe." },
+    { label: "Rebounding", value: metrics.rebounding, note: "Extra possessions kept showing up." },
+    { label: "Depth", value: metrics.depth, note: "The bench helped stabilize the run." },
+    { label: "Fit", value: metrics.fit, note: "The pieces made sense together." },
+    { label: "Chemistry", value: metrics.chemistry, note: "Roles and synergy held the group together." },
+  ];
+
+  return entries.sort((a, b) => b.value - a.value)[0];
+};
+
+const getPrimaryPressureMetric = (metrics: TeamMetrics) => {
+  const entries = [
+    { label: "Offense", value: metrics.offense, note: "This side of the ball never fully separated." },
+    { label: "Defense", value: metrics.defense, note: "Defensive slippage held the ceiling down." },
+    { label: "Playmaking", value: metrics.playmaking, note: "The half-court creation load got heavy." },
+    { label: "Shooting", value: metrics.shooting, note: "Spacing pressure showed up in tighter games." },
+    { label: "Rebounding", value: metrics.rebounding, note: "Possession battles stayed too close." },
+    { label: "Depth", value: metrics.depth, note: "Bench support limited the margin for error." },
+    { label: "Fit", value: metrics.fit, note: "Overlap or awkward role fit dragged a bit." },
+    { label: "Chemistry", value: metrics.chemistry, note: "The group never became fully seamless." },
+  ];
+
+  return entries.sort((a, b) => a.value - b.value)[0];
+};
 
 const CompactRosterCard = ({
   slot,
@@ -481,6 +550,8 @@ export const ResultsShowcase = ({
 
   const analytics = buildAnalytics(roster, result.metrics);
   const metricsForDisplay = chartMetrics(result.metrics, result);
+  const primaryStrength = getPrimaryStrengthMetric(result.metrics);
+  const primaryPressure = getPrimaryPressureMetric(result.metrics);
   const highlightCards = [
     {
       label: "Record",
@@ -519,79 +590,22 @@ export const ResultsShowcase = ({
     },
   ];
 
+  const highlightValueClass = (value: string) => {
+    if (value.length >= 13) return "text-[1.02rem] leading-5";
+    if (value.length >= 10) return "text-[1.2rem] leading-6";
+    return "text-2xl";
+  };
+
   return (
     <section className="space-y-8">
-      <div className="glass-panel overflow-hidden rounded-[34px] p-8 shadow-card lg:p-10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.16),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(56,189,248,0.16),transparent_28%)]" />
-
-        <div className="relative flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
-          <div className="max-w-4xl">
-            <p className="text-xs uppercase tracking-[0.3em] text-amber-200/85">
-              Season Results
-            </p>
-            <div className="mt-4 flex flex-wrap items-center gap-4">
-              <h1 className="font-display text-4xl text-white lg:text-6xl">
-                {result.teamName}
-              </h1>
-              <div className="inline-flex items-center gap-3 rounded-full border border-amber-200/20 bg-amber-300/10 px-4 py-2">
-                <div className="rounded-full bg-amber-300/20 p-2 text-amber-100">
-                  <Trophy size={18} />
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase tracking-[0.26em] text-amber-100/70">
-                    Final Grade
-                  </div>
-                  <div className="text-lg font-semibold text-white">
-                    {result.draftGrade}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-200">
-              {result.summary}
-            </p>
-          </div>
-
-          <button
-            onClick={onDraftAgain}
-            className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900"
-          >
-            <RotateCcw size={18} />
-            Draft Again
-          </button>
-        </div>
-
-        <div className="relative mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          {highlightCards.map((item) => (
-            <div
-              key={item.label}
-              className="rounded-[24px] border border-white/10 bg-black/20 p-5 backdrop-blur-sm"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="rounded-2xl bg-white/8 p-3 text-amber-100">
-                  <item.icon size={18} />
-                </div>
-                <div
-                  className="h-14 w-14 rounded-full p-[4px]"
-                  style={scoreRing(item.ringValue)}
-                >
-                  <div className="flex h-full w-full items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">
-                    {typeof item.value === "string" && item.value.length > 4
-                      ? item.value.slice(0, 4)
-                      : item.value}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 text-xs uppercase tracking-[0.24em] text-slate-400">
-                {item.label}
-              </div>
-              <div className="mt-2 text-2xl font-semibold text-white">
-                {item.value}
-              </div>
-              <div className="mt-2 text-sm text-slate-400">{item.sublabel}</div>
-            </div>
-          ))}
-        </div>
+      <div className="flex justify-center">
+        <button
+          onClick={onDraftAgain}
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3 text-sm font-semibold text-slate-900 shadow-[0_18px_45px_rgba(255,255,255,0.12)]"
+        >
+          <RotateCcw size={18} />
+          Draft Again
+        </button>
       </div>
 
       <div className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
@@ -639,6 +653,9 @@ export const ResultsShowcase = ({
                       <div className="text-xl font-semibold text-white">
                         {metric.value}
                       </div>
+                      <div className="mt-1 text-[10px] uppercase tracking-[0.2em] text-amber-100/80">
+                        Best {personalBestForMetric(metric.label, meta)}
+                      </div>
                       <div className="text-xs uppercase tracking-[0.22em] text-amber-100">
                         {gradeFromMetric(metric.value)}
                       </div>
@@ -655,6 +672,108 @@ export const ResultsShowcase = ({
                       }}
                     />
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="glass-panel overflow-hidden rounded-[34px] p-8 shadow-card lg:p-10">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.16),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(56,189,248,0.16),transparent_28%)]" />
+
+            <div className="relative grid gap-8 xl:grid-cols-[minmax(0,1.25fr)_340px] xl:items-start">
+              <div className="max-w-4xl">
+                <p className="text-xs uppercase tracking-[0.3em] text-amber-200/85">
+                  Season Outcome
+                </p>
+                <div className="mt-4 flex flex-wrap items-center gap-4">
+                  <h1 className="font-display text-4xl text-white lg:text-6xl">
+                    {result.teamName}
+                  </h1>
+                  <div className="inline-flex items-center gap-3 rounded-full border border-amber-200/20 bg-amber-300/10 px-4 py-2">
+                    <div className="rounded-full bg-amber-300/20 p-2 text-amber-100">
+                      <Trophy size={18} />
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-[0.26em] text-amber-100/70">
+                        Final Grade
+                      </div>
+                      <div className="text-lg font-semibold text-white">
+                        {result.draftGrade}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-200">
+                  {result.summary}
+                </p>
+              </div>
+
+              <div className="space-y-4 xl:justify-self-end xl:w-full">
+                <div className="grid gap-3">
+                  <div className="rounded-[24px] border border-white/10 bg-black/20 p-4 backdrop-blur-sm">
+                    <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">
+                      Run Snapshot
+                    </div>
+                    <div className="mt-2 text-lg font-semibold text-white">
+                      {result.record.wins >= 55 ? "Upper-tier contender" : result.record.wins >= 48 ? "Strong playoff build" : "Volatile playoff build"}
+                    </div>
+                    <div className="mt-1 text-sm text-slate-300">
+                      {result.seed} seed, {result.record.wins} wins, {result.playoffFinish}.
+                    </div>
+                  </div>
+
+                  <div className="rounded-[24px] border border-emerald-300/14 bg-emerald-300/8 p-4 backdrop-blur-sm">
+                    <div className="text-[10px] uppercase tracking-[0.24em] text-emerald-100/70">
+                      Biggest Edge
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <div className="text-lg font-semibold text-white">{primaryStrength.label}</div>
+                      <div className="text-xl font-semibold text-emerald-100">{primaryStrength.value}</div>
+                    </div>
+                    <div className="mt-1 text-sm text-slate-200">
+                      {primaryStrength.note}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[24px] border border-rose-300/14 bg-rose-300/8 p-4 backdrop-blur-sm">
+                    <div className="text-[10px] uppercase tracking-[0.24em] text-rose-100/70">
+                      Biggest Pressure Point
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <div className="text-lg font-semibold text-white">{primaryPressure.label}</div>
+                      <div className="text-xl font-semibold text-rose-100">{primaryPressure.value}</div>
+                    </div>
+                    <div className="mt-1 text-sm text-slate-200">
+                      {primaryPressure.note}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+              {highlightCards.map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-[24px] border border-white/10 bg-black/20 p-5 backdrop-blur-sm"
+                >
+              <div className="flex items-center justify-between gap-3">
+                <div className="rounded-2xl bg-white/8 p-3 text-amber-100">
+                  <item.icon size={18} />
+                </div>
+              </div>
+                  <div className="mt-4 text-xs uppercase tracking-[0.24em] text-slate-400">
+                    {item.label}
+                  </div>
+                  <div
+                    className={clsx(
+                      "mt-2 font-semibold text-white break-words",
+                      highlightValueClass(String(item.value)),
+                    )}
+                  >
+                    {item.value}
+                  </div>
+                  <div className="mt-2 text-sm text-slate-400">{item.sublabel}</div>
                 </div>
               ))}
             </div>
@@ -773,6 +892,10 @@ export const ResultsShowcase = ({
                   Why it ended this way:
                 </span>{" "}
                 {result.reason}
+              </div>
+              <div className="mt-6 rounded-[24px] border border-white/10 bg-black/15 p-5 text-sm leading-7 text-slate-300">
+                <span className="font-semibold text-white">All-time league context:</span>{" "}
+                This simulation assumes the rest of the field is also built from all-time caliber rosters, so even a great team can run into a crowded standings race or a stronger optimized build elsewhere in the league.
               </div>
 
               <div className="mt-6 grid gap-4 md:grid-cols-2">

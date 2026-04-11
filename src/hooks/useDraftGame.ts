@@ -17,6 +17,24 @@ import {
 import { mulberry32 } from "../lib/random";
 
 const HISTORY_LIMIT = 24;
+const DEFAULT_METRICS = {
+  overall: 0,
+  offense: 0,
+  defense: 0,
+  playmaking: 0,
+  shooting: 0,
+  rebounding: 0,
+  athleticism: 0,
+  depth: 0,
+  starPower: 0,
+  fit: 0,
+  chemistry: 0,
+  variance: 0,
+  spacing: 0,
+  rimProtection: 0,
+  wingDefense: 0,
+  benchScoring: 0,
+};
 
 const resolveDraftChallenge = (selection: DraftChallengeSelection, rng: () => number) =>
   selection === "random" ? selectDraftChallenge(rng) : getDraftChallengeById(selection);
@@ -78,25 +96,40 @@ const upgradeHistoryEntry = (entry: Record<string, unknown>): RunHistoryEntry =>
   categoryFocusTitle: entry.categoryFocusTitle ? String(entry.categoryFocusTitle) : null,
   focusScore: entry.focusScore === undefined || entry.focusScore === null ? null : Number(entry.focusScore),
   titleOdds: Number(entry.titleOdds ?? 0),
-  metrics: (entry.metrics as RunHistoryEntry["metrics"]) ?? {
-    overall: 0,
-    offense: 0,
-    defense: 0,
-    playmaking: 0,
-    shooting: 0,
-    rebounding: 0,
-    athleticism: 0,
-    depth: 0,
-    starPower: 0,
-    fit: 0,
-    chemistry: 0,
-    variance: 0,
-    spacing: 0,
-    rimProtection: 0,
-    wingDefense: 0,
-    benchScoring: 0,
-  },
+  metrics: (entry.metrics as RunHistoryEntry["metrics"]) ?? DEFAULT_METRICS,
 });
+
+const upgradeSimulationResult = (
+  result: DraftState["simulationResult"],
+  fallbackChallenge: DraftState["currentChallenge"],
+) => {
+  if (!result) return null;
+
+  return {
+    ...result,
+    metrics: result.metrics ?? DEFAULT_METRICS,
+    challenge: result.challenge ?? fallbackChallenge,
+    challengeCompleted: result.challengeCompleted ?? false,
+    challengeReward: result.challengeReward ?? 0,
+    rareEvent: result.rareEvent ?? standardRareEvent,
+    rareEventBonus: result.rareEventBonus ?? {
+      offense: 0,
+      defense: 0,
+      fit: 0,
+      chemistry: 0,
+      summary: "Standard environment.",
+    },
+    chemistryBonuses: result.chemistryBonuses ?? [],
+    chemistryScore: result.chemistryScore ?? 0,
+    leagueContext: result.leagueContext ?? "",
+    leagueLandscape: result.leagueLandscape ?? [],
+    eliminatedBy: result.eliminatedBy ?? null,
+    signatureWin: result.signatureWin ?? null,
+    strengths: result.strengths ?? [],
+    weaknesses: result.weaknesses ?? [],
+    newPersonalBests: result.newPersonalBests ?? [],
+  };
+};
 
 const createInitialState = (): DraftState => {
   const seed = createSeed();
@@ -159,6 +192,10 @@ const normalizeState = (value: DraftState): DraftState => {
     ...createInitialState(),
     ...value,
     history: Array.isArray(value.history) ? value.history.map((entry) => upgradeHistoryEntry(entry as unknown as Record<string, unknown>)) : [],
+    simulationResult: upgradeSimulationResult(
+      value.simulationResult,
+      value.currentChallenge ?? resolvedParameters.challenge,
+    ),
     unlockedPlayerIds: Array.isArray(value.unlockedPlayerIds) ? value.unlockedPlayerIds : [],
     draftChallengeSelection: normalizedDraftChallengeSelection,
     currentChallenge: value.currentChallenge ?? resolvedParameters.challenge,

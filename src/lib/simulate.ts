@@ -1,12 +1,15 @@
 import {
   CategoryChallenge,
   DraftChallenge,
+  LeagueContenderProfile,
+  OpponentStory,
   Player,
   RareEvent,
   RosterSlot,
   SimulationResult,
   TeamMetrics,
 } from "../types";
+import { allPlayers } from "../data/players";
 import {
   calculateLegacyScore,
   evaluateChallengeCompletion,
@@ -64,6 +67,223 @@ const getDraftGrade = (overall: number, fit: number, depth: number) => {
   return "D";
 };
 
+const contenderStyleFromStars = (players: Player[]) => {
+  const avgShooting = average(players.map((player) => player.shooting));
+  const avgDefense = average(players.map((player) => player.defense));
+  const avgPlaymaking = average(players.map((player) => player.playmaking));
+  const avgRebounding = average(players.map((player) => player.rebounding));
+  const avgSizeDefense = average(players.map((player) => player.interiorDefense));
+
+  if (avgDefense >= 89 && avgSizeDefense >= 82) return "Defensive Fortress";
+  if (avgShooting >= 88 && avgPlaymaking >= 84) return "Spacing Machine";
+  if (avgPlaymaking >= 88 && avgRebounding >= 82) return "Jumbo Playmaking Core";
+  if (avgShooting >= 85 && avgDefense >= 84) return "Two-Way Shotmaking Core";
+  if (avgRebounding >= 87 && avgSizeDefense >= 84) return "Frontcourt Pressure Build";
+  return "Star-Driven Offense";
+};
+
+const contenderSummaryFromStyle = (style: string) => {
+  switch (style) {
+    case "Defensive Fortress":
+      return "Wins with rim deterrence, wing resistance, and low-possession playoff basketball.";
+    case "Spacing Machine":
+      return "Leans on shotmaking, spacing gravity, and half-court efficiency.";
+    case "Jumbo Playmaking Core":
+      return "Creates mismatches through size, rebounding, and oversized initiators.";
+    case "Two-Way Shotmaking Core":
+      return "Balances perimeter scoring with real defensive credibility.";
+    case "Frontcourt Pressure Build":
+      return "Controls the glass and the paint while forcing physical matchups.";
+    default:
+      return "Built around elite star talent with enough supporting offense to stay dangerous.";
+  }
+};
+
+const buildLeagueContext = (
+  contenders: LeagueContenderProfile[],
+  userWins: number,
+  userSeed: number,
+  conference: "East" | "West",
+) => {
+  const topWins = contenders.slice(0, 4).map((team) => team.projectedWins);
+  const eliteCount = contenders.filter((team) => team.projectedWins >= 56).length;
+  const averageTopWins = average(topWins);
+  const gapBetweenTopAndUser = contenders[0]
+    ? contenders[0].projectedWins - userWins
+    : 0;
+
+  if (eliteCount >= 4) {
+    return `This run generated an unusually loaded ${conference}, with ${eliteCount} teams projecting to at least 56 wins. A ${userSeed}-seed finish here was competing against a very top-heavy field.`;
+  }
+
+  if (averageTopWins >= 55) {
+    return `The top of the ${conference} was strong in this run, with the leading contenders all tracking well above 50 wins. Your ${userSeed}-seed finish came in a tougher-than-normal conference environment.`;
+  }
+
+  if (gapBetweenTopAndUser <= 4) {
+    return `This was a balanced ${conference} race. The gap between the top seed and the middle of the playoff field stayed narrow, which made every few wins matter.`;
+  }
+
+  return `The ${conference} field had a clear upper tier in this run, and your team landed just behind that front group in the standings race.`;
+};
+
+const buildMatchupReason = (
+  opponent: LeagueContenderProfile,
+  metrics: TeamMetrics,
+  playoffFinish: SimulationResult["playoffFinish"],
+) => {
+  if (opponent.style === "Defensive Fortress" && metrics.shooting < 84) {
+    return "Their defensive backbone and playoff resistance squeezed your spacing and forced tougher half-court possessions.";
+  }
+  if (opponent.style === "Spacing Machine" && metrics.rimProtection < 80) {
+    return "Their spacing and shotmaking pulled your defense into uncomfortable coverage all series long.";
+  }
+  if (opponent.style === "Jumbo Playmaking Core" && metrics.rebounding < 84) {
+    return "Their size and creation pressure won too many extra possessions and matchup advantages.";
+  }
+  if (playoffFinish === "NBA Champion") {
+    return "Beating them was the turning point because your roster matched elite talent with just enough structure to survive every adjustment.";
+  }
+
+  return "Their star trio presented fewer structural weak spots, and that edge showed up over a long series.";
+};
+
+const generateLeagueLandscape = (
+  roster: RosterSlot[],
+  metrics: TeamMetrics,
+  wins: number,
+  seed: number,
+  conference: "East" | "West",
+  teamName: string,
+  playoffFinish: SimulationResult["playoffFinish"],
+  rng: () => number,
+) => {
+  const userIds = new Set(getPlayers(roster).map((player) => player.id));
+  const pool = allPlayers.filter((player) => !userIds.has(player.id));
+  const available = [...pool];
+
+  const takeUniqueStar = () => {
+    if (available.length === 0) return allPlayers[Math.floor(rng() * allPlayers.length)];
+    const weightedPool = available
+      .slice()
+      .sort((a, b) => b.overall - a.overall)
+      .slice(0, Math.max(18, Math.floor(available.length * 0.28)));
+    const choice = weightedPool[Math.floor(rng() * weightedPool.length)];
+    const index = available.findIndex((player) => player.id === choice.id);
+    if (index >= 0) available.splice(index, 1);
+    return choice;
+  };
+
+  const generated: LeagueContenderProfile[] = [];
+  const contenderCount = 5;
+
+  for (let i = 0; i < contenderCount; i += 1) {
+    const stars = [takeUniqueStar(), takeUniqueStar(), takeUniqueStar()];
+    const style = contenderStyleFromStars(stars);
+    const powerBase =
+      average(stars.map((player) => player.overall)) * 0.56 +
+      average(stars.map((player) => player.intangibles)) * 0.16 +
+      average(stars.map((player) => player.shooting)) * 0.08 +
+      average(stars.map((player) => player.defense)) * 0.08 +
+      average(stars.map((player) => player.playmaking)) * 0.08;
+    const power = Math.round(clamp(powerBase + (rng() - 0.5) * 4.5 + 1.5, 84, 98) * 10) / 10;
+    const projectedWins = clamp(
+      Math.round(38 + (power - 80) * 1.75 + (rng() - 0.5) * 6),
+      46,
+      67,
+    );
+
+    generated.push({
+      teamName: `${stars[0].name.split(" ").slice(-1)[0]} ${style.split(" ")[0]}`,
+      seed: 0,
+      conference,
+      projectedWins,
+      power,
+      style,
+      summary: contenderSummaryFromStyle(style),
+      stars,
+    });
+  }
+
+  const userContender: LeagueContenderProfile = {
+    teamName,
+    seed: 0,
+    conference,
+    projectedWins: wins,
+    power: Math.round((metrics.overall * 0.62 + metrics.fit * 0.2 + metrics.starPower * 0.18) * 10) / 10,
+    style:
+      metrics.defense >= 90
+        ? "Defensive Fortress"
+        : metrics.shooting >= 88
+          ? "Spacing Machine"
+          : metrics.playmaking >= 88
+            ? "Jumbo Playmaking Core"
+            : "Star-Driven Offense",
+    summary:
+      metrics.fit >= 88
+        ? "Your roster paired star talent with strong balance and role coherence."
+        : "Your roster leaned on premium talent, but a few structural questions stayed in play.",
+    stars: getPlayers(roster)
+      .slice()
+      .sort((a, b) => b.overall - a.overall)
+      .slice(0, 3),
+    isUserTeam: true,
+  };
+
+  const sorted = [...generated, userContender]
+    .sort((a, b) => b.projectedWins - a.projectedWins || b.power - a.power)
+    .map((team, index) => ({
+      ...team,
+      seed: index + 1,
+    }));
+
+  const userEntry = sorted.find((team) => team.isUserTeam) ?? userContender;
+  const nonUser = sorted.filter((team) => !team.isUserTeam);
+
+  let opponentBase: LeagueContenderProfile | null = null;
+  if (playoffFinish === "Missed Playoffs" || playoffFinish === "Lost in Play-In") {
+    opponentBase = nonUser[0] ?? null;
+  } else if (playoffFinish === "First Round Exit") {
+    opponentBase = nonUser.find((team) => team.seed <= Math.max(4, userEntry.seed - 1)) ?? nonUser[0] ?? null;
+  } else if (playoffFinish === "Conference Semifinals") {
+    opponentBase = nonUser.find((team) => team.seed <= 3) ?? nonUser[0] ?? null;
+  } else if (playoffFinish === "Conference Finals") {
+    opponentBase = nonUser.find((team) => team.seed <= 2) ?? nonUser[0] ?? null;
+  } else if (playoffFinish === "NBA Finals Loss") {
+    opponentBase = nonUser[0] ?? null;
+  }
+
+  const eliminatedBy: OpponentStory | null = opponentBase
+    ? {
+        ...opponentBase,
+        matchupReason: buildMatchupReason(opponentBase, metrics, playoffFinish),
+      }
+    : null;
+
+  const signatureBase =
+    playoffFinish === "NBA Champion"
+      ? nonUser[0] ?? null
+      : playoffFinish === "NBA Finals Loss" || playoffFinish === "Conference Finals"
+        ? nonUser.find((team) => team.seed <= 3) ?? nonUser[0] ?? null
+        : userEntry.seed <= 4
+          ? nonUser.find((team) => team.seed === userEntry.seed + 1) ?? nonUser[0] ?? null
+          : null;
+
+  const signatureWin: OpponentStory | null = signatureBase
+    ? {
+        ...signatureBase,
+        matchupReason: buildMatchupReason(signatureBase, metrics, "NBA Champion"),
+      }
+    : null;
+
+  return {
+    leagueLandscape: sorted.slice(0, 6),
+    leagueContext: buildLeagueContext(sorted.slice(0, 6), wins, seed, conference),
+    eliminatedBy,
+    signatureWin,
+  };
+};
+
 const getCategoryGrade = (value: number) => {
   if (value >= 95) return "A+";
   if (value >= 91) return "A";
@@ -76,18 +296,89 @@ const getCategoryGrade = (value: number) => {
   return "D";
 };
 
+const deterministicSeedFromPlayers = (players: Player[], salt = 0) =>
+  players.reduce((sum, player, index) => {
+    const charTotal = player.id
+      .split("")
+      .reduce((innerSum, char) => innerSum + char.charCodeAt(0), 0);
+    return sum + charTotal * (index + 3 + salt);
+  }, 97 + salt * 31);
+
+const deterministicIndex = (players: Player[], length: number, salt = 0) => {
+  if (length <= 0) return 0;
+  return deterministicSeedFromPlayers(players, salt) % length;
+};
+
+const pickDeterministic = (items: string[], players: Player[], salt = 0) =>
+  items[deterministicIndex(players, items.length, salt)];
+
 export const buildTeamName = (roster: RosterSlot[]) => {
   const starters = getStarters(roster);
-  const anchor = starters[0]?.name.split(" ").slice(-1)[0] ?? "Legends";
-  const style = starters.some((player) => player.shooting >= 92)
-    ? "Snipers"
-    : starters.some((player) => player.defense >= 94)
-      ? "Stops"
-      : starters.some((player) => player.athleticism >= 94)
-        ? "Flight"
-        : "Dynasty";
+  const players = getPlayers(roster);
+  const fallbackAnchor = starters[0]?.name.split(" ").slice(-1)[0] ?? "Legends";
 
-  return `${anchor} ${style}`;
+  const identityScores = {
+    shooting: average(starters.map((player) => player.shooting)),
+    defense: average(starters.map((player) => player.defense)),
+    playmaking: average(starters.map((player) => player.playmaking)),
+    rebounding: average(starters.map((player) => player.rebounding)),
+    athleticism: average(starters.map((player) => player.athleticism)),
+    fit: average(starters.map((player) => player.intangibles)),
+  };
+
+  const anchors = starters
+    .slice()
+    .sort((a, b) => b.overall - a.overall)
+    .slice(0, 3);
+  const anchorPrimary = anchors[0]?.name.split(" ").slice(-1)[0] ?? fallbackAnchor;
+  const anchorSecondary = anchors[1]?.name.split(" ").slice(-1)[0] ?? anchorPrimary;
+
+  const identity =
+    identityScores.defense >= 90
+      ? {
+          noun: ["Fortress", "Wall", "Lock", "Citadel", "Clamp"],
+          collective: ["Stoppers", "Guard", "No-Fly Zone", "Shields"],
+          atmosphere: ["Iron", "Steel", "Onyx", "Granite"],
+        }
+      : identityScores.shooting >= 89
+        ? {
+            noun: ["Firestorm", "Voltage", "Rain", "Flare", "Heatwave"],
+            collective: ["Snipers", "Flamethrowers", "Bombers", "Marksmen"],
+            atmosphere: ["Neon", "Solar", "Crimson", "Blaze"],
+          }
+        : identityScores.playmaking >= 89
+          ? {
+              noun: ["Orchestra", "Engine", "Pulse", "Signal", "Flow"],
+              collective: ["Conductors", "Architects", "Makers", "Directors"],
+              atmosphere: ["Royal", "Signal", "Midnight", "Velvet"],
+            }
+          : identityScores.rebounding >= 88
+            ? {
+                noun: ["Empire", "Frontline", "Pressure", "Stronghold", "Towers"],
+                collective: ["Giants", "Glass Cleaners", "Bruisers", "Bigs"],
+                atmosphere: ["Titan", "Ivory", "Granite", "Summit"],
+              }
+            : identityScores.athleticism >= 90
+              ? {
+                  noun: ["Flight", "Surge", "Storm", "Rush", "Skyline"],
+                  collective: ["Runners", "Gliders", "Sprinters", "Flyers"],
+                  atmosphere: ["Sky", "Velocity", "Aerial", "Thunder"],
+                }
+              : {
+                  noun: ["Dynasty", "Ascend", "Legacy", "Summit", "Crown"],
+                  collective: ["Legends", "Icons", "Royalty", "Standard"],
+                  atmosphere: ["Golden", "Prime", "Grand", "Crown"],
+                };
+
+  const templates = [
+    () => `${anchorPrimary} ${pickDeterministic(identity.noun, players, 1)}`,
+    () => `The ${pickDeterministic(identity.atmosphere, players, 2)} ${pickDeterministic(identity.collective, players, 3)}`,
+    () => `${pickDeterministic(identity.atmosphere, players, 4)} ${pickDeterministic(identity.noun, players, 5)}`,
+    () => `${anchorPrimary} & ${anchorSecondary}`,
+    () => `${anchorPrimary}'s ${pickDeterministic(identity.collective, players, 6)}`,
+  ];
+
+  return templates[deterministicIndex(players, templates.length)]();
 };
 
 export const evaluateTeam = (roster: RosterSlot[], rareEvent?: RareEvent) => {
@@ -205,7 +496,16 @@ const getStrengthsAndWeaknesses = (roster: RosterSlot[], metrics: TeamMetrics, p
   const players = getPlayers(roster);
   const starters = getStarters(roster);
   const mvp = players.slice().sort((a, b) => b.overall + b.intangibles - (a.overall + a.intangibles))[0];
-  const xFactor = players.slice().sort((a, b) => b.intangibles + b.defense + b.shooting - (a.intangibles + a.defense + a.shooting))[1] ?? mvp;
+  const xFactor =
+    players
+      .slice()
+      .sort((a, b) => b.intangibles + b.defense + b.shooting - (a.intangibles + a.defense + a.shooting))
+      .find((player) => player.id !== mvp?.id) ??
+    players
+      .slice()
+      .sort((a, b) => b.offense + b.defense + b.playmaking - (a.offense + a.defense + a.playmaking))
+      .find((player) => player.id !== mvp?.id) ??
+    mvp;
   const strengths: string[] = [];
   const weaknesses: string[] = [];
 
@@ -360,6 +660,10 @@ export const runSeasonSimulation = (
       rareEventBonus,
       chemistryBonuses,
       chemistryScore,
+      leagueContext: "",
+      leagueLandscape: [],
+      eliminatedBy: null,
+      signatureWin: null,
     };
   }
 
@@ -374,6 +678,16 @@ export const runSeasonSimulation = (
   const titleOdds = clamp(Math.round((powerScore - 72) * 3.5), 1, 78);
   const teamName = buildTeamName(roster);
   const draftGrade = getDraftGrade(metrics.overall, metrics.fit, metrics.depth);
+  const { leagueLandscape, leagueContext, eliminatedBy, signatureWin } = generateLeagueLandscape(
+    roster,
+    metrics,
+    wins,
+    seedResult,
+    conference,
+    teamName,
+    playoffFinish,
+    rng,
+  );
   const baseResult = {
     mode: "season" as const,
     categoryChallenge: null,
@@ -403,6 +717,10 @@ export const runSeasonSimulation = (
     rareEventBonus,
     chemistryBonuses,
     chemistryScore,
+    leagueContext,
+    leagueLandscape,
+    eliminatedBy,
+    signatureWin,
   } satisfies SimulationResult;
   const challengeCompleted = evaluateChallengeCompletion(
     challenge,
@@ -479,5 +797,9 @@ export const runSeasonSimulation = (
     rareEventBonus,
     chemistryBonuses,
     chemistryScore,
+    leagueContext,
+    leagueLandscape,
+    eliminatedBy,
+    signatureWin,
   };
 };

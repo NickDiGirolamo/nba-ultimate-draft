@@ -476,8 +476,15 @@ const defaultBests = (): PersonalBests => ({
   overall: 0,
   offense: 0,
   defense: 0,
+  playmaking: 0,
+  shooting: 0,
+  rebounding: 0,
   fit: 0,
   depth: 0,
+  chemistry: 0,
+  starPower: 0,
+  spacing: 0,
+  rimProtection: 0,
   legacyScore: 0,
   titleOdds: 0,
   playoffFinish: "Missed Playoffs",
@@ -487,18 +494,25 @@ export const buildPersonalBests = (history: RunHistoryEntry[]): PersonalBests =>
   if (history.length === 0) return defaultBests();
   const seasonHistory = seasonRunsOnly(history);
 
-  return {
-    wins: seasonHistory.length ? Math.max(...seasonHistory.map((run) => run.wins)) : 0,
-    overall: Math.max(...history.map((run) => run.metrics.overall)),
-    offense: Math.max(...history.map((run) => run.metrics.offense)),
-    defense: Math.max(...history.map((run) => run.metrics.defense)),
-    fit: Math.max(...history.map((run) => run.metrics.fit)),
-    depth: Math.max(...history.map((run) => run.metrics.depth)),
-    legacyScore: Math.max(...history.map((run) => run.legacyScore)),
-    titleOdds: seasonHistory.length ? Math.max(...seasonHistory.map((run) => run.titleOdds)) : 0,
-    playoffFinish: seasonHistory.length ? bestPlayoffFinish(seasonHistory) : "Missed Playoffs",
+    return {
+      wins: seasonHistory.length ? Math.max(...seasonHistory.map((run) => run.wins)) : 0,
+      overall: Math.max(...history.map((run) => run.metrics.overall)),
+      offense: Math.max(...history.map((run) => run.metrics.offense)),
+      defense: Math.max(...history.map((run) => run.metrics.defense)),
+      playmaking: Math.max(...history.map((run) => run.metrics.playmaking)),
+      shooting: Math.max(...history.map((run) => run.metrics.shooting)),
+      rebounding: Math.max(...history.map((run) => run.metrics.rebounding)),
+      fit: Math.max(...history.map((run) => run.metrics.fit)),
+      depth: Math.max(...history.map((run) => run.metrics.depth)),
+      chemistry: Math.max(...history.map((run) => run.metrics.chemistry)),
+      starPower: Math.max(...history.map((run) => run.metrics.starPower)),
+      spacing: Math.max(...history.map((run) => run.metrics.spacing)),
+      rimProtection: Math.max(...history.map((run) => run.metrics.rimProtection)),
+      legacyScore: Math.max(...history.map((run) => run.legacyScore)),
+      titleOdds: seasonHistory.length ? Math.max(...seasonHistory.map((run) => run.titleOdds)) : 0,
+      playoffFinish: seasonHistory.length ? bestPlayoffFinish(seasonHistory) : "Missed Playoffs",
+    };
   };
-};
 
 export const buildLeaderboards = (history: RunHistoryEntry[]): LeaderboardEntry[] => {
   if (history.length === 0) return [];

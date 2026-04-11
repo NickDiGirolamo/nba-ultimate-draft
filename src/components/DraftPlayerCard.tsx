@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
+import { DynamicDuoBadge } from "./DynamicDuoBadge";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { getPlayerVisual } from "../lib/playerVisuals";
 import { Player } from "../types";
@@ -30,6 +31,14 @@ export const DraftPlayerCard = ({
 }: DraftPlayerCardProps) => {
   const visual = getPlayerVisual(player);
   const imageUrl = usePlayerImage(player);
+  const naturalPositions = [player.primaryPosition, ...player.secondaryPositions].join(" / ");
+  const nameParts = player.name.trim().split(" ");
+  const firstNameLine = nameParts.slice(0, -1).join(" ") || player.name;
+  const lastNameLine = nameParts.slice(-1)[0] ?? "";
+  const longestNameLine = Math.max(firstNameLine.length, lastNameLine.length);
+  const longName = longestNameLine >= 9;
+  const veryLongName = longestNameLine >= 11;
+  const extremeName = longestNameLine >= 14;
 
   return (
     <button
@@ -59,7 +68,7 @@ export const DraftPlayerCard = ({
         className={clsx(
           "relative mb-4 w-full flex-none overflow-hidden rounded-[22px]",
           imageUrl ? "bg-black" : visual.bg,
-          compact ? "h-[75px] min-h-[75px] max-h-[75px]" : "h-[250px] min-h-[250px] max-h-[250px]",
+          compact ? "h-[91px] min-h-[91px] max-h-[91px]" : "h-[303px] min-h-[303px] max-h-[303px]",
         )}
       >
         {imageUrl ? (
@@ -106,14 +115,40 @@ export const DraftPlayerCard = ({
       </div>
 
       <div className="relative">
-        <h3 className="font-display text-[1.65rem] font-semibold leading-tight text-white">
-          {player.name}
-        </h3>
-        <PlayerSynergyBadges
-          playerId={player.id}
-          draftedPlayerIds={draftedPlayerIds}
-          className="mt-3"
-        />
+        <div
+          className={clsx(
+            "font-display font-semibold leading-none text-white",
+            extremeName
+              ? "text-[0.78rem]"
+              : veryLongName
+                ? "text-[0.9rem]"
+                : longName
+                  ? "text-[1.04rem]"
+                  : "text-[1.32rem]",
+          )}
+        >
+          <div className="whitespace-nowrap">{firstNameLine}</div>
+          <div className="mt-1 whitespace-nowrap">{lastNameLine}</div>
+        </div>
+        <div
+          className={clsx(
+            "mt-2 uppercase tracking-[0.18em] text-slate-300",
+            veryLongName ? "text-[10px]" : "text-[11px]",
+          )}
+        >
+          Natural Position: {naturalPositions}
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+          <DynamicDuoBadge
+            playerId={player.id}
+            draftedPlayerIds={draftedPlayerIds}
+          />
+          <PlayerSynergyBadges
+            playerId={player.id}
+            draftedPlayerIds={draftedPlayerIds}
+            excludeTypes={["dynamic-duo"]}
+          />
+        </div>
       </div>
 
       <div className="relative mt-auto flex flex-col justify-end pt-3">
