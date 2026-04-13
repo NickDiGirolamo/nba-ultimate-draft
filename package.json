@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "release:check": "powershell -ExecutionPolicy Bypass -File ./scripts/release-check.ps1"
   },
   "dependencies": {
     "clsx": "^2.1.1",

@@ -22,6 +22,16 @@ npm run dev
 npm run build
 ```
 
+## Release workflow
+
+Production should deploy from `main` through Vercel, with one release thread responsible for final pushes.
+
+- Worker threads do their work on feature branches and commit completed changes
+- The release thread integrates approved work onto `main`
+- Run `npm run release:check` before pushing `main`
+
+Detailed instructions live in `docs/RELEASE_WORKFLOW.md`.
+
 ## What the game includes
 
 - A full 10-round draft loop with 5 unique player choices per pick
