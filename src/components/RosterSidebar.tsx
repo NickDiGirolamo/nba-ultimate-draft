@@ -9,6 +9,7 @@ interface RosterSidebarProps {
   teamAverage: number;
   lastFilledSlot: string | null;
   selectedSlotIndex: number | null;
+  bonusPickActive?: boolean;
   onSlotClick: (index: number) => void;
 }
 
@@ -22,6 +23,7 @@ export const RosterSidebar = ({
   teamAverage,
   lastFilledSlot,
   selectedSlotIndex,
+  bonusPickActive = false,
   onSlotClick,
 }: RosterSidebarProps) => {
   const bestPlayer = findBestPlayer(roster);
@@ -91,7 +93,9 @@ export const RosterSidebar = ({
         <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
           <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Lineup Control</div>
           <div className="mt-2 text-sm leading-6 text-slate-300">
-            Click any drafted player, then click any other slot to move or swap them. You can place any drafted player anywhere before the sim.
+            {bonusPickActive
+              ? "Select the roster slot you want to replace, then choose one of the 5 bonus players from the extra board."
+              : "Click any drafted player, then click any other slot to move or swap them. You can place any drafted player anywhere before the sim."}
           </div>
         </div>
       </div>

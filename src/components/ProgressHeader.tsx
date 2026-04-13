@@ -1,8 +1,9 @@
 interface ProgressHeaderProps {
   pickNumber: number;
+  bonusPickActive?: boolean;
 }
 
-export const ProgressHeader = ({ pickNumber }: ProgressHeaderProps) => {
+export const ProgressHeader = ({ pickNumber, bonusPickActive = false }: ProgressHeaderProps) => {
   const completedPicks = Math.min(pickNumber - 1, 10);
   const current = Math.min(pickNumber, 10);
   const progress = (completedPicks / 10) * 100;
@@ -12,23 +13,33 @@ export const ProgressHeader = ({ pickNumber }: ProgressHeaderProps) => {
       <div className="flex h-full flex-col justify-between gap-4">
         <div>
           <p className="text-[10px] uppercase tracking-[0.24em] text-sky-200/70">Legends Draft</p>
-          <h2 className="mt-1 font-display text-[clamp(1.4rem,2.1vw,2.25rem)] leading-none text-white">Pick {current} of 10</h2>
+          <h2 className="mt-1 font-display text-[clamp(1.4rem,2.1vw,2.25rem)] leading-none text-white">
+            {bonusPickActive ? "Bonus Pick" : `Pick ${current} of 10`}
+          </h2>
           <p className="mt-2 text-[11px] leading-4 text-slate-300">
-            One choice locks in each round.
+            {bonusPickActive
+              ? "Prestige reward: pick one bonus player and replace one current roster slot."
+              : "One choice locks in each round."}
           </p>
         </div>
         <div className="grid grid-cols-3 gap-2 text-center text-xs text-slate-300">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Left</div>
-            <div className="mt-1 text-xl font-semibold text-white">{Math.max(0, 10 - completedPicks)}</div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-400">
+              {bonusPickActive ? "Reward" : "Left"}
+            </div>
+            <div className="mt-1 text-xl font-semibold text-white">
+              {bonusPickActive ? "1" : Math.max(0, 10 - completedPicks)}
+            </div>
           </div>
           <div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Deal</div>
             <div className="mt-1 text-xl font-semibold text-white">5</div>
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Roster</div>
-            <div className="mt-1 text-xl font-semibold text-white">10</div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-400">
+              {bonusPickActive ? "Swap" : "Roster"}
+            </div>
+            <div className="mt-1 text-xl font-semibold text-white">{bonusPickActive ? "1" : "10"}</div>
           </div>
         </div>
       </div>

@@ -217,6 +217,50 @@ const personalBestForMetric = (label: string, meta: MetaProgress) => {
   }
 };
 
+const categoryMetricAbbreviation = (categoryChallenge: NonNullable<SimulationResult["categoryChallenge"]>) => {
+  switch (categoryChallenge.metric) {
+    case "offense":
+      return "OFF";
+    case "defense":
+      return "DEF";
+    case "playmaking":
+      return "PLY";
+    case "shooting":
+      return "3PT";
+    case "rebounding":
+      return "REB";
+    case "fit":
+      return "FIT";
+    case "chemistry":
+      return "CHEM";
+    default:
+      return categoryChallenge.metricLabel.toUpperCase();
+  }
+};
+
+const playerCategoryMetricValue = (
+  player: Player,
+  categoryChallenge: NonNullable<SimulationResult["categoryChallenge"]>,
+) => {
+  switch (categoryChallenge.metric) {
+    case "offense":
+      return player.offense;
+    case "defense":
+      return player.defense;
+    case "playmaking":
+      return player.playmaking;
+    case "shooting":
+      return player.shooting;
+    case "rebounding":
+      return player.rebounding;
+    case "fit":
+    case "chemistry":
+      return player.intangibles;
+    default:
+      return player.overall;
+  }
+};
+
 const getPrimaryStrengthMetric = (metrics: TeamMetrics) => {
   const entries = [
     { label: "Offense", value: metrics.offense, note: "Scoring ceiling traveled all year." },
@@ -250,11 +294,16 @@ const getPrimaryPressureMetric = (metrics: TeamMetrics) => {
 const CompactRosterCard = ({
   slot,
   isStarter,
+  categoryChallenge,
 }: {
   slot: RosterSlot;
   isStarter: boolean;
+  categoryChallenge?: SimulationResult["categoryChallenge"];
 }) => {
   const imageUrl = slot.player ? usePlayerImage(slot.player) : null;
+  const categoryLabel = categoryChallenge ? categoryMetricAbbreviation(categoryChallenge) : null;
+  const categoryValue =
+    slot.player && categoryChallenge ? playerCategoryMetricValue(slot.player, categoryChallenge) : null;
 
   return (
     <div className="rounded-[22px] border border-white/10 bg-black/20 p-3">
@@ -299,15 +348,19 @@ const CompactRosterCard = ({
           </div>
         </div>
 
-        <div className="text-right">
-          <div className="text-[10px] uppercase tracking-[0.24em] text-slate-500">
-            OVR
-          </div>
-          <div className="mt-1 text-2xl font-semibold text-white">
-            {slot.player?.overall ?? "--"}
+          <div className="text-right">
+            <div className="flex items-center justify-end gap-3 text-[10px] uppercase tracking-[0.24em] text-slate-500">
+              <span>OVR</span>
+              {categoryLabel ? <span>{categoryLabel}</span> : null}
+            </div>
+            <div className="mt-1 flex items-center justify-end gap-3">
+              <div className="text-2xl font-semibold text-white">{slot.player?.overall ?? "--"}</div>
+              {categoryLabel ? (
+                <div className="text-2xl font-semibold text-amber-100">{categoryValue ?? "--"}</div>
+              ) : null}
+            </div>
           </div>
         </div>
-      </div>
     </div>
   );
 };
@@ -683,6 +736,24 @@ export const ResultsShowcase = ({
   history,
 }: ResultsShowcaseProps) => {
   const [resultsPage, setResultsPage] = useState<"season" | "dashboard">("season");
+  const prestigeChallengeActive = Boolean(result.prestigeChallengeId && result.prestigeChallengeTitle);
+  const prestigeChallengeStatusLine = result.prestigeChallengeCleared
+    ? `Cleared for +${result.prestigeChallengeReward ?? 0} Prestige`
+    : `Failed · +${result.prestigeChallengeReward ?? 0} was on the line`;
+  const prestigeChallengeDetail =
+    result.mode === "category-focus"
+      ? `Final focus score: ${result.focusScore ?? 0} / 95 target`
+      : `Final playoff result: ${result.playoffFinish}`;
+  const prestigeChallengeTone = result.prestigeChallengeCleared
+    ? "border-emerald-300/22 bg-emerald-300/10"
+    : "border-rose-300/18 bg-rose-300/10";
+  const prestigeChallengeIconTone = result.prestigeChallengeCleared
+    ? "bg-emerald-300/16 text-emerald-100"
+    : "bg-rose-300/16 text-rose-100";
+  const prestigeChallengeLabelTone = result.prestigeChallengeCleared
+    ? "text-emerald-100"
+    : "text-rose-100";
+  const PrestigeChallengeIcon = result.prestigeChallengeCleared ? Crown : Swords;
 
   if (result.mode === "category-focus" && result.categoryChallenge) {
     const focusHistory = history
@@ -711,6 +782,48 @@ export const ResultsShowcase = ({
 
     return (
       <section className="space-y-8">
+        {prestigeChallengeActive && (
+          <div className={`glass-panel rounded-[32px] p-6 shadow-card ${prestigeChallengeTone}`}>
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-start gap-4">
+                <div className={`rounded-[22px] p-3 ${prestigeChallengeIconTone}`}>
+                  <PrestigeChallengeIcon size={20} />
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-[0.26em] text-slate-400">
+                    Loaded Challenge Route
+                  </div>
+                  <h2 className="mt-2 font-display text-3xl text-white">
+                    {result.prestigeChallengeTitle}
+                  </h2>
+                  <div className={`mt-2 text-sm font-semibold uppercase tracking-[0.18em] ${prestigeChallengeLabelTone}`}>
+                    {prestigeChallengeStatusLine}
+                  </div>
+                  <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-200">
+                    Goal: {result.prestigeChallengeGoal}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-400">{prestigeChallengeDetail}</p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Prestige Reward</div>
+                  <div className="mt-2 text-3xl font-semibold text-white">
+                    +{result.prestigeChallengeReward ?? 0}
+                  </div>
+                </div>
+                <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Outcome</div>
+                  <div className="mt-2 text-xl font-semibold text-white">
+                    {result.prestigeChallengeCleared ? "Challenge Cleared" : "Try Again"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="glass-panel overflow-hidden rounded-[34px] p-8 shadow-card lg:p-10">
           <div className="relative flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-4xl">
@@ -914,11 +1027,12 @@ export const ResultsShowcase = ({
 
               <div className="mt-5 grid gap-3">
                 {roster.map((slot, index) => (
-                  <CompactRosterCard
-                    key={`${slot.label}-${index}`}
-                    slot={slot}
-                    isStarter={index < 5}
-                  />
+                    <CompactRosterCard
+                      key={`${slot.label}-${index}`}
+                      slot={slot}
+                      isStarter={index < 5}
+                      categoryChallenge={result.categoryChallenge}
+                    />
                 ))}
               </div>
             </div>
@@ -987,6 +1101,48 @@ export const ResultsShowcase = ({
           Draft Again
         </button>
       </div>
+
+      {prestigeChallengeActive && (
+        <div className={`glass-panel rounded-[32px] p-6 shadow-card ${prestigeChallengeTone}`}>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className={`rounded-[22px] p-3 ${prestigeChallengeIconTone}`}>
+                <PrestigeChallengeIcon size={20} />
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.26em] text-slate-400">
+                  Loaded Challenge Route
+                </div>
+                <h2 className="mt-2 font-display text-3xl text-white">
+                  {result.prestigeChallengeTitle}
+                </h2>
+                <div className={`mt-2 text-sm font-semibold uppercase tracking-[0.18em] ${prestigeChallengeLabelTone}`}>
+                  {prestigeChallengeStatusLine}
+                </div>
+                <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-200">
+                  Goal: {result.prestigeChallengeGoal}
+                </p>
+                <p className="mt-1 text-sm text-slate-400">{prestigeChallengeDetail}</p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Prestige Reward</div>
+                <div className="mt-2 text-3xl font-semibold text-white">
+                  +{result.prestigeChallengeReward ?? 0}
+                </div>
+              </div>
+              <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Outcome</div>
+                <div className="mt-2 text-xl font-semibold text-white">
+                  {result.prestigeChallengeCleared ? "Challenge Cleared" : "Try Again"}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex justify-center">
         <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1">
@@ -1462,6 +1618,7 @@ export const ResultsShowcase = ({
                   key={`${slot.label}-${index}`}
                   slot={slot}
                   isStarter={index < 5}
+                  categoryChallenge={result.categoryChallenge}
                 />
               ))}
             </div>

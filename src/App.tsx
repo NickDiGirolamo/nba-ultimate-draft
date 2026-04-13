@@ -52,9 +52,11 @@ function App() {
     resetDraft,
     handleRosterSlotClick,
     moveRosterPlayer,
+    skipBonusPick,
     setDraftChallengeSelection,
     setRareEventSelection,
     setCategoryChallengeSelection,
+    applyRunPreset,
     beginDraftFromBriefing,
   } = useDraftGame();
 
@@ -66,6 +68,7 @@ function App() {
     state.currentChoices.length,
   );
   const [prestigeOpen, setPrestigeOpen] = useState(false);
+  const [prestigeInitialView, setPrestigeInitialView] = useState<"overview" | "challenges" | "rewards">("overview");
   const draftIntel = useMemo(() => {
     const cards = [
       {
@@ -181,13 +184,13 @@ function App() {
                 </div>
               </div>
             </button>
-            <div className="grid gap-3 md:grid-cols-4">
+            <div className="grid items-stretch gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
               {[
                 { label: "Draft Mode", value: "1 of 5", icon: Swords },
                 { label: "Simulation", value: "82 + Playoffs", icon: BrainCircuit },
                 { label: "Team Building", value: "Fit Matters", icon: Trophy },
               ].map((item) => (
-                <div key={item.label} className="glass-panel rounded-2xl px-4 py-3">
+                <div key={item.label} className="glass-panel h-[110px] rounded-2xl px-4 py-3">
                   <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-slate-400">
                     <item.icon size={14} />
                     {item.label}
@@ -198,18 +201,39 @@ function App() {
 
               <button
                 type="button"
-                onClick={() => setPrestigeOpen(true)}
-                className="glass-panel rounded-2xl px-4 py-3 text-left transition hover:border-amber-200/24 hover:bg-white/10"
+                onClick={() => {
+                  setPrestigeInitialView("overview");
+                  setPrestigeOpen(true);
+                }}
+                className="glass-panel h-[110px] rounded-2xl px-4 py-3 text-left transition hover:border-amber-200/24 hover:bg-white/10"
               >
                 <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-slate-400">
                   <Crown size={14} className="text-amber-200" />
                   Prestige
                 </div>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-base font-semibold text-white">{metaProgress.prestige.score}</span>
-                  <span className="text-xs uppercase tracking-[0.18em] text-amber-100">
-                    L{metaProgress.prestige.level}
-                  </span>
+                <div className="mt-3 flex items-end justify-between gap-3">
+                  <div className="flex items-end gap-2">
+                    <span className="pb-1 text-[11px] uppercase tracking-[0.18em] text-amber-100/80">
+                      Lvl
+                    </span>
+                    <span className="text-[2.15rem] font-semibold leading-none text-white">
+                      {metaProgress.prestige.level}
+                    </span>
+                  </div>
+                  <div className="pb-1 text-right text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                    {metaProgress.prestige.score}/{metaProgress.prestige.nextLevelScore}
+                  </div>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full border border-white/10 bg-slate-700/70">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-amber-300 via-yellow-200 to-orange-300"
+                    style={{
+                      width: `${Math.max(
+                        6,
+                        Math.round(metaProgress.prestige.progressToNextLevel * 100),
+                      )}%`,
+                    }}
+                  />
                 </div>
               </button>
             </div>
@@ -219,7 +243,14 @@ function App() {
         {state.screen === "landing" && (
           <LandingHub
             onStart={startDraft}
-            onOpenPrestige={() => setPrestigeOpen(true)}
+            onOpenPrestige={() => {
+              setPrestigeInitialView("overview");
+              setPrestigeOpen(true);
+            }}
+            onOpenChallenges={() => {
+              setPrestigeInitialView("challenges");
+              setPrestigeOpen(true);
+            }}
             history={state.history}
             meta={metaProgress}
             draftChallengeSelection={state.draftChallengeSelection}
@@ -271,21 +302,23 @@ function App() {
               </button>
 
               <div className="min-w-0">
-                <ProgressHeader pickNumber={state.pickNumber} />
+                <ProgressHeader pickNumber={state.pickNumber} bonusPickActive={state.bonusPickActive} />
               </div>
 
               <div
                 className="glass-panel min-w-0 rounded-[28px] p-4 shadow-card"
               >
                 <div className="flex h-full min-w-0 flex-col justify-between gap-3">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-300">
                         Legends Draft
                       </span>
                       <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Pick Window</span>
-                    </div>
-                    <h2 className="mt-2 font-display text-[clamp(1.35rem,2vw,2.3rem)] leading-none text-white">Choose 1 of 5</h2>
+                      </div>
+                    <h2 className="mt-2 font-display text-[clamp(1.35rem,2vw,2.3rem)] leading-none text-white">
+                      {state.bonusPickActive ? "Choose 1 bonus player" : "Choose 1 of 5"}
+                    </h2>
                     <div className="mt-3 flex flex-wrap gap-1.5 text-[9px] uppercase tracking-[0.12em] text-slate-300">
                       <span className="rounded-full border border-amber-200/18 bg-amber-300/10 px-3 py-2 text-amber-100">
                         Challenge: {state.currentChallenge.title}
@@ -300,15 +333,27 @@ function App() {
                           Focus: {state.currentCategoryChallenge.metricLabel}
                         </span>
                       ) : null}
+                      {state.bonusPickActive ? (
+                        <span className="rounded-full border border-fuchsia-200/18 bg-fuchsia-300/10 px-3 py-2 text-fuchsia-100">
+                          Prestige Reward: Extra Pick
+                        </span>
+                      ) : null}
                     </div>
+                    <p className="mt-3 text-xs leading-5 text-slate-300">
+                      {state.bonusPickActive
+                        ? state.selectedSlotIndex === null
+                          ? "Select one current roster slot from the lineup board, then choose a bonus player to replace it."
+                          : "Choose one of the 5 bonus players to replace the highlighted roster slot."
+                        : "Build the strongest 10-player roster you can before heading to lineup re-order."}
+                    </p>
                   </div>
                   <button
                     type="button"
-                    onClick={beginSimulation}
-                    disabled={!completedRoster}
+                    onClick={state.bonusPickActive ? skipBonusPick : beginSimulation}
+                    disabled={state.bonusPickActive ? false : !completedRoster}
                     className="self-start rounded-full bg-white px-4 py-2 text-xs font-semibold text-slate-900 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-slate-400"
                   >
-                    Simulate Season
+                    {state.bonusPickActive ? "Skip Extra Pick" : "Simulate Season"}
                   </button>
                 </div>
               </div>
@@ -376,7 +421,7 @@ function App() {
                             <DraftPlayerCard
                               player={player}
                               onSelect={draftPlayer}
-                              disabled={Boolean(state.selectedPlayerId)}
+                              disabled={Boolean(state.selectedPlayerId) || (state.bonusPickActive && state.selectedSlotIndex === null)}
                               selected={state.selectedPlayerId === player.id}
                               draftedPlayerIds={state.draftedPlayerIds}
                             />
@@ -394,6 +439,7 @@ function App() {
                   teamAverage={teamAverage}
                   lastFilledSlot={state.lastFilledSlot}
                   selectedSlotIndex={state.selectedSlotIndex}
+                  bonusPickActive={state.bonusPickActive}
                   onSlotClick={handleRosterSlotClick}
                 />
                 <div className="glass-panel rounded-[28px] p-5 shadow-card">
@@ -448,6 +494,8 @@ function App() {
         <PrestigeOverlay
           meta={metaProgress}
           history={state.history}
+          initialView={prestigeInitialView}
+          onApplyChallengePreset={applyRunPreset}
           onClose={() => setPrestigeOpen(false)}
         />
       )}

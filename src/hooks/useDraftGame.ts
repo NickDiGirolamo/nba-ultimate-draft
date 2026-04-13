@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CategoryChallengeSelection, DraftChallengeSelection, DraftState, Player, RareEventSelection, RunHistoryEntry, Screen } from "../types";
+import { CategoryChallengeSelection, DraftChallengeSelection, DraftState, Player, PrestigeChallengeDefinition, RareEventSelection, RunHistoryEntry, Screen } from "../types";
 import { STORAGE_KEY, assignPlayerToRoster, createSeed, generateChoices, rosterTemplate } from "../lib/draft";
 import { allPlayers } from "../data/players";
 import { runSeasonSimulation } from "../lib/simulate";
@@ -8,6 +8,7 @@ import {
   getCategoryChallengeById,
   getDraftChallengeById,
   getRareEventById,
+  hasPrestigeReward,
   selectCategoryChallenge,
   selectCompatibleCategoryChallenge,
   selectCompatibleRareEvent,
@@ -153,9 +154,19 @@ const upgradeHistoryEntry = (entry: Record<string, unknown>): RunHistoryEntry =>
   createdAtStamp: Number(entry.createdAtStamp ?? Date.now()),
   challengeTitle: String(entry.challengeTitle ?? "No active challenge"),
   challengeCompleted: Boolean(entry.challengeCompleted),
+  challengeId: entry.challengeId ? String(entry.challengeId) : null,
   rareEventTitle: String(entry.rareEventTitle ?? "Standard environment"),
+  rareEventId: entry.rareEventId ? String(entry.rareEventId) : null,
   categoryFocusId: entry.categoryFocusId ? String(entry.categoryFocusId) : null,
   categoryFocusTitle: entry.categoryFocusTitle ? String(entry.categoryFocusTitle) : null,
+  prestigeChallengeId: entry.prestigeChallengeId ? String(entry.prestigeChallengeId) : null,
+  prestigeChallengeTitle: entry.prestigeChallengeTitle ? String(entry.prestigeChallengeTitle) : null,
+  prestigeChallengeGoal: entry.prestigeChallengeGoal ? String(entry.prestigeChallengeGoal) : null,
+  prestigeChallengeCleared: Boolean(entry.prestigeChallengeCleared),
+  prestigeChallengeReward:
+    entry.prestigeChallengeReward === undefined || entry.prestigeChallengeReward === null
+      ? null
+      : Number(entry.prestigeChallengeReward),
   focusScore: entry.focusScore === undefined || entry.focusScore === null ? null : Number(entry.focusScore),
   titleOdds: Number(entry.titleOdds ?? 0),
   metrics: (entry.metrics as RunHistoryEntry["metrics"]) ?? DEFAULT_METRICS,
@@ -231,6 +242,13 @@ const createInitialState = (): DraftState => {
     categoryChallengesEnabled,
     categoryChallengeSelection,
     currentCategoryChallenge: resolvedParameters.categoryChallenge,
+    activePrestigeChallengeId: null,
+    activePrestigeChallengeTitle: null,
+    activePrestigeChallengeGoal: null,
+    activePrestigeChallengeReward: 0,
+    bonusPickAvailable: false,
+    bonusPickUsed: false,
+    bonusPickActive: false,
     seed,
   };
 };
@@ -285,6 +303,9 @@ const normalizeState = (value: DraftState): DraftState => {
     categoryChallengeSelection: normalizedCategoryChallengeSelection,
     currentCategoryChallenge:
       value.currentCategoryChallenge ?? resolvedParameters.categoryChallenge,
+    bonusPickAvailable: value.bonusPickAvailable ?? false,
+    bonusPickUsed: value.bonusPickUsed ?? false,
+    bonusPickActive: value.bonusPickActive ?? false,
     seed,
   };
 };
@@ -327,6 +348,7 @@ export const useDraftGame = () => {
       state.categoryChallengeSelection,
       rng,
     );
+    const hasExtraPick = hasPrestigeReward(metaProgress.prestige.level, "extra-pick");
     setState({
       ...state,
       roster,
@@ -343,6 +365,13 @@ export const useDraftGame = () => {
       currentChallenge: resolvedParameters.challenge,
       currentRareEvent: resolvedParameters.rareEvent,
       currentCategoryChallenge: resolvedParameters.categoryChallenge,
+      activePrestigeChallengeId: null,
+      activePrestigeChallengeTitle: null,
+      activePrestigeChallengeGoal: null,
+      activePrestigeChallengeReward: 0,
+      bonusPickAvailable: hasExtraPick,
+      bonusPickUsed: false,
+      bonusPickActive: false,
       seed,
       screen: "briefing",
     });
@@ -358,10 +387,53 @@ export const useDraftGame = () => {
   const draftPlayer = (player: Player) => {
     if (state.selectedPlayerId) return;
 
+    if (state.bonusPickActive) {
+      if (state.selectedSlotIndex === null) return;
+      const replacedPlayer = state.roster[state.selectedSlotIndex]?.player;
+      if (!replacedPlayer) return;
+
+      const updatedRoster = state.roster.map((slot, index) =>
+        index === state.selectedSlotIndex ? { ...slot, player } : slot,
+      );
+      const draftedPlayerIds = [
+        ...state.draftedPlayerIds.filter((id) => id !== replacedPlayer.id),
+        player.id,
+      ];
+
+      setState((current) => ({
+        ...current,
+        roster: updatedRoster,
+        draftedPlayerIds,
+        unlockedPlayerIds: current.unlockedPlayerIds.includes(player.id)
+          ? current.unlockedPlayerIds
+          : [...current.unlockedPlayerIds, player.id],
+        selectedPlayerId: player.id,
+        selectedSlotIndex: null,
+        lastFilledSlot: updatedRoster[state.selectedSlotIndex!].slot,
+        currentChoices: [],
+        bonusPickUsed: true,
+        bonusPickActive: false,
+      }));
+
+      window.setTimeout(() => {
+        setState((current) => ({
+          ...current,
+          selectedPlayerId: null,
+          screen: "lineup",
+        }));
+      }, 420);
+      return;
+    }
+
     const assignment = assignPlayerToRoster(state.roster, player);
     const draftedPlayerIds = [...state.draftedPlayerIds, player.id];
     const nextPick = state.pickNumber + 1;
-    const nextChoices = nextPick <= 10 ? generateChoices(assignment.roster, draftedPlayerIds, state.seed, nextPick) : [];
+    const entersBonusPick = nextPick > 10 && state.bonusPickAvailable && !state.bonusPickUsed;
+    const nextChoices = entersBonusPick
+      ? generateChoices(assignment.roster, draftedPlayerIds, state.seed, 11)
+      : nextPick <= 10
+        ? generateChoices(assignment.roster, draftedPlayerIds, state.seed, nextPick)
+        : [];
 
     setState((current) => ({
       ...current,
@@ -375,13 +447,14 @@ export const useDraftGame = () => {
       lastFilledSlot: assignment.filledSlot,
       currentChoices: nextChoices,
       pickNumber: nextPick,
+      bonusPickActive: entersBonusPick,
     }));
 
     window.setTimeout(() => {
       setState((current) => ({
         ...current,
         selectedPlayerId: null,
-        screen: nextPick > 10 ? "lineup" : current.screen,
+        screen: entersBonusPick ? "draft" : nextPick > 10 ? "lineup" : current.screen,
       }));
     }, 420);
   };
@@ -399,6 +472,13 @@ export const useDraftGame = () => {
         state.currentRareEvent,
         state.currentCategoryChallenge,
       );
+      const prestigeChallengeCleared =
+        state.activePrestigeChallengeId !== null
+          ? simulationResult.mode === "category-focus"
+            ? (simulationResult.focusScore ?? 0) >= 95
+            : simulationResult.playoffFinish === "NBA Champion"
+          : false;
+      const prestigeChallengeReward = state.activePrestigeChallengeReward;
       const newPersonalBests = [
         simulationResult.mode === "season" && simulationResult.record.wins > previousMeta.personalBests.wins ? "Wins" : null,
         simulationResult.metrics.overall > previousMeta.personalBests.overall ? "Overall" : null,
@@ -424,11 +504,18 @@ export const useDraftGame = () => {
         legacyScore: simulationResult.legacyScore,
         createdAt: new Date().toLocaleDateString(),
         createdAtStamp: Date.now(),
+        challengeId: simulationResult.challenge.id,
         challengeTitle: simulationResult.challenge.title,
         challengeCompleted: simulationResult.challengeCompleted,
+        rareEventId: simulationResult.rareEvent.id,
         rareEventTitle: simulationResult.rareEvent.title,
         categoryFocusId: simulationResult.categoryChallenge?.id ?? null,
         categoryFocusTitle: simulationResult.categoryChallenge?.metricLabel ?? null,
+        prestigeChallengeId: state.activePrestigeChallengeId,
+        prestigeChallengeTitle: state.activePrestigeChallengeTitle,
+        prestigeChallengeGoal: state.activePrestigeChallengeGoal,
+        prestigeChallengeCleared,
+        prestigeChallengeReward,
         focusScore: simulationResult.focusScore,
         titleOdds: simulationResult.titleOdds,
         metrics: simulationResult.metrics,
@@ -437,7 +524,15 @@ export const useDraftGame = () => {
       setState((current) => ({
         ...current,
         screen: "results",
-        simulationResult: { ...simulationResult, newPersonalBests },
+        simulationResult: {
+          ...simulationResult,
+          prestigeChallengeId: state.activePrestigeChallengeId,
+          prestigeChallengeTitle: state.activePrestigeChallengeTitle,
+          prestigeChallengeGoal: state.activePrestigeChallengeGoal,
+          prestigeChallengeCleared,
+          prestigeChallengeReward,
+          newPersonalBests,
+        },
         history: [historyEntry, ...current.history].slice(0, HISTORY_LIMIT),
       }));
     }, 3200);
@@ -445,6 +540,13 @@ export const useDraftGame = () => {
 
   const handleRosterSlotClick = (index: number) => {
     setState((current) => {
+      if (current.screen === "draft" && current.bonusPickActive) {
+        return {
+          ...current,
+          selectedSlotIndex: current.selectedSlotIndex === index ? null : index,
+        };
+      }
+
       const clickedSlot = current.roster[index];
 
       if (current.selectedSlotIndex === null) {
@@ -478,6 +580,21 @@ export const useDraftGame = () => {
         roster: nextRoster,
         selectedSlotIndex: null,
         lastFilledSlot: nextRoster[index].slot,
+      };
+    });
+  };
+
+  const skipBonusPick = () => {
+    setState((current) => {
+      if (!current.bonusPickActive) return current;
+
+      return {
+        ...current,
+        bonusPickUsed: true,
+        bonusPickActive: false,
+        currentChoices: [],
+        selectedSlotIndex: null,
+        screen: "lineup",
       };
     });
   };
@@ -530,6 +647,13 @@ export const useDraftGame = () => {
       categoryChallengesEnabled: state.categoryChallengesEnabled,
       categoryChallengeSelection: state.categoryChallengesEnabled ? state.categoryChallengeSelection : "disabled",
       currentCategoryChallenge: resolvedParameters.categoryChallenge,
+      activePrestigeChallengeId: null,
+      activePrestigeChallengeTitle: null,
+      activePrestigeChallengeGoal: null,
+      activePrestigeChallengeReward: 0,
+      bonusPickAvailable: false,
+      bonusPickUsed: false,
+      bonusPickActive: false,
       screen: "landing",
     });
   };
@@ -603,6 +727,59 @@ export const useDraftGame = () => {
     });
   };
 
+  const applyRunPreset = (
+    challengePreset: PrestigeChallengeDefinition,
+  ) => {
+    setState((current) => {
+      const draftChallengeSelection = challengePreset.draftChallengeId as DraftChallengeSelection;
+      const rareEventSelection =
+        (challengePreset.rareEventId === standardRareEvent.id
+          ? "disabled"
+          : challengePreset.rareEventId) as RareEventSelection;
+      const categoryChallengeSelection =
+        (challengePreset.categoryChallengeId ?? "disabled") as CategoryChallengeSelection;
+      const normalizedRareEventSelection =
+        draftChallengeSelection === "classic" ? "disabled" : rareEventSelection;
+      const normalizedCategorySelection =
+        draftChallengeSelection === "classic" ? "disabled" : categoryChallengeSelection;
+      const seed = createSeed();
+      const roster = rosterTemplate();
+      const rng = mulberry32(seed + 77);
+      const resolvedParameters = resolveRunParameters(
+        draftChallengeSelection,
+        normalizedRareEventSelection,
+        normalizedCategorySelection,
+        rng,
+      );
+      const hasExtraPick = hasPrestigeReward(metaProgress.prestige.level, "extra-pick");
+
+      return {
+        ...createInitialState(),
+        history: current.history,
+        unlockedPlayerIds: current.unlockedPlayerIds,
+        draftChallengeSelection,
+        currentChallenge: resolvedParameters.challenge,
+        rareEventSelection: normalizedRareEventSelection,
+        rareEventsEnabled: normalizedRareEventSelection !== "disabled",
+        currentRareEvent: resolvedParameters.rareEvent,
+        categoryChallengesEnabled: normalizedCategorySelection !== "disabled",
+        categoryChallengeSelection: normalizedCategorySelection,
+        currentCategoryChallenge: resolvedParameters.categoryChallenge,
+        activePrestigeChallengeId: challengePreset.id,
+        activePrestigeChallengeTitle: challengePreset.title,
+        activePrestigeChallengeGoal: challengePreset.goal,
+        activePrestigeChallengeReward: challengePreset.reward,
+        bonusPickAvailable: hasExtraPick,
+        bonusPickUsed: false,
+        bonusPickActive: false,
+        seed,
+        roster,
+        currentChoices: generateChoices(roster, [], seed, 1),
+        screen: "briefing",
+      };
+    });
+  };
+
   const setScreen = (screen: Screen) => {
     setState((current) => ({ ...current, screen }));
   };
@@ -620,8 +797,10 @@ export const useDraftGame = () => {
     setScreen,
     handleRosterSlotClick,
     moveRosterPlayer,
+    skipBonusPick,
     setDraftChallengeSelection,
     setRareEventSelection,
     setCategoryChallengeSelection,
+    applyRunPreset,
   };
 };

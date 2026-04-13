@@ -170,6 +170,11 @@ export interface PlayoffBracket {
 
 export interface SimulationResult {
   mode: SimulationMode;
+  prestigeChallengeId?: string | null;
+  prestigeChallengeTitle?: string | null;
+  prestigeChallengeGoal?: string | null;
+  prestigeChallengeCleared?: boolean;
+  prestigeChallengeReward?: number;
   metrics: TeamMetrics;
   categoryChallenge: CategoryChallenge | null;
   focusScore: number | null;
@@ -235,14 +240,39 @@ export interface RunHistoryEntry {
   legacyScore: number;
   createdAt: string;
   createdAtStamp: number;
+  challengeId?: string | null;
   challengeTitle: string;
   challengeCompleted: boolean;
+  rareEventId?: string | null;
   rareEventTitle: string;
   categoryFocusId?: string | null;
   categoryFocusTitle?: string | null;
+  prestigeChallengeId?: string | null;
+  prestigeChallengeTitle?: string | null;
+  prestigeChallengeGoal?: string | null;
+  prestigeChallengeCleared?: boolean;
+  prestigeChallengeReward?: number | null;
   focusScore?: number | null;
   titleOdds: number;
   metrics: TeamMetrics;
+}
+
+export interface PrestigeChallengeDefinition {
+  id: string;
+  title: string;
+  description: string;
+  goal: string;
+  reward: number;
+  draftChallengeId: string;
+  rareEventId: string;
+  categoryChallengeId: string | null;
+}
+
+export interface PrestigeRewardDefinition {
+  id: string;
+  level: number;
+  title: string;
+  description: string;
 }
 
 export interface PersonalBests {
@@ -300,6 +330,8 @@ export interface PrestigeProgress {
   progressToNextLevel: number;
   nextLevelScore: number;
   currentLevelFloor: number;
+  completedChallengeRoutes: number;
+  totalChallengeRoutes: number;
   breakdown: Array<{
     label: string;
     value: number;
@@ -337,5 +369,12 @@ export interface DraftState {
   categoryChallengesEnabled: boolean;
   categoryChallengeSelection: CategoryChallengeSelection;
   currentCategoryChallenge: CategoryChallenge | null;
+  activePrestigeChallengeId: string | null;
+  activePrestigeChallengeTitle: string | null;
+  activePrestigeChallengeGoal: string | null;
+  activePrestigeChallengeReward: number;
+  bonusPickAvailable: boolean;
+  bonusPickUsed: boolean;
+  bonusPickActive: boolean;
   seed: number;
 }

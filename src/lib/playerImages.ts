@@ -46,7 +46,7 @@ const directImageOverrides: Record<string, string> = {
   "lebron-james-14-18":
     "https://videos.usatoday.net/Brightcove2/29906170001/2015/06/29906170001_4282564439001_USATSI-8601943.jpg?pubId=29906170001",
   "lebron-james-lakers":
-    "https://videos.usatoday.net/Brightcove2/29906170001/2015/06/29906170001_4282564439001_USATSI-8601943.jpg?pubId=29906170001",
+    "https://upload.wikimedia.org/wikipedia/commons/7/7a/LeBron_James_%2851959977144%29_%28cropped2%29.jpg",
   "dwayne-wade-03-10":
     "https://64.media.tumblr.com/f6d35d71ea04dfd298926ad166aa1ec2/tumblr_q65qyn6DxT1uf9qj8o1_1280.jpg",
   "kareem-abdul-jabbar-bucks":
@@ -80,7 +80,7 @@ const directImageOverrides: Record<string, string> = {
   "david-robinson":
     "https://image.tmdb.org/t/p/w500/iFhzUGajalDsdS7AkfK4F6LpnwL.jpg",
   "david-west":
-    "https://images2.minutemediacdn.com/image/upload/c_crop,w_3000,h_1687,x_0,y_0/c_fill,w_1200,ar_4:3,f_auto,q_auto,g_auto/images/voltaxMediaLibrary/mmsport/theplayertribune/01jhn6gx59r7g8gnj3tc.jpg",
+    "https://s.yimg.com/ny/api/res/1.2/1URZLSMLOWz0JCnDcSJcJg--/YXBwaWQ9aGlnaGxhbmRlcjt3PTY0MDtoPTgwMDtjZj13ZWJw/https://s.yimg.com/os/en_us/News/Yahoo/ept_sports_nba_experts-811739762-1301064162.jpg",
   "dave-cowens":
     "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Dave_Cowens.jpeg/250px-Dave_Cowens.jpeg",
   "damian-lillard":
@@ -236,7 +236,7 @@ const directImageOverrides: Record<string, string> = {
   "chris-paul-hornets":
     "https://legacymedia.sportsplatform.io/images_root/slides/photos/000/538/714/106958476_original.jpg?1291243979",
   "chris-paul-clippers":
-    "https://legacymedia.sportsplatform.io/images_root/slides/photos/000/538/714/106958476_original.jpg?1291243979",
+    "https://gsp-image-cdn.wmsports.io/cms/prod/bleacher-report/getty_images/136109782_large_image.jpg",
   "chris-bosh":
     "https://cdn.hoopsrumors.com/files/2017/07/USATSI_9094830.jpg",
   "chris-mullin":

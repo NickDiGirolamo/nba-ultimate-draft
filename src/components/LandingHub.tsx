@@ -14,6 +14,7 @@ import { categoryChallenges, draftChallenges, rareEvents } from "../lib/meta";
 interface LandingHubProps {
   onStart: () => void;
   onOpenPrestige: () => void;
+  onOpenChallenges: () => void;
   history: RunHistoryEntry[];
   meta: MetaProgress;
   draftChallengeSelection: DraftChallengeSelection;
@@ -32,6 +33,7 @@ interface LandingHubProps {
 export const LandingHub = ({
   onStart,
   onOpenPrestige,
+  onOpenChallenges,
   history,
   meta,
   draftChallengeSelection,
@@ -67,6 +69,14 @@ export const LandingHub = ({
           <button onClick={onStart} className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:scale-[1.02]">
             Start Draft
             <ChevronRight size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={onOpenChallenges}
+            className="inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-sky-300/10 px-6 py-3 text-sm font-semibold text-sky-100 transition hover:scale-[1.02] hover:border-sky-300/35"
+          >
+            Challenges
+            <Target size={16} />
           </button>
           <div className="rounded-full border border-white/12 bg-white/8 px-5 py-3 text-sm text-slate-200">
             Play for records, trophies, collection milestones, and your best legacy score.
