@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import { DynamicDuoBadge } from "./DynamicDuoBadge";
 import { usePlayerImage } from "../hooks/usePlayerImage";
+import { getPlayerDisplayLines } from "../lib/playerDisplay";
 import { getPlayerVisual } from "../lib/playerVisuals";
 import { Player } from "../types";
 
@@ -32,10 +33,8 @@ export const DraftPlayerCard = ({
   const visual = getPlayerVisual(player);
   const imageUrl = usePlayerImage(player);
   const naturalPositions = [player.primaryPosition, ...player.secondaryPositions].join(" / ");
-  const nameParts = player.name.trim().split(" ");
-  const firstNameLine = nameParts.slice(0, -1).join(" ") || player.name;
-  const lastNameLine = nameParts.slice(-1)[0] ?? "";
-  const longestNameLine = Math.max(firstNameLine.length, lastNameLine.length);
+  const { firstNameLine, lastNameLine, versionLine } = getPlayerDisplayLines(player);
+  const longestNameLine = Math.max(firstNameLine.length, lastNameLine.length, versionLine.length);
   const longName = longestNameLine >= 9;
   const veryLongName = longestNameLine >= 11;
   const extremeName = longestNameLine >= 14;
@@ -129,6 +128,7 @@ export const DraftPlayerCard = ({
         >
           <div className="whitespace-nowrap">{firstNameLine}</div>
           <div className="mt-1 whitespace-nowrap">{lastNameLine}</div>
+          {versionLine ? <div className="mt-1 whitespace-nowrap text-[0.76em] text-slate-200/92">{versionLine}</div> : null}
         </div>
         <div
           className={clsx(

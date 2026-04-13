@@ -13,6 +13,7 @@ import { categoryChallenges, draftChallenges, rareEvents } from "../lib/meta";
 
 interface LandingHubProps {
   onStart: () => void;
+  onOpenPrestige: () => void;
   history: RunHistoryEntry[];
   meta: MetaProgress;
   draftChallengeSelection: DraftChallengeSelection;
@@ -30,6 +31,7 @@ interface LandingHubProps {
 
 export const LandingHub = ({
   onStart,
+  onOpenPrestige,
   history,
   meta,
   draftChallengeSelection,
@@ -44,6 +46,7 @@ export const LandingHub = ({
   currentCategoryChallenge,
   onCategoryChallengeSelectionChange,
 }: LandingHubProps) => {
+  const noPrimaryChallenge = draftChallengeSelection === "none";
   const classicMode = draftChallengeSelection === "classic";
 
   return (
@@ -70,6 +73,55 @@ export const LandingHub = ({
           </div>
         </div>
 
+        <button
+          type="button"
+          onClick={onOpenPrestige}
+          className="mt-8 block w-full rounded-[28px] border border-amber-200/12 bg-black/20 p-5 text-left transition hover:border-amber-200/25 hover:bg-black/25"
+        >
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-slate-400">
+                <Crown size={14} className="text-amber-200" />
+                Prestige Profile
+              </div>
+              <h2 className="mt-2 font-display text-3xl text-white">
+                Level {meta.prestige.level} · {meta.prestige.title}
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
+                Prestige tracks your long-term all-time GM legacy across completed runs, titles, challenge clears, and collection growth.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[390px]">
+              <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Prestige</div>
+                <div className="mt-2 break-words text-[clamp(1.7rem,2.1vw,2.2rem)] font-semibold leading-none text-white">{meta.prestige.score}</div>
+              </div>
+              <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Next Level</div>
+                <div className="mt-2 break-words text-[clamp(1.7rem,2.1vw,2.2rem)] font-semibold leading-none text-white">{meta.prestige.nextLevelScore}</div>
+              </div>
+              <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Progress</div>
+                <div className="mt-2 text-2xl font-semibold text-white">
+                  {Math.round(meta.prestige.progressToNextLevel * 100)}%
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 h-3 overflow-hidden rounded-full bg-white/8">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-amber-300 via-yellow-200 to-orange-300"
+              style={{ width: `${Math.max(6, Math.round(meta.prestige.progressToNextLevel * 100))}%` }}
+            />
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-3 text-xs uppercase tracking-[0.18em] text-slate-500">
+            <span>{meta.prestige.currentLevelFloor}</span>
+            <span>{meta.prestige.nextLevelScore}</span>
+          </div>
+        </button>
+
         <div className="mt-8 rounded-[28px] border border-white/10 bg-black/20 p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
@@ -78,16 +130,24 @@ export const LandingHub = ({
                 Primary Challenge
               </div>
               <h2 className="mt-2 font-display text-2xl text-white">
-                {draftChallengeSelection === "random" ? "Random Challenge" : currentChallenge.title}
+                {draftChallengeSelection === "random"
+                  ? "Random Challenge"
+                  : noPrimaryChallenge
+                    ? "None"
+                    : currentChallenge.title}
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
                 {draftChallengeSelection === "random"
                   ? "Let the game assign a fresh featured objective for each run."
+                  : noPrimaryChallenge
+                    ? "No primary challenge is active. This run just asks you to build the best team you can."
                   : currentChallenge.description}
               </p>
               <p className="mt-2 text-sm text-amber-100/90">
                 {draftChallengeSelection === "random"
                   ? "A random primary challenge will be locked in on the draft briefing page."
+                  : noPrimaryChallenge
+                  ? "No primary challenge bonus is active, but your other run modifiers can still be turned on."
                   : classicMode
                   ? "Classic turns off extra run modifiers so the goal is simply to build the strongest team possible."
                   : `Reward: +${currentChallenge.reward} legacy score if you complete it.`}

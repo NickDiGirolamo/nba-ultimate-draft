@@ -1,3 +1,4 @@
+import { useState } from "react";
 import clsx from "clsx";
 import {
   Activity,
@@ -16,11 +17,15 @@ import {
   Trophy,
   Users,
   Zap,
+  Info,
 } from "lucide-react";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import {
+  BracketMatchup,
+  ConferenceBracket,
   MetaProgress,
   Player,
+  PlayoffBracket,
   RosterSlot,
   RunHistoryEntry,
   SimulationResult,
@@ -97,6 +102,74 @@ const buildAnalytics = (roster: RosterSlot[], metrics: TeamMetrics) => {
       ) / 10,
   };
 };
+
+const analyticMetricHelp: Record<string, string> = {
+  "Top-3 Star Avg":
+    "The average overall rating of your three best players. This captures how much top-end star talent your roster brought into the season.",
+  "Stability Index":
+    "A blend of low variance, chemistry, and depth. Higher stability means the team is less likely to swing wildly from game to game.",
+  "Spacing Pressure":
+    "A combined look at raw shooting and lineup spacing. Higher values mean your offense puts more strain on defenses away from the paint.",
+  "Starting Five":
+    "The average overall rating of your five starters. This is your opening-unit quality before the bench comes into play.",
+  "Bench Unit":
+    "The average overall rating of your reserve group. Higher values mean your non-starter minutes hold up better over a long season.",
+  "Two-Way Index":
+    "An overall balance score built from offense, defense, and lineup fit. It reflects how complete your team is on both sides of the ball.",
+};
+
+const dashboardMetricHelp: Record<string, string> = {
+  Overall:
+    "Your roster's total team strength once the full simulation model weighs talent, fit, and lineup structure together.",
+  Offense:
+    "How dangerous the team projects to be at generating points across scoring, creation, and shooting pressure.",
+  Defense:
+    "How reliably the roster can get stops through point-of-attack defense, help coverage, size, and rim resistance.",
+  Playmaking:
+    "Your team's ability to organize offense, create quality shots, and keep possessions flowing.",
+  Shooting:
+    "The pure shotmaking and floor-stretching quality of the roster.",
+  Rebounding:
+    "How well the team projects to win the glass and create extra possessions.",
+  Depth:
+    "How much quality survives after the starters. Better depth means less drop-off when the bench checks in.",
+  Fit:
+    "How cleanly the pieces work together in terms of roles, positional balance, and lineup logic.",
+  Chemistry:
+    "How naturally the roster accepts roles and benefits from synergy between the players you drafted.",
+  "Star Power":
+    "The ceiling-lifting talent at the top of the roster. This is about game-breaking players who can swing playoff series.",
+  Spacing:
+    "How much room the lineup creates for drives, post play, and offensive flow by forcing defenses to stretch out.",
+  "Rim Protection":
+    "How well the team can deter and contest shots near the basket.",
+};
+
+const MetricLabelWithTooltip = ({
+  label,
+  help,
+  className,
+}: {
+  label: string;
+  help?: string;
+  className?: string;
+}) => (
+  <div className={clsx("flex items-center gap-2", className)}>
+    <span>{label}</span>
+    {help ? (
+      <span className="group relative inline-flex">
+        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/12 bg-white/6 text-slate-400 transition group-hover:border-amber-200/30 group-hover:text-amber-100">
+          <Info size={11} />
+        </span>
+        <span className="pointer-events-none absolute bottom-full left-1/2 z-30 hidden w-56 -translate-x-1/2 pb-2 group-hover:block">
+          <span className="block rounded-2xl border border-white/12 bg-slate-950 px-3 py-2 text-xs normal-case leading-5 tracking-normal text-slate-200 shadow-[0_16px_40px_rgba(0,0,0,0.5)]">
+            {help}
+          </span>
+        </span>
+      </span>
+    ) : null}
+  </div>
+);
 
 const chartMetrics = (metrics: TeamMetrics, result: SimulationResult) => [
   { label: "Overall", value: metrics.overall, icon: Trophy, note: result.ratingLabel },
@@ -297,6 +370,311 @@ const SpotlightCard = ({
   );
 };
 
+const BracketTeamPill = ({
+  team,
+  isWinner,
+}: {
+  team: BracketMatchup["home"];
+  isWinner: boolean;
+}) => (
+  <div className="group relative">
+    <div
+      className={clsx(
+        "rounded-2xl border px-3 py-3 transition",
+        isWinner
+          ? "border-amber-200/25 bg-amber-300/10"
+          : "border-white/10 bg-white/5",
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">
+            {team.seed} Seed
+          </div>
+          <div className="mt-1 truncate text-sm font-semibold text-white">
+            {team.teamName}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-lg font-semibold text-white">{team.projectedWins}</div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Wins</div>
+        </div>
+      </div>
+    </div>
+
+    <div className="pointer-events-none absolute left-1/2 top-full z-20 hidden w-64 -translate-x-1/2 pt-3 group-hover:block">
+      <div className="rounded-[20px] border border-white/10 bg-slate-950/96 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+        <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">
+          Top 3 Players
+        </div>
+        <div className="mt-2 text-sm font-semibold text-white">{team.teamName}</div>
+        <div className="mt-3 space-y-2">
+          {team.stars.map((player) => (
+            <div
+              key={`${team.teamName}-${player.id}`}
+              className="flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/5 px-3 py-2"
+            >
+              <div className="min-w-0">
+                <div className="truncate text-sm text-white">{player.name}</div>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">
+                  {player.primaryPosition}
+                </div>
+              </div>
+              <div className="text-sm font-semibold text-amber-100">{player.overall}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const BracketTeamRow = ({
+  team,
+  isWinner,
+  compact = false,
+  tooltipSide = "right",
+}: {
+  team: BracketMatchup["home"];
+  isWinner: boolean;
+  compact?: boolean;
+  tooltipSide?: "right" | "left" | "top";
+}) => (
+  <div className="group relative">
+    <div
+      className={clsx(
+        "flex h-[58px] w-full min-w-0 max-w-full items-center justify-between gap-2 overflow-hidden rounded-xl border px-2.5 py-2",
+        compact && "h-[52px]",
+        team.isUserTeam && "ring-2 ring-sky-300/70 shadow-[0_0_0_1px_rgba(125,211,252,0.45),0_0_28px_rgba(56,189,248,0.22)]",
+        isWinner
+          ? "border-amber-200/25 bg-amber-300/10"
+          : "border-white/10 bg-white/5",
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        {team.isUserTeam ? (
+          <div className="flex h-7 shrink-0 items-center justify-center rounded-lg bg-sky-300/18 px-2 text-[10px] font-black uppercase tracking-[0.16em] text-sky-100">
+            You
+          </div>
+        ) : (
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-black/35 text-[11px] font-bold text-white">
+            {team.seed}
+          </div>
+        )}
+        <div className="min-w-0">
+          <div className={clsx("truncate font-semibold text-white", compact ? "text-[11px]" : "text-[13px]")}>
+            {team.teamName}
+          </div>
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+              {team.projectedWins} wins
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      className={clsx(
+        "pointer-events-none absolute z-20 hidden w-64 group-hover:block",
+        tooltipSide === "right" && "left-full top-1/2 ml-3 -translate-y-1/2",
+        tooltipSide === "left" && "right-full top-1/2 mr-3 -translate-y-1/2",
+        tooltipSide === "top" && "bottom-full left-1/2 mb-3 -translate-x-1/2",
+      )}
+    >
+      <div className="rounded-[20px] border border-white/12 bg-slate-950 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.55)]">
+        <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">
+          Top 3 Players
+        </div>
+        <div className="mt-2 text-sm font-semibold text-white">{team.teamName}</div>
+        <div className="mt-3 space-y-2">
+          {team.stars.map((player) => (
+            <div
+              key={`${team.teamName}-${player.id}`}
+              className="flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/5 px-3 py-2"
+            >
+              <div className="min-w-0">
+                <div className="truncate text-sm text-white">{player.name}</div>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">
+                  {player.primaryPosition}
+                </div>
+              </div>
+              <div className="text-sm font-semibold text-amber-100">{player.overall}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const BracketSeriesStack = ({
+  matchup,
+  compact = false,
+  tooltipSide = "right",
+}: {
+  matchup: BracketMatchup;
+  compact?: boolean;
+  tooltipSide?: "right" | "left" | "top";
+}) => (
+  <div className={clsx("w-full min-w-0 max-w-full space-y-2", compact ? "min-h-[106px]" : "min-h-[118px]")}>
+    <BracketTeamRow
+      team={matchup.home}
+      isWinner={matchup.winnerTeamName === matchup.home.teamName}
+      compact={compact}
+      tooltipSide={tooltipSide}
+    />
+    <BracketTeamRow
+      team={matchup.away}
+      isWinner={matchup.winnerTeamName === matchup.away.teamName}
+      compact={compact}
+      tooltipSide={tooltipSide}
+    />
+  </div>
+);
+
+const BracketRoundCell = ({
+  matchup,
+  reverse = false,
+  compact = false,
+}: {
+  matchup: BracketMatchup;
+  reverse?: boolean;
+  compact?: boolean;
+}) => (
+  <div className="relative flex h-full min-h-0 items-center">
+    <BracketSeriesStack
+      matchup={matchup}
+      compact={compact}
+      tooltipSide={reverse ? "left" : "right"}
+    />
+    <div
+      className={clsx(
+        "pointer-events-none absolute top-1/2 hidden h-px w-4 -translate-y-1/2 bg-white/18 xl:block",
+        reverse ? "-left-4" : "-right-4",
+      )}
+    />
+  </div>
+);
+
+const BracketConferenceTree = ({
+  title,
+  bracket,
+  reverse = false,
+}: {
+  title: string;
+  bracket: ConferenceBracket;
+  reverse?: boolean;
+}) => {
+  const quarterTop = [0, 150, 300, 450];
+  const semiTop = [75, 375];
+  const conferenceTop = 225;
+
+  const quarterLane = reverse ? "right-0" : "left-0";
+  const semiLane = reverse ? "right-[184px]" : "left-[184px]";
+  const conferenceLane = reverse ? "right-[336px]" : "left-[336px]";
+
+  return (
+    <div className="space-y-4">
+      <div className={clsx("text-center", reverse ? "xl:text-right" : "xl:text-left")}>
+        <div className="text-sm font-black uppercase tracking-[0.28em] text-slate-300">
+          {title}
+        </div>
+      </div>
+
+      <div className="relative mx-auto h-[600px] w-[520px] max-w-full">
+        {bracket.quarterfinals.slice(0, 4).map((matchup, index) => (
+          <div
+            key={matchup.id}
+            className={clsx("absolute w-[172px]", quarterLane)}
+            style={{ top: `${quarterTop[index]}px` }}
+          >
+            <BracketRoundCell matchup={matchup} reverse={reverse} />
+          </div>
+        ))}
+
+        {bracket.semifinals.slice(0, 2).map((matchup, index) => (
+          <div
+            key={matchup.id}
+            className={clsx("absolute w-[144px]", semiLane)}
+            style={{ top: `${semiTop[index]}px` }}
+          >
+            <BracketRoundCell matchup={matchup} reverse={reverse} compact />
+          </div>
+        ))}
+
+        {bracket.conferenceFinal ? (
+          <div
+            className={clsx("absolute w-[128px]", conferenceLane)}
+            style={{ top: `${conferenceTop}px` }}
+          >
+            <BracketRoundCell matchup={bracket.conferenceFinal} reverse={reverse} compact />
+          </div>
+        ) : (
+          <div
+            className={clsx(
+              "absolute w-[128px] rounded-[20px] border border-dashed border-white/10 bg-black/10 p-4 text-sm text-slate-400",
+              conferenceLane,
+            )}
+            style={{ top: `${conferenceTop}px` }}
+          >
+            Bracket unavailable
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const PlayoffBracketBoard = ({ bracket }: { bracket: PlayoffBracket }) => (
+  <div className="glass-panel overflow-visible rounded-[30px] p-6 shadow-card">
+    <div className="flex items-center justify-between gap-4">
+      <div>
+        <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
+          Playoff Bracket
+        </div>
+        <h2 className="mt-1 font-display text-2xl text-white">
+          16-Team Title Path
+        </h2>
+      </div>
+      <div className="rounded-full border border-white/10 bg-white/6 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-300">
+        Hover teams for top 3 players
+      </div>
+    </div>
+
+    <div className="mt-6 min-w-0 overflow-hidden">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,520px)_360px_minmax(0,520px)] xl:items-start xl:justify-between">
+      <BracketConferenceTree title="Western Conference" bracket={bracket.west} />
+
+      <div className="min-w-0 space-y-4 xl:pt-28">
+        <div className="text-center">
+          <div className="text-xs uppercase tracking-[0.28em] text-amber-100/70">
+            NBA Finals
+          </div>
+          <div className="mt-2 font-display text-3xl text-white">Championship</div>
+        </div>
+
+        {bracket.finals ? (
+          <div className="rounded-[26px] border border-amber-200/18 bg-amber-300/8 p-5">
+            <BracketSeriesStack matchup={bracket.finals} tooltipSide="top" />
+            <div className="mt-4 rounded-2xl border border-emerald-300/18 bg-emerald-300/10 px-4 py-3 text-center">
+              <div className="text-[10px] uppercase tracking-[0.24em] text-emerald-100/70">
+                NBA Champion
+              </div>
+              <div className="mt-1 text-lg font-semibold text-white">
+                {bracket.champion?.teamName ?? bracket.finals.winnerTeamName}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <BracketConferenceTree title="Eastern Conference" bracket={bracket.east} reverse />
+      </div>
+    </div>
+  </div>
+);
+
 export const ResultsShowcase = ({
   result,
   roster,
@@ -304,6 +682,8 @@ export const ResultsShowcase = ({
   meta,
   history,
 }: ResultsShowcaseProps) => {
+  const [resultsPage, setResultsPage] = useState<"season" | "dashboard">("season");
+
   if (result.mode === "category-focus" && result.categoryChallenge) {
     const focusHistory = history
       .filter((entry) => entry.mode === "category-focus" && entry.categoryFocusId === result.categoryChallenge?.id)
@@ -608,8 +988,32 @@ export const ResultsShowcase = ({
         </button>
       </div>
 
-      <div className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="flex justify-center">
+        <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1">
+          {[
+            { id: "season" as const, label: "Season Outcome" },
+            { id: "dashboard" as const, label: "Team Dashboard" },
+          ].map((page) => (
+            <button
+              key={page.id}
+              type="button"
+              onClick={() => setResultsPage(page.id)}
+              className={clsx(
+                "rounded-full px-5 py-2.5 text-sm font-semibold transition",
+                resultsPage === page.id
+                  ? "bg-white text-slate-950"
+                  : "text-slate-300 hover:text-white",
+              )}
+            >
+              {page.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className={clsx("grid gap-8", resultsPage === "season" ? "xl:grid-cols-1" : "xl:grid-cols-[1.1fr_0.9fr]")}>
         <div className="space-y-8">
+          {resultsPage === "dashboard" && (
           <div className="glass-panel rounded-[30px] p-6 shadow-card">
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -640,14 +1044,17 @@ export const ResultsShowcase = ({
                       >
                         <metric.icon size={17} />
                       </div>
-                      <div>
-                        <div className="text-xs uppercase tracking-[0.22em] text-slate-400">
-                          {metric.label}
+                        <div>
+                          <div className="text-xs uppercase tracking-[0.22em] text-slate-400">
+                            <MetricLabelWithTooltip
+                              label={metric.label}
+                              help={dashboardMetricHelp[metric.label]}
+                            />
+                          </div>
+                          <div className="mt-1 text-sm text-slate-300">
+                            {metric.note}
+                          </div>
                         </div>
-                        <div className="mt-1 text-sm text-slate-300">
-                          {metric.note}
-                        </div>
-                      </div>
                     </div>
                     <div className="text-right">
                       <div className="text-xl font-semibold text-white">
@@ -676,7 +1083,9 @@ export const ResultsShowcase = ({
               ))}
             </div>
           </div>
+          )}
 
+          {resultsPage === "season" && (
           <div className="glass-panel overflow-hidden rounded-[34px] p-8 shadow-card lg:p-10">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.16),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(56,189,248,0.16),transparent_28%)]" />
 
@@ -778,7 +1187,15 @@ export const ResultsShowcase = ({
               ))}
             </div>
           </div>
+          )}
 
+          {resultsPage === "season" && result.playoffBracket && (
+            <div className="space-y-8">
+              <PlayoffBracketBoard bracket={result.playoffBracket} />
+            </div>
+          )}
+
+          {resultsPage === "season" && (
           <div className="grid gap-6 lg:grid-cols-[0.88fr_1.12fr]">
             <div className="glass-panel rounded-[30px] p-6 shadow-card">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">
@@ -804,19 +1221,34 @@ export const ResultsShowcase = ({
                 </div>
                 <div className="space-y-3 text-sm text-slate-300">
                   <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                    <span className="text-slate-400">Top-3 Star Avg:</span>{" "}
+                    <span className="text-slate-400">
+                      <MetricLabelWithTooltip
+                        label="Top-3 Star Avg:"
+                        help={analyticMetricHelp["Top-3 Star Avg"]}
+                      />
+                    </span>{" "}
                     <span className="font-semibold text-white">
                       {analytics.topThreeAverage}
                     </span>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                    <span className="text-slate-400">Stability Index:</span>{" "}
+                    <span className="text-slate-400">
+                      <MetricLabelWithTooltip
+                        label="Stability Index:"
+                        help={analyticMetricHelp["Stability Index"]}
+                      />
+                    </span>{" "}
                     <span className="font-semibold text-white">
                       {analytics.stabilityIndex}
                     </span>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                    <span className="text-slate-400">Spacing Pressure:</span>{" "}
+                    <span className="text-slate-400">
+                      <MetricLabelWithTooltip
+                        label="Spacing Pressure:"
+                        help={analyticMetricHelp["Spacing Pressure"]}
+                      />
+                    </span>{" "}
                     <span className="font-semibold text-white">
                       {analytics.spacingPressure}
                     </span>
@@ -835,7 +1267,12 @@ export const ResultsShowcase = ({
                     className="rounded-2xl border border-white/10 bg-black/15 p-4"
                   >
                     <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="text-slate-300">{row.label}</span>
+                      <span className="text-slate-300">
+                        <MetricLabelWithTooltip
+                          label={row.label}
+                          help={analyticMetricHelp[row.label]}
+                        />
+                      </span>
                       <span className="font-semibold text-white">{row.value}</span>
                     </div>
                     <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/8">
@@ -919,8 +1356,10 @@ export const ResultsShowcase = ({
               </div>
             </div>
           </div>
+          )}
         </div>
 
+        {resultsPage === "dashboard" && (
         <div className="space-y-8">
           <div className="glass-panel rounded-[30px] p-6 shadow-card">
             <div className="grid gap-4 md:grid-cols-2">
@@ -1028,6 +1467,7 @@ export const ResultsShowcase = ({
             </div>
           </div>
         </div>
+        )}
       </div>
     </section>
   );

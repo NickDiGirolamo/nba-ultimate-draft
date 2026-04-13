@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CategoryChallengeSelection, DraftChallengeSelection, DraftState, Player, RareEventSelection, RunHistoryEntry, Screen } from "../types";
 import { STORAGE_KEY, assignPlayerToRoster, createSeed, generateChoices, rosterTemplate } from "../lib/draft";
+import { allPlayers } from "../data/players";
 import { runSeasonSimulation } from "../lib/simulate";
 import {
   buildMetaProgress,
@@ -36,8 +37,69 @@ const DEFAULT_METRICS = {
   benchScoring: 0,
 };
 
+const LEGACY_PLAYER_ID_MIGRATIONS: Record<string, string> = {
+  "dwyane-wade-young": "dwayne-wade-03-10",
+  "dwyane-wade-big-3": "dwayne-wade-10-14",
+  "lebron-james-young-cavaliers": "lebron-james-03-10",
+  "lebron-james": "lebron-james-14-18",
+  "lebron-james-2nd-cavaliers": "lebron-james-14-18",
+  "shaquille-o-neal": "shaquille-o-neal-lakers",
+  "kobe-bryant": "kobe-bryant-24",
+  "kevin-durant": "kevin-durant-warriors",
+  "kareem-abdul-jabbar": "kareem-abdul-jabbar-lakers",
+  "ray-allen": "ray-allen-sonics",
+  "kevin-garnett": "kevin-garnett-timberwolves",
+  "dwyane-wade": "dwyane-wade-big-3",
+  "chris-paul": "chris-paul-clippers",
+  "carmelo-anthony": "carmelo-anthony-nuggets",
+  "tracy-mcgrady": "tracy-mcgrady-rockets",
+  "vince-carter": "vince-carter-raptors",
+};
+
+const LEGACY_PLAYER_NAME_MIGRATIONS: Record<string, string> = {
+  "Dwyane Wade (Young)": "Dwayne Wade ('03 - '10)",
+  "Dwyane Wade (Big 3)": "Dwayne Wade ('10 - '14)",
+  "LeBron James (Young Cavaliers)": "LeBron James ('03 - '10)",
+  "LeBron James": "LeBron James ('14 - '18)",
+  "LeBron James (2nd Cavaliers)": "LeBron James ('14 - '18)",
+  "Shaquille O'Neal": "Shaquille O'Neal (Lakers)",
+  "Kobe Bryant": "Kobe Bryant (#24)",
+  "Kevin Durant": "Kevin Durant (Warriors)",
+  "Kareem Abdul-Jabbar": "Kareem Abdul-Jabbar (Lakers)",
+  "Ray Allen": "Ray Allen (Sonics)",
+  "Kevin Garnett": "Kevin Garnett (Timberwolves)",
+  "Dwyane Wade": "Dwayne Wade ('10 - '14)",
+  "Chris Paul": "Chris Paul (Clippers)",
+  "Carmelo Anthony": "Carmelo Anthony (Nuggets)",
+  "Tracy McGrady": "Tracy McGrady (Rockets)",
+  "Vince Carter": "Vince Carter (Raptors)",
+};
+
+const canonicalPlayersById = new Map(allPlayers.map((player) => [player.id, player]));
+const canonicalPlayersByName = new Map(allPlayers.map((player) => [player.name, player]));
+
+const normalizePlayer = (player: Player | null | undefined): Player | null => {
+  if (!player) return null;
+
+  const migratedId = LEGACY_PLAYER_ID_MIGRATIONS[player.id] ?? player.id;
+  const migratedName = LEGACY_PLAYER_NAME_MIGRATIONS[player.name] ?? player.name;
+
+  return (
+    canonicalPlayersById.get(migratedId) ??
+    canonicalPlayersByName.get(migratedName) ??
+    canonicalPlayersById.get(player.id) ??
+    canonicalPlayersByName.get(player.name) ??
+    player
+  );
+};
+
+const normalizePlayerIds = (playerIds: string[]) =>
+  playerIds.map((id) => LEGACY_PLAYER_ID_MIGRATIONS[id] ?? id);
+
 const resolveDraftChallenge = (selection: DraftChallengeSelection, rng: () => number) =>
-  selection === "random" ? selectDraftChallenge(rng) : getDraftChallengeById(selection);
+  selection === "random"
+    ? selectDraftChallenge(rng)
+    : getDraftChallengeById(selection);
 
 const resolveRareEvent = (selection: RareEventSelection, rng: () => number) => {
   if (selection === "disabled") return standardRareEvent;
@@ -123,6 +185,7 @@ const upgradeSimulationResult = (
     chemistryScore: result.chemistryScore ?? 0,
     leagueContext: result.leagueContext ?? "",
     leagueLandscape: result.leagueLandscape ?? [],
+    playoffBracket: result.playoffBracket ?? null,
     eliminatedBy: result.eliminatedBy ?? null,
     signatureWin: result.signatureWin ?? null,
     strengths: result.strengths ?? [],
@@ -196,7 +259,20 @@ const normalizeState = (value: DraftState): DraftState => {
       value.simulationResult,
       value.currentChallenge ?? resolvedParameters.challenge,
     ),
-    unlockedPlayerIds: Array.isArray(value.unlockedPlayerIds) ? value.unlockedPlayerIds : [],
+    roster: Array.isArray(value.roster)
+      ? value.roster.map((slot) => ({
+          ...slot,
+          player: normalizePlayer(slot.player),
+        }))
+      : rosterTemplate(),
+    currentChoices: Array.isArray(value.currentChoices)
+      ? value.currentChoices.map((player) => normalizePlayer(player)).filter((player): player is Player => Boolean(player))
+      : [],
+    availablePlayers: Array.isArray(value.availablePlayers)
+      ? value.availablePlayers.map((player) => normalizePlayer(player)).filter((player): player is Player => Boolean(player))
+      : [],
+    draftedPlayerIds: Array.isArray(value.draftedPlayerIds) ? normalizePlayerIds(value.draftedPlayerIds) : [],
+    unlockedPlayerIds: Array.isArray(value.unlockedPlayerIds) ? normalizePlayerIds(value.unlockedPlayerIds) : [],
     draftChallengeSelection: normalizedDraftChallengeSelection,
     currentChallenge: value.currentChallenge ?? resolvedParameters.challenge,
     rareEventSelection: normalizedRareEventSelection,
@@ -302,7 +378,11 @@ export const useDraftGame = () => {
     }));
 
     window.setTimeout(() => {
-      setState((current) => ({ ...current, selectedPlayerId: null }));
+      setState((current) => ({
+        ...current,
+        selectedPlayerId: null,
+        screen: nextPick > 10 ? "lineup" : current.screen,
+      }));
     }, 420);
   };
 
@@ -398,6 +478,33 @@ export const useDraftGame = () => {
         roster: nextRoster,
         selectedSlotIndex: null,
         lastFilledSlot: nextRoster[index].slot,
+      };
+    });
+  };
+
+  const moveRosterPlayer = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+
+    setState((current) => {
+      if (!current.roster[fromIndex]?.player || !current.roster[toIndex]) return current;
+
+      const nextRoster = [...current.roster];
+      const draggedPlayer = nextRoster[fromIndex].player;
+
+      nextRoster[fromIndex] = {
+        ...nextRoster[fromIndex],
+        player: nextRoster[toIndex].player,
+      };
+      nextRoster[toIndex] = {
+        ...nextRoster[toIndex],
+        player: draggedPlayer,
+      };
+
+      return {
+        ...current,
+        roster: nextRoster,
+        selectedSlotIndex: null,
+        lastFilledSlot: nextRoster[toIndex].slot,
       };
     });
   };
@@ -512,6 +619,7 @@ export const useDraftGame = () => {
     resetDraft,
     setScreen,
     handleRosterSlotClick,
+    moveRosterPlayer,
     setDraftChallengeSelection,
     setRareEventSelection,
     setCategoryChallengeSelection,

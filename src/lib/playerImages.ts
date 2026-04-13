@@ -1,16 +1,36 @@
 import { Player } from "../types";
 
-const STORAGE_KEY = "legends-draft-player-images-v1";
+const STORAGE_KEY = "legends-draft-player-images-v2";
 
 const wikiTitleOverrides: Record<string, string> = {
+  "dwayne-wade-03-10": "Dwyane_Wade",
+  "dwayne-wade-10-14": "Dwyane_Wade",
   "julius-erving": "Julius_Erving",
   "shaquille-o-neal": "Shaquille_O%27Neal",
+  "shaquille-o-neal-magic": "Shaquille_O%27Neal",
+  "shaquille-o-neal-lakers": "Shaquille_O%27Neal",
+  "shaquille-o-neal-heat": "Shaquille_O%27Neal",
   "isiah-thomas": "Isiah_Thomas",
+  "kevin-garnett-timberwolves": "Kevin_Garnett",
+  "kevin-garnett-celtics": "Kevin_Garnett",
   "nikola-jokic": "Nikola_Joki%C4%87",
+  "kareem-abdul-jabbar-bucks": "Kareem_Abdul-Jabbar",
+  "kareem-abdul-jabbar-lakers": "Kareem_Abdul-Jabbar",
+  "kobe-bryant-8": "Kobe_Bryant",
+  "kobe-bryant-24": "Kobe_Bryant",
+  "kevin-durant-thunder": "Kevin_Durant",
+  "kevin-durant-warriors": "Kevin_Durant",
+  "lebron-james-03-10": "LeBron_James",
+  "lebron-james-heat": "LeBron_James",
+  "lebron-james-14-18": "LeBron_James",
+  "lebron-james-lakers": "LeBron_James",
   "luka-doncic": "Luka_Don%C4%8Di%C4%87",
   "giannis-antetokounmpo": "Giannis_Antetokounmpo",
   "dikembe-mutombo": "Dikembe_Mutombo",
   "yao-ming": "Yao_Ming",
+  "tracy-mcgrady-raptors": "Tracy_McGrady",
+  "tracy-mcgrady-magic": "Tracy_McGrady",
+  "tracy-mcgrady-rockets": "Tracy_McGrady",
   "penny-hardaway": "Anfernee_Hardaway",
   "amar-e-stoudemire": "Amar%27e_Stoudemire",
   "kyrie-irving": "Kyrie_Irving",
@@ -19,6 +39,40 @@ const wikiTitleOverrides: Record<string, string> = {
 };
 
 const directImageOverrides: Record<string, string> = {
+  "lebron-james-03-10":
+    "https://people.com/thmb/JniFF0gr_aiZGdimoMhcJBZy-Y8=/4000x0/filters:no_upscale():max_bytes(150000):strip_icc():focal(667x0:669x2)/gettyimages-2674798-2000-54630ad5a0da4f9183d390d943552844.jpg",
+  "lebron-james-heat":
+    "https://cdn.forumcomm.com/dims4/default/f093fbe/2147483647/strip/true/crop/4243x2829+0+78/resize/840x560!/quality/90/?url=https%3A%2F%2Ffcc-cue-exports-brightspot.s3.us-west-2.amazonaws.com%2Fduluthnewstribune%2Fbinary%2Fcopy%2F83%2F02%2F1ea484ecdcfcdcf43edcb4841755%2F930825-lebronjames0625-binary-1587828.jpg",
+  "lebron-james-14-18":
+    "https://videos.usatoday.net/Brightcove2/29906170001/2015/06/29906170001_4282564439001_USATSI-8601943.jpg?pubId=29906170001",
+  "lebron-james-lakers":
+    "https://videos.usatoday.net/Brightcove2/29906170001/2015/06/29906170001_4282564439001_USATSI-8601943.jpg?pubId=29906170001",
+  "dwayne-wade-03-10":
+    "https://64.media.tumblr.com/f6d35d71ea04dfd298926ad166aa1ec2/tumblr_q65qyn6DxT1uf9qj8o1_1280.jpg",
+  "kareem-abdul-jabbar-bucks":
+    "https://pbs.twimg.com/media/FBmMlNuWUAMFF-T.jpg",
+  "kareem-abdul-jabbar-lakers":
+    "https://images.imagerenderer.com/images/artworkimages/mediumlarge/3/kareem-abdul-jabbar-dick-raphael.jpg",
+  "kobe-bryant-8":
+    "https://cdn.artphotolimited.com/images/67ceea65865e9b3b9ef7de2b/300x300/kobe-bryant-2001-nba-finals.jpg",
+  "kobe-bryant-24":
+    "https://people.com/thmb/DjhcXEV6R-f9jcpkaoTkgd0lWYY=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc():focal(665x0:667x2)/kobe-bryant-n-2a3e767270fd44fa9e02b81117a207ba.jpg",
+  "shaquille-o-neal-magic":
+    "https://talksport.com/wp-content/uploads/2024/12/32-orlando-magic-portrait-standing-959900731.jpg?strip=all&w=644",
+  "shaquille-o-neal-lakers":
+    "https://preview.redd.it/who-would-you-rather-have-prime-shaq-or-prime-giannis-v0-d0ogt1n4r6pe1.jpg?width=640&crop=smart&auto=webp&s=d72c0c9849e683ce07b4bfbe0ed627556c0247c5",
+  "shaquille-o-neal-heat":
+    "https://a.espncdn.com/combiner/i?img=%2Fphoto%2F2016%2F0209%2Fr52022_1296x729_16%2D9.jpg",
+  "kevin-durant-thunder":
+    "https://i.ebayimg.com/images/g/h1oAAOSwTaBm-OO0/s-l400.jpg",
+  "kevin-durant-warriors":
+    "https://static01.nyt.com/images/2017/04/07/sports/07durant-web1/07durant-web1-articleLarge.jpg?quality=75&auto=webp&disable=upscale",
+  "kevin-garnett-timberwolves":
+    "https://www.twincities.com/wp-content/uploads/2015/11/20080318__cst_Kevin_Garnett_2_.jpg?w=640",
+  "ray-allen-sonics":
+    "https://www.sportsnet.ca/wp-content/uploads/2013/07/allen_ray640.jpg",
+  "ray-allen-celtics":
+    "https://www.telegram.com/gcdn/authoring/2012/07/07/NTEG/ghows-WT-a43ed083-7b8a-4e5f-85b5-85f31a6db240-71e16e40.jpeg?width=660&height=1018&fit=crop&format=pjpg&auto=webp",
   "dennis-rodman":
     "https://legacymedia.sportsplatform.io/images_root/slides/photos/000/537/881/245838_original.jpg?1291222858",
   "deron-williams":
@@ -37,6 +91,10 @@ const directImageOverrides: Record<string, string> = {
     "https://substackcdn.com/image/fetch/$s_!7fFL!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F3cd3f21f-93f0-40da-831d-7ca7995a24d9_1172x1410.jpeg",
   "dirk-nowitzki":
     "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/DirkNowitzki.jpg/250px-DirkNowitzki.jpg",
+  "tracy-mcgrady-raptors":
+    "https://library.sportingnews.com/styles/twitter_card_120x120/s3/2022-01/tracy-mcgrady-raptors-nbae-gettyimages_1meed57to9r3u1ccn3bzrz2i3n.jpg?itok=ZAmhluC9",
+  "tracy-mcgrady-magic":
+    "https://minutemedia-ressh.cloudinary.com/image/upload/v1694362739/shape/cover/sport/b8054764aa2a084b84b074543a6962fc573ce351b6839c1a0194511a19e2b2c1.jpg",
   "dwight-howard":
     "https://cdn.bleacherreport.net/images_root/slides/photos/000/709/700/108926554_original.jpg?1297284921",
   "draymond-green":
@@ -45,6 +103,10 @@ const directImageOverrides: Record<string, string> = {
     "https://lakersnation.com/wp-content/uploads/2018/04/Eddie-Jones.jpg",
   "elgin-baylor":
     "https://people.com/thmb/A985skBp-7CoPESTJY01mMG8XBo=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc():focal(750x379:752x381)/elgin-baylor-1-2000-9afb8cf311fb480fbbe2b12f31a66bf5.jpg",
+  "glen-rice":
+    "https://cdn.nba.com/teams/legacy/www.nba.com/hornets/sites/hornets/files/glen-rice-trophy.jpg",
+  "gary-payton":
+    "https://seattlerefined.com/resources/media2/original/full/1600/center/80/6a629ef3-d789-4f97-981d-732166f15da4-GettyImages2007517168.jpg",
   "hakeem-olajuwon":
     "https://preview.redd.it/i-asked-gemini-to-argue-why-hakeem-olajuwon-is-the-greatest-v0-098c1wd77ege1.jpeg?width=640&crop=smart&auto=webp&s=ba0ec03f9f7f9a70bdb2f5d9d9737c66f624f8bd",
   "dominique-wilkins":
@@ -55,6 +117,8 @@ const directImageOverrides: Record<string, string> = {
     "https://cdn.nba.com/manage/2020/10/julius-erving-nets-392x588.jpg",
   "james-harden":
     "https://s.hdnux.com/photos/56/50/16/12223372/6/rawImage.jpg",
+  "jaylen-brown":
+    "https://fieldlevelmedia.com/wp-content/uploads/2025/12/27725863-1024x768.jpg",
   "jason-kidd":
     "https://www.si.com/.image/t_share/MTY4MjU5ODQ5Nzc5MjI2NDk3/image-placeholder-title.jpg",
   "jrue-holiday":
@@ -77,6 +141,8 @@ const directImageOverrides: Record<string, string> = {
     "https://substackcdn.com/image/fetch/$s_!qTIb!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F8c741afd-26ed-4064-b63a-26e15ab21a9b_1200x675.jpeg",
   "jermaine-o-neal":
     "https://talksport.com/wp-content/uploads/2025/06/GettyImages-1256412765.jpg?strip=all&w=636",
+  "john-wall":
+    "https://upload.wikimedia.org/wikipedia/commons/e/ef/Wall2wizz.jpg",
   "kawhi-leonard":
     "https://www.uticaod.com/gcdn/authoring/2019/06/13/NOBD/ghows-NY-b55ce3d7-0e3c-4aa1-a1ea-a6c5cb5c94c2-1f669383.jpeg?width=1200&disable=upscale&format=pjpg&auto=webp",
   "kobe-bryant":
@@ -115,7 +181,7 @@ const directImageOverrides: Record<string, string> = {
     "https://media.gq.com/photos/55f7333e2de2e54e38605818/1:1/w_1326,h_1326,c_limit/moses-malone-sixers.jpg",
   "nikola-jokic":
     "https://legacymedia.sportsplatform.io/image/upload/v1733625555/ecaf3qwgo1vbermrwtoh.jpg",
-  "vince-carter":
+  "vince-carter-raptors":
     "https://slamonline.com/wp-content/uploads/2014/07/vince_1.jpg",
   "victor-wembanyama":
     "https://media-cldnry.s-nbcnews.com/image/upload/t_fit-760w,f_auto,q_auto:best/rockcms/2024-06/240627-Victor-Wembanyama-se-343p-2b5ced.jpg",
@@ -165,7 +231,11 @@ const directImageOverrides: Record<string, string> = {
     "https://upload.wikimedia.org/wikipedia/commons/e/eb/Bradley_Beal_Wizards.jpg",
   "bill-russell":
     "https://delta.creativecirclecdn.com/quill/original/20231116-115407-65563457d7cc9image.jpg",
-  "chris-paul":
+  "blake-griffin":
+    "https://www.rollingstone.com/wp-content/uploads/2018/06/rs-20057-20140415-blakeg-x1800-1397571870.jpg",
+  "chris-paul-hornets":
+    "https://legacymedia.sportsplatform.io/images_root/slides/photos/000/538/714/106958476_original.jpg?1291243979",
+  "chris-paul-clippers":
     "https://legacymedia.sportsplatform.io/images_root/slides/photos/000/538/714/106958476_original.jpg?1291243979",
   "chris-bosh":
     "https://cdn.hoopsrumors.com/files/2017/07/USATSI_9094830.jpg",
@@ -179,12 +249,16 @@ const directImageOverrides: Record<string, string> = {
     "https://www.usatoday.com/gcdn/presto/2019/01/25/USAT/8face4bf-fda9-4585-8fce-19d456e2fe5d-2019-01-24_Anthony_Davis1.jpg?crop=1744,2326,x365,y211",
   "anthony-edwards":
     "https://cdn.nba.com/teams/uploads/sites/1610612750/2025/01/GettyImages-2155325565.jpg",
+  "andrei-kirilenko":
+    "https://i.redd.it/j3hz609fagz91.jpg",
   "adrian-dantley":
     "https://cdn.nba.com/teams/uploads/sites/1610612762/2023/11/GettyImages-499320108.jpg",
   "allen-iverson":
     "https://cdn.nba.com/manage/2022/03/ai3-scaled.jpg",
-  "carmelo-anthony":
+  "carmelo-anthony-nuggets":
     "https://images.imagerenderer.com/images/artworkimages/mediumlarge/3/carmelo-anthony-andrew-d-bernstein.jpg",
+  "carmelo-anthony-knicks":
+    "https://cdn.bleacherreport.net/images_root/slides/photos/000/748/228/109386852_original.jpg?1298564512",
   "carlos-boozer":
     "https://cdn.nba.com/teams/legacy/www.nba.com/jazz/sites/jazz/files/gettyimages-98852331.jpg",
   "chauncey-billups":

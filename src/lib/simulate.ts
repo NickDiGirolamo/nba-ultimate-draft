@@ -1,9 +1,11 @@
 import {
   CategoryChallenge,
+  ConferenceBracket,
   DraftChallenge,
   LeagueContenderProfile,
   OpponentStory,
   Player,
+  PlayoffBracket,
   RareEvent,
   RosterSlot,
   SimulationResult,
@@ -148,6 +150,181 @@ const buildMatchupReason = (
   return "Their star trio presented fewer structural weak spots, and that edge showed up over a long series.";
 };
 
+const buildSyntheticContender = (
+  available: Player[],
+  conference: "East" | "West",
+  rng: () => number,
+) => {
+  const takeUniqueStar = () => {
+    if (available.length === 0) {
+      return allPlayers[Math.floor(rng() * allPlayers.length)];
+    }
+
+    const weightedPool = available
+      .slice()
+      .sort((a, b) => b.overall - a.overall)
+      .slice(0, Math.max(18, Math.floor(available.length * 0.28)));
+    const choice = weightedPool[Math.floor(rng() * weightedPool.length)];
+    const index = available.findIndex((player) => player.id === choice.id);
+    if (index >= 0) available.splice(index, 1);
+    return choice;
+  };
+
+  const stars = [takeUniqueStar(), takeUniqueStar(), takeUniqueStar()];
+  const style = contenderStyleFromStars(stars);
+  const powerBase =
+    average(stars.map((player) => player.overall)) * 0.56 +
+    average(stars.map((player) => player.intangibles)) * 0.16 +
+    average(stars.map((player) => player.shooting)) * 0.08 +
+    average(stars.map((player) => player.defense)) * 0.08 +
+    average(stars.map((player) => player.playmaking)) * 0.08;
+  const power = Math.round(clamp(powerBase + (rng() - 0.5) * 4.5 + 1.5, 84, 98) * 10) / 10;
+  const projectedWins = clamp(
+    Math.round(38 + (power - 80) * 1.75 + (rng() - 0.5) * 6),
+    46,
+    67,
+  );
+
+  return {
+    teamName: `${stars[0].name.split(" ").slice(-1)[0]} ${style.split(" ")[0]}`,
+    seed: 0,
+    conference,
+    projectedWins,
+    power,
+    style,
+    summary: contenderSummaryFromStyle(style),
+    stars,
+  } satisfies LeagueContenderProfile;
+};
+
+const simulateSeriesWinner = (
+  home: LeagueContenderProfile,
+  away: LeagueContenderProfile,
+  rng: () => number,
+) => {
+  const homeScore = home.power + home.projectedWins * 0.12 + (9 - home.seed) * 0.45 + (rng() - 0.5) * 4.2;
+  const awayScore = away.power + away.projectedWins * 0.12 + (9 - away.seed) * 0.45 + (rng() - 0.5) * 4.2;
+  return homeScore >= awayScore ? home : away;
+};
+
+const buildConferenceBracket = (
+  teams: LeagueContenderProfile[],
+  rng: () => number,
+): ConferenceBracket => {
+  const seededTeams = teams
+    .slice()
+    .sort((a, b) => a.seed - b.seed)
+    .slice(0, 8);
+
+  const quarterfinalPairs: Array<[LeagueContenderProfile, LeagueContenderProfile]> = [
+    [seededTeams[0], seededTeams[7]],
+    [seededTeams[3], seededTeams[4]],
+    [seededTeams[2], seededTeams[5]],
+    [seededTeams[1], seededTeams[6]],
+  ].filter(
+    (pair): pair is [LeagueContenderProfile, LeagueContenderProfile] =>
+      Boolean(pair[0] && pair[1]),
+  );
+
+  const quarterfinals = quarterfinalPairs.map(([home, away], index) => {
+    const winner = simulateSeriesWinner(home, away, rng);
+    return {
+      id: `${home.conference.toLowerCase()}-qf-${index + 1}`,
+      round: "First Round",
+      home,
+      away,
+      winnerTeamName: winner.teamName,
+    };
+  });
+
+  const quarterWinners = quarterfinals.map((series) =>
+    series.winnerTeamName === series.home.teamName ? series.home : series.away,
+  );
+
+  const semifinalPairs: Array<[LeagueContenderProfile, LeagueContenderProfile]> = [
+    [quarterWinners[0], quarterWinners[1]],
+    [quarterWinners[2], quarterWinners[3]],
+  ].filter(
+    (pair): pair is [LeagueContenderProfile, LeagueContenderProfile] =>
+      Boolean(pair[0] && pair[1]),
+  );
+
+  const semifinals = semifinalPairs.map(([home, away], index) => {
+    const winner = simulateSeriesWinner(home, away, rng);
+    return {
+      id: `${home.conference.toLowerCase()}-sf-${index + 1}`,
+      round: "Conference Semifinals",
+      home,
+      away,
+      winnerTeamName: winner.teamName,
+    };
+  });
+
+  const semifinalWinners = semifinals.map((series) =>
+    series.winnerTeamName === series.home.teamName ? series.home : series.away,
+  );
+
+  const conferenceFinal =
+    semifinalWinners.length === 2
+      ? (() => {
+          const [home, away] = semifinalWinners;
+          const winner = simulateSeriesWinner(home, away, rng);
+          return {
+            id: `${home.conference.toLowerCase()}-cf`,
+            round: "Conference Finals",
+            home,
+            away,
+            winnerTeamName: winner.teamName,
+          };
+        })()
+      : null;
+
+  const champion = conferenceFinal
+    ? conferenceFinal.winnerTeamName === conferenceFinal.home.teamName
+      ? conferenceFinal.home
+      : conferenceFinal.away
+    : null;
+
+  return {
+    teams: seededTeams,
+    quarterfinals,
+    semifinals,
+    conferenceFinal,
+    champion,
+  };
+};
+
+const buildPlayoffBracket = (
+  eastTeams: LeagueContenderProfile[],
+  westTeams: LeagueContenderProfile[],
+  rng: () => number,
+): PlayoffBracket => {
+  const east = buildConferenceBracket(eastTeams, rng);
+  const west = buildConferenceBracket(westTeams, rng);
+
+  const finals =
+    east.champion && west.champion
+      ? (() => {
+          const winner = simulateSeriesWinner(east.champion, west.champion, rng);
+          return {
+            id: "nba-finals",
+            round: "NBA Finals",
+            home: east.champion,
+            away: west.champion,
+            winnerTeamName: winner.teamName,
+          };
+        })()
+      : null;
+
+  const champion = finals
+    ? finals.winnerTeamName === finals.home.teamName
+      ? finals.home
+      : finals.away
+    : null;
+
+  return { east, west, finals, champion };
+};
+
 const generateLeagueLandscape = (
   roster: RosterSlot[],
   metrics: TeamMetrics,
@@ -161,48 +338,15 @@ const generateLeagueLandscape = (
   const userIds = new Set(getPlayers(roster).map((player) => player.id));
   const pool = allPlayers.filter((player) => !userIds.has(player.id));
   const available = [...pool];
+  const eastGenerated: LeagueContenderProfile[] = [];
+  const westGenerated: LeagueContenderProfile[] = [];
 
-  const takeUniqueStar = () => {
-    if (available.length === 0) return allPlayers[Math.floor(rng() * allPlayers.length)];
-    const weightedPool = available
-      .slice()
-      .sort((a, b) => b.overall - a.overall)
-      .slice(0, Math.max(18, Math.floor(available.length * 0.28)));
-    const choice = weightedPool[Math.floor(rng() * weightedPool.length)];
-    const index = available.findIndex((player) => player.id === choice.id);
-    if (index >= 0) available.splice(index, 1);
-    return choice;
-  };
+  for (let i = 0; i < (conference === "East" ? 7 : 8); i += 1) {
+    eastGenerated.push(buildSyntheticContender(available, "East", rng));
+  }
 
-  const generated: LeagueContenderProfile[] = [];
-  const contenderCount = 5;
-
-  for (let i = 0; i < contenderCount; i += 1) {
-    const stars = [takeUniqueStar(), takeUniqueStar(), takeUniqueStar()];
-    const style = contenderStyleFromStars(stars);
-    const powerBase =
-      average(stars.map((player) => player.overall)) * 0.56 +
-      average(stars.map((player) => player.intangibles)) * 0.16 +
-      average(stars.map((player) => player.shooting)) * 0.08 +
-      average(stars.map((player) => player.defense)) * 0.08 +
-      average(stars.map((player) => player.playmaking)) * 0.08;
-    const power = Math.round(clamp(powerBase + (rng() - 0.5) * 4.5 + 1.5, 84, 98) * 10) / 10;
-    const projectedWins = clamp(
-      Math.round(38 + (power - 80) * 1.75 + (rng() - 0.5) * 6),
-      46,
-      67,
-    );
-
-    generated.push({
-      teamName: `${stars[0].name.split(" ").slice(-1)[0]} ${style.split(" ")[0]}`,
-      seed: 0,
-      conference,
-      projectedWins,
-      power,
-      style,
-      summary: contenderSummaryFromStyle(style),
-      stars,
-    });
+  for (let i = 0; i < (conference === "West" ? 7 : 8); i += 1) {
+    westGenerated.push(buildSyntheticContender(available, "West", rng));
   }
 
   const userContender: LeagueContenderProfile = {
@@ -230,7 +374,20 @@ const generateLeagueLandscape = (
     isUserTeam: true,
   };
 
-  const sorted = [...generated, userContender]
+  const conferenceTeams =
+    conference === "East"
+      ? [...eastGenerated, userContender]
+      : [...westGenerated, userContender];
+  const oppositeConferenceTeams = conference === "East" ? westGenerated : eastGenerated;
+
+  const sorted = conferenceTeams
+    .sort((a, b) => b.projectedWins - a.projectedWins || b.power - a.power)
+    .map((team, index) => ({
+      ...team,
+      seed: index + 1,
+    }));
+
+  const oppositeSorted = oppositeConferenceTeams
     .sort((a, b) => b.projectedWins - a.projectedWins || b.power - a.power)
     .map((team, index) => ({
       ...team,
@@ -276,9 +433,16 @@ const generateLeagueLandscape = (
       }
     : null;
 
+  const playoffBracket = buildPlayoffBracket(
+    conference === "East" ? sorted : oppositeSorted,
+    conference === "West" ? sorted : oppositeSorted,
+    rng,
+  );
+
   return {
     leagueLandscape: sorted.slice(0, 6),
     leagueContext: buildLeagueContext(sorted.slice(0, 6), wins, seed, conference),
+    playoffBracket,
     eliminatedBy,
     signatureWin,
   };
@@ -662,6 +826,7 @@ export const runSeasonSimulation = (
       chemistryScore,
       leagueContext: "",
       leagueLandscape: [],
+      playoffBracket: null,
       eliminatedBy: null,
       signatureWin: null,
     };
@@ -678,7 +843,7 @@ export const runSeasonSimulation = (
   const titleOdds = clamp(Math.round((powerScore - 72) * 3.5), 1, 78);
   const teamName = buildTeamName(roster);
   const draftGrade = getDraftGrade(metrics.overall, metrics.fit, metrics.depth);
-  const { leagueLandscape, leagueContext, eliminatedBy, signatureWin } = generateLeagueLandscape(
+  const { leagueLandscape, leagueContext, playoffBracket, eliminatedBy, signatureWin } = generateLeagueLandscape(
     roster,
     metrics,
     wins,
@@ -719,6 +884,7 @@ export const runSeasonSimulation = (
     chemistryScore,
     leagueContext,
     leagueLandscape,
+    playoffBracket,
     eliminatedBy,
     signatureWin,
   } satisfies SimulationResult;
@@ -799,6 +965,7 @@ export const runSeasonSimulation = (
     chemistryScore,
     leagueContext,
     leagueLandscape,
+    playoffBracket,
     eliminatedBy,
     signatureWin,
   };

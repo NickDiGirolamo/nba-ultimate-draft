@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { BrainCircuit, Flag, Sparkles, Swords, Target, Trophy } from "lucide-react";
+import { BrainCircuit, Crown, Flag, Sparkles, Swords, Target, Trophy } from "lucide-react";
 import { DraftBriefing } from "./components/DraftBriefing";
 import { DraftPlayerCard } from "./components/DraftPlayerCard";
 import { LandingHub } from "./components/LandingHub";
+import { LineupReorderScreen } from "./components/LineupReorderScreen";
+import { PrestigeOverlay } from "./components/PrestigeOverlay";
 import { ProgressHeader } from "./components/ProgressHeader";
 import { ResultsShowcase } from "./components/ResultsShowcase";
 import { RosterSidebar } from "./components/RosterSidebar";
@@ -49,6 +51,7 @@ function App() {
     beginSimulation,
     resetDraft,
     handleRosterSlotClick,
+    moveRosterPlayer,
     setDraftChallengeSelection,
     setRareEventSelection,
     setCategoryChallengeSelection,
@@ -62,6 +65,7 @@ function App() {
   const [visibleChoiceCount, setVisibleChoiceCount] = useState(
     state.currentChoices.length,
   );
+  const [prestigeOpen, setPrestigeOpen] = useState(false);
   const draftIntel = useMemo(() => {
     const cards = [
       {
@@ -160,7 +164,7 @@ function App() {
   return (
     <div className="arena-shell text-white">
       <div className="mx-auto max-w-[1520px] px-4 py-6 md:px-6 lg:px-8 lg:py-8">
-        {state.screen !== "draft" && (
+        {state.screen !== "draft" && state.screen !== "lineup" && (
           <header className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <button
               type="button"
@@ -177,8 +181,7 @@ function App() {
                 </div>
               </div>
             </button>
-
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-4">
               {[
                 { label: "Draft Mode", value: "1 of 5", icon: Swords },
                 { label: "Simulation", value: "82 + Playoffs", icon: BrainCircuit },
@@ -192,6 +195,23 @@ function App() {
                   <div className="mt-2 text-base font-semibold text-white">{item.value}</div>
                 </div>
               ))}
+
+              <button
+                type="button"
+                onClick={() => setPrestigeOpen(true)}
+                className="glass-panel rounded-2xl px-4 py-3 text-left transition hover:border-amber-200/24 hover:bg-white/10"
+              >
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-slate-400">
+                  <Crown size={14} className="text-amber-200" />
+                  Prestige
+                </div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-base font-semibold text-white">{metaProgress.prestige.score}</span>
+                  <span className="text-xs uppercase tracking-[0.18em] text-amber-100">
+                    L{metaProgress.prestige.level}
+                  </span>
+                </div>
+              </button>
             </div>
           </header>
         )}
@@ -199,6 +219,7 @@ function App() {
         {state.screen === "landing" && (
           <LandingHub
             onStart={startDraft}
+            onOpenPrestige={() => setPrestigeOpen(true)}
             history={state.history}
             meta={metaProgress}
             draftChallengeSelection={state.draftChallengeSelection}
@@ -401,6 +422,15 @@ function App() {
           </section>
         )}
 
+        {state.screen === "lineup" && (
+          <LineupReorderScreen
+            roster={state.roster}
+            onMovePlayer={moveRosterPlayer}
+            onSimulate={beginSimulation}
+            onHome={resetDraft}
+          />
+        )}
+
         {state.screen === "simulating" && <SimulationScreen />}
 
         {state.screen === "results" && state.simulationResult && (
@@ -413,6 +443,14 @@ function App() {
           />
         )}
       </div>
+
+      {prestigeOpen && (
+        <PrestigeOverlay
+          meta={metaProgress}
+          history={state.history}
+          onClose={() => setPrestigeOpen(false)}
+        />
+      )}
     </div>
   );
 }

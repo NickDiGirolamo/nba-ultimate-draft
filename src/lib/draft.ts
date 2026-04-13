@@ -38,10 +38,15 @@ const slotPriority: Record<RosterSlotType, number> = {
   UTIL: 4,
 };
 
+const VERSION_SUFFIX_PATTERN = /\s\([^)]*\)$/;
+const playerById = new Map(allPlayers.map((player) => [player.id, player]));
+
 export const createSeed = () =>
   Math.floor(Date.now() % 1_000_000_000) + Math.floor(Math.random() * 10000);
 
 const getPlayerPositions = (player: Player) => [player.primaryPosition, ...player.secondaryPositions];
+const getPlayerIdentityKey = (player: Player) =>
+  player.name.replace(VERSION_SUFFIX_PATTERN, "").trim().toLowerCase();
 
 const scorePlayerForSlot = (player: Player, slot: RosterSlot) => {
   const positions = getPlayerPositions(player);
@@ -137,7 +142,17 @@ const shuffleChoices = (choices: Player[], rng: () => number) => {
 
 export const generateChoices = (roster: RosterSlot[], draftedPlayerIds: string[], seed: number, pickNumber: number) => {
   const rng = mulberry32(seed + pickNumber * 9973);
-  const availablePool = allPlayers.filter((player) => !draftedPlayerIds.includes(player.id));
+  const draftedIdentityKeys = new Set(
+    draftedPlayerIds
+      .map((id) => playerById.get(id))
+      .filter((player): player is Player => Boolean(player))
+      .map((player) => getPlayerIdentityKey(player)),
+  );
+  const availablePool = allPlayers.filter(
+    (player) =>
+      !draftedPlayerIds.includes(player.id) &&
+      !draftedIdentityKeys.has(getPlayerIdentityKey(player)),
+  );
   const neededPositions = chooseNeededPositions(roster);
   const profile = randomItem(choiceTierProfiles, rng);
   const choices: Player[] = [];

@@ -7,6 +7,7 @@ import {
   LeaderboardEntry,
   MetaProgress,
   PersonalBests,
+  PrestigeProgress,
   RareEvent,
   RunHistoryEntry,
   SimulationResult,
@@ -81,6 +82,12 @@ const seasonRunsOnly = (history: RunHistoryEntry[]) =>
   history.filter((run) => run.mode !== "category-focus");
 
 export const draftChallenges: DraftChallenge[] = [
+  {
+    id: "none",
+    title: "None",
+    description: "No primary challenge is active. Draft the best team you can while keeping any other selected modifiers in play.",
+    reward: 0,
+  },
   {
     id: "classic",
     title: "Classic",
@@ -228,7 +235,7 @@ const chemistryDefinitions = [
   {
     id: "shaq-kobe",
     title: "Shaq and Kobe",
-    players: ["shaquille-o-neal", "kobe-bryant"],
+    players: ["shaquille-o-neal-lakers", "kobe-bryant-8"],
     summary: "Prime star gravity creates one of the scariest scoring duos possible.",
     bonusScore: 5,
   },
@@ -242,37 +249,79 @@ const chemistryDefinitions = [
   {
     id: "magic-kareem",
     title: "Showtime Core",
-    players: ["magic-johnson", "kareem-abdul-jabbar"],
+    players: ["magic-johnson", "kareem-abdul-jabbar-lakers"],
     summary: "Half-court poise and transition tempo both jump a level.",
     bonusScore: 4,
   },
   {
-    id: "bird-mchale",
-    title: "Celtic Frontcourt Craft",
-    players: ["larry-bird", "kevin-garnett"],
-    summary: "Smart spacing and connective skill amplify the lineup fit.",
-    bonusScore: 2,
+    id: "bucks-kareem",
+    title: "Bucks Championship Core",
+    players: ["kareem-abdul-jabbar-bucks", "oscar-robertson"],
+    summary: "Elite interior scoring and giant-guard orchestration create a ruthless early-70s core.",
+    bonusScore: 4,
+  },
+  {
+    id: "celtics-big-3",
+    title: "Boston Big 3",
+    players: ["ray-allen-celtics", "paul-pierce", "kevin-garnett-celtics"],
+    summary: "Spacing, wing shotmaking, and defensive culture create a championship-level trio.",
+    bonusScore: 6,
+  },
+  {
+    id: "run-tmc",
+    title: "Run TMC",
+    players: ["tim-hardaway", "mitch-richmond", "chris-mullin"],
+    summary: "Elite pace, shooting, and backcourt creation recreate one of the most electric trios of the era.",
+    bonusScore: 5,
+  },
+  {
+    id: "heat-big-3",
+    title: "Heat Big 3",
+    players: ["lebron-james-heat", "dwayne-wade-10-14", "chris-bosh"],
+    summary: "Star power, speed, and small-ball pressure create one of the nastiest modern trios.",
+    bonusScore: 6,
   },
   {
     id: "steph-kd",
     title: "Impossible Spacing",
-    players: ["steph-curry", "kevin-durant"],
+    players: ["steph-curry", "kevin-durant-warriors"],
     summary: "Off-ball gravity and elite shotmaking break the sim open.",
     bonusScore: 5,
   },
   {
     id: "lebron-ad",
     title: "Lakers Super Duo",
-    players: ["lebron-james", "anthony-davis"],
+    players: ["lebron-james-lakers", "anthony-davis"],
     summary: "Star creation and defensive coverage complement each other cleanly.",
     bonusScore: 3,
   },
   {
     id: "penny-shaq",
     title: "Orlando Lift-Off",
-    players: ["penny-hardaway", "shaquille-o-neal"],
+    players: ["penny-hardaway", "shaquille-o-neal-magic"],
     summary: "Size and downhill pressure spike together.",
     bonusScore: 3,
+  },
+  {
+    id: "heat-shaq-wade",
+    title: "Heat Star Pair",
+    players: ["shaquille-o-neal-heat", "dwayne-wade-03-10"],
+    summary: "Veteran interior gravity and explosive slashing create immediate playoff stress.",
+    bonusScore: 4,
+  },
+  {
+    id: "kobe-pau",
+    title: "Lakers Skill Core",
+    players: ["kobe-bryant-24", "pau-gasol"],
+    summary: "One elite closer plus one skilled interior connector smooth out every half-court possession.",
+    bonusScore: 4,
+  },
+  {
+    id: "kd-russ",
+    title: "Thunder Co-Stars",
+    players: ["kevin-durant-thunder", "russell-westbrook"],
+    summary: "Athletic chaos and star shotmaking generate enormous offensive pressure.",
+    bonusScore: 4,
   },
 ];
 
@@ -629,6 +678,99 @@ export const buildTrophies = (
   ];
 };
 
+const prestigeTitleForLevel = (level: number) => {
+  if (level >= 30) return "Immortal Architect";
+  if (level >= 24) return "Hall of Fame Builder";
+  if (level >= 18) return "Dynasty Visionary";
+  if (level >= 13) return "Legacy Creator";
+  if (level >= 9) return "Franchise Strategist";
+  if (level >= 5) return "Rising Executive";
+  return "Prospect GM";
+};
+
+export const buildPrestigeProgress = (
+  history: RunHistoryEntry[],
+  collection: CollectionGoals,
+): PrestigeProgress => {
+  const seasonHistory = seasonRunsOnly(history);
+  const titles = seasonHistory.filter((run) => run.playoffFinish === "NBA Champion").length;
+  const finals = seasonHistory.filter((run) => run.playoffFinish === "NBA Finals Loss").length;
+  const conferenceFinals = seasonHistory.filter((run) => run.playoffFinish === "Conference Finals").length;
+  const sixtyWinRuns = seasonHistory.filter((run) => run.wins >= 60).length;
+  const challengeCompletions = history.filter((run) => run.challengeCompleted).length;
+  const averageLegacy =
+    history.length > 0
+      ? history.reduce((sum, run) => sum + run.legacyScore, 0) / history.length
+      : 0;
+
+  const score = Math.round(
+    history.length * 18 +
+      titles * 180 +
+      finals * 80 +
+      conferenceFinals * 45 +
+      sixtyWinRuns * 30 +
+      challengeCompletions * 22 +
+      collection.draftedPlayers * 4 +
+      averageLegacy * 0.45,
+  );
+
+  const breakdown = [
+    {
+      label: "Completed Runs",
+      value: history.length * 18,
+      description: `${history.length} finished runs always add to your long-term profile.`,
+    },
+    {
+      label: "Championship Banners",
+      value: titles * 180,
+      description: `${titles} titles are the biggest driver of Prestige growth.`,
+    },
+    {
+      label: "Deep Playoff Runs",
+      value: finals * 80 + conferenceFinals * 45,
+      description: "Finals and conference finals appearances still carry major prestige.",
+    },
+    {
+      label: "60-Win Seasons",
+      value: sixtyWinRuns * 30,
+      description: "Dominant regular seasons build your reputation too.",
+    },
+    {
+      label: "Challenge Clears",
+      value: challengeCompletions * 22,
+      description: "Beating special run objectives proves versatility as a builder.",
+    },
+    {
+      label: "Collection Growth",
+      value: collection.draftedPlayers * 4,
+      description: "Drafting more unique legends expands your profile legacy.",
+    },
+    {
+      label: "Legacy Quality Bonus",
+      value: Math.round(averageLegacy * 0.45),
+      description: "Better average run quality gradually raises your Prestige floor.",
+    },
+  ];
+
+  const level = Math.max(1, Math.floor(score / 150) + 1);
+  const currentLevelFloor = (level - 1) * 150;
+  const nextLevelScore = level * 150;
+  const progressToNextLevel =
+    nextLevelScore === currentLevelFloor
+      ? 1
+      : (score - currentLevelFloor) / (nextLevelScore - currentLevelFloor);
+
+  return {
+    score,
+    level,
+    title: prestigeTitleForLevel(level),
+    progressToNextLevel: Math.max(0, Math.min(progressToNextLevel, 1)),
+    nextLevelScore,
+    currentLevelFloor,
+    breakdown,
+  };
+};
+
 export const buildMetaProgress = (
   history: RunHistoryEntry[],
   unlockedPlayerIds: string[],
@@ -636,6 +778,7 @@ export const buildMetaProgress = (
   const collection = buildCollectionGoals(unlockedPlayerIds);
 
   return {
+    prestige: buildPrestigeProgress(history, collection),
     personalBests: buildPersonalBests(history),
     leaderboards: buildLeaderboards(history),
     trophies: buildTrophies(history, collection),

@@ -14,7 +14,7 @@ export type RosterSlotType =
 
 export type PlayerTier = "S" | "A" | "B" | "C";
 
-export type Screen = "landing" | "briefing" | "draft" | "simulating" | "results";
+export type Screen = "landing" | "briefing" | "draft" | "lineup" | "simulating" | "results";
 export type SimulationMode = "season" | "category-focus";
 
 export interface DraftChallenge {
@@ -40,6 +40,7 @@ export interface CategoryChallenge {
 }
 
 export type DraftChallengeSelection =
+  | "none"
   | "random"
   | DraftChallenge["id"];
 
@@ -144,6 +145,29 @@ export interface OpponentStory {
   matchupReason: string;
 }
 
+export interface BracketMatchup {
+  id: string;
+  round: string;
+  home: LeagueContenderProfile;
+  away: LeagueContenderProfile;
+  winnerTeamName: string;
+}
+
+export interface ConferenceBracket {
+  teams: LeagueContenderProfile[];
+  quarterfinals: BracketMatchup[];
+  semifinals: BracketMatchup[];
+  conferenceFinal: BracketMatchup | null;
+  champion: LeagueContenderProfile | null;
+}
+
+export interface PlayoffBracket {
+  east: ConferenceBracket;
+  west: ConferenceBracket;
+  finals: BracketMatchup | null;
+  champion: LeagueContenderProfile | null;
+}
+
 export interface SimulationResult {
   mode: SimulationMode;
   metrics: TeamMetrics;
@@ -191,6 +215,7 @@ export interface SimulationResult {
   chemistryScore: number;
   leagueContext: string;
   leagueLandscape: LeagueContenderProfile[];
+  playoffBracket: PlayoffBracket | null;
   eliminatedBy: OpponentStory | null;
   signatureWin: OpponentStory | null;
   newPersonalBests?: string[];
@@ -268,7 +293,22 @@ export interface CollectionGoals {
   }>;
 }
 
+export interface PrestigeProgress {
+  score: number;
+  level: number;
+  title: string;
+  progressToNextLevel: number;
+  nextLevelScore: number;
+  currentLevelFloor: number;
+  breakdown: Array<{
+    label: string;
+    value: number;
+    description: string;
+  }>;
+}
+
 export interface MetaProgress {
+  prestige: PrestigeProgress;
   personalBests: PersonalBests;
   leaderboards: LeaderboardEntry[];
   trophies: Trophy[];
