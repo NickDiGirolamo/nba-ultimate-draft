@@ -1,19 +1,130 @@
-import { Crown, Gift, Sparkles, Swords, Target, Trophy, X, Zap } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Crown, Gift, Medal, Sparkles, Swords, Target, Trophy, Users2, X, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { MetaProgress, PrestigeChallengeDefinition, RunHistoryEntry } from "../types";
+import { MetaProgress, Player, PrestigeChallengeDefinition, RunHistoryEntry } from "../types";
 import {
   draftChallenges,
+  getCategoryChallengeById,
   getPrestigeTitleForLevel,
   prestigeChallengeDefinitions,
   prestigeRewardDefinitions,
   standardRareEvent,
 } from "../lib/meta";
+import { getCategoryChallengeTarget } from "../lib/simulate";
+import { allPlayers } from "../data/players";
+import { bigThrees, dynamicDuos, rivalBadges, rolePlayerPairs } from "../lib/dynamicDuos";
+import { usePlayerImage } from "../hooks/usePlayerImage";
+
+type PrestigeView = "overview" | "challenges" | "rewards" | "collection";
+type CollectionFamilyId = "dynamic-duos" | "big-threes" | "rivals" | "centerpieces";
+
+interface CollectionFamilyDefinition {
+  id: CollectionFamilyId;
+  title: string;
+  description: string;
+  rewardText: string;
+  toneClass: string;
+}
+
+interface CollectionEntry {
+  id: string;
+  title: string;
+  playerIds: string[];
+}
+
+const playersById = new Map(allPlayers.map((player) => [player.id, player]));
+
+const collectionFamilies: CollectionFamilyDefinition[] = [
+  {
+    id: "dynamic-duos",
+    title: "Dynamic Duos Trophy",
+    description: "Collect every Dynamic Duo in the game by drafting both players together in the same run.",
+    rewardText: "Unlocks once every Dynamic Duo has been collected.",
+    toneClass: "border-sky-300/20 bg-sky-300/10",
+  },
+  {
+    id: "big-threes",
+    title: "Big 3 Trophy",
+    description: "Complete every Big 3 trio across all eras and franchise cores.",
+    rewardText: "Unlocks once every Big 3 has been collected.",
+    toneClass: "border-fuchsia-300/20 bg-fuchsia-300/10",
+  },
+  {
+    id: "rivals",
+    title: "Rivals Trophy",
+    description: "Draft every rivalry pairing together and finish the set.",
+    rewardText: "Unlocks once every Rival pairing has been collected.",
+    toneClass: "border-rose-300/20 bg-rose-300/10",
+  },
+  {
+    id: "centerpieces",
+    title: "Centerpiece Trophy",
+    description: "Pair every centerpiece star with all of their key support pieces.",
+    rewardText: "Unlocks once every Centerpiece pair has been collected.",
+    toneClass: "border-amber-300/20 bg-amber-300/10",
+  },
+];
+
+const getCollectionEntries = (familyId: CollectionFamilyId): CollectionEntry[] => {
+  switch (familyId) {
+    case "dynamic-duos":
+      return dynamicDuos.map((entry) => ({
+        id: entry.id,
+        title: entry.title.replace("Dynamic Duos: ", ""),
+        playerIds: entry.players,
+      }));
+    case "big-threes":
+      return bigThrees.map((entry) => ({
+        id: entry.id,
+        title: entry.title.replace("Big 3: ", ""),
+        playerIds: entry.players,
+      }));
+    case "rivals":
+      return rivalBadges.map((entry) => ({
+        id: entry.id,
+        title: entry.title.replace("Rivals: ", ""),
+        playerIds: entry.players,
+      }));
+    case "centerpieces":
+      return rolePlayerPairs.map((entry) => ({
+        id: entry.id,
+        title: entry.title.replace(/^[^:]+:\s*/, ""),
+        playerIds: [entry.rolePlayer, entry.centerpiece],
+      }));
+  }
+};
+
+const SmallCollectionPlayerCard = ({ player }: { player: Player }) => {
+  const imageUrl = usePlayerImage(player);
+
+  return (
+    <div className="w-[84px] shrink-0 rounded-[16px] border border-white/10 bg-black/25 p-1.5">
+      <div className="overflow-hidden rounded-[12px] border border-white/10 bg-black/20">
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={player.name}
+            className="h-[94px] w-full object-cover object-top"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="flex h-[94px] items-center justify-center bg-gradient-to-br from-slate-700 to-slate-900 font-display text-xl text-white/70">
+            {player.name.charAt(0)}
+          </div>
+        )}
+      </div>
+      <div className="mt-1.5 text-[10px] font-semibold leading-3 text-white">
+        {player.name}
+      </div>
+    </div>
+  );
+};
 
 interface PrestigeOverlayProps {
   meta: MetaProgress;
   history: RunHistoryEntry[];
-  initialView?: "overview" | "challenges" | "rewards";
+  initialView?: PrestigeView;
   onApplyChallengePreset: (challengePreset: PrestigeChallengeDefinition) => void;
   onClose: () => void;
 }
@@ -25,8 +136,9 @@ export const PrestigeOverlay = ({
   onApplyChallengePreset,
   onClose,
 }: PrestigeOverlayProps) => {
-  const [view, setView] = useState<"overview" | "challenges" | "rewards">(initialView);
+  const [view, setView] = useState<PrestigeView>(initialView);
   const [challengeFilter, setChallengeFilter] = useState<"open" | "completed">("open");
+  const [selectedCollectionFamily, setSelectedCollectionFamily] = useState<CollectionFamilyId | null>(null);
   const recentRuns = history.slice(0, 5);
   const prestigeChallenges = draftChallenges.filter((challenge) => challenge.id !== "classic");
   const completedChallengeTitles = new Set(
@@ -48,9 +160,9 @@ export const PrestigeOverlay = ({
     () =>
       draftChallenges.map((challenge) => ({
         challenge,
-        items: prestigeChallengeDefinitions.filter(
-          (item) => item.draftChallengeId === challenge.id,
-        ),
+        items: prestigeChallengeDefinitions
+          .filter((item) => item.draftChallengeId === challenge.id)
+          .sort((a, b) => a.order - b.order),
       })),
     [],
   );
@@ -65,6 +177,7 @@ export const PrestigeOverlay = ({
               : completedRouteIds.has(item.id),
           ),
         }))
+        .sort((a, b) => (a.items[0]?.order ?? 9999) - (b.items[0]?.order ?? 9999))
         .filter(({ items }) => items.length > 0),
     [challengeFilter, challengeGroups, completedRouteIds],
   );
@@ -86,6 +199,42 @@ export const PrestigeOverlay = ({
       }),
     [meta.prestige.level],
   );
+  const rosterHistorySets = useMemo(
+    () =>
+      history.map((run) => new Set(run.rosterPlayerIds ?? [])),
+    [history],
+  );
+  const collectionProgress = useMemo(
+    () =>
+      collectionFamilies.map((family) => {
+        const entries = getCollectionEntries(family.id);
+        const items = entries.map((entry) => {
+          const collected = rosterHistorySets.some((runSet) =>
+            entry.playerIds.every((playerId) => runSet.has(playerId)),
+          );
+
+          return { ...entry, collected };
+        });
+
+        return {
+          family,
+          items,
+          collectedCount: items.filter((entry) => entry.collected).length,
+          totalCount: items.length,
+          unlocked: items.length > 0 && items.every((entry) => entry.collected),
+        };
+      }),
+    [rosterHistorySets],
+  );
+  const selectedCollection = selectedCollectionFamily
+    ? collectionProgress.find((entry) => entry.family.id === selectedCollectionFamily) ?? null
+    : null;
+  const getRouteGoalLabel = (challenge: PrestigeChallengeDefinition) => {
+    if (!challenge.categoryChallengeId) return challenge.goal;
+    const category = getCategoryChallengeById(challenge.categoryChallengeId);
+    if (!category) return challenge.goal;
+    return `Post a ${getCategoryChallengeTarget(category.metric)}+ ${category.metricLabel.toLowerCase()} score.`;
+  };
 
   const overlay = (
     <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/82 px-4 py-8 backdrop-blur-md">
@@ -137,6 +286,17 @@ export const PrestigeOverlay = ({
                 }`}
               >
                 Prestige Rewards
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("collection")}
+                className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition ${
+                  view === "collection"
+                    ? "bg-emerald-300/14 text-emerald-100"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Collection
               </button>
             </div>
           </div>
@@ -454,6 +614,158 @@ export const PrestigeOverlay = ({
               </div>
             </div>
           </div>
+        ) : view === "collection" ? (
+          <div className="mt-10 space-y-8">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-[24px] border border-emerald-300/14 bg-emerald-300/8 p-5">
+                <div className="text-xs uppercase tracking-[0.22em] text-emerald-100/70">Collection Trophies</div>
+                <div className="mt-2 text-3xl font-semibold text-white">{collectionProgress.length}</div>
+                <div className="mt-2 text-sm text-slate-200">
+                  Each trophy tracks one badge family and unlocks when you finish the full set.
+                </div>
+              </div>
+              <div className="rounded-[24px] border border-sky-300/14 bg-sky-300/8 p-5">
+                <div className="text-xs uppercase tracking-[0.22em] text-sky-100/70">Trophies Unlocked</div>
+                <div className="mt-2 text-3xl font-semibold text-white">
+                  {collectionProgress.filter((entry) => entry.unlocked).length}
+                </div>
+                <div className="mt-2 text-sm text-slate-200">
+                  Fully completed side-quest sets already banked on your profile.
+                </div>
+              </div>
+              <div className="rounded-[24px] border border-amber-200/14 bg-amber-300/8 p-5">
+                <div className="text-xs uppercase tracking-[0.22em] text-amber-100/70">Entries Collected</div>
+                <div className="mt-2 text-3xl font-semibold text-white">
+                  {collectionProgress.reduce((sum, entry) => sum + entry.collectedCount, 0)} / {collectionProgress.reduce((sum, entry) => sum + entry.totalCount, 0)}
+                </div>
+                <div className="mt-2 text-sm text-slate-200">
+                  Draft a combo together in the same run and it immediately counts as collected.
+                </div>
+              </div>
+            </div>
+
+            {selectedCollection ? (
+              <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCollectionFamily(null)}
+                      className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300 transition hover:text-white"
+                    >
+                      <ArrowLeft size={14} />
+                      Back To Trophies
+                    </button>
+                    <div className="mt-4 text-xs uppercase tracking-[0.24em] text-slate-400">
+                      {selectedCollection.family.title}
+                    </div>
+                    <h3 className="mt-2 font-display text-3xl text-white">
+                      {selectedCollection.collectedCount} / {selectedCollection.totalCount} collected
+                    </h3>
+                    <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300">
+                      {selectedCollection.family.description}
+                    </p>
+                  </div>
+                  <div className={`rounded-[22px] border px-5 py-4 ${selectedCollection.family.toneClass}`}>
+                    <div className="text-xs uppercase tracking-[0.2em] text-slate-200/80">Trophy Status</div>
+                    <div className="mt-2 text-lg font-semibold text-white">
+                      {selectedCollection.unlocked ? "Unlocked" : "In Progress"}
+                    </div>
+                    <div className="mt-1 text-sm text-slate-200/90">{selectedCollection.family.rewardText}</div>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                  {selectedCollection.items.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className={`rounded-[22px] border p-4 ${
+                        entry.collected
+                          ? "border-emerald-300/20 bg-emerald-300/10"
+                          : "border-white/10 bg-black/20"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="line-clamp-2 text-base font-semibold leading-6 text-white">{entry.title}</div>
+                        </div>
+                        <div className={`shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+                          entry.collected
+                            ? "border-emerald-300/18 bg-emerald-300/12 text-emerald-100"
+                            : "border-white/10 bg-white/6 text-slate-300"
+                        }`}>
+                          {entry.collected ? "Collected" : "Not Collected"}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {entry.playerIds
+                          .map((playerId) => playersById.get(playerId))
+                          .filter((player): player is Player => Boolean(player))
+                          .map((player) => (
+                            <SmallCollectionPlayerCard key={player.id} player={player} />
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-5 lg:grid-cols-2">
+                {collectionProgress.map((entry) => (
+                  <button
+                    key={entry.family.id}
+                    type="button"
+                    onClick={() => setSelectedCollectionFamily(entry.family.id)}
+                    className={`rounded-[28px] border p-6 text-left transition hover:scale-[1.01] ${entry.family.toneClass}`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-2xl border border-white/12 bg-black/20 p-3 text-white">
+                            <Medal size={22} />
+                          </div>
+                          <div>
+                            <div className="text-xs uppercase tracking-[0.22em] text-slate-300/80">Collection Trophy</div>
+                            <div className="mt-1 text-2xl font-semibold text-white">{entry.family.title}</div>
+                          </div>
+                        </div>
+                        <p className="mt-4 text-sm leading-7 text-slate-100/88">{entry.family.description}</p>
+                      </div>
+                      <div className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${
+                        entry.unlocked
+                          ? "border border-emerald-300/18 bg-emerald-300/12 text-emerald-100"
+                          : "border border-white/10 bg-black/20 text-slate-300"
+                      }`}>
+                        {entry.unlocked ? "Unlocked" : "Locked"}
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Progress</div>
+                        <div className="mt-2 text-3xl font-semibold text-white">
+                          {entry.collectedCount} / {entry.totalCount}
+                        </div>
+                      </div>
+                      <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white">
+                        Open Trophy
+                        <Users2 size={14} />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-300 via-sky-300 to-amber-200"
+                        style={{ width: `${entry.totalCount === 0 ? 0 : Math.max(6, Math.round((entry.collectedCount / entry.totalCount) * 100))}%` }}
+                      />
+                    </div>
+                    <div className="mt-3 text-sm text-slate-200/90">{entry.family.rewardText}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
           <div className="mt-10 space-y-8">
             <div className="grid gap-4 md:grid-cols-3">
@@ -541,8 +853,13 @@ export const PrestigeOverlay = ({
                         {challenge.description}
                       </p>
                     </div>
-                    <div className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-300">
-                      {items.filter((item) => completedRouteIds.has(item.id)).length} / {items.length} cleared
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="rounded-full border border-sky-300/16 bg-sky-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-100">
+                        Challenges {items[0]?.order ?? "--"}-{items[items.length - 1]?.order ?? "--"}
+                      </div>
+                      <div className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-300">
+                        {items.filter((item) => completedRouteIds.has(item.id)).length} / {items.length} cleared
+                      </div>
                     </div>
                   </div>
 
@@ -560,7 +877,12 @@ export const PrestigeOverlay = ({
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div>
-                              <div className="text-sm font-semibold text-white">{item.title}</div>
+                              <div className="flex flex-wrap items-center gap-3">
+                                <div className="rounded-full border border-amber-200/18 bg-amber-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100">
+                                  #{item.order}
+                                </div>
+                                <div className="text-sm font-semibold text-white">{item.title}</div>
+                              </div>
                               <div className="mt-2 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.18em]">
                                 <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/6 px-3 py-1 text-slate-300">
                                   <Swords size={12} />
@@ -584,7 +906,7 @@ export const PrestigeOverlay = ({
 
                           <div className="mt-4 text-sm leading-7 text-slate-300">{item.description}</div>
                           <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
-                            Clear goal: {item.goal}
+                            Clear goal: {getRouteGoalLabel(item)}
                           </div>
 
                           <div className="mt-5 flex items-center justify-between gap-3">

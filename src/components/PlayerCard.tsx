@@ -144,7 +144,7 @@ export const PlayerCard = ({
             <div className="stat-pill rounded-2xl p-3">
               <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
                 <Sparkles size={14} />
-                Fit
+                Chem
               </div>
               <div className="mt-2 text-lg font-semibold text-white">
                 {Math.round(

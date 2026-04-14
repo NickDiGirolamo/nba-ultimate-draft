@@ -23,45 +23,37 @@ const CATEGORY_IDS = [
   "playmaking-lab",
   "shooting-lab",
   "rebounding-lab",
-  "fit-lab",
   "chemistry-lab",
 ] as const;
 
 const categoryLabelsById: Record<(typeof CATEGORY_IDS)[number], string> = {
   "offense-lab": "offense",
   "defense-lab": "defense",
-  "playmaking-lab": "playmaking",
+  "playmaking-lab": "passing",
   "shooting-lab": "shooting",
   "rebounding-lab": "rebounding",
-  "fit-lab": "fit",
   "chemistry-lab": "chemistry",
 };
 
 const challengeCategoryCompatibility: Record<string, string[]> = {
-  "no-s-tier-shortcut": ["fit-lab", "chemistry-lab", "defense-lab"],
-  "floor-spacers": ["shooting-lab", "offense-lab", "fit-lab", "playmaking-lab"],
-  "fortress-build": ["defense-lab", "rebounding-lab", "fit-lab", "chemistry-lab"],
-  "creator-collective": ["playmaking-lab", "offense-lab", "shooting-lab", "fit-lab"],
-  "dynasty-depth": ["fit-lab", "chemistry-lab", "defense-lab", "rebounding-lab"],
-  "title-or-bust": ["fit-lab", "defense-lab", "chemistry-lab"],
+  "no-s-tier-shortcut": ["chemistry-lab", "defense-lab"],
+  "fortress-build": ["defense-lab", "rebounding-lab", "chemistry-lab"],
+  "creator-collective": ["playmaking-lab", "offense-lab", "shooting-lab", "chemistry-lab"],
+  "dynasty-depth": ["chemistry-lab", "defense-lab", "rebounding-lab"],
+  "title-or-bust": ["defense-lab", "chemistry-lab"],
 };
 
 const rareEventCategoryCompatibility: Record<string, string[]> = {
   "rare-events-disabled": [...CATEGORY_IDS],
-  "nineties-night": ["defense-lab", "chemistry-lab", "fit-lab", "rebounding-lab"],
-  "pace-and-space": ["shooting-lab", "offense-lab", "playmaking-lab", "fit-lab"],
-  "defense-travels": ["defense-lab", "chemistry-lab", "fit-lab", "rebounding-lab"],
-  "point-forward-era": ["playmaking-lab", "fit-lab", "offense-lab", "chemistry-lab"],
-  "tower-ball": ["rebounding-lab", "defense-lab", "fit-lab", "chemistry-lab"],
+  "tower-ball": ["rebounding-lab", "defense-lab", "chemistry-lab"],
 };
 
 const challengeRareEventCompatibility: Record<string, string[]> = {
-  "no-s-tier-shortcut": ["nineties-night", "defense-travels", "point-forward-era", "tower-ball"],
-  "floor-spacers": ["pace-and-space", "point-forward-era", "nineties-night"],
-  "fortress-build": ["defense-travels", "tower-ball", "nineties-night"],
-  "creator-collective": ["point-forward-era", "pace-and-space", "nineties-night"],
-  "dynasty-depth": ["tower-ball", "defense-travels", "nineties-night", "point-forward-era"],
-  "title-or-bust": ["defense-travels", "point-forward-era", "tower-ball"],
+  "no-s-tier-shortcut": ["tower-ball"],
+  "fortress-build": ["tower-ball"],
+  "creator-collective": ["tower-ball"],
+  "dynasty-depth": ["tower-ball"],
+  "title-or-bust": ["tower-ball"],
 };
 
 const fallbackChallengeStrategy = (challengeId: string) =>
@@ -98,15 +90,9 @@ export const draftChallenges: DraftChallenge[] = [
   },
   {
     id: "no-s-tier-shortcut",
-    title: "No S-Tier Shortcut",
+    title: "No S-Tiers",
     description: "Finish the draft without taking any S-tier player.",
     reward: 18,
-  },
-  {
-    id: "floor-spacers",
-    title: "Floor Spacers",
-    description: "Build a starting lineup with elite shooting balance.",
-    reward: 14,
   },
   {
     id: "fortress-build",
@@ -123,7 +109,7 @@ export const draftChallenges: DraftChallenge[] = [
   {
     id: "dynasty-depth",
     title: "Dynasty Depth",
-    description: "Build a team with real bench support and lineup fit.",
+    description: "Build a team with real bench support and strong chemistry.",
     reward: 12,
   },
   {
@@ -135,30 +121,6 @@ export const draftChallenges: DraftChallenge[] = [
 ];
 
 export const rareEvents: RareEvent[] = [
-  {
-    id: "nineties-night",
-    title: "90s Night",
-    description: "The sim loves teams built around 90s-era stars this run.",
-    impact: "90s-heavy teams get a chemistry and defense bump.",
-  },
-  {
-    id: "pace-and-space",
-    title: "Pace and Space",
-    description: "Spacing is at a premium in this environment.",
-    impact: "Great shooting lineups gain extra offensive value.",
-  },
-  {
-    id: "defense-travels",
-    title: "Defense Travels",
-    description: "Stops and versatility matter more than usual.",
-    impact: "Elite defenders receive a stronger playoff translation bonus.",
-  },
-  {
-    id: "point-forward-era",
-    title: "Point Forward Era",
-    description: "Large creators are especially dangerous in this sim environment.",
-    impact: "Wing initiators and jumbo playmakers get a fit bump.",
-  },
   {
     id: "tower-ball",
     title: "Tower Ball",
@@ -191,10 +153,10 @@ export const categoryChallenges: CategoryChallenge[] = [
   },
   {
     id: "playmaking-lab",
-    title: "Category Focus: Playmaking",
-    description: "Stack elite creators and connectors to push the team's playmaking ceiling.",
+    title: "Category Focus: Passing",
+    description: "Stack elite passers, organizers, and connective creators to push the team's passing ceiling.",
     metric: "playmaking",
-    metricLabel: "Playmaking",
+    metricLabel: "Passing",
   },
   {
     id: "shooting-lab",
@@ -211,16 +173,9 @@ export const categoryChallenges: CategoryChallenge[] = [
     metricLabel: "Rebounding",
   },
   {
-    id: "fit-lab",
-    title: "Category Focus: Fit",
-    description: "Build the cleanest, most complementary roster possible and aim for the highest fit score.",
-    metric: "fit",
-    metricLabel: "Fit",
-  },
-  {
     id: "chemistry-lab",
     title: "Category Focus: Chemistry",
-    description: "Lean into synergy systems and lineup balance to produce the strongest chemistry score.",
+    description: "Draft a roster with clean positional structure and strong badge synergies to produce the highest chemistry score possible.",
     metric: "chemistry",
     metricLabel: "Chemistry",
   },
@@ -242,7 +197,7 @@ const prestigeChallengeReward = (
 
 const prestigeChallengeGoal = (categoryChallengeId: string | null) =>
   categoryChallengeId
-    ? "Post a 95+ score in the active category focus."
+    ? "Post an elite score in the active category focus."
     : "Win the NBA Championship with this setup.";
 
 export const buildPrestigeChallengeId = (
@@ -258,6 +213,7 @@ export const prestigeChallengeDefinitions: PrestigeChallengeDefinition[] = draft
       return [
         {
           id: buildPrestigeChallengeId(challenge.id, standardRareEvent.id, null),
+          order: 0,
           title: challenge.title,
           description:
             "Run a pure season-and-playoffs sim with no extra modifiers and prove your base roster-building strength.",
@@ -276,6 +232,7 @@ export const prestigeChallengeDefinitions: PrestigeChallengeDefinition[] = draft
     return eventPool.flatMap((event) =>
       categoryPool.map((category) => ({
         id: buildPrestigeChallengeId(challenge.id, event.id, category?.id ?? null),
+        order: 0,
         title: [
           challenge.title,
           event.id === standardRareEvent.id ? "Standard Environment" : event.title,
@@ -299,6 +256,10 @@ export const prestigeChallengeDefinitions: PrestigeChallengeDefinition[] = draft
     );
   },
 );
+
+prestigeChallengeDefinitions.forEach((challenge, index) => {
+  challenge.order = index + 1;
+});
 
 const chemistryDefinitions = [
   {
@@ -410,6 +371,8 @@ export const getRareEventById = (id: string) =>
   rareEvents.find((event) => event.id === id) ?? standardRareEvent;
 export const getCategoryChallengeById = (id: string) =>
   categoryChallenges.find((challenge) => challenge.id === id) ?? null;
+export const getPrestigeChallengeDefinitionById = (id: string) =>
+  prestigeChallengeDefinitions.find((challenge) => challenge.id === id) ?? null;
 
 export const selectCompatibleRareEvent = (
   challenge: DraftChallenge,
@@ -490,7 +453,7 @@ export const evaluateRareEventBonus = (
 ) => {
   let offense = 0;
   let defense = 0;
-  let fit = 0;
+  let chemistryStructure = 0;
   let chemistry = 0;
   let summary = "No meaningful event boost was triggered this run.";
 
@@ -507,8 +470,8 @@ export const evaluateRareEventBonus = (
     const shooters = players.filter((player) => player.shooting >= 88).length;
     if (shooters >= 3) {
       offense = 3;
-      fit = 2;
-      summary = "Elite spacing translated into extra offensive and fit value.";
+      chemistryStructure = 2;
+      summary = "Elite spacing translated into extra offensive value and stronger chemistry.";
     }
   }
 
@@ -528,7 +491,7 @@ export const evaluateRareEventBonus = (
     ).length;
     if (jumboCreators >= 2) {
       offense = 2;
-      fit = 2;
+      chemistryStructure = 2;
       summary = "Big creators made the lineup more dynamic and harder to guard.";
     }
   }
@@ -537,12 +500,12 @@ export const evaluateRareEventBonus = (
     const bigs = players.filter((player) => ["PF", "C"].includes(player.primaryPosition)).length;
     if (bigs >= 4) {
       defense = 2;
-      fit = 1;
+      chemistryStructure = 1;
       summary = "Frontcourt size improved the team's paint presence and physicality.";
     }
   }
 
-  return { offense, defense, fit, chemistry, summary };
+  return { offense, defense, chemistryStructure, chemistry, summary };
 };
 
 export const evaluateChallengeCompletion = (
@@ -562,7 +525,7 @@ export const evaluateChallengeCompletion = (
     case "creator-collective":
       return result.metrics.playmaking >= 88 && result.metrics.offense >= 90;
     case "dynasty-depth":
-      return result.metrics.depth >= 84 && result.metrics.fit >= 86;
+      return result.metrics.depth >= 84 && result.metrics.chemistry >= 86;
     case "title-or-bust":
       return result.playoffFinish === "NBA Champion";
     default:
@@ -579,7 +542,7 @@ export const calculateLegacyScore = (
   return Math.round(
     result.record.wins * 1.35 +
       result.metrics.overall * 2.2 +
-      result.metrics.fit * 1.2 +
+      result.metrics.chemistry * 1.2 +
       result.titleOdds * 0.6 +
       playoffBonus +
       challengeReward +
@@ -604,7 +567,6 @@ const defaultBests = (): PersonalBests => ({
   playmaking: 0,
   shooting: 0,
   rebounding: 0,
-  fit: 0,
   depth: 0,
   chemistry: 0,
   starPower: 0,
@@ -627,7 +589,6 @@ export const buildPersonalBests = (history: RunHistoryEntry[]): PersonalBests =>
       playmaking: Math.max(...history.map((run) => run.metrics.playmaking)),
       shooting: Math.max(...history.map((run) => run.metrics.shooting)),
       rebounding: Math.max(...history.map((run) => run.metrics.rebounding)),
-      fit: Math.max(...history.map((run) => run.metrics.fit)),
       depth: Math.max(...history.map((run) => run.metrics.depth)),
       chemistry: Math.max(...history.map((run) => run.metrics.chemistry)),
       starPower: Math.max(...history.map((run) => run.metrics.starPower)),
@@ -667,9 +628,9 @@ export const buildLeaderboards = (history: RunHistoryEntry[]): LeaderboardEntry[
       teamName: bestBy((run) => run.metrics.defense).teamName,
     },
     {
-      label: "Best Fit",
-      value: `${bestBy((run) => run.metrics.fit).metrics.fit}`,
-      teamName: bestBy((run) => run.metrics.fit).teamName,
+      label: "Best Chemistry",
+      value: `${bestBy((run) => run.metrics.chemistry).metrics.chemistry}`,
+      teamName: bestBy((run) => run.metrics.chemistry).teamName,
     },
   ];
 };
@@ -774,6 +735,49 @@ export const prestigeRewardDefinitions: PrestigeRewardDefinition[] = [
   },
 ];
 
+const PRESTIGE_LEVEL_FLOORS = [
+  0,
+  35,
+  75,
+  120,
+  168,
+  235,
+  308,
+  386,
+  470,
+  560,
+  656,
+  758,
+  866,
+  980,
+  1100,
+  1226,
+  1358,
+  1496,
+  1640,
+  1790,
+] as const;
+
+const getPrestigeLevelFloor = (level: number) => {
+  if (level <= PRESTIGE_LEVEL_FLOORS.length) {
+    return PRESTIGE_LEVEL_FLOORS[level - 1];
+  }
+
+  const overflowLevels = level - PRESTIGE_LEVEL_FLOORS.length;
+  const lastFloor = PRESTIGE_LEVEL_FLOORS[PRESTIGE_LEVEL_FLOORS.length - 1];
+  return lastFloor + overflowLevels * 156;
+};
+
+const getPrestigeLevelFromScore = (score: number) => {
+  let level = 1;
+
+  while (getPrestigeLevelFloor(level + 1) <= score) {
+    level += 1;
+  }
+
+  return level;
+};
+
 export const hasPrestigeReward = (
   level: number,
   rewardId: PrestigeRewardDefinition["id"],
@@ -803,13 +807,13 @@ export const buildPrestigeProgress = (
       ? history.reduce((sum, run) => sum + run.legacyScore, 0) / history.length
       : 0;
 
-  const completedRunsPrestige = history.length * 4;
-  const championshipPrestige = titles * 24;
-  const deepRunPrestige = finals * 10 + conferenceFinals * 6;
-  const sixtyWinPrestige = sixtyWinRuns * 5;
-  const challengeCompletionPrestige = challengeCompletions * 14;
-  const collectionPrestige = collection.draftedPlayers * 1;
-  const legacyQualityPrestige = Math.round(averageLegacy * 0.08);
+  const completedRunsPrestige = history.length * 1;
+  const championshipPrestige = titles * 3;
+  const deepRunPrestige = finals * 1 + conferenceFinals * 1;
+  const sixtyWinPrestige = sixtyWinRuns * 1;
+  const challengeCompletionPrestige = challengeCompletions * 1;
+  const collectionPrestige = Math.floor(collection.draftedPlayers / 20);
+  const legacyQualityPrestige = Math.round(averageLegacy * 0.004);
 
   const score = Math.round(
     completedRunsPrestige +
@@ -826,48 +830,48 @@ export const buildPrestigeProgress = (
     {
       label: "Completed Runs",
       value: completedRunsPrestige,
-      description: `${history.length} finished runs still matter, but they are only a light baseline compared with route clears.`,
+      description: `${history.length} finished runs add a tiny baseline so failed attempts still move you forward a little.`,
     },
     {
       label: "Championship Banners",
       value: championshipPrestige,
-      description: `${titles} titles help, but they are no longer the main leveling path.`,
+      description: `${titles} titles help, but they are only a small bonus compared with route clears.`,
     },
     {
       label: "Deep Playoff Runs",
       value: deepRunPrestige,
-      description: "Finals and conference finals appearances are now supporting bonuses, not primary prestige engines.",
+      description: "Deep runs are now light supporting bonuses, not major Prestige drivers.",
     },
     {
       label: "60-Win Seasons",
       value: sixtyWinPrestige,
-      description: "Dominant regular seasons add a small extra push, but challenge mastery matters much more.",
+      description: "Dominant regular seasons add a tiny extra push, but challenge mastery matters much more.",
     },
     {
       label: "Challenge Clears",
       value: challengeCompletionPrestige,
-      description: "Finishing challenge-driven runs adds bonus prestige and reinforces the challenge-first progression loop.",
+      description: "Finishing challenge runs adds a very small extra push on top of the route reward itself.",
     },
     {
       label: "Challenge Routes",
       value: challengeRoutePrestige,
-      description: "Unique route clears are now the main source of Prestige. Exploring the full challenge map is the fastest way to level up.",
+      description: "Unique route clears are the main source of Prestige. The challenge map is now the real leveling track.",
     },
     {
       label: "Collection Growth",
       value: collectionPrestige,
-      description: "Drafting unique legends still helps a little as a background progression layer.",
+      description: "Collection growth is now only a very small background bonus.",
     },
     {
       label: "Legacy Quality Bonus",
       value: legacyQualityPrestige,
-      description: "Better average run quality gives a light passive bonus, but challenges should drive most of your progress.",
+      description: "Better average run quality still helps a little, but challenge routes should drive almost all of your progress.",
     },
   ];
 
-  const level = Math.max(1, Math.floor(score / 150) + 1);
-  const currentLevelFloor = (level - 1) * 150;
-  const nextLevelScore = level * 150;
+  const level = getPrestigeLevelFromScore(score);
+  const currentLevelFloor = getPrestigeLevelFloor(level);
+  const nextLevelScore = getPrestigeLevelFloor(level + 1);
   const progressToNextLevel =
     nextLevelScore === currentLevelFloor
       ? 1

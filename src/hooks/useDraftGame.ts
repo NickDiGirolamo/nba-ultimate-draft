@@ -2,13 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { CategoryChallengeSelection, DraftChallengeSelection, DraftState, Player, PrestigeChallengeDefinition, RareEventSelection, RunHistoryEntry, Screen } from "../types";
 import { STORAGE_KEY, assignPlayerToRoster, createSeed, generateChoices, rosterTemplate } from "../lib/draft";
 import { allPlayers } from "../data/players";
-import { runSeasonSimulation } from "../lib/simulate";
+import { evaluateDraftChemistry, getCategoryChallengeTarget, runSeasonSimulation } from "../lib/simulate";
 import {
+  buildPrestigeChallengeId,
   buildMetaProgress,
   getCategoryChallengeById,
   getDraftChallengeById,
+  getPrestigeChallengeDefinitionById,
   getRareEventById,
   hasPrestigeReward,
+  prestigeRewardDefinitions,
   selectCategoryChallenge,
   selectCompatibleCategoryChallenge,
   selectCompatibleRareEvent,
@@ -29,7 +32,6 @@ const DEFAULT_METRICS = {
   athleticism: 0,
   depth: 0,
   starPower: 0,
-  fit: 0,
   chemistry: 0,
   variance: 0,
   spacing: 0,
@@ -52,6 +54,7 @@ const LEGACY_PLAYER_ID_MIGRATIONS: Record<string, string> = {
   "kevin-garnett": "kevin-garnett-timberwolves",
   "dwyane-wade": "dwyane-wade-big-3",
   "chris-paul": "chris-paul-clippers",
+  "chris-bosh": "chris-bosh-heat",
   "carmelo-anthony": "carmelo-anthony-nuggets",
   "tracy-mcgrady": "tracy-mcgrady-rockets",
   "vince-carter": "vince-carter-raptors",
@@ -70,6 +73,7 @@ const LEGACY_PLAYER_NAME_MIGRATIONS: Record<string, string> = {
   "Ray Allen": "Ray Allen (Sonics)",
   "Kevin Garnett": "Kevin Garnett (Timberwolves)",
   "Dwyane Wade": "Dwayne Wade ('10 - '14)",
+  "Chris Bosh": "Chris Bosh (Heat)",
   "Chris Paul": "Chris Paul (Clippers)",
   "Carmelo Anthony": "Carmelo Anthony (Nuggets)",
   "Tracy McGrady": "Tracy McGrady (Rockets)",
@@ -142,6 +146,9 @@ const upgradeHistoryEntry = (entry: Record<string, unknown>): RunHistoryEntry =>
   id: String(entry.id ?? `legacy-${Date.now()}`),
   mode: entry.mode === "category-focus" ? "category-focus" : "season",
   teamName: String(entry.teamName ?? "Legends Dynasty"),
+  rosterPlayerIds: Array.isArray(entry.rosterPlayerIds)
+    ? normalizePlayerIds(entry.rosterPlayerIds.map((value) => String(value)))
+    : [],
   record: String(entry.record ?? "0-82"),
   wins: Number(entry.wins ?? 0),
   losses: Number(entry.losses ?? 82),
@@ -163,6 +170,10 @@ const upgradeHistoryEntry = (entry: Record<string, unknown>): RunHistoryEntry =>
   prestigeChallengeTitle: entry.prestigeChallengeTitle ? String(entry.prestigeChallengeTitle) : null,
   prestigeChallengeGoal: entry.prestigeChallengeGoal ? String(entry.prestigeChallengeGoal) : null,
   prestigeChallengeCleared: Boolean(entry.prestigeChallengeCleared),
+  prestigeChallengeSource:
+    entry.prestigeChallengeSource === "loaded" || entry.prestigeChallengeSource === "surprise"
+      ? entry.prestigeChallengeSource
+      : null,
   prestigeChallengeReward:
     entry.prestigeChallengeReward === undefined || entry.prestigeChallengeReward === null
       ? null
@@ -188,7 +199,7 @@ const upgradeSimulationResult = (
     rareEventBonus: result.rareEventBonus ?? {
       offense: 0,
       defense: 0,
-      fit: 0,
+      chemistryStructure: 0,
       chemistry: 0,
       summary: "Standard environment.",
     },
@@ -336,6 +347,7 @@ export const useDraftGame = () => {
     if (players.length === 0) return 0;
     return Math.round((players.reduce((sum, player) => sum + player.overall, 0) / players.length) * 10) / 10;
   }, [state.roster]);
+  const draftChemistry = useMemo(() => evaluateDraftChemistry(state.roster), [state.roster]);
 
   const startDraft = () => {
     const seed = createSeed();
@@ -472,25 +484,77 @@ export const useDraftGame = () => {
         state.currentRareEvent,
         state.currentCategoryChallenge,
       );
-      const prestigeChallengeCleared =
-        state.activePrestigeChallengeId !== null
+      const matchedChallengeRouteId = buildPrestigeChallengeId(
+        state.currentChallenge.id,
+        state.currentRareEvent.id,
+        state.currentCategoryChallenge?.id ?? null,
+      );
+      const matchedChallengeRoute = getPrestigeChallengeDefinitionById(matchedChallengeRouteId);
+      const matchedNonDefaultChallengeRoute =
+        matchedChallengeRoute &&
+        !(
+          matchedChallengeRoute.draftChallengeId === "none" &&
+          matchedChallengeRoute.rareEventId === standardRareEvent.id &&
+          matchedChallengeRoute.categoryChallengeId === null
+        )
+          ? matchedChallengeRoute
+          : null;
+      const activeCategoryTarget =
+        simulationResult.categoryChallenge
+          ? getCategoryChallengeTarget(simulationResult.categoryChallenge.metric)
+          : null;
+      const routeClearAchieved =
+        matchedChallengeRoute !== null
           ? simulationResult.mode === "category-focus"
-            ? (simulationResult.focusScore ?? 0) >= 95
+            ? (simulationResult.focusScore ?? 0) >= (activeCategoryTarget ?? 95)
             : simulationResult.playoffFinish === "NBA Champion"
           : false;
-      const prestigeChallengeReward = state.activePrestigeChallengeReward;
+      const effectivePrestigeChallengeId =
+        state.activePrestigeChallengeId ??
+        matchedNonDefaultChallengeRoute?.id ??
+        (routeClearAchieved ? matchedChallengeRoute?.id ?? null : null);
+      const effectivePrestigeChallenge =
+        effectivePrestigeChallengeId !== null
+          ? getPrestigeChallengeDefinitionById(effectivePrestigeChallengeId)
+          : matchedChallengeRoute;
+      const alreadyClearedRoutes = new Set(
+        state.history
+          .filter((entry) => entry.prestigeChallengeCleared)
+          .map((entry) => entry.prestigeChallengeId)
+          .filter((value): value is string => Boolean(value)),
+      );
+      const prestigeChallengeCleared =
+        effectivePrestigeChallenge !== null ? routeClearAchieved : false;
+      const prestigeChallengeNewlyCleared =
+        prestigeChallengeCleared &&
+        Boolean(effectivePrestigeChallenge?.id) &&
+        !alreadyClearedRoutes.has(effectivePrestigeChallenge!.id);
+      const prestigeChallengeReward = prestigeChallengeCleared
+        ? effectivePrestigeChallenge?.reward ?? 0
+        : state.activePrestigeChallengeReward;
+      const prestigeChallengeSource =
+        effectivePrestigeChallenge === null
+          ? null
+          : state.activePrestigeChallengeId
+            ? "loaded"
+            : matchedNonDefaultChallengeRoute || prestigeChallengeCleared
+              ? "surprise"
+              : null;
       const newPersonalBests = [
         simulationResult.mode === "season" && simulationResult.record.wins > previousMeta.personalBests.wins ? "Wins" : null,
         simulationResult.metrics.overall > previousMeta.personalBests.overall ? "Overall" : null,
         simulationResult.metrics.offense > previousMeta.personalBests.offense ? "Offense" : null,
         simulationResult.metrics.defense > previousMeta.personalBests.defense ? "Defense" : null,
-        simulationResult.metrics.fit > previousMeta.personalBests.fit ? "Fit" : null,
+        simulationResult.metrics.chemistry > previousMeta.personalBests.chemistry ? "Chemistry" : null,
         simulationResult.legacyScore > previousMeta.personalBests.legacyScore ? "Legacy Score" : null,
       ].filter((value): value is string => Boolean(value));
-      const historyEntry = {
+      const historyEntry: RunHistoryEntry = {
         id: `${state.seed}-${Date.now()}`,
         mode: simulationResult.mode,
         teamName: simulationResult.teamName,
+        rosterPlayerIds: state.roster
+          .map((slot) => slot.player?.id)
+          .filter((value): value is string => Boolean(value)),
         record:
           simulationResult.mode === "category-focus" && simulationResult.categoryChallenge
             ? `${simulationResult.categoryChallenge.metricLabel} ${simulationResult.focusScore}`
@@ -511,29 +575,58 @@ export const useDraftGame = () => {
         rareEventTitle: simulationResult.rareEvent.title,
         categoryFocusId: simulationResult.categoryChallenge?.id ?? null,
         categoryFocusTitle: simulationResult.categoryChallenge?.metricLabel ?? null,
-        prestigeChallengeId: state.activePrestigeChallengeId,
-        prestigeChallengeTitle: state.activePrestigeChallengeTitle,
-        prestigeChallengeGoal: state.activePrestigeChallengeGoal,
+        prestigeChallengeId: effectivePrestigeChallenge?.id ?? null,
+        prestigeChallengeTitle:
+          effectivePrestigeChallenge?.title ??
+          state.activePrestigeChallengeTitle,
+        prestigeChallengeGoal:
+          effectivePrestigeChallenge?.goal ??
+          state.activePrestigeChallengeGoal,
         prestigeChallengeCleared,
+        prestigeChallengeSource:
+          prestigeChallengeSource === null ? null : prestigeChallengeSource,
         prestigeChallengeReward,
         focusScore: simulationResult.focusScore,
         titleOdds: simulationResult.titleOdds,
         metrics: simulationResult.metrics,
       };
+      const nextHistory = [historyEntry, ...state.history].slice(0, HISTORY_LIMIT);
+      const nextMeta = buildMetaProgress(nextHistory, state.unlockedPlayerIds);
+      const prestigeLevelUp =
+        nextMeta.prestige.level > previousMeta.prestige.level
+          ? {
+              previousLevel: previousMeta.prestige.level,
+              newLevel: nextMeta.prestige.level,
+              previousScore: previousMeta.prestige.score,
+              newScore: nextMeta.prestige.score,
+              unlockedRewards: prestigeRewardDefinitions.filter(
+                (reward) =>
+                  reward.level > previousMeta.prestige.level &&
+                  reward.level <= nextMeta.prestige.level,
+              ),
+            }
+          : null;
 
       setState((current) => ({
         ...current,
         screen: "results",
         simulationResult: {
           ...simulationResult,
-          prestigeChallengeId: state.activePrestigeChallengeId,
-          prestigeChallengeTitle: state.activePrestigeChallengeTitle,
-          prestigeChallengeGoal: state.activePrestigeChallengeGoal,
+          prestigeChallengeId: effectivePrestigeChallenge?.id ?? null,
+          prestigeChallengeTitle:
+            effectivePrestigeChallenge?.title ??
+            state.activePrestigeChallengeTitle,
+          prestigeChallengeGoal:
+            effectivePrestigeChallenge?.goal ??
+            state.activePrestigeChallengeGoal,
           prestigeChallengeCleared,
+          prestigeChallengeSource,
+          prestigeChallengeNewlyCleared,
           prestigeChallengeReward,
+          prestigeLevelUp,
           newPersonalBests,
         },
-        history: [historyEntry, ...current.history].slice(0, HISTORY_LIMIT),
+        history: nextHistory,
       }));
     }, 3200);
   };
@@ -751,6 +844,10 @@ export const useDraftGame = () => {
         normalizedCategorySelection,
         rng,
       );
+      const challengeGoal =
+        resolvedParameters.categoryChallenge
+          ? `Post a ${getCategoryChallengeTarget(resolvedParameters.categoryChallenge.metric)}+ ${resolvedParameters.categoryChallenge.metricLabel.toLowerCase()} score.`
+          : challengePreset.goal;
       const hasExtraPick = hasPrestigeReward(metaProgress.prestige.level, "extra-pick");
 
       return {
@@ -767,7 +864,7 @@ export const useDraftGame = () => {
         currentCategoryChallenge: resolvedParameters.categoryChallenge,
         activePrestigeChallengeId: challengePreset.id,
         activePrestigeChallengeTitle: challengePreset.title,
-        activePrestigeChallengeGoal: challengePreset.goal,
+        activePrestigeChallengeGoal: challengeGoal,
         activePrestigeChallengeReward: challengePreset.reward,
         bonusPickAvailable: hasExtraPick,
         bonusPickUsed: false,
@@ -788,6 +885,7 @@ export const useDraftGame = () => {
     state,
     metaProgress,
     teamAverage,
+    draftChemistry,
     completedRoster,
     startDraft,
     beginDraftFromBriefing,

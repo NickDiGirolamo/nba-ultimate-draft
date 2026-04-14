@@ -61,6 +61,9 @@ export const DraftPlayerCard = ({
         <div className="mt-2 font-display text-[2.6rem] font-semibold leading-none text-white">
           {player.overall}
         </div>
+        <div className="mt-2 text-[11px] font-medium uppercase tracking-[0.24em] text-white/90">
+          {player.hallOfFameTier}-Tier
+        </div>
       </div>
 
       <div

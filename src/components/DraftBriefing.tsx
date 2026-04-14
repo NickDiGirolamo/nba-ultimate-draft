@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Flag, Shield, Sparkles, Target } from "lucide-react";
+import { ChevronLeft, ChevronRight, Crown, Flag, Shield, Sparkles, Star, Target, Users } from "lucide-react";
 import { CategoryChallenge, DraftChallenge, RareEvent } from "../types";
 
 interface DraftBriefingProps {
@@ -7,6 +7,8 @@ interface DraftBriefingProps {
   rareEventsEnabled: boolean;
   categoryChallenge: CategoryChallenge | null;
   categoryChallengesEnabled: boolean;
+  prestigeReward?: number;
+  focusTargetScore?: number | null;
   onBack: () => void;
   onBegin: () => void;
 }
@@ -17,11 +19,22 @@ export const DraftBriefing = ({
   rareEventsEnabled,
   categoryChallenge,
   categoryChallengesEnabled,
+  prestigeReward = 0,
+  focusTargetScore = null,
   onBack,
   onBegin,
 }: DraftBriefingProps) => {
   const classicMode = challenge.id === "classic";
-
+  const activeRule = classicMode
+    ? "Draft the strongest all-around 10-player team you can."
+    : challenge.id === "none"
+      ? "Build the best roster possible within this setup."
+      : challenge.description;
+  const activeGoal = classicMode
+    ? "Win the NBA Championship."
+    : categoryChallengesEnabled && categoryChallenge
+      ? `Post a ${focusTargetScore ?? 95}+ ${categoryChallenge.metricLabel.toLowerCase()} score.`
+      : "Win the NBA Championship.";
   return (
   <section className="space-y-8">
     <div className="glass-panel rounded-[34px] p-8 shadow-card lg:p-10">
@@ -29,62 +42,51 @@ export const DraftBriefing = ({
         Draft Briefing
       </div>
       <h1 className="mt-5 font-display text-4xl text-white lg:text-6xl">
-        Your run parameters are locked in.
+        Challenge ready.
       </h1>
       <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-200/85">
-        Review the active challenges, environment rules, and category focus before the first five players are revealed.
+        This run is locked in and ready to go. Keep the goal simple, draft with intent, and see if you can clear it.
       </p>
 
-      <div className="mt-8 grid gap-5 lg:grid-cols-3">
-        <div className="rounded-[26px] border border-amber-300/18 bg-amber-300/8 p-5">
+      <div className="mt-8 grid gap-5 lg:grid-cols-[1.05fr_1.05fr_0.9fr]">
+        <div className="rounded-[28px] border border-amber-300/18 bg-amber-300/8 p-6">
           <div className="flex items-center gap-3 text-amber-100">
             <Flag size={18} />
-            <span className="text-xs uppercase tracking-[0.22em]">Primary Challenge</span>
+            <span className="text-xs uppercase tracking-[0.22em]">Rule</span>
           </div>
-          <h2 className="mt-3 font-display text-2xl text-white">{challenge.title}</h2>
-          <p className="mt-3 text-sm leading-7 text-slate-200">{challenge.description}</p>
-          <div className="mt-4 text-sm text-amber-100">
-            {classicMode ? "Classic rules only. No extra challenge bonus applies." : `Reward: +${challenge.reward} legacy`}
-          </div>
+          <h2 className="mt-4 font-display text-3xl text-white">{challenge.title}</h2>
+          <p className="mt-4 text-base leading-8 text-slate-100">{activeRule}</p>
         </div>
 
-        <div className="rounded-[26px] border border-sky-300/18 bg-sky-300/8 p-5">
-          <div className="flex items-center gap-3 text-sky-100">
-            <Sparkles size={18} />
-            <span className="text-xs uppercase tracking-[0.22em]">Environment</span>
-          </div>
-          <h2 className="mt-3 font-display text-2xl text-white">{rareEvent.title}</h2>
-          <p className="mt-3 text-sm leading-7 text-slate-200">
-            {classicMode
-              ? "Classic mode disables rare events, so you are drafting into the standard simulation environment."
-              : rareEventsEnabled
-              ? rareEvent.description
-              : "Rare events are disabled for this run, so you are drafting into the standard environment."}
-          </p>
-          <div className="mt-4 text-sm text-sky-100">{rareEvent.impact}</div>
-        </div>
-
-        <div className="rounded-[26px] border border-emerald-300/18 bg-emerald-300/8 p-5">
+        <div className="rounded-[28px] border border-emerald-300/18 bg-emerald-300/8 p-6">
           <div className="flex items-center gap-3 text-emerald-100">
             <Target size={18} />
-            <span className="text-xs uppercase tracking-[0.22em]">Category Focus</span>
+            <span className="text-xs uppercase tracking-[0.22em]">Goal</span>
           </div>
-          <h2 className="mt-3 font-display text-2xl text-white">
-            {classicMode ? "Disabled" : categoryChallengesEnabled && categoryChallenge ? categoryChallenge.metricLabel : "Disabled"}
-          </h2>
-          <p className="mt-3 text-sm leading-7 text-slate-200">
-            {classicMode
-              ? "Classic mode uses the standard season-and-playoffs objective instead of a category-focus challenge."
-              : categoryChallengesEnabled && categoryChallenge
-              ? categoryChallenge.description
-              : "Category challenges are turned off, so this run has no random stat-focus objective."}
+          <h2 className="mt-4 font-display text-3xl text-white">{activeGoal}</h2>
+          <p className="mt-4 text-base leading-8 text-slate-100">
+            {categoryChallengesEnabled && categoryChallenge
+              ? `This run is focused on ${categoryChallenge.metricLabel.toLowerCase()}, so every pick should help push that number up.`
+              : "This is a full-season challenge, so build a team that can survive both the regular season and the playoffs."}
           </p>
-          <div className="mt-4 text-sm text-emerald-100">
-            {classicMode
-              ? "Goal: build the best all-around team you can and see how the season plays out."
-              : categoryChallengesEnabled && categoryChallenge
-              ? `Goal: maximize your final ${categoryChallenge.metricLabel.toLowerCase()} score.`
-              : "Goal: build the best all-around team you can."}
+        </div>
+
+        <div className="rounded-[28px] border border-sky-300/18 bg-sky-300/8 p-6">
+          <div className="flex items-center gap-3 text-sky-100">
+            <Sparkles size={18} />
+            <span className="text-xs uppercase tracking-[0.22em]">Run Intel</span>
+          </div>
+          <div className="mt-4 rounded-[22px] border border-white/10 bg-black/20 p-5">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">
+              <Crown size={14} className="text-amber-200" />
+              Prestige Reward
+            </div>
+            <div className="mt-3 text-4xl font-semibold text-white">
+              +{prestigeReward} XP
+            </div>
+            <p className="mt-3 text-sm leading-7 text-slate-300">
+              Clear this challenge route to bank its one-time Prestige payout toward your next level.
+            </p>
           </div>
         </div>
       </div>
@@ -92,29 +94,45 @@ export const DraftBriefing = ({
       <div className="mt-8 rounded-[28px] border border-white/10 bg-black/20 p-6">
         <div className="flex items-center gap-3 text-slate-200">
           <Shield size={18} />
-          <span className="text-xs uppercase tracking-[0.22em] text-slate-400">Rules + Goals</span>
+          <span className="text-xs uppercase tracking-[0.22em] text-slate-400">Quick Notes</span>
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
           {[
-            "Draft exactly 10 players and place them in your preferred lineup order before the sim.",
-            "Starter slots matter more than bench slots, and early bench spots matter more than deep utility spots.",
-            "Synergy systems like Dynamic Duos, Big 3s, and Rivals can swing outcomes beyond raw overall ratings.",
-            "If a category focus is active, treat it like a side objective and chase the highest score you can in that area.",
-          ].map((rule) => (
-            <div key={rule} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-7 text-slate-200">
-              {rule}
+            {
+              rule: "You will draft exactly 10 players before the sim begins.",
+              icon: Star,
+              iconClass: "bg-amber-300/14 text-amber-200",
+            },
+            {
+              rule: "Lineup order matters, so put your best core in the starter slots.",
+              icon: Crown,
+              iconClass: "bg-sky-300/14 text-sky-200",
+            },
+            {
+              rule: "Synergies like Dynamic Duos and Big 3s can swing a close run.",
+              icon: Users,
+              iconClass: "bg-emerald-300/14 text-emerald-200",
+            },
+          ].map((item) => (
+            <div key={item.rule} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-7 text-slate-200">
+              <div className="flex items-start gap-3">
+                <div className={`rounded-xl p-2 ${item.iconClass}`}>
+                  <item.icon size={16} />
+                </div>
+                <div className="min-w-0 pt-0.5">{item.rule}</div>
+              </div>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="mt-8 flex flex-wrap gap-4">
+      <div className="mt-8 flex flex-wrap items-center gap-4">
         <button
           type="button"
           onClick={onBegin}
-          className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:scale-[1.02]"
+          className="inline-flex min-w-[260px] items-center justify-center gap-2 rounded-full bg-white px-8 py-4 text-base font-semibold text-slate-900 transition hover:scale-[1.02]"
         >
-          Begin Draft
+          Start Drafting
           <ChevronRight size={18} />
         </button>
         <button

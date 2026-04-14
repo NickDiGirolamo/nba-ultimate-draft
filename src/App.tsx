@@ -1,19 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { BrainCircuit, Crown, Flag, Sparkles, Swords, Target, Trophy } from "lucide-react";
+import { BookOpen, Crown, Flag, Sparkles, Swords, Target, Trophy } from "lucide-react";
 import { DraftBriefing } from "./components/DraftBriefing";
 import { DraftPlayerCard } from "./components/DraftPlayerCard";
 import { LandingHub } from "./components/LandingHub";
+import { LearnOverlay } from "./components/LearnOverlay";
 import { LineupReorderScreen } from "./components/LineupReorderScreen";
+import { PrestigeLevelUpModal } from "./components/PrestigeLevelUpModal";
 import { PrestigeOverlay } from "./components/PrestigeOverlay";
 import { ProgressHeader } from "./components/ProgressHeader";
 import { ResultsShowcase } from "./components/ResultsShowcase";
 import { RosterSidebar } from "./components/RosterSidebar";
 import { SimulationScreen } from "./components/SimulationScreen";
 import { useDraftGame } from "./hooks/useDraftGame";
+import { getCategoryChallengeTarget } from "./lib/simulate";
 
 const challengeStrategyMap: Record<string, string> = {
   "classic": "Take the best long-term team, not the flashiest individual player.",
-  "no-s-tier-shortcut": "Lean into fit, value, and synergy instead of pure ceiling.",
+  "no-s-tier-shortcut": "Lean into chemistry, value, and synergy instead of pure ceiling.",
   "floor-spacers": "Protect spacing with shooters, creators, and at least one stable big.",
   "fortress-build": "Prioritize stoppers, rim protection, and versatile size.",
   "creator-collective": "Stack initiators so every lineup unit has an organizer.",
@@ -33,11 +36,10 @@ const rareEventStrategyMap: Record<string, string> = {
 const categoryStrategyMap: Record<string, string> = {
   offense: "Prioritize scoring gravity, creators, and shot pressure.",
   defense: "Value stoppers, rim protection, and switchable size.",
-  playmaking: "Stack initiators and connective passers.",
+  playmaking: "Stack passers, initiators, and connective decision-makers.",
   shooting: "Load up on elite spacing and avoid floor-cloggers.",
   rebounding: "Target size, strength, and multiple glass-crashers.",
-  fit: "Draft complementary roles instead of redundant stars.",
-  chemistry: "Chase synergy badges and clean lineup balance.",
+  chemistry: "Chase badge synergies while keeping players in coherent positions and roles.",
 };
 
 function App() {
@@ -45,6 +47,7 @@ function App() {
     state,
     metaProgress,
     teamAverage,
+    draftChemistry,
     completedRoster,
     startDraft,
     draftPlayer,
@@ -68,7 +71,10 @@ function App() {
     state.currentChoices.length,
   );
   const [prestigeOpen, setPrestigeOpen] = useState(false);
-  const [prestigeInitialView, setPrestigeInitialView] = useState<"overview" | "challenges" | "rewards">("overview");
+  const [prestigeInitialView, setPrestigeInitialView] = useState<"overview" | "challenges" | "rewards" | "collection">("overview");
+  const [learnOpen, setLearnOpen] = useState(false);
+  const [showPrestigeLevelUp, setShowPrestigeLevelUp] = useState(false);
+  const [showExtraPickIntro, setShowExtraPickIntro] = useState(false);
   const draftIntel = useMemo(() => {
     const cards = [
       {
@@ -140,6 +146,13 @@ function App() {
     state.currentRareEvent,
     state.rareEventsEnabled,
   ]);
+  const currentCategoryTarget = useMemo(
+    () =>
+      state.currentCategoryChallenge
+        ? getCategoryChallengeTarget(state.currentCategoryChallenge.metric)
+        : null,
+    [state.currentCategoryChallenge],
+  );
 
   useEffect(() => {
     if (state.screen !== "draft") {
@@ -164,85 +177,106 @@ function App() {
     };
   }, [choiceSignature, state.currentChoices, state.screen]);
 
+  useEffect(() => {
+    if (state.screen === "results" && state.simulationResult?.prestigeLevelUp) {
+      setShowPrestigeLevelUp(true);
+      return;
+    }
+
+    setShowPrestigeLevelUp(false);
+  }, [state.screen, state.simulationResult?.prestigeLevelUp]);
+
+  useEffect(() => {
+    if (state.screen === "draft" && state.bonusPickActive) {
+      setShowExtraPickIntro(true);
+      return;
+    }
+
+    setShowExtraPickIntro(false);
+  }, [state.screen, state.bonusPickActive]);
+
   return (
     <div className="arena-shell text-white">
       <div className="mx-auto max-w-[1520px] px-4 py-6 md:px-6 lg:px-8 lg:py-8">
-        {state.screen !== "draft" && state.screen !== "lineup" && (
-          <header className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={resetDraft}
+            className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-black/18 px-4 py-3 text-left transition hover:border-amber-200/22 hover:bg-black/24"
+          >
+            <div className="rounded-2xl border border-amber-200/18 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.24),rgba(249,115,22,0.14),rgba(15,23,42,0.2))] p-2.5 text-amber-200 shadow-[0_10px_24px_rgba(251,191,36,0.16)]">
+              <Trophy size={20} />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Home</div>
+              <div className="mt-1 truncate font-display text-[clamp(1.1rem,1.6vw,1.6rem)] text-white">
+                NBA Ultimate Draft
+              </div>
+            </div>
+          </button>
+
+          <div className="flex justify-end gap-3">
             <button
               type="button"
-              onClick={resetDraft}
-              className="flex items-center gap-3 text-left transition hover:text-amber-100"
+              onClick={() => setLearnOpen(true)}
+              className="glass-panel group h-[94px] min-w-[230px] rounded-2xl border border-sky-200/12 bg-[linear-gradient(135deg,rgba(9,18,34,0.96),rgba(16,26,46,0.92))] px-4 py-3 text-left shadow-[0_16px_32px_rgba(0,0,0,0.24)] transition hover:border-sky-200/28 hover:bg-[linear-gradient(135deg,rgba(12,24,44,0.98),rgba(20,34,58,0.94))] hover:shadow-[0_18px_36px_rgba(56,189,248,0.14)]"
             >
-              <div className="rounded-[20px] border border-white/12 bg-white/8 p-2.5 shadow-card">
-                <Trophy size={22} className="text-amber-200" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.28em] text-slate-400">Legends Draft</div>
-                <div className="mt-1 font-display text-xl text-white">
-                  All-Time NBA Franchise Builder
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-slate-300">
+                  <div className="rounded-full border border-sky-200/18 bg-sky-300/12 p-1.5 text-sky-200 transition group-hover:border-sky-200/28 group-hover:bg-sky-300/18">
+                    <BookOpen size={13} />
+                  </div>
+                  Learn The Game
                 </div>
+                <span className="rounded-full border border-white/10 bg-white/6 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-100">
+                  Open
+                </span>
+              </div>
+              <div className="mt-3 text-[1.02rem] font-semibold leading-5 text-white">
+                Learn categories, badges, and draft tips
               </div>
             </button>
-            <div className="grid items-stretch gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
-              {[
-                { label: "Draft Mode", value: "1 of 5", icon: Swords },
-                { label: "Simulation", value: "82 + Playoffs", icon: BrainCircuit },
-                { label: "Team Building", value: "Fit Matters", icon: Trophy },
-              ].map((item) => (
-                <div key={item.label} className="glass-panel h-[110px] rounded-2xl px-4 py-3">
-                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-slate-400">
-                    <item.icon size={14} />
-                    {item.label}
-                  </div>
-                  <div className="mt-2 text-base font-semibold text-white">{item.value}</div>
+            <button
+              type="button"
+              onClick={() => {
+                setPrestigeInitialView("overview");
+                setPrestigeOpen(true);
+              }}
+              className="glass-panel h-[94px] min-w-[230px] rounded-2xl px-4 py-3 text-left transition hover:border-amber-200/24 hover:bg-white/10"
+            >
+              <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                <Crown size={13} className="text-amber-200" />
+                Prestige
+              </div>
+              <div className="mt-2 flex items-end justify-between gap-3">
+                <div className="flex items-end gap-2">
+                  <span className="pb-1 text-[10px] uppercase tracking-[0.14em] text-amber-100/80">Lvl</span>
+                  <span className="text-[2rem] font-semibold leading-none text-white">
+                    {metaProgress.prestige.level}
+                  </span>
                 </div>
-              ))}
-
-              <button
-                type="button"
-                onClick={() => {
-                  setPrestigeInitialView("overview");
-                  setPrestigeOpen(true);
-                }}
-                className="glass-panel h-[110px] rounded-2xl px-4 py-3 text-left transition hover:border-amber-200/24 hover:bg-white/10"
-              >
-                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-slate-400">
-                  <Crown size={14} className="text-amber-200" />
-                  Prestige
+                <div className="pb-1 text-right text-[10px] uppercase tracking-[0.12em] text-slate-400">
+                  {metaProgress.prestige.score}/{metaProgress.prestige.nextLevelScore}
                 </div>
-                <div className="mt-3 flex items-end justify-between gap-3">
-                  <div className="flex items-end gap-2">
-                    <span className="pb-1 text-[11px] uppercase tracking-[0.18em] text-amber-100/80">
-                      Lvl
-                    </span>
-                    <span className="text-[2.15rem] font-semibold leading-none text-white">
-                      {metaProgress.prestige.level}
-                    </span>
-                  </div>
-                  <div className="pb-1 text-right text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                    {metaProgress.prestige.score}/{metaProgress.prestige.nextLevelScore}
-                  </div>
-                </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full border border-white/10 bg-slate-700/70">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-amber-300 via-yellow-200 to-orange-300"
-                    style={{
-                      width: `${Math.max(
-                        6,
-                        Math.round(metaProgress.prestige.progressToNextLevel * 100),
-                      )}%`,
-                    }}
-                  />
-                </div>
-              </button>
-            </div>
-          </header>
-        )}
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full border border-white/10 bg-slate-700/70">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-amber-300 via-yellow-200 to-orange-300"
+                  style={{
+                    width: `${Math.max(
+                      6,
+                      Math.round(metaProgress.prestige.progressToNextLevel * 100),
+                    )}%`,
+                  }}
+                />
+              </div>
+              <div className="mt-2 h-1" />
+            </button>
+          </div>
+        </div>
 
         {state.screen === "landing" && (
           <LandingHub
-            onStart={startDraft}
             onOpenPrestige={() => {
               setPrestigeInitialView("overview");
               setPrestigeOpen(true);
@@ -251,19 +285,12 @@ function App() {
               setPrestigeInitialView("challenges");
               setPrestigeOpen(true);
             }}
+            onOpenCollection={() => {
+              setPrestigeInitialView("collection");
+              setPrestigeOpen(true);
+            }}
             history={state.history}
             meta={metaProgress}
-            draftChallengeSelection={state.draftChallengeSelection}
-            currentChallenge={state.currentChallenge}
-            onDraftChallengeSelectionChange={setDraftChallengeSelection}
-            rareEventsEnabled={state.rareEventsEnabled}
-            rareEventSelection={state.rareEventSelection}
-            currentRareEvent={state.currentRareEvent}
-            onRareEventSelectionChange={setRareEventSelection}
-            categoryChallengesEnabled={state.categoryChallengesEnabled}
-            categoryChallengeSelection={state.categoryChallengeSelection}
-            currentCategoryChallenge={state.currentCategoryChallenge}
-            onCategoryChallengeSelectionChange={setCategoryChallengeSelection}
           />
         )}
 
@@ -274,6 +301,8 @@ function App() {
             rareEventsEnabled={state.rareEventsEnabled}
             categoryChallenge={state.currentCategoryChallenge}
             categoryChallengesEnabled={state.categoryChallengesEnabled}
+            prestigeReward={state.activePrestigeChallengeReward}
+            focusTargetScore={currentCategoryTarget}
             onBack={resetDraft}
             onBegin={beginDraftFromBriefing}
           />
@@ -389,6 +418,12 @@ function App() {
                   </div>
                 </div>
 
+                <div className="px-1">
+                  <p className="text-center text-xs font-medium tracking-[0.14em] text-white/90">
+                    {state.bonusPickActive ? "Choose 1 of 5 Bonus Players" : "Choose 1 of 5 Players"}
+                  </p>
+                </div>
+
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                   {state.currentChoices.map((player, index) => {
                     const revealed = index < visibleChoiceCount;
@@ -437,6 +472,7 @@ function App() {
                 <RosterSidebar
                   roster={state.roster}
                   teamAverage={teamAverage}
+                  draftChemistry={draftChemistry}
                   lastFilledSlot={state.lastFilledSlot}
                   selectedSlotIndex={state.selectedSlotIndex}
                   bonusPickActive={state.bonusPickActive}
@@ -465,6 +501,73 @@ function App() {
                 </div>
               </div>
             </div>
+
+            {showExtraPickIntro && (
+              <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/78 px-4 backdrop-blur-sm">
+                <div className="w-full max-w-2xl rounded-[32px] border border-fuchsia-200/22 bg-[linear-gradient(135deg,rgba(36,16,54,0.98),rgba(15,23,42,0.98),rgba(28,18,52,0.96))] p-7 shadow-[0_0_0_1px_rgba(216,180,254,0.06),0_0_42px_rgba(192,132,252,0.24)] lg:p-8">
+                  <div className="flex items-start gap-4">
+                    <div className="rounded-[22px] border border-fuchsia-200/22 bg-fuchsia-300/14 p-3 text-fuchsia-100">
+                      <Crown size={22} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs uppercase tracking-[0.28em] text-fuchsia-100/78">
+                        Extra Pick
+                      </div>
+                      <h2 className="mt-2 font-display text-4xl text-white lg:text-5xl">
+                        Bonus Board Unlocked
+                      </h2>
+                      <p className="mt-4 text-base leading-8 text-slate-200">
+                        You can replace one player on your roster with one of these 5 extra-pick options, or skip the pick and keep your team exactly as it is.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 grid gap-4 md:grid-cols-2">
+                    <div className="rounded-[24px] border border-white/10 bg-black/22 p-5">
+                      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
+                        <Target size={14} className="text-sky-200" />
+                        How It Works
+                      </div>
+                      <div className="mt-3 space-y-2 text-sm leading-7 text-slate-200">
+                        <p>1. Select one roster player to replace on the lineup board.</p>
+                        <p>2. Choose one of the 5 extra-pick players.</p>
+                        <p>3. If none help your team, skip the pick.</p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-emerald-200/18 bg-emerald-300/10 p-5">
+                      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-emerald-100/80">
+                        <Sparkles size={14} />
+                        Best Use
+                      </div>
+                      <p className="mt-3 text-sm leading-7 text-slate-100">
+                        This is a great chance to upgrade your weakest roster spot or complete a synergy badge you already have in play.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowExtraPickIntro(false);
+                        skipBonusPick();
+                      }}
+                      className="rounded-full border border-white/12 bg-white/6 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                    >
+                      Skip Pick
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowExtraPickIntro(false)}
+                      className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-100"
+                    >
+                      Choose Player To Replace
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
         )}
 
@@ -484,6 +587,7 @@ function App() {
             result={state.simulationResult}
             roster={state.roster}
             onDraftAgain={startDraft}
+            onBackToHome={resetDraft}
             meta={metaProgress}
             history={state.history}
           />
@@ -497,6 +601,15 @@ function App() {
           initialView={prestigeInitialView}
           onApplyChallengePreset={applyRunPreset}
           onClose={() => setPrestigeOpen(false)}
+        />
+      )}
+
+      {learnOpen && <LearnOverlay onClose={() => setLearnOpen(false)} />}
+
+      {showPrestigeLevelUp && state.simulationResult?.prestigeLevelUp && (
+        <PrestigeLevelUpModal
+          levelUp={state.simulationResult.prestigeLevelUp}
+          onClose={() => setShowPrestigeLevelUp(false)}
         />
       )}
     </div>

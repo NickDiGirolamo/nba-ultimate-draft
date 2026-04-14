@@ -65,7 +65,7 @@ const buildAnalytics = (roster: RosterSlot[], metrics: TeamMetrics) => {
     starterAverage: Math.round(starterAverage * 10) / 10,
     benchAverage: Math.round(benchAverage * 10) / 10,
     topThreeAverage: Math.round(topThreeAverage * 10) / 10,
-    twoWayIndex: Math.round(((metrics.offense + metrics.defense + metrics.fit) / 3) * 10) / 10,
+    twoWayIndex: Math.round(((metrics.offense + metrics.defense + metrics.chemistry) / 3) * 10) / 10,
     spacingPressure: Math.round(((metrics.shooting + metrics.spacing) / 2) * 10) / 10,
     stabilityIndex: Math.round((100 - metrics.variance + metrics.chemistry * 0.35 + metrics.depth * 0.25) * 10) / 10,
   };
@@ -79,7 +79,6 @@ const chartMetrics = (metrics: TeamMetrics, result: SimulationResult) => [
   { label: "Shooting", value: metrics.shooting, icon: Target, note: "Spacing gravity" },
   { label: "Rebounding", value: metrics.rebounding, icon: Activity, note: "Extra possessions" },
   { label: "Depth", value: metrics.depth, icon: Users, note: "Bench resilience" },
-  { label: "Fit", value: metrics.fit, icon: Sparkles, note: "Lineup synergy" },
   { label: "Chemistry", value: metrics.chemistry, icon: RefreshCcw, note: "Role acceptance" },
   { label: "Star Power", value: metrics.starPower, icon: Star, note: "Ceiling raiser" },
   { label: "Spacing", value: metrics.spacing, icon: Radar, note: "Floor balance" },
@@ -192,7 +191,7 @@ export const ResultsScreen = ({ result, roster, onDraftAgain }: ResultsScreenPro
               ["Shooting", `${result.metrics.shooting}`],
               ["Rebounding", `${result.metrics.rebounding}`],
               ["Depth", `${result.metrics.depth}`],
-              ["Fit", `${result.metrics.fit}`],
+              ["Chemistry", `${result.metrics.chemistry}`],
             ].map(([label, value]) => (
               <div key={label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{label}</div>

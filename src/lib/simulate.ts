@@ -1,6 +1,8 @@
 import {
+  BracketMatchup,
   CategoryChallenge,
   ConferenceBracket,
+  DraftChemistrySnapshot,
   DraftChallenge,
   LeagueContenderProfile,
   OpponentStory,
@@ -12,17 +14,25 @@ import {
   TeamMetrics,
 } from "../types";
 import { allPlayers } from "../data/players";
+import { assignPlayerToRoster, generateChoices, rosterTemplate } from "./draft";
 import {
   calculateLegacyScore,
   evaluateChallengeCompletion,
   evaluateRareEventBonus,
   getChemistryBonuses,
 } from "./meta";
-import { applySynergyBonuses, getActiveBigThrees, getActiveDynamicDuos } from "./dynamicDuos";
+import {
+  applySynergyBonuses,
+  getActiveBigThrees,
+  getActiveDynamicDuos,
+  getActiveRolePlayerPairs,
+} from "./dynamicDuos";
 import { clamp, mulberry32 } from "./random";
 
 const average = (values: number[]) => (values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length);
 const SLOT_IMPACT_WEIGHTS = [1.36, 1.28, 1.22, 1.18, 1.24, 0.62, 0.62, 0.62, 0.34, 0.24];
+const VERSION_SUFFIX_PATTERN = /\s\([^)]*\)$/;
+const STRUCTURAL_CHEMISTRY_FLOOR = 72;
 
 const getWeightedRosterEntries = (roster: RosterSlot[]) =>
   roster
@@ -46,6 +56,112 @@ const weightedAverage = <T>(items: T[], getValue: (item: T) => number, getWeight
 const getPlayers = (roster: RosterSlot[]) => roster.map((slot) => slot.player).filter((player): player is Player => Boolean(player));
 const getStarters = (roster: RosterSlot[]) => roster.slice(0, 5).map((slot) => slot.player).filter((player): player is Player => Boolean(player));
 const getBench = (roster: RosterSlot[]) => roster.slice(5).map((slot) => slot.player).filter((player): player is Player => Boolean(player));
+const getPlayerIdentityKey = (player: Player) =>
+  player.name.replace(VERSION_SUFFIX_PATTERN, "").trim().toLowerCase();
+
+const getSlotFitCounts = (roster: RosterSlot[]) => {
+  let natural = 0;
+  let secondary = 0;
+  let outOfRole = 0;
+
+  roster.forEach((slot) => {
+    const player = slot.player;
+    if (!player) return;
+
+    if (slot.allowedPositions.includes(player.primaryPosition)) {
+      natural += 1;
+      return;
+    }
+
+    if (player.secondaryPositions.some((position) => slot.allowedPositions.includes(position))) {
+      secondary += 1;
+      return;
+    }
+
+    outOfRole += 1;
+  });
+
+  return { natural, secondary, outOfRole };
+};
+
+export const evaluateDraftChemistry = (roster: RosterSlot[]): DraftChemistrySnapshot => {
+  const players = getPlayers(roster);
+  const draftedCount = players.length;
+
+  if (draftedCount === 0) {
+    return {
+      score: 0,
+      draftedCount: 0,
+      naturalSlotMatches: 0,
+      activeBadgeCount: 0,
+      badgeBonus: 0,
+      slotFitRate: 0,
+    };
+  }
+
+  const fillRatio = draftedCount / roster.length;
+  const { natural, secondary, outOfRole } = getSlotFitCounts(roster);
+  const slotFitRate = (natural + secondary * 0.72) / draftedCount;
+  const averageIntangibles = average(players.map((player) => player.intangibles));
+  const chemistryBonuses = getChemistryBonuses(players.map((player) => player.id));
+  const activeDynamicDuos = getActiveDynamicDuos(players.map((player) => player.id));
+  const activeBigThrees = getActiveBigThrees(players.map((player) => player.id));
+  const activeRolePairs = getActiveRolePlayerPairs(players.map((player) => player.id));
+  const activeBadgeCount =
+    chemistryBonuses.length +
+    activeDynamicDuos.length +
+    activeBigThrees.length +
+    activeRolePairs.length;
+
+  const ballHandlers = players.filter((player) => player.playmaking >= 85 || player.primaryPosition === "PG").length;
+  const shooters = players.filter((player) => player.shooting >= 88).length;
+  const bigs = players.filter((player) => ["PF", "C"].includes(player.primaryPosition)).length;
+  const wings = players.filter((player) => ["SG", "SF"].includes(player.primaryPosition)).length;
+  const pointGuards = players.filter((player) => player.primaryPosition === "PG").length;
+  const centers = players.filter((player) => player.primaryPosition === "C").length;
+
+  const creatorsTarget = draftedCount >= 6 ? 2 : 1;
+  const shootersTarget = draftedCount >= 7 ? 3 : draftedCount >= 4 ? 2 : 1;
+  const bigsTarget = draftedCount >= 6 ? 2 : 1;
+  const wingsTarget = draftedCount >= 6 ? 2 : 1;
+
+  let structuralBase = 0;
+  if (ballHandlers >= creatorsTarget) structuralBase += 7;
+  if (shooters >= shootersTarget) structuralBase += 6;
+  if (bigs >= bigsTarget) structuralBase += 5;
+  if (wings >= wingsTarget) structuralBase += 4;
+  if (draftedCount >= 5 && outOfRole === 0) structuralBase += 5;
+  if (draftedCount >= 4 && pointGuards === 0) structuralBase -= 8;
+  if (centers >= 4) structuralBase -= 10;
+  if (outOfRole > 0) structuralBase -= outOfRole * 4;
+
+  const intangiblesBase = clamp(((averageIntangibles - 68) / 28) * 34, 0, 34);
+  const slotFitBase = clamp(slotFitRate * 32, 0, 32);
+  const structureBase = clamp(structuralBase, 0, 28);
+  const badgeBonus = clamp(
+    chemistryBonuses.reduce((sum, bonus) => sum + bonus.bonusScore, 0) * 0.85 +
+      activeDynamicDuos.length * 5 +
+      activeBigThrees.length * 8 +
+      activeRolePairs.length * 4,
+    0,
+    30,
+  );
+
+  const score = clamp(
+    (intangiblesBase + slotFitBase + structureBase) * fillRatio + badgeBonus,
+    0,
+    99,
+  );
+
+  return {
+    score: Math.round(score * 10) / 10,
+    draftedCount,
+    naturalSlotMatches: natural,
+    activeBadgeCount,
+    badgeBonus: Math.round(badgeBonus * 10) / 10,
+    slotFitRate: Math.round(slotFitRate * 100),
+  };
+};
 
 const labelForMetric = (value: number) => {
   if (value >= 94) return "Historic";
@@ -56,8 +172,8 @@ const labelForMetric = (value: number) => {
   return "Limited";
 };
 
-const getDraftGrade = (overall: number, fit: number, depth: number) => {
-  const score = overall * 0.5 + fit * 0.3 + depth * 0.2;
+const getDraftGrade = (overall: number, chemistry: number, depth: number) => {
+  const score = overall * 0.5 + chemistry * 0.3 + depth * 0.2;
   if (score >= 93) return "A+";
   if (score >= 90) return "A";
   if (score >= 87) return "A-";
@@ -68,6 +184,290 @@ const getDraftGrade = (overall: number, fit: number, depth: number) => {
   if (score >= 72) return "C";
   return "D";
 };
+
+interface SimulationCalibration {
+  sampleCount: number;
+  sortedPowerScores: number[];
+  categoryThresholds: Record<CategoryChallenge["metric"], number>;
+}
+
+const CALIBRATION_SAMPLE_COUNT = 900;
+const CATEGORY_TARGET_PERCENTILE = 0.83;
+const CATEGORY_METRICS: CategoryChallenge["metric"][] = [
+  "offense",
+  "defense",
+  "playmaking",
+  "shooting",
+  "rebounding",
+  "chemistry",
+];
+const WIN_PERCENTILE_ANCHORS = [
+  { percentile: 0, wins: 20 },
+  { percentile: 0.12, wins: 31 },
+  { percentile: 0.3, wins: 39 },
+  { percentile: 0.5, wins: 46 },
+  { percentile: 0.72, wins: 53 },
+  { percentile: 0.88, wins: 58 },
+  { percentile: 0.93, wins: 60 },
+  { percentile: 0.97, wins: 70 },
+  { percentile: 0.995, wins: 80 },
+  { percentile: 1, wins: 82 },
+] as const;
+const TITLE_ODDS_PERCENTILE_ANCHORS = [
+  { percentile: 0, odds: 1 },
+  { percentile: 0.5, odds: 6 },
+  { percentile: 0.75, odds: 14 },
+  { percentile: 0.9, odds: 28 },
+  { percentile: 0.95, odds: 42 },
+  { percentile: 0.985, odds: 60 },
+  { percentile: 1, odds: 78 },
+] as const;
+
+let simulationCalibrationCache: SimulationCalibration | null = null;
+
+const interpolateAnchors = (
+  value: number,
+  anchors: readonly { percentile: number; wins?: number; odds?: number }[],
+  key: "wins" | "odds",
+) => {
+  if (value <= anchors[0].percentile) return anchors[0][key] ?? 0;
+  if (value >= anchors[anchors.length - 1].percentile) {
+    return anchors[anchors.length - 1][key] ?? 0;
+  }
+
+  for (let index = 1; index < anchors.length; index += 1) {
+    const previous = anchors[index - 1];
+    const current = anchors[index];
+    if (value <= current.percentile) {
+      const span = current.percentile - previous.percentile || 1;
+      const progress = (value - previous.percentile) / span;
+      const previousValue = previous[key] ?? 0;
+      const currentValue = current[key] ?? 0;
+      return previousValue + (currentValue - previousValue) * progress;
+    }
+  }
+
+  return anchors[anchors.length - 1][key] ?? 0;
+};
+
+const computePowerScore = (metrics: TeamMetrics) =>
+  metrics.overall * 0.29 +
+  metrics.offense * 0.18 +
+  metrics.defense * 0.18 +
+  metrics.chemistry * 0.13 +
+  metrics.depth * 0.08 +
+  metrics.starPower * 0.09 +
+  metrics.chemistry * 0.05;
+
+const scoreChoiceForAutoDraft = (player: Player, roster: RosterSlot[]) => {
+  const openSlots = roster.filter((slot) => slot.player === null);
+  const naturalOpenSlot = openSlots.some((slot) => slot.allowedPositions.includes(player.primaryPosition));
+  const anyOpenSlot = openSlots.some((slot) =>
+    [player.primaryPosition, ...player.secondaryPositions].some((position) =>
+      slot.allowedPositions.includes(position),
+    ),
+  );
+
+  return (
+    player.overall * 0.48 +
+    player.offense * 0.09 +
+    player.defense * 0.09 +
+    player.playmaking * 0.06 +
+    player.shooting * 0.06 +
+    player.rebounding * 0.04 +
+    player.intangibles * 0.04 +
+    (naturalOpenSlot ? 7 : anyOpenSlot ? 3 : -6)
+  );
+};
+
+const scoreChoiceForCategoryDraft = (
+  player: Player,
+  roster: RosterSlot[],
+  metric: CategoryChallenge["metric"],
+) => {
+  const openSlots = roster.filter((slot) => slot.player === null);
+  const naturalOpenSlot = openSlots.some((slot) => slot.allowedPositions.includes(player.primaryPosition));
+  const anyOpenSlot = openSlots.some((slot) =>
+    [player.primaryPosition, ...player.secondaryPositions].some((position) =>
+      slot.allowedPositions.includes(position),
+    ),
+  );
+  const positionBonus = naturalOpenSlot ? 8 : anyOpenSlot ? 4 : -7;
+
+  switch (metric) {
+    case "offense":
+      return (
+        player.overall * 0.44 +
+        player.offense * 0.3 +
+        player.shooting * 0.1 +
+        player.playmaking * 0.08 +
+        positionBonus
+      );
+    case "defense":
+      return (
+        player.overall * 0.42 +
+        player.defense * 0.28 +
+        player.interiorDefense * 0.09 +
+        player.perimeterDefense * 0.08 +
+        player.rebounding * 0.05 +
+        positionBonus
+      );
+    case "playmaking":
+      return (
+        player.overall * 0.42 +
+        player.playmaking * 0.31 +
+        player.intangibles * 0.08 +
+        player.shooting * 0.05 +
+        player.offense * 0.05 +
+        positionBonus
+      );
+    case "shooting":
+      return (
+        player.overall * 0.43 +
+        player.shooting * 0.34 +
+        player.offense * 0.08 +
+        player.playmaking * 0.04 +
+        positionBonus
+      );
+    case "rebounding":
+      return (
+        player.overall * 0.43 +
+        player.rebounding * 0.31 +
+        player.interiorDefense * 0.08 +
+        player.athleticism * 0.05 +
+        positionBonus
+      );
+    case "chemistry":
+      return (
+        player.overall * 0.33 +
+        player.intangibles * 0.18 +
+        player.playmaking * 0.12 +
+        player.defense * 0.08 +
+        player.shooting * 0.08 +
+        positionBonus * 1.05
+      );
+    default:
+      return scoreChoiceForAutoDraft(player, roster);
+  }
+};
+
+const runSyntheticDraftPowerSample = (seed: number) => {
+  let roster = rosterTemplate();
+  const draftedPlayerIds: string[] = [];
+
+  for (let pick = 1; pick <= 10; pick += 1) {
+    const choices = generateChoices(roster, draftedPlayerIds, seed, pick);
+    const selected = choices
+      .slice()
+      .sort((a, b) => scoreChoiceForAutoDraft(b, roster) - scoreChoiceForAutoDraft(a, roster))[0];
+    const assignment = assignPlayerToRoster(roster, selected);
+    roster = assignment.roster;
+    draftedPlayerIds.push(selected.id);
+  }
+
+  const metrics = evaluateTeam(roster);
+  return computePowerScore(metrics);
+};
+
+const runSyntheticCategoryFocusSample = (
+  metric: CategoryChallenge["metric"],
+  seed: number,
+) => {
+  let roster = rosterTemplate();
+  const draftedPlayerIds: string[] = [];
+
+  for (let pick = 1; pick <= 10; pick += 1) {
+    const choices = generateChoices(roster, draftedPlayerIds, seed, pick);
+    const selected = choices
+      .slice()
+      .sort(
+        (a, b) =>
+          scoreChoiceForCategoryDraft(b, roster, metric) -
+          scoreChoiceForCategoryDraft(a, roster, metric),
+      )[0];
+    const assignment = assignPlayerToRoster(roster, selected);
+    roster = assignment.roster;
+    draftedPlayerIds.push(selected.id);
+  }
+
+  const metrics = evaluateTeam(roster);
+  return metrics[metric];
+};
+
+const percentileScoreFromSorted = (sortedScores: number[], percentile: number) => {
+  if (sortedScores.length === 0) return 95;
+  const index = Math.min(
+    sortedScores.length - 1,
+    Math.max(0, Math.floor((sortedScores.length - 1) * percentile)),
+  );
+  return Math.round(sortedScores[index] * 10) / 10;
+};
+
+const getSimulationCalibration = () => {
+  if (simulationCalibrationCache) return simulationCalibrationCache;
+
+  const sortedPowerScores = Array.from({ length: CALIBRATION_SAMPLE_COUNT }, (_, index) =>
+    runSyntheticDraftPowerSample(700000 + index * 193),
+  ).sort((a, b) => a - b);
+  const categoryThresholds = CATEGORY_METRICS.reduce(
+    (accumulator, metric, metricIndex) => {
+      const sortedMetricScores = Array.from(
+        { length: CALIBRATION_SAMPLE_COUNT },
+        (_, index) => runSyntheticCategoryFocusSample(metric, 910000 + metricIndex * 5000 + index * 211),
+      ).sort((a, b) => a - b);
+      accumulator[metric] = percentileScoreFromSorted(
+        sortedMetricScores,
+        CATEGORY_TARGET_PERCENTILE,
+      );
+      return accumulator;
+    },
+    {} as Record<CategoryChallenge["metric"], number>,
+  );
+
+  simulationCalibrationCache = {
+    sampleCount: CALIBRATION_SAMPLE_COUNT,
+    sortedPowerScores,
+    categoryThresholds,
+  };
+
+  return simulationCalibrationCache;
+};
+
+const getCalibratedPercentile = (powerScore: number) => {
+  const calibration = getSimulationCalibration();
+  const scores = calibration.sortedPowerScores;
+  let low = 0;
+  let high = scores.length;
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (scores[mid] <= powerScore) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+
+  return clamp(low / scores.length, 0, 1);
+};
+
+const calibratedWinsFromPower = (powerScore: number, variance: number, rng: () => number) => {
+  const percentile = getCalibratedPercentile(powerScore);
+  const expectedWins = interpolateAnchors(percentile, WIN_PERCENTILE_ANCHORS, "wins");
+  const varianceSwing = (rng() - 0.5) * clamp(variance * 0.32, 1.2, 4.6);
+
+  return {
+    percentile,
+    wins: clamp(Math.round(expectedWins + varianceSwing), 18, 82),
+  };
+};
+
+const calibratedTitleOddsFromPercentile = (percentile: number) =>
+  clamp(Math.round(interpolateAnchors(percentile, TITLE_ODDS_PERCENTILE_ANCHORS, "odds")), 1, 78);
+
+export const getCategoryChallengeTarget = (
+  metric: CategoryChallenge["metric"],
+) => getSimulationCalibration().categoryThresholds[metric];
 
 const contenderStyleFromStars = (players: Player[]) => {
   const avgShooting = average(players.map((player) => player.shooting));
@@ -165,8 +565,13 @@ const buildSyntheticContender = (
       .sort((a, b) => b.overall - a.overall)
       .slice(0, Math.max(18, Math.floor(available.length * 0.28)));
     const choice = weightedPool[Math.floor(rng() * weightedPool.length)];
-    const index = available.findIndex((player) => player.id === choice.id);
-    if (index >= 0) available.splice(index, 1);
+    const choiceIdentity = getPlayerIdentityKey(choice);
+
+    for (let index = available.length - 1; index >= 0; index -= 1) {
+      if (getPlayerIdentityKey(available[index]) === choiceIdentity) {
+        available.splice(index, 1);
+      }
+    }
     return choice;
   };
 
@@ -179,11 +584,7 @@ const buildSyntheticContender = (
     average(stars.map((player) => player.defense)) * 0.08 +
     average(stars.map((player) => player.playmaking)) * 0.08;
   const power = Math.round(clamp(powerBase + (rng() - 0.5) * 4.5 + 1.5, 84, 98) * 10) / 10;
-  const projectedWins = clamp(
-    Math.round(38 + (power - 80) * 1.75 + (rng() - 0.5) * 6),
-    46,
-    67,
-  );
+  const projectedWins = clamp(calibratedWinsFromPower(power, 10.5, rng).wins, 46, 68);
 
   return {
     teamName: `${stars[0].name.split(" ").slice(-1)[0]} ${style.split(" ")[0]}`,
@@ -325,6 +726,42 @@ const buildPlayoffBracket = (
   return { east, west, finals, champion };
 };
 
+const matchupIncludesUser = (matchup: BracketMatchup | null | undefined) =>
+  Boolean(matchup && (matchup.home.isUserTeam || matchup.away.isUserTeam));
+
+const getUserOpponentFromMatchup = (matchup: BracketMatchup | null | undefined) => {
+  if (!matchupIncludesUser(matchup) || !matchup) return null;
+  return matchup.home.isUserTeam ? matchup.away : matchup.home;
+};
+
+const didUserWinMatchup = (matchup: BracketMatchup | null | undefined) => {
+  if (!matchupIncludesUser(matchup) || !matchup) return false;
+  const userTeam = matchup.home.isUserTeam ? matchup.home : matchup.away;
+  return matchup.winnerTeamName === userTeam.teamName;
+};
+
+const getPlayoffFinishFromBracket = (
+  playoffBracket: PlayoffBracket,
+  conference: "East" | "West",
+): SimulationResult["playoffFinish"] => {
+  const userConference = conference === "East" ? playoffBracket.east : playoffBracket.west;
+  const quarterfinal = userConference.quarterfinals.find((series) => matchupIncludesUser(series));
+  if (!quarterfinal) return "Missed Playoffs";
+  if (!didUserWinMatchup(quarterfinal)) return "First Round Exit";
+
+  const semifinal = userConference.semifinals.find((series) => matchupIncludesUser(series));
+  if (!semifinal) return "Conference Semifinals";
+  if (!didUserWinMatchup(semifinal)) return "Conference Semifinals";
+
+  const conferenceFinal = userConference.conferenceFinal;
+  if (!matchupIncludesUser(conferenceFinal)) return "Conference Finals";
+  if (!didUserWinMatchup(conferenceFinal)) return "Conference Finals";
+
+  const finals = playoffBracket.finals;
+  if (!matchupIncludesUser(finals)) return "NBA Finals Loss";
+  return didUserWinMatchup(finals) ? "NBA Champion" : "NBA Finals Loss";
+};
+
 const generateLeagueLandscape = (
   roster: RosterSlot[],
   metrics: TeamMetrics,
@@ -332,11 +769,11 @@ const generateLeagueLandscape = (
   seed: number,
   conference: "East" | "West",
   teamName: string,
-  playoffFinish: SimulationResult["playoffFinish"],
+  projectedPlayoffFinish: SimulationResult["playoffFinish"],
   rng: () => number,
 ) => {
-  const userIds = new Set(getPlayers(roster).map((player) => player.id));
-  const pool = allPlayers.filter((player) => !userIds.has(player.id));
+  const userIdentities = new Set(getPlayers(roster).map((player) => getPlayerIdentityKey(player)));
+  const pool = allPlayers.filter((player) => !userIdentities.has(getPlayerIdentityKey(player)));
   const available = [...pool];
   const eastGenerated: LeagueContenderProfile[] = [];
   const westGenerated: LeagueContenderProfile[] = [];
@@ -354,7 +791,7 @@ const generateLeagueLandscape = (
     seed: 0,
     conference,
     projectedWins: wins,
-    power: Math.round((metrics.overall * 0.62 + metrics.fit * 0.2 + metrics.starPower * 0.18) * 10) / 10,
+    power: Math.round((metrics.overall * 0.62 + metrics.chemistry * 0.2 + metrics.starPower * 0.18) * 10) / 10,
     style:
       metrics.defense >= 90
         ? "Defensive Fortress"
@@ -364,7 +801,7 @@ const generateLeagueLandscape = (
             ? "Jumbo Playmaking Core"
             : "Star-Driven Offense",
     summary:
-      metrics.fit >= 88
+      metrics.chemistry >= 88
         ? "Your roster paired star talent with strong balance and role coherence."
         : "Your roster leaned on premium talent, but a few structural questions stayed in play.",
     stars: getPlayers(roster)
@@ -394,38 +831,47 @@ const generateLeagueLandscape = (
       seed: index + 1,
     }));
 
+  const playoffBracket = buildPlayoffBracket(
+    conference === "East" ? sorted : oppositeSorted,
+    conference === "West" ? sorted : oppositeSorted,
+    rng,
+  );
   const userEntry = sorted.find((team) => team.isUserTeam) ?? userContender;
   const nonUser = sorted.filter((team) => !team.isUserTeam);
-
-  let opponentBase: LeagueContenderProfile | null = null;
-  if (playoffFinish === "Missed Playoffs" || playoffFinish === "Lost in Play-In") {
-    opponentBase = nonUser[0] ?? null;
-  } else if (playoffFinish === "First Round Exit") {
-    opponentBase = nonUser.find((team) => team.seed <= Math.max(4, userEntry.seed - 1)) ?? nonUser[0] ?? null;
-  } else if (playoffFinish === "Conference Semifinals") {
-    opponentBase = nonUser.find((team) => team.seed <= 3) ?? nonUser[0] ?? null;
-  } else if (playoffFinish === "Conference Finals") {
-    opponentBase = nonUser.find((team) => team.seed <= 2) ?? nonUser[0] ?? null;
-  } else if (playoffFinish === "NBA Finals Loss") {
-    opponentBase = nonUser[0] ?? null;
-  }
-
-  const eliminatedBy: OpponentStory | null = opponentBase
+  const actualPlayoffFinish =
+    userEntry.seed <= 8
+      ? getPlayoffFinishFromBracket(playoffBracket, conference)
+      : projectedPlayoffFinish;
+  const userConferenceBracket = conference === "East" ? playoffBracket.east : playoffBracket.west;
+  const eliminationMatchup =
+    actualPlayoffFinish === "First Round Exit"
+      ? userConferenceBracket.quarterfinals.find((series) => matchupIncludesUser(series)) ?? null
+      : actualPlayoffFinish === "Conference Semifinals"
+        ? userConferenceBracket.semifinals.find((series) => matchupIncludesUser(series)) ?? null
+        : actualPlayoffFinish === "Conference Finals"
+          ? userConferenceBracket.conferenceFinal
+          : actualPlayoffFinish === "NBA Finals Loss"
+            ? playoffBracket.finals
+            : null;
+  const eliminatedBase = getUserOpponentFromMatchup(eliminationMatchup);
+  const eliminatedBy: OpponentStory | null = eliminatedBase
     ? {
-        ...opponentBase,
-        matchupReason: buildMatchupReason(opponentBase, metrics, playoffFinish),
+        ...eliminatedBase,
+        matchupReason: buildMatchupReason(eliminatedBase, metrics, actualPlayoffFinish),
       }
     : null;
 
-  const signatureBase =
-    playoffFinish === "NBA Champion"
-      ? nonUser[0] ?? null
-      : playoffFinish === "NBA Finals Loss" || playoffFinish === "Conference Finals"
-        ? nonUser.find((team) => team.seed <= 3) ?? nonUser[0] ?? null
-        : userEntry.seed <= 4
-          ? nonUser.find((team) => team.seed === userEntry.seed + 1) ?? nonUser[0] ?? null
+  const signatureMatchup =
+    actualPlayoffFinish === "NBA Champion"
+      ? playoffBracket.finals
+      : actualPlayoffFinish === "NBA Finals Loss" || actualPlayoffFinish === "Conference Finals"
+        ? userConferenceBracket.semifinals.find((series) => matchupIncludesUser(series)) ?? null
+        : actualPlayoffFinish === "Conference Semifinals"
+          ? userConferenceBracket.quarterfinals.find((series) => matchupIncludesUser(series)) ?? null
           : null;
-
+  const signatureBase =
+    getUserOpponentFromMatchup(signatureMatchup) ??
+    (actualPlayoffFinish === "NBA Champion" ? nonUser[0] ?? null : null);
   const signatureWin: OpponentStory | null = signatureBase
     ? {
         ...signatureBase,
@@ -433,16 +879,11 @@ const generateLeagueLandscape = (
       }
     : null;
 
-  const playoffBracket = buildPlayoffBracket(
-    conference === "East" ? sorted : oppositeSorted,
-    conference === "West" ? sorted : oppositeSorted,
-    rng,
-  );
-
   return {
     leagueLandscape: sorted.slice(0, 6),
     leagueContext: buildLeagueContext(sorted.slice(0, 6), wins, seed, conference),
     playoffBracket,
+    playoffFinish: actualPlayoffFinish,
     eliminatedBy,
     signatureWin,
   };
@@ -487,7 +928,7 @@ export const buildTeamName = (roster: RosterSlot[]) => {
     playmaking: average(starters.map((player) => player.playmaking)),
     rebounding: average(starters.map((player) => player.rebounding)),
     athleticism: average(starters.map((player) => player.athleticism)),
-    fit: average(starters.map((player) => player.intangibles)),
+    chemistry: average(starters.map((player) => player.intangibles)),
   };
 
   const anchors = starters
@@ -594,35 +1035,35 @@ export const evaluateTeam = (roster: RosterSlot[], rareEvent?: RareEvent) => {
   const activeBigThrees = getActiveBigThrees(players.map((player) => player.id));
   const rareEventBonus = rareEvent
     ? evaluateRareEventBonus(rareEvent, players)
-    : { offense: 0, defense: 0, fit: 0, chemistry: 0, summary: "Standard environment." };
+    : { offense: 0, defense: 0, chemistryStructure: 0, chemistry: 0, summary: "Standard environment." };
 
-  let fit = 72;
+  let structuralChemistry = STRUCTURAL_CHEMISTRY_FLOOR;
   let chemistry = weightedAverage(weightedBoostedEntries, (entry) => entry.player.intangibles, (entry) => entry.weight);
 
-  if (ballHandlers.length >= 2) fit += 6;
-  else if (ballHandlers.length === 0) fit -= 12;
-  if (eliteShooters >= 3) fit += 7;
-  else if (eliteShooters <= 1) fit -= 8;
-  if (defensiveBigs >= 1) fit += 6;
-  else fit -= 10;
-  if (wingDefense >= 82) fit += 5;
-  if (highRebounders >= 2) fit += 4;
-  else fit -= 5;
-  if (benchScoring >= 84) fit += 3;
-  else if (benchScoring <= 74) fit -= 4;
-  if (dominantCreators.length >= 3 && shooting < 82) fit -= 8;
-  if (players.filter((player) => ["C", "PF"].includes(player.primaryPosition)).length >= 5) fit -= 9;
-  if (players.filter((player) => player.primaryPosition === "C").length >= 4) fit -= 10;
-  if (players.filter((player) => player.primaryPosition === "PG").length === 0) fit -= 12;
-  if (outOfRoleStars >= 2) fit -= 4;
-  else if (outOfRoleStars === 1) fit -= 2;
+  if (ballHandlers.length >= 2) structuralChemistry += 6;
+  else if (ballHandlers.length === 0) structuralChemistry -= 12;
+  if (eliteShooters >= 3) structuralChemistry += 7;
+  else if (eliteShooters <= 1) structuralChemistry -= 8;
+  if (defensiveBigs >= 1) structuralChemistry += 6;
+  else structuralChemistry -= 10;
+  if (wingDefense >= 82) structuralChemistry += 5;
+  if (highRebounders >= 2) structuralChemistry += 4;
+  else structuralChemistry -= 5;
+  if (benchScoring >= 84) structuralChemistry += 3;
+  else if (benchScoring <= 74) structuralChemistry -= 4;
+  if (dominantCreators.length >= 3 && shooting < 82) structuralChemistry -= 8;
+  if (players.filter((player) => ["C", "PF"].includes(player.primaryPosition)).length >= 5) structuralChemistry -= 9;
+  if (players.filter((player) => player.primaryPosition === "C").length >= 4) structuralChemistry -= 10;
+  if (players.filter((player) => player.primaryPosition === "PG").length === 0) structuralChemistry -= 12;
+  if (outOfRoleStars >= 2) structuralChemistry -= 4;
+  else if (outOfRoleStars === 1) structuralChemistry -= 2;
 
   chemistry += eliteShooters * 0.9;
   chemistry += ballHandlers.length * 0.75;
   chemistry -= dominantCreators.length > 3 ? 3 : 0;
   chemistry += activeDynamicDuos.length * 1.4 + activeBigThrees.length * 2.2;
   chemistry += chemistryScore * 0.7 + rareEventBonus.chemistry;
-  fit += chemistryScore * 0.55 + activeBigThrees.length * 1.25 + rareEventBonus.fit;
+  structuralChemistry += chemistryScore * 0.55 + activeBigThrees.length * 1.25 + rareEventBonus.chemistryStructure;
 
   const variance = clamp(
     11 +
@@ -634,7 +1075,12 @@ export const evaluateTeam = (roster: RosterSlot[], rareEvent?: RareEvent) => {
     5,
     20,
   );
-  const overall = clamp(starterOverall * 0.74 + benchOverall * 0.09 + fit * 0.1 + chemistry * 0.07, 65, 99);
+  const chemistryComposite = clamp(chemistry * 0.62 + structuralChemistry * 0.38, 55, 99);
+  const overall = clamp(
+    starterOverall * 0.74 + benchOverall * 0.09 + chemistryComposite * 0.17,
+    65,
+    99,
+  );
 
   return {
     overall: Math.round(overall * 10) / 10,
@@ -646,8 +1092,7 @@ export const evaluateTeam = (roster: RosterSlot[], rareEvent?: RareEvent) => {
     athleticism: Math.round(athleticism * 10) / 10,
     depth: Math.round(depth * 10) / 10,
     starPower: Math.round(starPower * 10) / 10,
-    fit: Math.round(clamp(fit, 48, 98) * 10) / 10,
-    chemistry: Math.round(clamp(chemistry, 55, 99) * 10) / 10,
+    chemistry: Math.round(chemistryComposite * 10) / 10,
     variance: Math.round(variance * 10) / 10,
     spacing: Math.round(clamp(spacing, 50, 99) * 10) / 10,
     rimProtection: Math.round(clamp(rimProtection, 35, 99) * 10) / 10,
@@ -677,7 +1122,7 @@ const getStrengthsAndWeaknesses = (roster: RosterSlot[], metrics: TeamMetrics, p
   if (metrics.defense >= 89) strengths.push("The defense has enough length and discipline to survive deep into May.");
   if (metrics.shooting >= 87) strengths.push("Spacing travels, and this roster has enough shooting to keep stars comfortable.");
   if (metrics.depth >= 84) strengths.push("Bench quality prevents major drop-off when the stars sit.");
-  if (metrics.fit >= 88) strengths.push("Lineup balance is a real advantage, with roles that complement each other cleanly.");
+  if (metrics.chemistry >= 88) strengths.push("Lineup balance and badge synergy gave the roster a real structural advantage.");
   if (metrics.rimProtection >= 88) strengths.push("Interior defense gives the roster a strong safety net at the rim.");
   if (metrics.wingDefense >= 85) strengths.push("Wing defense versatility lets the team handle most playoff matchups.");
 
@@ -685,13 +1130,13 @@ const getStrengthsAndWeaknesses = (roster: RosterSlot[], metrics: TeamMetrics, p
   if (metrics.shooting < 80) weaknesses.push("Shooting is inconsistent enough to shrink the floor against elite playoff defenses.");
   if (metrics.rimProtection < 74) weaknesses.push("Lack of interior deterrence leaves the back line vulnerable.");
   if (metrics.depth < 79) weaknesses.push("Bench drop-off creates risk over the course of a long season.");
-  if (metrics.fit < 78) weaknesses.push("The talent is real, but positional overlap hurts lineup efficiency.");
+  if (metrics.chemistry < 78) weaknesses.push("The talent is real, but positional overlap and weak synergy drag the team down.");
   if (metrics.variance > 14) weaknesses.push("Durability and role volatility make the season feel less stable than contenders prefer.");
 
   const reason = playoffFinish === "NBA Champion"
     ? "The title run came from top-end star power paired with enough structural balance to survive every series."
-    : metrics.fit < 80
-      ? "The roster's structural flaws eventually outweighed the talent."
+    : metrics.chemistry < 80
+      ? "The roster never fully clicked structurally, so the talent ceiling was harder to reach."
       : metrics.depth < 80
         ? "The team leaned heavily on its stars, and the lack of support showed late."
         : metrics.shooting < 82
@@ -785,12 +1230,12 @@ export const runSeasonSimulation = (
               : categoryChallenge.metric === "rebounding"
                 ? "Size, physicality, and frontcourt depth dictated the final rebounding result."
                 : categoryChallenge.metric === "chemistry"
-                  ? "Synergy bonuses, lineup fit, and role balance did the most to raise the chemistry score."
-                  : "Complementary skill overlap and lineup coherence were the biggest levers behind the final fit grade.";
+                  ? "Badge synergies, positional coherence, and role balance did the most to raise the chemistry score."
+                  : "Primary initiators and connective passers did the most to lift the passing score.";
 
     const focusLegacyScore = Math.round(
       metrics[categoryChallenge.metric] * 8 +
-        metrics.fit * 1.1 +
+        metrics.chemistry * 1.1 +
         chemistryScore * 2 +
         metrics.overall * 0.6,
     );
@@ -832,27 +1277,26 @@ export const runSeasonSimulation = (
     };
   }
 
-  const powerScore = metrics.overall * 0.29 + metrics.offense * 0.18 + metrics.defense * 0.18 + metrics.fit * 0.13 + metrics.depth * 0.08 + metrics.starPower * 0.09 + metrics.chemistry * 0.05;
-  const varianceSwing = (rng() - 0.5) * metrics.variance * 1.6;
-  const wins = clamp(Math.round(16 + (powerScore - 70) * 1.38 + varianceSwing), 18, 74);
+  const powerScore = computePowerScore(metrics);
+  const { wins, percentile } = calibratedWinsFromPower(powerScore, metrics.variance, rng);
   const losses = 82 - wins;
   const seedResult = seedFromWins(wins);
   const conference = rng() > 0.5 ? "East" : "West";
-  const playoffFinish = simulatePlayoffs(powerScore, seedResult, metrics.variance, rng);
-  const { strengths, weaknesses, reason, mvp, xFactor } = getStrengthsAndWeaknesses(roster, metrics, playoffFinish);
-  const titleOdds = clamp(Math.round((powerScore - 72) * 3.5), 1, 78);
+  const projectedPlayoffFinish = simulatePlayoffs(powerScore, seedResult, metrics.variance, rng);
   const teamName = buildTeamName(roster);
-  const draftGrade = getDraftGrade(metrics.overall, metrics.fit, metrics.depth);
-  const { leagueLandscape, leagueContext, playoffBracket, eliminatedBy, signatureWin } = generateLeagueLandscape(
+  const { leagueLandscape, leagueContext, playoffBracket, playoffFinish, eliminatedBy, signatureWin } = generateLeagueLandscape(
     roster,
     metrics,
     wins,
     seedResult,
     conference,
     teamName,
-    playoffFinish,
+    projectedPlayoffFinish,
     rng,
   );
+  const { strengths, weaknesses, reason, mvp, xFactor } = getStrengthsAndWeaknesses(roster, metrics, playoffFinish);
+  const titleOdds = calibratedTitleOddsFromPercentile(percentile);
+  const draftGrade = getDraftGrade(metrics.overall, metrics.chemistry, metrics.depth);
   const baseResult = {
     mode: "season" as const,
     categoryChallenge: null,
@@ -909,8 +1353,8 @@ export const runSeasonSimulation = (
           ? `Your ${teamName} landed in the playoff mix at ${wins}-${losses}, but the margin for error never felt especially large.`
           : `Your ${teamName} battled through a volatile ${wins}-${losses} season and never fully solved its roster questions.`;
 
-    const middle = metrics.fit >= 88
-      ? "The lineup balance stood out, with stars amplified by useful spacing, playmaking support, and enough defensive coverage."
+    const middle = metrics.chemistry >= 88
+      ? "The chemistry stood out, with strong positional balance and badge synergy amplifying the star talent."
       : metrics.shooting < 80
         ? "Top-end talent carried long stretches, but cramped spacing made the half-court offense less reliable against elite opponents."
         : metrics.depth < 79

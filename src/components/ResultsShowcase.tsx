@@ -3,8 +3,10 @@ import clsx from "clsx";
 import {
   Activity,
   BarChart3,
+  ChevronLeft,
   Crown,
   Gauge,
+  Gift,
   Orbit,
   Radar,
   RefreshCcw,
@@ -31,11 +33,13 @@ import {
   SimulationResult,
   TeamMetrics,
 } from "../types";
+import { getCategoryChallengeTarget } from "../lib/simulate";
 
 interface ResultsShowcaseProps {
   result: SimulationResult;
   roster: RosterSlot[];
   onDraftAgain: () => void;
+  onBackToHome: () => void;
   meta: MetaProgress;
   history: RunHistoryEntry[];
 }
@@ -91,7 +95,7 @@ const buildAnalytics = (roster: RosterSlot[], metrics: TeamMetrics) => {
     benchAverage: Math.round(benchAverage * 10) / 10,
     topThreeAverage: Math.round(topThreeAverage * 10) / 10,
     twoWayIndex:
-      Math.round(((metrics.offense + metrics.defense + metrics.fit) / 3) * 10) /
+      Math.round(((metrics.offense + metrics.defense + metrics.chemistry) / 3) * 10) /
       10,
     spacingPressure:
       Math.round(((metrics.shooting + metrics.spacing) / 2) * 10) / 10,
@@ -115,12 +119,12 @@ const analyticMetricHelp: Record<string, string> = {
   "Bench Unit":
     "The average overall rating of your reserve group. Higher values mean your non-starter minutes hold up better over a long season.",
   "Two-Way Index":
-    "An overall balance score built from offense, defense, and lineup fit. It reflects how complete your team is on both sides of the ball.",
+    "An overall balance score built from offense, defense, and chemistry. It reflects how complete and structurally sound your team is on both sides of the ball.",
 };
 
 const dashboardMetricHelp: Record<string, string> = {
   Overall:
-    "Your roster's total team strength once the full simulation model weighs talent, fit, and lineup structure together.",
+    "Your roster's total team strength once the full simulation model weighs talent, chemistry, and lineup structure together.",
   Offense:
     "How dangerous the team projects to be at generating points across scoring, creation, and shooting pressure.",
   Defense:
@@ -133,10 +137,8 @@ const dashboardMetricHelp: Record<string, string> = {
     "How well the team projects to win the glass and create extra possessions.",
   Depth:
     "How much quality survives after the starters. Better depth means less drop-off when the bench checks in.",
-  Fit:
-    "How cleanly the pieces work together in terms of roles, positional balance, and lineup logic.",
   Chemistry:
-    "How naturally the roster accepts roles and benefits from synergy between the players you drafted.",
+    "A combined measure of badge synergy, positional coherence, and whether your lineup structure actually makes basketball sense.",
   "Star Power":
     "The ceiling-lifting talent at the top of the roster. This is about game-breaking players who can swing playoff series.",
   Spacing:
@@ -179,7 +181,6 @@ const chartMetrics = (metrics: TeamMetrics, result: SimulationResult) => [
   { label: "Shooting", value: metrics.shooting, icon: Target, note: "Spacing gravity" },
   { label: "Rebounding", value: metrics.rebounding, icon: Activity, note: "Extra possessions" },
   { label: "Depth", value: metrics.depth, icon: Users, note: "Bench resilience" },
-  { label: "Fit", value: metrics.fit, icon: Sparkles, note: "Lineup synergy" },
   { label: "Chemistry", value: metrics.chemistry, icon: RefreshCcw, note: "Role acceptance" },
   { label: "Star Power", value: metrics.starPower, icon: Star, note: "Ceiling raiser" },
   { label: "Spacing", value: metrics.spacing, icon: Radar, note: "Floor balance" },
@@ -202,8 +203,6 @@ const personalBestForMetric = (label: string, meta: MetaProgress) => {
       return meta.personalBests.rebounding;
     case "Depth":
       return meta.personalBests.depth;
-    case "Fit":
-      return meta.personalBests.fit;
     case "Chemistry":
       return meta.personalBests.chemistry;
     case "Star Power":
@@ -224,13 +223,11 @@ const categoryMetricAbbreviation = (categoryChallenge: NonNullable<SimulationRes
     case "defense":
       return "DEF";
     case "playmaking":
-      return "PLY";
+      return "PAS";
     case "shooting":
       return "3PT";
     case "rebounding":
       return "REB";
-    case "fit":
-      return "FIT";
     case "chemistry":
       return "CHEM";
     default:
@@ -253,7 +250,6 @@ const playerCategoryMetricValue = (
       return player.shooting;
     case "rebounding":
       return player.rebounding;
-    case "fit":
     case "chemistry":
       return player.intangibles;
     default:
@@ -269,7 +265,6 @@ const getPrimaryStrengthMetric = (metrics: TeamMetrics) => {
     { label: "Shooting", value: metrics.shooting, note: "Spacing helped every lineup breathe." },
     { label: "Rebounding", value: metrics.rebounding, note: "Extra possessions kept showing up." },
     { label: "Depth", value: metrics.depth, note: "The bench helped stabilize the run." },
-    { label: "Fit", value: metrics.fit, note: "The pieces made sense together." },
     { label: "Chemistry", value: metrics.chemistry, note: "Roles and synergy held the group together." },
   ];
 
@@ -284,7 +279,6 @@ const getPrimaryPressureMetric = (metrics: TeamMetrics) => {
     { label: "Shooting", value: metrics.shooting, note: "Spacing pressure showed up in tighter games." },
     { label: "Rebounding", value: metrics.rebounding, note: "Possession battles stayed too close." },
     { label: "Depth", value: metrics.depth, note: "Bench support limited the margin for error." },
-    { label: "Fit", value: metrics.fit, note: "Overlap or awkward role fit dragged a bit." },
     { label: "Chemistry", value: metrics.chemistry, note: "The group never became fully seamless." },
   ];
 
@@ -732,24 +726,39 @@ export const ResultsShowcase = ({
   result,
   roster,
   onDraftAgain,
+  onBackToHome,
   meta,
   history,
 }: ResultsShowcaseProps) => {
   const [resultsPage, setResultsPage] = useState<"season" | "dashboard">("season");
-  const prestigeChallengeActive = Boolean(result.prestigeChallengeId && result.prestigeChallengeTitle);
+  const prestigeChallengeActive = Boolean(
+    result.prestigeChallengeId &&
+      result.prestigeChallengeTitle &&
+      (result.prestigeChallengeSource === "loaded" ||
+        (result.prestigeChallengeSource === "surprise" && !result.prestigeChallengeCleared)),
+  );
+  const surpriseChallengeClear = Boolean(
+    result.prestigeChallengeCleared &&
+      result.prestigeChallengeSource === "surprise" &&
+      result.prestigeChallengeNewlyCleared,
+  );
   const prestigeChallengeStatusLine = result.prestigeChallengeCleared
     ? `Cleared for +${result.prestigeChallengeReward ?? 0} Prestige`
     : `Failed · +${result.prestigeChallengeReward ?? 0} was on the line`;
   const prestigeChallengeDetail =
     result.mode === "category-focus"
-      ? `Final focus score: ${result.focusScore ?? 0} / 95 target`
+      ? `Final focus score: ${result.focusScore ?? 0} / ${
+          result.categoryChallenge
+            ? getCategoryChallengeTarget(result.categoryChallenge.metric)
+            : 95
+        } target`
       : `Final playoff result: ${result.playoffFinish}`;
   const prestigeChallengeTone = result.prestigeChallengeCleared
-    ? "border-emerald-300/22 bg-emerald-300/10"
-    : "border-rose-300/18 bg-rose-300/10";
+    ? "border-emerald-200/30 bg-[linear-gradient(135deg,rgba(8,38,31,0.98),rgba(11,54,42,0.96),rgba(9,28,49,0.95))] shadow-[0_0_0_1px_rgba(110,231,183,0.08),0_0_38px_rgba(16,185,129,0.34)]"
+    : "border-rose-200/28 bg-[linear-gradient(135deg,rgba(56,14,21,0.98),rgba(76,21,33,0.96),rgba(36,12,32,0.95))] shadow-[0_0_0_1px_rgba(251,113,133,0.08),0_0_38px_rgba(244,63,94,0.32)]";
   const prestigeChallengeIconTone = result.prestigeChallengeCleared
-    ? "bg-emerald-300/16 text-emerald-100"
-    : "bg-rose-300/16 text-rose-100";
+    ? "bg-emerald-200/16 text-emerald-50"
+    : "bg-rose-200/16 text-rose-50";
   const prestigeChallengeLabelTone = result.prestigeChallengeCleared
     ? "text-emerald-100"
     : "text-rose-100";
@@ -777,21 +786,61 @@ export const ResultsShowcase = ({
       { label: "Playmaking", value: result.metrics.playmaking },
       { label: "Shooting", value: result.metrics.shooting },
       { label: "Rebounding", value: result.metrics.rebounding },
-      { label: "Fit", value: result.metrics.fit },
+      { label: "Chemistry", value: result.metrics.chemistry },
     ];
 
     return (
       <section className="space-y-8">
-        {prestigeChallengeActive && (
-          <div className={`glass-panel rounded-[32px] p-6 shadow-card ${prestigeChallengeTone}`}>
+        {surpriseChallengeClear && (
+          <div className={`rounded-[32px] border p-6 ${prestigeChallengeTone}`}>
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-start gap-4">
-                <div className={`rounded-[22px] p-3 ${prestigeChallengeIconTone}`}>
+                <div className={`rounded-[22px] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${prestigeChallengeIconTone}`}>
+                  <Gift size={20} />
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-[0.26em] text-slate-400">
+                    Bonus Challenge Clear
+                  </div>
+                  <h2 className="mt-2 font-display text-3xl text-white">
+                    {result.prestigeChallengeTitle}
+                  </h2>
+                  <div className={`mt-2 text-sm font-semibold uppercase tracking-[0.18em] ${prestigeChallengeLabelTone}`}>
+                    You cleared an untracked challenge route on this run
+                  </div>
+                  <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-200">
+                    Goal: {result.prestigeChallengeGoal}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-400">{prestigeChallengeDetail}</p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Prestige Reward</div>
+                  <div className="mt-2 text-3xl font-semibold text-white">
+                    +{result.prestigeChallengeReward ?? 0}
+                  </div>
+                </div>
+                <div className="rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Outcome</div>
+                  <div className="mt-2 text-xl font-semibold text-white">Challenge Cleared</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {prestigeChallengeActive && (
+          <div className={`rounded-[32px] border p-6 ${prestigeChallengeTone}`}>
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-start gap-4">
+                <div className={`rounded-[22px] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${prestigeChallengeIconTone}`}>
                   <PrestigeChallengeIcon size={20} />
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-[0.26em] text-slate-400">
-                    Loaded Challenge Route
+                    {result.prestigeChallengeSource === "surprise" ? "Detected Challenge Route" : "Loaded Challenge Route"}
                   </div>
                   <h2 className="mt-2 font-display text-3xl text-white">
                     {result.prestigeChallengeTitle}
@@ -807,13 +856,13 @@ export const ResultsShowcase = ({
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
+                <div className="rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
                   <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Prestige Reward</div>
                   <div className="mt-2 text-3xl font-semibold text-white">
                     +{result.prestigeChallengeReward ?? 0}
                   </div>
                 </div>
-                <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
+                <div className="rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
                   <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Outcome</div>
                   <div className="mt-2 text-xl font-semibold text-white">
                     {result.prestigeChallengeCleared ? "Challenge Cleared" : "Try Again"}
@@ -859,6 +908,14 @@ export const ResultsShowcase = ({
             >
               <RotateCcw size={18} />
               Draft Again
+            </button>
+            <button
+              type="button"
+              onClick={onBackToHome}
+              className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/12"
+            >
+              <ChevronLeft size={18} />
+              Back to Home
             </button>
           </div>
 
@@ -1064,9 +1121,9 @@ export const ResultsShowcase = ({
     {
       label: "Draft Grade",
       value: result.draftGrade,
-      sublabel: `${result.metrics.fit} fit score`,
+      sublabel: `${result.metrics.chemistry} chemistry score`,
       icon: Star,
-      ringValue: result.metrics.fit,
+      ringValue: result.metrics.chemistry,
     },
     {
       label: "Team Identity",
@@ -1093,25 +1150,75 @@ export const ResultsShowcase = ({
   return (
     <section className="space-y-8">
       <div className="flex justify-center">
-        <button
-          onClick={onDraftAgain}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3 text-sm font-semibold text-slate-900 shadow-[0_18px_45px_rgba(255,255,255,0.12)]"
-        >
-          <RotateCcw size={18} />
-          Draft Again
-        </button>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <button
+            onClick={onDraftAgain}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3 text-sm font-semibold text-slate-900 shadow-[0_18px_45px_rgba(255,255,255,0.12)]"
+          >
+            <RotateCcw size={18} />
+            Draft Again
+          </button>
+          <button
+            type="button"
+            onClick={onBackToHome}
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-white/12 bg-white/8 px-7 py-3 text-sm font-semibold text-white transition hover:bg-white/12"
+          >
+            <ChevronLeft size={18} />
+            Back to Home
+          </button>
+        </div>
       </div>
 
-      {prestigeChallengeActive && (
-        <div className={`glass-panel rounded-[32px] p-6 shadow-card ${prestigeChallengeTone}`}>
+      {surpriseChallengeClear && (
+        <div className={`rounded-[32px] border p-6 ${prestigeChallengeTone}`}>
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
-              <div className={`rounded-[22px] p-3 ${prestigeChallengeIconTone}`}>
+              <div className={`rounded-[22px] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${prestigeChallengeIconTone}`}>
+                <Gift size={20} />
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.26em] text-slate-400">
+                  Bonus Challenge Clear
+                </div>
+                <h2 className="mt-2 font-display text-3xl text-white">
+                  {result.prestigeChallengeTitle}
+                </h2>
+                <div className={`mt-2 text-sm font-semibold uppercase tracking-[0.18em] ${prestigeChallengeLabelTone}`}>
+                  You cleared an untracked challenge route on this run
+                </div>
+                <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-200">
+                  Goal: {result.prestigeChallengeGoal}
+                </p>
+                <p className="mt-1 text-sm text-slate-400">{prestigeChallengeDetail}</p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Prestige Reward</div>
+                <div className="mt-2 text-3xl font-semibold text-white">
+                  +{result.prestigeChallengeReward ?? 0}
+                </div>
+              </div>
+              <div className="rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Outcome</div>
+                <div className="mt-2 text-xl font-semibold text-white">Challenge Cleared</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {prestigeChallengeActive && (
+        <div className={`rounded-[32px] border p-6 ${prestigeChallengeTone}`}>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className={`rounded-[22px] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${prestigeChallengeIconTone}`}>
                 <PrestigeChallengeIcon size={20} />
               </div>
               <div>
                 <div className="text-xs uppercase tracking-[0.26em] text-slate-400">
-                  Loaded Challenge Route
+                  {result.prestigeChallengeSource === "surprise" ? "Detected Challenge Route" : "Loaded Challenge Route"}
                 </div>
                 <h2 className="mt-2 font-display text-3xl text-white">
                   {result.prestigeChallengeTitle}
@@ -1127,13 +1234,13 @@ export const ResultsShowcase = ({
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
+              <div className="rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
                 <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Prestige Reward</div>
                 <div className="mt-2 text-3xl font-semibold text-white">
                   +{result.prestigeChallengeReward ?? 0}
                 </div>
               </div>
-              <div className="rounded-[22px] border border-white/10 bg-black/20 p-4">
+              <div className="rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
                 <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Outcome</div>
                 <div className="mt-2 text-xl font-semibold text-white">
                   {result.prestigeChallengeCleared ? "Challenge Cleared" : "Try Again"}
@@ -1629,3 +1736,4 @@ export const ResultsShowcase = ({
     </section>
   );
 };
+

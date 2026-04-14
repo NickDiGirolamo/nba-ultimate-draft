@@ -22,7 +22,7 @@ export const LandingScreen = ({ onStart, history }: LandingScreenProps) => (
         Build a dynasty from the greatest players ever.
       </h1>
       <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-200/85">
-        Draft a 10-man all-time NBA roster, balance star power with lineup fit, and simulate an 82-game season plus the entire playoff run.
+        Draft a 10-man all-time NBA roster, balance star power with chemistry, and simulate an 82-game season plus the entire playoff run.
       </p>
 
       <div className="mt-10 flex flex-wrap gap-4">
@@ -38,7 +38,7 @@ export const LandingScreen = ({ onStart, history }: LandingScreenProps) => (
       <div className="mt-12 grid gap-4 md:grid-cols-3">
         {[
           ["10 picks", "Every round matters and every pick is permanent."],
-          ["Smart fit model", "Spacing, playmaking, defense, depth, and balance all matter."],
+          ["Chemistry matters", "Badge links, lineup structure, spacing, defense, and balance all matter."],
           ["Replayable results", "A stacked team can dominate, but flawed builds can flame out."],
         ].map(([title, description]) => (
           <div key={title} className="rounded-[24px] border border-white/10 bg-black/20 p-5">

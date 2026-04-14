@@ -11,7 +11,7 @@ export const SimulationScreen = () => (
     <p className="mt-8 text-xs uppercase tracking-[0.28em] text-sky-200/70">Season Simulation</p>
     <h1 className="mt-3 font-display text-4xl text-white lg:text-5xl">Running your franchise timeline</h1>
     <p className="mt-4 text-lg leading-8 text-slate-300">
-      The engine is weighing star power, lineup fit, depth, and playoff volatility before the final results screen.
+      The engine is weighing star power, chemistry, depth, and playoff volatility before the final results screen.
     </p>
 
     <div className="mt-10 space-y-4 text-left">

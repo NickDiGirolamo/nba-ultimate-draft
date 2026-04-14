@@ -1,87 +1,51 @@
-import { ChevronRight, Crown, Medal, Radar, Sparkles, Target, Trophy, Zap } from "lucide-react";
+import { ChevronRight, Crown, Medal, Radar, Sparkles, Trophy } from "lucide-react";
 import {
-  CategoryChallenge,
-  CategoryChallengeSelection,
-  DraftChallenge,
-  DraftChallengeSelection,
   MetaProgress,
-  RareEvent,
-  RareEventSelection,
   RunHistoryEntry,
 } from "../types";
-import { categoryChallenges, draftChallenges, rareEvents } from "../lib/meta";
 
 interface LandingHubProps {
-  onStart: () => void;
   onOpenPrestige: () => void;
   onOpenChallenges: () => void;
+  onOpenCollection: () => void;
   history: RunHistoryEntry[];
   meta: MetaProgress;
-  draftChallengeSelection: DraftChallengeSelection;
-  currentChallenge: DraftChallenge;
-  onDraftChallengeSelectionChange: (selection: DraftChallengeSelection) => void;
-  rareEventsEnabled: boolean;
-  rareEventSelection: RareEventSelection;
-  currentRareEvent: RareEvent;
-  onRareEventSelectionChange: (selection: RareEventSelection) => void;
-  categoryChallengesEnabled: boolean;
-  categoryChallengeSelection: CategoryChallengeSelection;
-  currentCategoryChallenge: CategoryChallenge | null;
-  onCategoryChallengeSelectionChange: (selection: CategoryChallengeSelection) => void;
 }
 
 export const LandingHub = ({
-  onStart,
   onOpenPrestige,
   onOpenChallenges,
+  onOpenCollection,
   history,
   meta,
-  draftChallengeSelection,
-  currentChallenge,
-  onDraftChallengeSelectionChange,
-  rareEventsEnabled,
-  rareEventSelection,
-  currentRareEvent,
-  onRareEventSelectionChange,
-  categoryChallengesEnabled,
-  categoryChallengeSelection,
-  currentCategoryChallenge,
-  onCategoryChallengeSelectionChange,
 }: LandingHubProps) => {
-  const noPrimaryChallenge = draftChallengeSelection === "none";
-  const classicMode = draftChallengeSelection === "classic";
-
   return (
   <section className="space-y-8">
-    <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
-      <div className="glass-panel rounded-[34px] bg-hero-mesh p-8 shadow-card lg:p-12">
+    <div className="glass-panel rounded-[34px] bg-hero-mesh p-8 shadow-card lg:p-12">
         <div className="inline-flex rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-sky-100">
           All-Time NBA Draft Simulator
         </div>
-        <h1 className="mt-6 max-w-3xl font-display text-5xl font-semibold leading-[1.04] text-white lg:text-7xl">
-          Build a dynasty from the greatest players ever.
+        <h1 className="mt-6 max-w-4xl font-display text-5xl font-semibold leading-[1.04] text-white lg:text-7xl">
+          Can you draft the best all-time NBA team?
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-200/85">
-          Draft a 10-man all-time NBA roster, balance star power with lineup fit, and simulate an 82-game season plus the entire playoff run.
+          Draft a 10-man all-time NBA roster, balance star power with chemistry, and simulate an 82-game season plus the entire playoff run.
         </p>
 
-        <div className="mt-10 flex flex-wrap gap-4">
-          <button onClick={onStart} className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:scale-[1.02]">
-            Start Draft
-            <ChevronRight size={18} />
-          </button>
+        <div className="mt-10 flex justify-center">
           <button
             type="button"
             onClick={onOpenChallenges}
-            className="inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-sky-300/10 px-6 py-3 text-sm font-semibold text-sky-100 transition hover:scale-[1.02] hover:border-sky-300/35"
+            className="inline-flex items-center gap-2 rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-slate-900 transition hover:scale-[1.02]"
           >
-            Challenges
-            <Target size={16} />
+            Start Draft Challenges
+            <ChevronRight size={18} />
           </button>
-          <div className="rounded-full border border-white/12 bg-white/8 px-5 py-3 text-sm text-slate-200">
-            Play for records, trophies, collection milestones, and your best legacy score.
-          </div>
         </div>
+
+        <p className="mt-4 text-center text-sm leading-7 text-slate-300">
+          Take on challenge routes, chase prestige rewards, and prove you can build elite rosters in every draft environment.
+        </p>
 
         <button
           type="button"
@@ -132,161 +96,6 @@ export const LandingHub = ({
           </div>
         </button>
 
-        <div className="mt-8 rounded-[28px] border border-white/10 bg-black/20 p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-slate-400">
-                <Trophy size={14} className="text-amber-200" />
-                Primary Challenge
-              </div>
-              <h2 className="mt-2 font-display text-2xl text-white">
-                {draftChallengeSelection === "random"
-                  ? "Random Challenge"
-                  : noPrimaryChallenge
-                    ? "None"
-                    : currentChallenge.title}
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
-                {draftChallengeSelection === "random"
-                  ? "Let the game assign a fresh featured objective for each run."
-                  : noPrimaryChallenge
-                    ? "No primary challenge is active. This run just asks you to build the best team you can."
-                  : currentChallenge.description}
-              </p>
-              <p className="mt-2 text-sm text-amber-100/90">
-                {draftChallengeSelection === "random"
-                  ? "A random primary challenge will be locked in on the draft briefing page."
-                  : noPrimaryChallenge
-                  ? "No primary challenge bonus is active, but your other run modifiers can still be turned on."
-                  : classicMode
-                  ? "Classic turns off extra run modifiers so the goal is simply to build the strongest team possible."
-                  : `Reward: +${currentChallenge.reward} legacy score if you complete it.`}
-              </p>
-            </div>
-
-            <select
-              value={draftChallengeSelection}
-              onChange={(event) =>
-                onDraftChallengeSelectionChange(event.target.value as DraftChallengeSelection)
-              }
-              className="rounded-2xl border border-white/12 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/40"
-            >
-              <option value="random">Random Challenge</option>
-              {draftChallenges.map((challenge) => (
-                <option key={challenge.id} value={challenge.id}>
-                  {challenge.title}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="mt-6 rounded-[28px] border border-white/10 bg-black/20 p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-slate-400">
-                <Zap size={14} className={rareEventsEnabled ? "text-amber-200" : "text-slate-500"} />
-                Rare Event Settings
-              </div>
-              <h2 className="mt-2 font-display text-2xl text-white">
-                {classicMode
-                  ? "Classic Mode Environment"
-                  : rareEventsEnabled
-                  ? currentRareEvent.title
-                  : "Standard Draft Environment"}
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
-                {classicMode
-                  ? "Classic mode disables rare events so the run uses the standard simulation environment."
-                  : rareEventsEnabled
-                  ? currentRareEvent.description
-                  : "Rare events are turned off, so this run will use the default simulation environment."}
-              </p>
-              <p className="mt-2 text-sm text-amber-100/90">
-                {classicMode
-                  ? "No event-specific boosts or modifiers will be active."
-                  : rareEventSelection === "random" && rareEventsEnabled
-                  ? "This run will roll a random rare event on the draft briefing page."
-                  : rareEventsEnabled
-                  ? currentRareEvent.impact
-                  : "No event-specific boosts or modifiers will be active."}
-              </p>
-            </div>
-
-            <select
-              value={rareEventSelection}
-              onChange={(event) =>
-                onRareEventSelectionChange(event.target.value as RareEventSelection)
-              }
-              className="rounded-2xl border border-white/12 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-300/40"
-              disabled={classicMode}
-            >
-              <option value="disabled">Disabled</option>
-              <option value="random">Random Rare Event</option>
-              {rareEvents.map((event) => (
-                <option key={event.id} value={event.id}>
-                  {event.title}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="mt-6 rounded-[28px] border border-white/10 bg-black/20 p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-slate-400">
-                <Target size={14} className={categoryChallengesEnabled ? "text-emerald-200" : "text-slate-500"} />
-                Category Challenge
-              </div>
-              <h2 className="mt-2 font-display text-2xl text-white">
-                {classicMode
-                  ? "Category Challenge Disabled"
-                  : categoryChallengeSelection === "random" && categoryChallengesEnabled
-                  ? "Random Category Focus"
-                  : categoryChallengesEnabled && currentCategoryChallenge
-                  ? currentCategoryChallenge.title
-                  : "Category Challenge Disabled"}
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
-                {classicMode
-                  ? "Classic mode disables category-focus play, so this run will be judged as a full season and playoff simulation."
-                  : categoryChallengeSelection === "random" && categoryChallengesEnabled
-                  ? "A random team-building category will be selected as your focus for this run. The chosen focus will be revealed on the draft briefing page before the draft begins."
-                  : categoryChallengesEnabled && currentCategoryChallenge
-                  ? currentCategoryChallenge.description
-                  : "Turn this on if you want an extra random objective that pushes you to chase the highest possible score in one specific team category."}
-              </p>
-              <p className="mt-2 text-sm text-emerald-100/90">
-                {classicMode
-                  ? "No category target will be assigned."
-                  : categoryChallengeSelection === "random" && categoryChallengesEnabled
-                  ? "This run will roll a random category focus on the draft briefing page."
-                  : categoryChallengesEnabled && currentCategoryChallenge
-                  ? `This run's side goal is to maximize ${currentCategoryChallenge.metricLabel.toLowerCase()}.`
-                  : "No random category target will be assigned."}
-              </p>
-            </div>
-
-            <select
-              value={categoryChallengeSelection}
-              onChange={(event) =>
-                onCategoryChallengeSelectionChange(event.target.value as CategoryChallengeSelection)
-              }
-              className="rounded-2xl border border-white/12 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-300/40"
-              disabled={classicMode}
-            >
-              <option value="disabled">Disabled</option>
-              <option value="random">Random Category</option>
-              {categoryChallenges.map((challenge) => (
-                <option key={challenge.id} value={challenge.id}>
-                  {challenge.metricLabel}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
         <div className="mt-12 grid gap-4 md:grid-cols-3">
           {[
             ["10 picks", "Every round matters and every pick is permanent."],
@@ -299,88 +108,6 @@ export const LandingHub = ({
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="grid gap-6">
-        <div className="glass-panel rounded-[30px] p-6 shadow-card">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-amber-300/14 p-3 text-amber-200">
-              <Crown size={20} />
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Personal Bests</p>
-              <h2 className="mt-1 font-display text-2xl text-white">Chase Your Peak</h2>
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            {[
-              ["Wins", meta.personalBests.wins],
-              ["Overall", meta.personalBests.overall],
-              ["Offense", meta.personalBests.offense],
-              ["Defense", meta.personalBests.defense],
-              ["Fit", meta.personalBests.fit],
-              ["Legacy", meta.personalBests.legacyScore],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{label}</div>
-                <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="glass-panel rounded-[30px] p-6 shadow-card">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-fuchsia-300/14 p-3 text-fuchsia-200">
-              <Sparkles size={20} />
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Streaks + Collection</p>
-              <h2 className="mt-1 font-display text-2xl text-white">Long-Term Chase</h2>
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            {[
-              ["Playoff Streak", meta.streaks.playoff],
-              ["Title Streak", meta.streaks.titles],
-              ["50-Win Streak", meta.streaks.fiftyWin],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{label}</div>
-                <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Collection Progress</div>
-                <div className="mt-2 text-2xl font-semibold text-white">
-                  {meta.collection.draftedPlayers} / {meta.collection.totalPlayers}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl font-semibold text-white">{meta.collection.percentage}%</div>
-                <div className="text-xs text-slate-400">of player pool drafted</div>
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              {meta.collection.milestones.map((milestone) => (
-                <div key={milestone.label} className="flex items-center justify-between gap-3 text-sm">
-                  <span className="text-slate-300">{milestone.label}</span>
-                  <span className={milestone.reached ? "text-emerald-200" : "text-slate-500"}>
-                    {milestone.reached ? "Complete" : "Locked"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr_0.95fr]">
@@ -410,7 +137,11 @@ export const LandingHub = ({
         </div>
       </div>
 
-      <div className="glass-panel rounded-[30px] p-6 shadow-card">
+      <button
+        type="button"
+        onClick={onOpenCollection}
+        className="glass-panel rounded-[30px] p-6 text-left shadow-card transition hover:border-amber-200/24 hover:bg-white/7"
+      >
         <div className="flex items-center gap-3">
           <div className="rounded-2xl bg-amber-300/14 p-3 text-amber-200">
             <Medal size={20} />
@@ -433,6 +164,34 @@ export const LandingHub = ({
             >
               <div className="font-medium text-white">{trophy.title}</div>
               <div className="mt-1 text-sm text-slate-300">{trophy.description}</div>
+            </div>
+          ))}
+        </div>
+      </button>
+
+      <div className="glass-panel rounded-[30px] p-6 shadow-card">
+        <div className="flex items-center gap-3">
+          <div className="rounded-2xl bg-amber-300/14 p-3 text-amber-200">
+            <Crown size={20} />
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Personal Bests</p>
+            <h2 className="mt-1 font-display text-2xl text-white">Chase Your Peak</h2>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          {[
+            ["Wins", meta.personalBests.wins],
+            ["Overall", meta.personalBests.overall],
+            ["Offense", meta.personalBests.offense],
+            ["Defense", meta.personalBests.defense],
+            ["Chemistry", meta.personalBests.chemistry],
+            ["Legacy", meta.personalBests.legacyScore],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{label}</div>
+              <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
             </div>
           ))}
         </div>
@@ -480,6 +239,57 @@ export const LandingHub = ({
               Your recent runs will appear here once you finish a draft and simulate the season.
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="glass-panel rounded-[30px] p-6 shadow-card">
+        <div className="flex items-center gap-3">
+          <div className="rounded-2xl bg-fuchsia-300/14 p-3 text-fuchsia-200">
+            <Sparkles size={20} />
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Streaks + Collection</p>
+            <h2 className="mt-1 font-display text-2xl text-white">Long-Term Chase</h2>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          {[
+            ["Playoff Streak", meta.streaks.playoff],
+            ["Title Streak", meta.streaks.titles],
+            ["50-Win Streak", meta.streaks.fiftyWin],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{label}</div>
+              <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Collection Progress</div>
+              <div className="mt-2 text-2xl font-semibold text-white">
+                {meta.collection.draftedPlayers} / {meta.collection.totalPlayers}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-semibold text-white">{meta.collection.percentage}%</div>
+              <div className="text-xs text-slate-400">of player pool drafted</div>
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-2">
+            {meta.collection.milestones.map((milestone) => (
+              <div key={milestone.label} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-slate-300">{milestone.label}</span>
+                <span className={milestone.reached ? "text-emerald-200" : "text-slate-500"}>
+                  {milestone.reached ? "Complete" : "Locked"}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

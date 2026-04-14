@@ -104,13 +104,21 @@ export interface TeamMetrics {
   athleticism: number;
   depth: number;
   starPower: number;
-  fit: number;
   chemistry: number;
   variance: number;
   spacing: number;
   rimProtection: number;
   wingDefense: number;
   benchScoring: number;
+}
+
+export interface DraftChemistrySnapshot {
+  score: number;
+  draftedCount: number;
+  naturalSlotMatches: number;
+  activeBadgeCount: number;
+  badgeBonus: number;
+  slotFitRate: number;
 }
 
 export interface TeamStrengths {
@@ -174,7 +182,10 @@ export interface SimulationResult {
   prestigeChallengeTitle?: string | null;
   prestigeChallengeGoal?: string | null;
   prestigeChallengeCleared?: boolean;
+  prestigeChallengeSource?: "loaded" | "surprise" | null;
+  prestigeChallengeNewlyCleared?: boolean;
   prestigeChallengeReward?: number;
+  prestigeLevelUp?: PrestigeLevelUpEvent | null;
   metrics: TeamMetrics;
   categoryChallenge: CategoryChallenge | null;
   focusScore: number | null;
@@ -212,7 +223,7 @@ export interface SimulationResult {
   rareEventBonus: {
     offense: number;
     defense: number;
-    fit: number;
+    chemistryStructure: number;
     chemistry: number;
     summary: string;
   };
@@ -230,6 +241,7 @@ export interface RunHistoryEntry {
   id: string;
   mode: SimulationMode;
   teamName: string;
+  rosterPlayerIds: string[];
   record: string;
   wins: number;
   losses: number;
@@ -251,6 +263,7 @@ export interface RunHistoryEntry {
   prestigeChallengeTitle?: string | null;
   prestigeChallengeGoal?: string | null;
   prestigeChallengeCleared?: boolean;
+  prestigeChallengeSource?: "loaded" | "surprise" | null;
   prestigeChallengeReward?: number | null;
   focusScore?: number | null;
   titleOdds: number;
@@ -259,6 +272,7 @@ export interface RunHistoryEntry {
 
 export interface PrestigeChallengeDefinition {
   id: string;
+  order: number;
   title: string;
   description: string;
   goal: string;
@@ -275,6 +289,14 @@ export interface PrestigeRewardDefinition {
   description: string;
 }
 
+export interface PrestigeLevelUpEvent {
+  previousLevel: number;
+  newLevel: number;
+  previousScore: number;
+  newScore: number;
+  unlockedRewards: PrestigeRewardDefinition[];
+}
+
 export interface PersonalBests {
   wins: number;
   overall: number;
@@ -283,7 +305,6 @@ export interface PersonalBests {
   playmaking: number;
   shooting: number;
   rebounding: number;
-  fit: number;
   depth: number;
   chemistry: number;
   starPower: number;

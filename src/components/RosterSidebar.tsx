@@ -1,12 +1,13 @@
 import clsx from "clsx";
-import { Star } from "lucide-react";
+import { Sparkles, Star } from "lucide-react";
 import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import { usePlayerImage } from "../hooks/usePlayerImage";
-import { Player, RosterSlot } from "../types";
+import { DraftChemistrySnapshot, Player, RosterSlot } from "../types";
 
 interface RosterSidebarProps {
   roster: RosterSlot[];
   teamAverage: number;
+  draftChemistry: DraftChemistrySnapshot;
   lastFilledSlot: string | null;
   selectedSlotIndex: number | null;
   bonusPickActive?: boolean;
@@ -21,6 +22,7 @@ const findBestPlayer = (roster: RosterSlot[]) => {
 export const RosterSidebar = ({
   roster,
   teamAverage,
+  draftChemistry,
   lastFilledSlot,
   selectedSlotIndex,
   bonusPickActive = false,
@@ -40,14 +42,26 @@ export const RosterSidebar = ({
 
   return (
     <aside className="glass-panel rounded-[28px] p-5 shadow-card">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Current Roster</p>
           <h3 className="mt-2 font-display text-2xl text-white">Lineup Board</h3>
         </div>
-        <div className="rounded-2xl border border-white/12 bg-white/6 px-4 py-3 text-right">
-          <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Avg OVR</div>
-          <div className="mt-1 font-display text-3xl text-white">{teamAverage || "--"}</div>
+        <div className="grid min-w-[210px] grid-cols-2 gap-2">
+          <div className="rounded-2xl border border-white/12 bg-white/6 px-3 py-3 text-right">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Avg OVR</div>
+            <div className="mt-1 font-display text-[1.7rem] leading-none text-white">{teamAverage || "--"}</div>
+          </div>
+          <div className="rounded-2xl border border-emerald-300/16 bg-emerald-300/10 px-3 py-3 text-right">
+            <div className="flex items-center justify-end gap-1 text-[10px] uppercase tracking-[0.2em] text-emerald-100/75">
+              <Sparkles size={12} />
+              Chemistry
+            </div>
+            <div className="mt-1 font-display text-[1.7rem] leading-none text-white">{draftChemistry.score}</div>
+            <div className="mt-1 text-[10px] uppercase tracking-[0.14em] text-emerald-100/70">
+              Starts at 0
+            </div>
+          </div>
         </div>
       </div>
 
@@ -66,6 +80,40 @@ export const RosterSidebar = ({
       </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-1">
+        <div className="rounded-2xl border border-emerald-300/16 bg-[linear-gradient(180deg,rgba(16,185,129,0.12),rgba(2,6,23,0.18))] p-4">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-emerald-100/75">
+            <Sparkles size={14} />
+            Live Chemistry
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full border border-white/10 bg-white/8">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-emerald-300 via-lime-200 to-cyan-300 transition-all duration-300"
+              style={{ width: `${Math.max(0, Math.min(100, draftChemistry.score))}%` }}
+            />
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-xl border border-white/8 bg-black/18 px-2 py-2">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-slate-400">Badges</div>
+              <div className="mt-1 text-base font-semibold text-white">{draftChemistry.activeBadgeCount}</div>
+            </div>
+            <div className="rounded-xl border border-white/8 bg-black/18 px-2 py-2">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-slate-400">Slot Fit</div>
+              <div className="mt-1 text-base font-semibold text-white">{draftChemistry.slotFitRate}%</div>
+            </div>
+            <div className="rounded-xl border border-white/8 bg-black/18 px-2 py-2">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-slate-400">Natural</div>
+              <div className="mt-1 text-base font-semibold text-white">
+                {draftChemistry.draftedCount > 0
+                  ? `${draftChemistry.naturalSlotMatches}/${draftChemistry.draftedCount}`
+                  : "--"}
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 text-xs leading-5 text-slate-300">
+            Chemistry rises as you draft players into sensible roles and activate badge links.
+          </div>
+        </div>
+
         <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
           <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-slate-400">
             <Star size={14} />
