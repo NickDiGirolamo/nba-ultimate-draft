@@ -14,8 +14,17 @@ import {
   RunHistoryEntry,
   SimulationResult,
   Trophy,
+  TokenProgress,
 } from "../types";
 import { randomItem } from "./random";
+
+type ChallengeDifficultyTier =
+  | "rookie"
+  | "role-player"
+  | "starter"
+  | "all-star"
+  | "superstar"
+  | "goat";
 
 const CATEGORY_IDS = [
   "offense-lab",
@@ -181,18 +190,62 @@ export const categoryChallenges: CategoryChallenge[] = [
   },
 ];
 
+const getPrestigeChallengeDifficulty = (
+  draftChallengeId: string,
+  rareEventId: string,
+  categoryChallengeId: string | null,
+): ChallengeDifficultyTier => {
+  const hasRareEvent = rareEventId !== standardRareEvent.id;
+  const hasCategoryFocus = Boolean(categoryChallengeId);
+
+  if (draftChallengeId === "classic") {
+    return "rookie";
+  }
+
+  if (draftChallengeId === "none") {
+    return hasRareEvent ? "role-player" : "rookie";
+  }
+
+  if (draftChallengeId === "title-or-bust") {
+    return hasRareEvent || hasCategoryFocus ? "goat" : "superstar";
+  }
+
+  if (draftChallengeId === "no-s-tier-shortcut") {
+    return hasRareEvent || hasCategoryFocus ? "superstar" : "all-star";
+  }
+
+  if (hasRareEvent || hasCategoryFocus) {
+    return "all-star";
+  }
+
+  return "starter";
+};
+
 const prestigeChallengeReward = (
   challenge: DraftChallenge,
   rareEventId: string,
   categoryChallengeId: string | null,
 ) => {
-  const baseReward =
-    challenge.id === "classic" ? 16 : challenge.id === "none" ? 12 : challenge.reward + 10;
-  const rareEventReward = rareEventId === standardRareEvent.id ? 0 : 6;
-  const categoryReward = categoryChallengeId ? 8 : 0;
-  const comboBonus = rareEventId !== standardRareEvent.id && categoryChallengeId ? 4 : 0;
+  const difficulty = getPrestigeChallengeDifficulty(
+    challenge.id,
+    rareEventId,
+    categoryChallengeId,
+  );
+  if (challenge.id === "classic") {
+    return 30;
+  }
+  const baseRewardByDifficulty: Record<ChallengeDifficultyTier, number> = {
+    rookie: 12,
+    "role-player": 22,
+    starter: 30,
+    "all-star": 42,
+    superstar: 58,
+    goat: 76,
+  };
+  const categoryBonus = categoryChallengeId ? 2 : 0;
+  const rareEventBonus = rareEventId === standardRareEvent.id ? 0 : 2;
 
-  return baseReward + rareEventReward + categoryReward + comboBonus;
+  return baseRewardByDifficulty[difficulty] + categoryBonus + rareEventBonus;
 };
 
 const prestigeChallengeGoal = (categoryChallengeId: string | null) =>
@@ -211,18 +264,19 @@ export const prestigeChallengeDefinitions: PrestigeChallengeDefinition[] = draft
   (challenge) => {
     if (challenge.id === "classic") {
       return [
-        {
-          id: buildPrestigeChallengeId(challenge.id, standardRareEvent.id, null),
-          order: 0,
-          title: challenge.title,
-          description:
-            "Run a pure season-and-playoffs sim with no extra modifiers and prove your base roster-building strength.",
-          goal: prestigeChallengeGoal(null),
-          reward: prestigeChallengeReward(challenge, standardRareEvent.id, null),
-          draftChallengeId: challenge.id,
-          rareEventId: standardRareEvent.id,
-          categoryChallengeId: null,
-        },
+          {
+            id: buildPrestigeChallengeId(challenge.id, standardRareEvent.id, null),
+            order: 0,
+            title: challenge.title,
+            description:
+              "Run a pure season-and-playoffs sim with no extra modifiers and prove your base roster-building strength.",
+            goal: prestigeChallengeGoal(null),
+            reward: prestigeChallengeReward(challenge, standardRareEvent.id, null),
+            difficulty: getPrestigeChallengeDifficulty(challenge.id, standardRareEvent.id, null),
+            draftChallengeId: challenge.id,
+            rareEventId: standardRareEvent.id,
+            categoryChallengeId: null,
+          },
       ];
     }
 
@@ -242,20 +296,21 @@ export const prestigeChallengeDefinitions: PrestigeChallengeDefinition[] = draft
           event.id === standardRareEvent.id
             ? "No rare-event modifier is active."
             : event.description
-        } ${
-          category
-            ? `Category target: maximize ${category.metricLabel.toLowerCase()}.`
-            : "No category-focus objective is active."
-        }`,
-        goal: prestigeChallengeGoal(category?.id ?? null),
-        reward: prestigeChallengeReward(challenge, event.id, category?.id ?? null),
-        draftChallengeId: challenge.id,
-        rareEventId: event.id,
-        categoryChallengeId: category?.id ?? null,
-      })),
-    );
-  },
-);
+          } ${
+            category
+              ? `Category target: maximize ${category.metricLabel.toLowerCase()}.`
+              : "No category-focus objective is active."
+          }`,
+          goal: prestigeChallengeGoal(category?.id ?? null),
+          reward: prestigeChallengeReward(challenge, event.id, category?.id ?? null),
+          difficulty: getPrestigeChallengeDifficulty(challenge.id, event.id, category?.id ?? null),
+          draftChallengeId: challenge.id,
+          rareEventId: event.id,
+          categoryChallengeId: category?.id ?? null,
+        })),
+      );
+    },
+  );
 
 prestigeChallengeDefinitions.forEach((challenge, index) => {
   challenge.order = index + 1;
@@ -783,10 +838,10 @@ export const hasPrestigeReward = (
   rewardId: PrestigeRewardDefinition["id"],
 ) => prestigeRewardDefinitions.some((reward) => reward.id === rewardId && level >= reward.level);
 
-export const buildPrestigeProgress = (
+const computePrestigeScore = (
   history: RunHistoryEntry[],
   collection: CollectionGoals,
-): PrestigeProgress => {
+) => {
   const seasonHistory = seasonRunsOnly(history);
   const titles = seasonHistory.filter((run) => run.playoffFinish === "NBA Champion").length;
   const finals = seasonHistory.filter((run) => run.playoffFinish === "NBA Finals Loss").length;
@@ -825,6 +880,69 @@ export const buildPrestigeProgress = (
       collectionPrestige +
       legacyQualityPrestige,
   );
+
+  return {
+    score,
+    titles,
+    finals,
+    conferenceFinals,
+    sixtyWinRuns,
+    challengeCompletions,
+    completedChallengeRoutes,
+    challengeRoutePrestige,
+    averageLegacy,
+    completedRunsPrestige,
+    championshipPrestige,
+    deepRunPrestige,
+    sixtyWinPrestige,
+    challengeCompletionPrestige,
+    collectionPrestige,
+    legacyQualityPrestige,
+  };
+};
+
+export const calculateRunEconomyRewards = (
+  previousHistory: RunHistoryEntry[],
+  nextHistory: RunHistoryEntry[],
+  unlockedPlayerIds: string[],
+) => {
+  const collection = buildCollectionGoals(unlockedPlayerIds);
+  const previousScore = computePrestigeScore(previousHistory, collection).score;
+  const nextScore = computePrestigeScore(nextHistory, collection).score;
+  const prestigeXpAward = Math.max(0, nextScore - previousScore);
+  const tokenReward = prestigeXpAward * 10;
+
+  return {
+    prestigeXpAward,
+    tokenReward,
+  };
+};
+
+export const buildTokenProgress = (prestigeScore: number): TokenProgress => {
+  const lifetimeEarned = prestigeScore * 10;
+  return {
+    balance: lifetimeEarned,
+    lifetimeEarned,
+  };
+};
+
+export const buildPrestigeProgress = (
+  history: RunHistoryEntry[],
+  collection: CollectionGoals,
+): PrestigeProgress => {
+  const {
+    score,
+    titles,
+    completedChallengeRoutes,
+    challengeRoutePrestige,
+    completedRunsPrestige,
+    championshipPrestige,
+    deepRunPrestige,
+    sixtyWinPrestige,
+    challengeCompletionPrestige,
+    collectionPrestige,
+    legacyQualityPrestige,
+  } = computePrestigeScore(history, collection);
 
   const breakdown = [
     {
@@ -895,9 +1013,11 @@ export const buildMetaProgress = (
   unlockedPlayerIds: string[],
 ): MetaProgress => {
   const collection = buildCollectionGoals(unlockedPlayerIds);
+  const prestige = buildPrestigeProgress(history, collection);
 
   return {
-    prestige: buildPrestigeProgress(history, collection),
+    prestige,
+    tokens: buildTokenProgress(prestige.score),
     personalBests: buildPersonalBests(history),
     leaderboards: buildLeaderboards(history),
     trophies: buildTrophies(history, collection),

@@ -5,6 +5,7 @@ import { MetaProgress, Player, PrestigeChallengeDefinition, RunHistoryEntry } fr
 import {
   draftChallenges,
   getCategoryChallengeById,
+  getRareEventById,
   getPrestigeTitleForLevel,
   prestigeChallengeDefinitions,
   prestigeRewardDefinitions,
@@ -17,6 +18,7 @@ import { usePlayerImage } from "../hooks/usePlayerImage";
 
 type PrestigeView = "overview" | "challenges" | "rewards" | "collection";
 type CollectionFamilyId = "dynamic-duos" | "big-threes" | "rivals" | "centerpieces";
+type ChallengeDifficultyTab = "rookie" | "role-player" | "starter" | "all-star" | "superstar" | "goat";
 
 interface CollectionFamilyDefinition {
   id: CollectionFamilyId;
@@ -31,6 +33,50 @@ interface CollectionEntry {
   title: string;
   playerIds: string[];
 }
+
+const challengeDifficultyTabs: Array<{
+  id: ChallengeDifficultyTab;
+  label: string;
+  description: string;
+  toneClass: string;
+}> = [
+  {
+    id: "rookie",
+    label: "Rookie",
+    description: "Best place to start. Clean setup routes with the lowest pressure and the lightest rewards.",
+    toneClass: "bg-emerald-300/14 text-emerald-100",
+  },
+  {
+    id: "role-player",
+    label: "Role Player",
+    description: "Slightly trickier environment twists that still let newer players build confidence.",
+    toneClass: "bg-sky-300/14 text-sky-100",
+  },
+  {
+    id: "starter",
+    label: "Starter",
+    description: "Now the route itself starts asking for stronger identity and cleaner roster-building.",
+    toneClass: "bg-indigo-300/14 text-indigo-100",
+  },
+  {
+    id: "all-star",
+    label: "All-Star",
+    description: "Real challenge pressure. Stronger route rules, stronger reward payouts.",
+    toneClass: "bg-fuchsia-300/14 text-fuchsia-100",
+  },
+  {
+    id: "superstar",
+    label: "Superstar",
+    description: "These routes expect discipline, restraint, and much sharper execution.",
+    toneClass: "bg-amber-300/14 text-amber-100",
+  },
+  {
+    id: "goat",
+    label: "GOAT",
+    description: "The highest-tier challenge routes. Hardest asks, biggest one-time Prestige rewards.",
+    toneClass: "bg-rose-300/14 text-rose-100",
+  },
+];
 
 const playersById = new Map(allPlayers.map((player) => [player.id, player]));
 
@@ -138,6 +184,7 @@ export const PrestigeOverlay = ({
 }: PrestigeOverlayProps) => {
   const [view, setView] = useState<PrestigeView>(initialView);
   const [challengeFilter, setChallengeFilter] = useState<"open" | "completed">("open");
+  const [challengeDifficulty, setChallengeDifficulty] = useState<ChallengeDifficultyTab>("rookie");
   const [selectedCollectionFamily, setSelectedCollectionFamily] = useState<CollectionFamilyId | null>(null);
   const recentRuns = history.slice(0, 5);
   const prestigeChallenges = draftChallenges.filter((challenge) => challenge.id !== "classic");
@@ -156,35 +203,17 @@ export const PrestigeOverlay = ({
       .map((run) => run.prestigeChallengeId)
       .filter((value): value is string => Boolean(value)),
   );
-  const challengeGroups = useMemo(
+  const filteredChallenges = useMemo(
     () =>
-      draftChallenges.map((challenge) => ({
-        challenge,
-        items: prestigeChallengeDefinitions
-          .filter((item) => item.draftChallengeId === challenge.id)
-          .sort((a, b) => a.order - b.order),
-      })),
-    [],
+      prestigeChallengeDefinitions
+        .filter((item) => item.difficulty === challengeDifficulty)
+        .filter((item) =>
+          challengeFilter === "open" ? !completedRouteIds.has(item.id) : completedRouteIds.has(item.id),
+        )
+        .sort((a, b) => a.order - b.order),
+    [challengeDifficulty, challengeFilter, completedRouteIds],
   );
-  const filteredChallengeGroups = useMemo(
-    () =>
-      challengeGroups
-        .map(({ challenge, items }) => ({
-          challenge,
-          items: items.filter((item) =>
-            challengeFilter === "open"
-              ? !completedRouteIds.has(item.id)
-              : completedRouteIds.has(item.id),
-          ),
-        }))
-        .sort((a, b) => (a.items[0]?.order ?? 9999) - (b.items[0]?.order ?? 9999))
-        .filter(({ items }) => items.length > 0),
-    [challengeFilter, challengeGroups, completedRouteIds],
-  );
-  const visibleChallengeCount = filteredChallengeGroups.reduce(
-    (total, group) => total + group.items.length,
-    0,
-  );
+  const visibleChallengeCount = filteredChallenges.length;
   const rewardTrack = useMemo(
     () =>
       Array.from({ length: 20 }, (_, index) => {
@@ -235,6 +264,8 @@ export const PrestigeOverlay = ({
     if (!category) return challenge.goal;
     return `Post a ${getCategoryChallengeTarget(category.metric)}+ ${category.metricLabel.toLowerCase()} score.`;
   };
+  const activeDifficultyTab =
+    challengeDifficultyTabs.find((tab) => tab.id === challengeDifficulty) ?? challengeDifficultyTabs[0];
 
   const overlay = (
     <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/82 px-4 py-8 backdrop-blur-md">
@@ -800,9 +831,9 @@ export const PrestigeOverlay = ({
 
             <div className="flex flex-col gap-4 rounded-[24px] border border-white/10 bg-white/5 p-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Challenge Filter</div>
+                <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Challenge Tier</div>
                 <div className="mt-2 text-sm text-slate-200">
-                  Open routes stay front and center by default. Completed clears are still easy to revisit.
+                  {activeDifficultyTab.description}
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -836,116 +867,121 @@ export const PrestigeOverlay = ({
               </div>
             </div>
 
-            <div className="space-y-6">
-              {filteredChallengeGroups.length > 0 ? (
-                filteredChallengeGroups.map(({ challenge, items }) => (
-                <section
-                  key={challenge.id}
-                  className="rounded-[28px] border border-white/10 bg-white/5 p-6"
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {challengeDifficultyTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setChallengeDifficulty(tab.id)}
+                  className={`rounded-[22px] border px-4 py-4 text-left transition ${
+                    challengeDifficulty === tab.id
+                      ? "border-white/20 bg-white/10"
+                      : "border-white/10 bg-black/20 hover:border-white/16 hover:bg-white/6"
+                  }`}
                 >
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                    <div>
-                      <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
-                        Primary Challenge Group
-                      </div>
-                      <h3 className="mt-2 font-display text-3xl text-white">{challenge.title}</h3>
-                      <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300">
-                        {challenge.description}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="rounded-full border border-sky-300/16 bg-sky-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-100">
-                        Challenges {items[0]?.order ?? "--"}-{items[items.length - 1]?.order ?? "--"}
-                      </div>
-                      <div className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-300">
-                        {items.filter((item) => completedRouteIds.has(item.id)).length} / {items.length} cleared
-                      </div>
-                    </div>
+                  <div className={`inline-flex rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${tab.toneClass}`}>
+                    {tab.label}
                   </div>
+                  <div className="mt-3 text-sm leading-6 text-slate-300">{tab.description}</div>
+                </button>
+              ))}
+            </div>
+            <div className="space-y-6">
+              {filteredChallenges.length > 0 ? (
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {filteredChallenges.map((item) => {
+                    const completed = completedRouteIds.has(item.id);
+                    const challenge = draftChallenges.find((entry) => entry.id === item.draftChallengeId);
+                    const category = item.categoryChallengeId ? getCategoryChallengeById(item.categoryChallengeId) : null;
+                    const rareEvent = getRareEventById(item.rareEventId);
+                    const difficultyTab =
+                      challengeDifficultyTabs.find((tab) => tab.id === item.difficulty) ?? activeDifficultyTab;
 
-                  <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                    {items.map((item) => {
-                      const completed = completedRouteIds.has(item.id);
-                      return (
-                        <div
-                          key={item.id}
-                          className={`rounded-[24px] border p-5 ${
-                            completed
-                              ? "border-emerald-300/18 bg-emerald-300/8"
-                              : "border-white/10 bg-black/20"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div>
-                              <div className="flex flex-wrap items-center gap-3">
-                                <div className="rounded-full border border-amber-200/18 bg-amber-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100">
-                                  #{item.order}
-                                </div>
-                                <div className="text-sm font-semibold text-white">{item.title}</div>
+                    return (
+                      <div
+                        key={item.id}
+                        className={`rounded-[24px] border p-5 ${
+                          completed
+                            ? "border-emerald-300/18 bg-emerald-300/8"
+                            : "border-white/10 bg-black/20"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-3">
+                              <div className="rounded-full border border-amber-200/18 bg-amber-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100">
+                                #{item.order}
                               </div>
-                              <div className="mt-2 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.18em]">
-                                <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/6 px-3 py-1 text-slate-300">
-                                  <Swords size={12} />
-                                  {challenge.title}
-                                </span>
-                                <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/6 px-3 py-1 text-slate-300">
-                                  <Zap size={12} />
-                                  {item.rareEventId === standardRareEvent.id ? "Standard" : item.title.split(" • ")[1]}
-                                </span>
-                                <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/6 px-3 py-1 text-slate-300">
-                                  <Target size={12} />
-                                  {item.categoryChallengeId ? item.title.split(" • ")[2] : "No Focus"}
-                                </span>
+                              <div
+                                className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${difficultyTab.toneClass}`}
+                              >
+                                {difficultyTab.label}
                               </div>
                             </div>
-                            <div className="shrink-0 text-right">
-                              <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Reward</div>
-                              <div className="mt-1 text-2xl font-semibold text-amber-100">+{item.reward}</div>
+                            <div className="mt-3 text-lg font-semibold text-white">{item.title}</div>
+                            <div className="mt-2 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.18em]">
+                              <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/6 px-3 py-1 text-slate-300">
+                                <Swords size={12} />
+                                {challenge?.title ?? "Challenge"}
+                              </span>
+                              <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/6 px-3 py-1 text-slate-300">
+                                <Zap size={12} />
+                                {rareEvent.id === standardRareEvent.id ? "Standard" : rareEvent.title}
+                              </span>
+                              <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/6 px-3 py-1 text-slate-300">
+                                <Target size={12} />
+                                {category ? category.metricLabel : "No Focus"}
+                              </span>
                             </div>
                           </div>
-
-                          <div className="mt-4 text-sm leading-7 text-slate-300">{item.description}</div>
-                          <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
-                            Clear goal: {getRouteGoalLabel(item)}
+                          <div className="shrink-0 text-right">
+                            <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Reward</div>
+                            <div className="mt-1 text-2xl font-semibold text-amber-100">+{item.reward}</div>
                           </div>
+                        </div>
 
-                          <div className="mt-5 flex items-center justify-between gap-3">
-                            <div className={`rounded-full px-3 py-1 text-xs uppercase tracking-[0.18em] ${
+                        <div className="mt-4 text-sm leading-7 text-slate-300">{item.description}</div>
+                        <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
+                          Clear goal: {getRouteGoalLabel(item)}
+                        </div>
+
+                        <div className="mt-5 flex items-center justify-between gap-3">
+                          <div
+                            className={`rounded-full px-3 py-1 text-xs uppercase tracking-[0.18em] ${
                               completed
                                 ? "border border-emerald-300/18 bg-emerald-300/12 text-emerald-100"
                                 : "border border-amber-200/18 bg-amber-300/10 text-amber-100"
-                            }`}>
-                              {completed ? "Cleared" : "Open"}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onApplyChallengePreset(item);
-                                onClose();
-                              }}
-                              className="rounded-full border border-white/10 bg-white/8 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:border-sky-300/24 hover:bg-sky-300/10"
-                            >
-                              {completed ? "Replay Setup" : "Load Setup"}
-                            </button>
+                            }`}
+                          >
+                            {completed ? "Cleared" : "Open"}
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onApplyChallengePreset(item);
+                              onClose();
+                            }}
+                            className="rounded-full border border-white/10 bg-white/8 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:border-sky-300/24 hover:bg-sky-300/10"
+                          >
+                            {completed ? "Replay Setup" : "Load Setup"}
+                          </button>
                         </div>
-                      );
-                    })}
-                  </div>
-                </section>
-                ))
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
                 <div className="rounded-[28px] border border-dashed border-white/10 bg-white/5 p-8 text-sm leading-7 text-slate-300">
                   {challengeFilter === "open"
-                    ? "You have already cleared every challenge route in the current catalog. Switch to Completed to review your full mastery board."
-                    : "No challenge clears yet. Finish a loaded challenge route and it will appear here."}
+                    ? `You have already cleared every ${activeDifficultyTab.label.toLowerCase()} challenge route in the current catalog. Switch tiers or open Completed to review your mastery board.`
+                    : `No ${activeDifficultyTab.label.toLowerCase()} challenge clears yet. Finish one of these routes and it will appear here.`}
                 </div>
               )}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+	            </div>
+	            </div>
+	        )}
+	      </div>
+	    </div>
   );
 
   if (typeof document === "undefined") {
@@ -954,3 +990,4 @@ export const PrestigeOverlay = ({
 
   return createPortal(overlay, document.body);
 };
+

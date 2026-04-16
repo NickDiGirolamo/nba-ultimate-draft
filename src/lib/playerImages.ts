@@ -25,6 +25,12 @@ const wikiTitleOverrides: Record<string, string> = {
   "lebron-james-14-18": "LeBron_James",
   "lebron-james-lakers": "LeBron_James",
   "luka-doncic": "Luka_Don%C4%8Di%C4%87",
+  "luka-doncic-mavericks": "Luka_Don%C4%8Di%C4%87",
+  "luka-doncic-lakers": "Luka_Don%C4%8Di%C4%87",
+  "austin-reaves": "Austin_Reaves",
+  "pascal-siakam": "Pascal_Siakam",
+  "pascal-siakam-raptors": "Pascal_Siakam",
+  "pascal-siakam-pacers": "Pascal_Siakam",
   "giannis-antetokounmpo": "Giannis_Antetokounmpo",
   "dikembe-mutombo": "Dikembe_Mutombo",
   "yao-ming": "Yao_Ming",
@@ -34,6 +40,8 @@ const wikiTitleOverrides: Record<string, string> = {
   "penny-hardaway": "Anfernee_Hardaway",
   "amar-e-stoudemire": "Amar%27e_Stoudemire",
   "kyrie-irving": "Kyrie_Irving",
+  "kyrie-irving-cavs": "Kyrie_Irving",
+  "kyrie-irving-mavs": "Kyrie_Irving",
   "chauncey-billups": "Chauncey_Billups",
   "walt-frazier": "Walt_Frazier",
   "drazen-petrovic": "Dra%C5%BEen_Petrovi%C4%87",
@@ -41,6 +49,8 @@ const wikiTitleOverrides: Record<string, string> = {
 };
 
 const directImageOverrides: Record<string, string> = {
+  "aaron-gordon":
+    "https://heavy.com/wp-content/uploads/2025/05/Aaron-Gordon.jpg?quality=65&strip=all",
   "lebron-james-03-10":
     "https://people.com/thmb/JniFF0gr_aiZGdimoMhcJBZy-Y8=/4000x0/filters:no_upscale():max_bytes(150000):strip_icc():focal(667x0:669x2)/gettyimages-2674798-2000-54630ad5a0da4f9183d390d943552844.jpg",
   "lebron-james-heat":
@@ -81,7 +91,9 @@ const directImageOverrides: Record<string, string> = {
     "https://www.sportsnet.ca/wp-content/uploads/2013/07/allen_ray640.jpg",
   "ray-allen-celtics":
     "https://www.telegram.com/gcdn/authoring/2012/07/07/NTEG/ghows-WT-a43ed083-7b8a-4e5f-85b5-85f31a6db240-71e16e40.jpeg?width=660&height=1018&fit=crop&format=pjpg&auto=webp",
-  "dennis-rodman":
+  "dennis-rodman-pistons":
+    "https://res.cloudinary.com/ybmedia/image/upload/c_crop,h_2000,w_1358,x_0,y_0/c_scale,f_auto,q_auto,w_700/v1/m/f/4/f467f1fe94bb4e70abf58cfe4132f4035fd188ca/drafted-detroit-pistons.jpg",
+  "dennis-rodman-bulls":
     "https://legacymedia.sportsplatform.io/images_root/slides/photos/000/537/881/245838_original.jpg?1291222858",
   "deron-williams":
     "https://www.ocregister.com/wp-content/uploads/migration/kpl/kplldb-05smith1large.jpg?w=640",
@@ -131,6 +143,8 @@ const directImageOverrides: Record<string, string> = {
     "https://seattlerefined.com/resources/media2/original/full/1600/center/80/6a629ef3-d789-4f97-981d-732166f15da4-GettyImages2007517168.jpg",
   "hakeem-olajuwon":
     "https://preview.redd.it/i-asked-gemini-to-argue-why-hakeem-olajuwon-is-the-greatest-v0-098c1wd77ege1.jpeg?width=640&crop=smart&auto=webp&s=ba0ec03f9f7f9a70bdb2f5d9d9737c66f624f8bd",
+  "earl-monroe":
+    "https://i.ebayimg.com/images/g/TFAAAOSwPxpg~1Qk/s-l1200.jpg",
   "dominique-wilkins":
     "https://i.namu.wiki/i/_p4r0n_sWZahVy6vsCWg4dK1KcNNx2vBCbSJjwbjB0B365GupjEiopY2yTuP-jncxj9LCC3gJA60vmcfXrebCg.webp",
   "isiah-thomas":
@@ -155,10 +169,14 @@ const directImageOverrides: Record<string, string> = {
     "https://library.sportingnews.com/styles/crop_style_16_9_desktop_webp/s3/2025-11/USATSI_27497309.jpg.webp?itok=NN6B__v3",
   "john-stockton":
     "https://static.wikia.nocookie.net/nba/images/9/99/John_Stockton.jpg/revision/latest?cb=20110427165243",
+  "john-starks":
+    "https://images.imagerenderer.com/images/artworkimages/mediumlarge/3/john-starks-andrew-d-bernstein.jpg",
   "joel-embiid":
     "https://legacymedia.sportsplatform.io/image/upload/x_0,y_184,w_1800,h_1200,c_crop/v1714164900/hfsvqpzkbmjjxnmiqlpf.jpg",
   "joe-johnson":
     "https://i.redd.it/tgqn26s5m1tb1.jpg",
+  "joe-dumars":
+    "https://images.imagerenderer.com/images/artworkimages/mediumlarge/3/1-joe-dumars-rocky-widner.jpg",
   "george-mikan":
     "https://cdn.britannica.com/25/61925-050-82F1265F/George-Mikan.jpg",
   "joakim-noah":
@@ -167,11 +185,17 @@ const directImageOverrides: Record<string, string> = {
     "https://substackcdn.com/image/fetch/$s_!qTIb!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F8c741afd-26ed-4064-b63a-26e15ab21a9b_1200x675.jpeg",
   "jermaine-o-neal":
     "https://talksport.com/wp-content/uploads/2025/06/GettyImages-1256412765.jpg?strip=all&w=636",
+  "jalen-rose":
+    "https://cdn.nba.com/teams/legacy/www.nba.com/pacers/sites/pacers/files/506131_10_0.jpg",
   "john-wall":
     "https://upload.wikimedia.org/wikipedia/commons/e/ef/Wall2wizz.jpg",
   "james-worthy":
     "https://www.legendsofbasketball.com/wp-content/uploads/2012/02/566140-james_worthy_large.jpg",
   "kawhi-leonard":
+    "https://www.uticaod.com/gcdn/authoring/2019/06/13/NOBD/ghows-NY-b55ce3d7-0e3c-4aa1-a1ea-a6c5cb5c94c2-1f669383.jpeg?width=1200&disable=upscale&format=pjpg&auto=webp",
+  "kawhi-leonard-spurs":
+    "https://www.uticaod.com/gcdn/authoring/2019/06/13/NOBD/ghows-NY-b55ce3d7-0e3c-4aa1-a1ea-a6c5cb5c94c2-1f669383.jpeg?width=1200&disable=upscale&format=pjpg&auto=webp",
+  "kawhi-leonard-raptors":
     "https://www.uticaod.com/gcdn/authoring/2019/06/13/NOBD/ghows-NY-b55ce3d7-0e3c-4aa1-a1ea-a6c5cb5c94c2-1f669383.jpeg?width=1200&disable=upscale&format=pjpg&auto=webp",
   "kobe-bryant":
     "https://cdn.artphotolimited.com/images/67ceea65865e9b3b9ef7de2b/300x300/kobe-bryant-2001-nba-finals.jpg",
@@ -179,9 +203,17 @@ const directImageOverrides: Record<string, string> = {
     "https://static01.nyt.com/images/2017/04/07/sports/07durant-web1/07durant-web1-articleLarge.jpg?quality=75&auto=webp&disable=upscale",
   "kevin-love":
     "https://upload.wikimedia.org/wikipedia/commons/8/81/Kevin_Love_2.jpg",
+  "kevin-love-timberwolves":
+    "https://upload.wikimedia.org/wikipedia/commons/8/81/Kevin_Love_2.jpg",
+  "kevin-love-cavs":
+    "https://upload.wikimedia.org/wikipedia/commons/8/81/Kevin_Love_2.jpg",
   "khris-middleton":
     "https://legacymedia.sportsplatform.io/image/upload/x_0,y_162,w_1800,h_1195,c_crop/v1733413087/gz9weasipxfilgyr6uke.jpg",
   "kyrie-irving":
+    "https://www.usatoday.com/gcdn/-mm-/daafdabb5e49ae55569e2dbfe59cf6ee99818eef/c=87-0-2373-3048/local/-/media/2017/05/24/USATODAY/USATODAY/636311815863708051-USP-NBA-PLAYOFFS-BOSTON-CELTICS-AT-CLEVELAND-CAVA-91150919-1-.JPG?width=660&height=881&fit=crop&format=pjpg&auto=webp",
+  "kyrie-irving-cavs":
+    "https://www.usatoday.com/gcdn/-mm-/daafdabb5e49ae55569e2dbfe59cf6ee99818eef/c=87-0-2373-3048/local/-/media/2017/05/24/USATODAY/USATODAY/636311815863708051-USP-NBA-PLAYOFFS-BOSTON-CELTICS-AT-CLEVELAND-CAVA-91150919-1-.JPG?width=660&height=881&fit=crop&format=pjpg&auto=webp",
+  "kyrie-irving-mavs":
     "https://www.usatoday.com/gcdn/-mm-/daafdabb5e49ae55569e2dbfe59cf6ee99818eef/c=87-0-2373-3048/local/-/media/2017/05/24/USATODAY/USATODAY/636311815863708051-USP-NBA-PLAYOFFS-BOSTON-CELTICS-AT-CLEVELAND-CAVA-91150919-1-.JPG?width=660&height=881&fit=crop&format=pjpg&auto=webp",
   "lamarcus-aldridge":
     "https://www.usatoday.com/gcdn/-mm-/cc18c14920ff4d366d49560a7f4acafbc28884e2/c=85-81-1484-1947/local/-/media/2015/07/04/USATODAY/USATODAY/635716344825258869-USP-NBA-PLAYOFFS-PORTLAND-TRAIL-BLAZERS-AT-MEMPHI-72530096.JPG",
@@ -194,6 +226,10 @@ const directImageOverrides: Record<string, string> = {
   "larry-johnson":
     "https://cdn.nba.com/teams/legacy/www.nba.com/hornets/sites/hornets/files/johnson_24.jpg",
   "luka-doncic":
+    "https://media.about.nike.com/img/c287f478-579c-4c31-a5da-3a92411694e9/luka-doncic-enlarge2-2.jpg?m=eyJlZGl0cyI6eyJqcGVnIjp7InF1YWxpdHkiOjEwMH0sIndlYnAiOnsicXVhbGl0eSI6MTAwfSwiZXh0cmFjdCI6eyJsZWZ0Ijo3OTQsInRvcCI6MTAsIndpZHRoIjoxMjc1LCJoZWlnaHQiOjIxMjN9LCJyZXNpemUiOnsid2lkdGgiOjM4NDB9fX0%3D&s=383fe9bab9113f62527527c9c79a8719d45edbdf7d0213113a9373d21d927848",
+  "luka-doncic-mavericks":
+    "https://media.about.nike.com/img/c287f478-579c-4c31-a5da-3a92411694e9/luka-doncic-enlarge2-2.jpg?m=eyJlZGl0cyI6eyJqcGVnIjp7InF1YWxpdHkiOjEwMH0sIndlYnAiOnsicXVhbGl0eSI6MTAwfSwiZXh0cmFjdCI6eyJsZWZ0Ijo3OTQsInRvcCI6MTAsIndpZHRoIjoxMjc1LCJoZWlnaHQiOjIxMjN9LCJyZXNpemUiOnsid2lkdGgiOjM4NDB9fX0%3D&s=383fe9bab9113f62527527c9c79a8719d45edbdf7d0213113a9373d21d927848",
+  "luka-doncic-lakers":
     "https://media.about.nike.com/img/c287f478-579c-4c31-a5da-3a92411694e9/luka-doncic-enlarge2-2.jpg?m=eyJlZGl0cyI6eyJqcGVnIjp7InF1YWxpdHkiOjEwMH0sIndlYnAiOnsicXVhbGl0eSI6MTAwfSwiZXh0cmFjdCI6eyJsZWZ0Ijo3OTQsInRvcCI6MTAsIndpZHRoIjoxMjc1LCJoZWlnaHQiOjIxMjN9LCJyZXNpemUiOnsid2lkdGgiOjM4NDB9fX0%3D&s=383fe9bab9113f62527527c9c79a8719d45edbdf7d0213113a9373d21d927848",
   "luol-deng":
     "https://s.yimg.com/ny/api/res/1.2/GEAryxjoxksW27QRWzM0Zg--/YXBwaWQ9aGlnaGxhbmRlcjt3PTQyMDtoPTEyMTA7Y2Y9d2VicA--/https://s.yimg.com/os/en_US/Sports/USA_Today/20130422_ajl_aw8_068-c6ede438b04fba0c579c583e4f962544",
@@ -211,10 +247,16 @@ const directImageOverrides: Record<string, string> = {
     "https://s.hdnux.com/photos/65/02/217260/4/1920x0.jpg",
   "manu-ginobili":
     "https://cdn.nba.com/manage/2022/09/ginobili-emotion.jpg",
+  "clint-capela":
+    "https://imageio.forbes.com/specials-images/dam/imageserve/955500076/0x0.jpg?format=jpg&height=900&width=1600&fit=bounds",
+  "kenny-smith":
+    "https://images.wsj.net/im-771297?width=1280&size=0.654",
+  "michael-finley":
+    "https://images.imagerenderer.com/images/artworkimages/mediumlarge/3/michael-finley-glenn-james.jpg",
   "michael-jordan":
     "https://static.wikia.nocookie.net/nbastreet/images/9/97/FDB1BF72-3F75-446F-B4F2-000331AE638B.jpeg/revision/latest?cb=20210419024456",
   "mike-bibby":
-    "https://cdn.nba.com/teams/legacy/www.nba.com/kings/sites/kings/files/mikebibbypodcast_web.jpg",
+    "https://www.legendsofbasketball.com/wp-content/uploads/2020/11/mike-bibby.jpg",
   "mike-conley":
     "https://legacymedia.sportsplatform.io/img/images/photos/003/647/141/ee95d67ca7a8afeca79d93afec516857_crop_north.jpg?1481914896&w=630&h=420",
   "mitch-richmond":
@@ -233,6 +275,10 @@ const directImageOverrides: Record<string, string> = {
     "https://www.usatoday.com/gcdn/-mm-/b994c4db0d3ad6e1dd59bd1cbe0b122ac2f1694c/c=50-69-1108-1480/local/-/media/2015/03/03/USATODAY/USATODAY/635609924377957622-XXX-SUNS-KINGS-1316381.JPG?width=660&height=881&fit=crop&format=pjpg&auto=webp",
   "wilt-chamberlain":
     "https://i.redd.it/r5zobke7ea9e1.jpeg",
+  "otis-thorpe":
+    "https://alchetron.com/cdn/otis-thorpe-eb87a7c4-ac10-4f52-8ee1-eeebc7a4ffe-resize-750.jpeg",
+  "wally-szczerbiak":
+    "https://preview.redd.it/timberwolves-in-history-wally-szczerbiak-v0-z00uhwtz8m2f1.jpeg?auto=webp&s=9a5baad8cdd411679646b78ac6a3fa88a768ea03",
   "walt-frazier":
     "https://cdn.britannica.com/07/258007-050-4F67E33A/Basketball-player-Walt-Frazier-dribbles-the-ball-against-the-Baltimore-Bullets-during-an-NBA-basketball-game-1971.jpg",
   "oscar-robertson":
@@ -241,6 +287,12 @@ const directImageOverrides: Record<string, string> = {
     "https://static.wikia.nocookie.net/nbasports/images/9/91/San_Antonio_Spurs_v_Los_Angeles_Lakers_Game_0_MoFFLaWuhl.jpg/revision/latest/scale-to-width-down/323?cb=20130705212405",
   "paul-george":
     "https://cdn.nba.com/teams/legacy/www.nba.com/pacers/sites/pacers/files/pgstepsup.jpg",
+  "pascal-siakam":
+    "https://cdn.nba.com/teams/legacy/www.nba.com/raptors/sites/raptors/files/siakam_0.jpg",
+  "pascal-siakam-raptors":
+    "https://www.sportsnet.ca/wp-content/uploads/2022/04/Siakam-4-768x432.jpg",
+  "pascal-siakam-pacers":
+    "https://cdn.nba.com/teams/legacy/www.nba.com/raptors/sites/raptors/files/siakam_0.jpg",
   "patrick-ewing":
     "https://blacknewsandviews.com/wp-content/uploads/2025/02/PatrickEwing-Knicks-SHIB-AP-BNV-scaled.jpg",
   "rajon-rondo":
@@ -261,6 +313,8 @@ const directImageOverrides: Record<string, string> = {
     "https://www.tuscaloosanews.com/gcdn/authoring/2007/08/09/NTTN/ghows-DA-956c6365-614f-4280-8405-f5e1f84e025e-1569fd9a.jpeg?width=1200&disable=upscale&format=pjpg&auto=webp",
   "robert-parish":
     "https://s.yimg.com/ny/api/res/1.2/882IvYtfStkE8iCZMwl3qw--/YXBwaWQ9aGlnaGxhbmRlcjt3PTY0MDtoPTc4MTtjZj13ZWJw/https://media.zenfs.com/en/celtics_wire_usa_today_sports_articles_699/3c37a5b411ecd07a9130974c2c565823",
+  "robert-horry":
+    "https://oneway77jc.com/cdn/shop/products/ROBERT.jpg?v=1666502059",
   "richard-jefferson":
     "https://netswire.usatoday.com/gcdn/authoring/images/smg/2024/12/28/SNET/77289195007-9-8521.jpeg",
   "russell-westbrook":
@@ -272,7 +326,7 @@ const directImageOverrides: Record<string, string> = {
   "ralph-sampson":
     "https://ca-times.brightspotcdn.com/dims4/default/081ceb5/2147483647/strip/true/crop/2400x3598+0+0/resize/1200x1799!/quality/75/?url=https%3A%2F%2Fcalifornia-times-brightspot.s3.amazonaws.com%2Ffd%2F1d%2F94f40646432fb2f69e6a85371d01%2Fgettyimages-52165394.jpg",
   "rudy-gobert":
-    "https://preview.redd.it/rudy-gobert-most-overpaid-centre-in-the-league-player-v0-h8d1onx1y8yf1.jpeg?auto=webp&s=ae785a82d69885d504af76751efe8c218fafbdc0",
+    "https://legacymedia.sportsplatform.io/image/upload/v1713116336/nvzfg9fkiesiqwugi1fh.jpg",
   "rudy-gay":
     "https://fadeawayworld.net/wp-content/uploads/2025/09/rudy-gay-speaks-to-a-fan-during-a-game-between-the-memphis-grizzlies-and-dallas-mavericks-1536x1075.jpg",
   "spud-webb":
@@ -291,10 +345,14 @@ const directImageOverrides: Record<string, string> = {
     "https://images.imagerenderer.com/images/artworkimages/mediumlarge/3/bill-walton-dick-raphael.jpg",
   "blake-griffin":
     "https://www.rollingstone.com/wp-content/uploads/2018/06/rs-20057-20140415-blakeg-x1800-1397571870.jpg",
+  "brandon-roy":
+    "https://static.wikia.nocookie.net/nba/images/5/53/Brandon_Roy.jpg/revision/latest?cb=20110426210630",
   "chris-paul-hornets":
     "https://legacymedia.sportsplatform.io/images_root/slides/photos/000/538/714/106958476_original.jpg?1291243979",
   "chris-paul-clippers":
     "https://gsp-image-cdn.wmsports.io/cms/prod/bleacher-report/getty_images/136109782_large_image.jpg",
+  "chet-holmgren":
+    "https://legacymedia.sportsplatform.io/image/upload/x_0,y_216,w_1797,h_1194,c_crop/v1698460257/re2eaatw1j7pcnzfcjwc.jpg",
   "chris-bosh-raptors":
     "https://images2.minutemediacdn.com/image/upload/c_fill,w_1200,ar_16:9,f_auto,q_auto,g_auto/shape/cover/sport/a8bb8cc1a3d67c9f3771e8de4b8205cde8398598f32aa66dae02d52c5d6c7eb8.jpg",
   "chris-bosh-heat":
@@ -305,9 +363,15 @@ const directImageOverrides: Record<string, string> = {
     "https://preview.redd.it/how-well-do-you-guys-see-a-prime-chris-webber-doing-in-v0-l2kk3m3vv2xf1.jpeg?width=640&crop=smart&auto=webp&s=5a5b2716a6b1f5db7dca2179333fd4db7077faf7",
   "cj-mccollum":
     "https://cdn.nba.com/manage/2020/10/cj-mccollum-784x492.jpg",
-  "charles-barkley":
+  "charles-barkley-76ers":
+    "https://cdn.nba.com/teams/uploads/sites/1610612755/2023/01/barkley2.png",
+  "charles-barkley-suns":
     "https://cdn.nba.com/teams/uploads/sites/1610612755/2023/01/barkley2.png",
   "anthony-davis":
+    "https://www.usatoday.com/gcdn/presto/2019/01/25/USAT/8face4bf-fda9-4585-8fce-19d456e2fe5d-2019-01-24_Anthony_Davis1.jpg?crop=1744,2326,x365,y211",
+  "anthony-davis-pelicans":
+    "https://www.usatoday.com/gcdn/presto/2019/01/25/USAT/8face4bf-fda9-4585-8fce-19d456e2fe5d-2019-01-24_Anthony_Davis1.jpg?crop=1744,2326,x365,y211",
+  "anthony-davis-lakers":
     "https://www.usatoday.com/gcdn/presto/2019/01/25/USAT/8face4bf-fda9-4585-8fce-19d456e2fe5d-2019-01-24_Anthony_Davis1.jpg?crop=1744,2326,x365,y211",
   "anthony-edwards":
     "https://cdn.nba.com/teams/uploads/sites/1610612750/2025/01/GettyImages-2155325565.jpg",
@@ -315,12 +379,16 @@ const directImageOverrides: Record<string, string> = {
     "https://www.legendsofbasketball.com/wp-content/uploads/2012/02/AG.jpg",
   "baron-davis":
     "https://warriorswire.usatoday.com/gcdn/authoring/images/smg/2024/11/14/SWAR/76307665007-33-24745.jpeg",
+  "bruce-bowen":
+    "https://www.legendsofbasketball.com/wp-content/uploads/2020/11/bruce-bowen.jpg",
   "andrei-kirilenko":
     "https://i.redd.it/j3hz609fagz91.jpg",
   "adrian-dantley":
     "https://cdn.nba.com/teams/uploads/sites/1610612762/2023/11/GettyImages-499320108.jpg",
   "alex-english":
     "https://images.imagerenderer.com/images/artworkimages/mediumlarge/2/denver-nuggets-alex-english-andrew-d-bernstein.jpg",
+  "allan-houston":
+    "https://www.backsportspage.com/wp-content/uploads/2017/06/allan_houston.jpg",
   "al-horford":
     "https://cdn.nba.com/teams/legacy/www.nba.com/hawks/sites/hawks/files/horford-easternconference.jpg",
   "allen-iverson":
@@ -333,18 +401,28 @@ const directImageOverrides: Record<string, string> = {
     "https://cdn.nba.com/teams/legacy/www.nba.com/jazz/sites/jazz/files/gettyimages-98852331.jpg",
   "chauncey-billups":
     "https://news.cgtn.com/news/3355544d356b6a4e306b544d3541444f3359444f31457a6333566d54/img/90771ec99d1e41d691b78f720b733601/90771ec99d1e41d691b78f720b733601.jpg",
-  "clyde-drexler":
+  "darryl-dawkins":
+    "https://i.redd.it/5oi85lhhnpug1.jpeg",
+  "clyde-drexler-blazers":
+    "https://images.imagerenderer.com/images/artworkimages/mediumlarge/3/clyde-drexler-dale-tait.jpg",
+  "clyde-drexler-rockets":
     "https://images.imagerenderer.com/images/artworkimages/mediumlarge/3/clyde-drexler-dale-tait.jpg",
   "shaquille-o-neal":
     "https://preview.redd.it/who-would-you-rather-have-prime-shaq-or-prime-giannis-v0-d0ogt1n4r6pe1.jpg?width=640&crop=smart&auto=webp&s=d72c0c9849e683ce07b4bfbe0ed627556c0247c5",
   "shawn-kemp":
     "https://i.ebayimg.com/images/g/K9IAAOSwH-9emMX0/s-l1200.jpg",
+  "sam-cassell":
+    "https://cdn3.sbnation.com/imported_assets/590084/51824836.jpg.13789.0_display_image.jpg",
   "shai-gilgeous-alexander":
     "https://cdn.prod.website-files.com/64da5279f1559b26fb07550e/6834c822e2ddaf129383c171_Best%20Shai%20Gilgeous-Alexander%20Pick%20for%20Timberwolves%20vs.%20Thunder%20Game%204.jpg",
   "shawn-marion":
     "https://cdn.nba.com/teams/legacy/www.nba.com/suns/sites/suns/files/shawn_marion_retires_35.jpg",
   "scottie-pippen":
     "https://i.redd.it/x1b00sjpzz7d1.jpeg",
+  "latrell-sprewell":
+    "https://cdn.nba.com/teams/legacy/www.nba.com/knicks/sites/knicks/files/gettyimages-72527249.jpg",
+  "detlef-schrempf":
+    "https://library.sportingnews.com/styles/twitter_card_120x120/s3/2021-08/detlef-schrempf_1w4bb26e9ij2s1iqm4xp8btugg.jpeg?itok=TTc5qR0B",
   "steph-curry":
     "https://compote.slate.com/images/24605cda-82b1-4342-9af9-4b86f684174b.jpg",
   "stephen-jackson":

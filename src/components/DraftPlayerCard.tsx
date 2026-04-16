@@ -20,6 +20,7 @@ interface DraftPlayerCardProps {
   disabled?: boolean;
   compact?: boolean;
   draftedPlayerIds?: string[];
+  actionLabel?: string;
 }
 
 export const DraftPlayerCard = ({
@@ -29,6 +30,7 @@ export const DraftPlayerCard = ({
   disabled,
   compact = false,
   draftedPlayerIds = [],
+  actionLabel = "Tap to draft",
 }: DraftPlayerCardProps) => {
   const visual = getPlayerVisual(player);
   const imageUrl = usePlayerImage(player);
@@ -45,32 +47,34 @@ export const DraftPlayerCard = ({
       onClick={() => onSelect?.(player)}
       disabled={disabled}
       className={clsx(
-        "tier-shine group relative flex h-full w-full flex-col overflow-hidden rounded-[26px] border bg-gradient-to-br p-5 text-left transition duration-300",
-        compact ? "min-h-[220px]" : "min-h-[1040px]",
+        "tier-shine group relative z-0 flex h-full w-full flex-col overflow-visible rounded-[26px] border bg-gradient-to-br text-left transition duration-300",
+        compact ? "min-h-[420px] p-4" : "min-h-[1040px] p-5",
         tierStyles[player.hallOfFameTier],
-        disabled ? "cursor-default opacity-70" : "hover:-translate-y-2 hover:scale-[1.01]",
+        disabled ? "cursor-default opacity-70" : "hover:z-20 hover:-translate-y-2 hover:scale-[1.01]",
         selected && "scale-[1.02] ring-2 ring-glow",
       )}
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_30%)]" />
 
-      <div className="relative mb-4 rounded-[22px] border border-white/12 bg-black/20 px-4 py-3 text-center">
-        <div className="text-[10px] uppercase tracking-[0.28em] text-slate-300">
-          Player Score
-        </div>
-        <div className="mt-2 font-display text-[2.6rem] font-semibold leading-none text-white">
+      <div
+        className={clsx(
+          "relative mb-4 rounded-[22px] border border-white/12 bg-black/20 text-center",
+          compact ? "px-4 py-3" : "px-4 py-3",
+        )}
+      >
+        <div className={clsx("font-display font-semibold leading-none text-white", compact ? "text-[2.3rem]" : "text-[2.6rem]")}>
           {player.overall}
         </div>
-        <div className="mt-2 text-[11px] font-medium uppercase tracking-[0.24em] text-white/90">
+        <div className={clsx("font-medium uppercase tracking-[0.2em] text-white/90", compact ? "mt-1.5 text-[10px]" : "mt-2 text-[11px]")}>
           {player.hallOfFameTier}-Tier
         </div>
       </div>
 
       <div
         className={clsx(
-          "relative mb-4 w-full flex-none overflow-hidden rounded-[22px]",
+          "relative mb-4 w-full flex-none overflow-hidden rounded-[24px]",
           imageUrl ? "bg-black" : visual.bg,
-          compact ? "h-[91px] min-h-[91px] max-h-[91px]" : "h-[303px] min-h-[303px] max-h-[303px]",
+          compact ? "h-[180px] min-h-[180px] max-h-[180px]" : "h-[303px] min-h-[303px] max-h-[303px]",
         )}
       >
         {imageUrl ? (
@@ -78,7 +82,10 @@ export const DraftPlayerCard = ({
             <img
               src={imageUrl}
               alt={player.name}
-              className="absolute inset-0 h-full w-full object-cover object-center"
+              className={clsx(
+                "absolute inset-0 h-full w-full",
+                compact ? "object-cover object-top scale-[1.02]" : "object-cover object-center",
+              )}
               loading="lazy"
               referrerPolicy="no-referrer"
             />
@@ -120,7 +127,15 @@ export const DraftPlayerCard = ({
         <div
           className={clsx(
             "font-display font-semibold leading-none text-white",
-            extremeName
+            compact
+              ? extremeName
+                ? "text-[0.98rem]"
+                : veryLongName
+                  ? "text-[1.08rem]"
+                  : longName
+                    ? "text-[1.2rem]"
+                    : "text-[1.38rem]"
+              : extremeName
               ? "text-[0.78rem]"
               : veryLongName
                 ? "text-[0.9rem]"
@@ -129,35 +144,47 @@ export const DraftPlayerCard = ({
                   : "text-[1.32rem]",
           )}
         >
-          <div className="whitespace-nowrap">{firstNameLine}</div>
-          <div className="mt-1 whitespace-nowrap">{lastNameLine}</div>
-          {versionLine ? <div className="mt-1 whitespace-nowrap text-[0.76em] text-slate-200/92">{versionLine}</div> : null}
+          <div className="truncate">{firstNameLine}</div>
+          <div className="mt-1 truncate">{lastNameLine}</div>
+          {versionLine ? <div className="mt-1 truncate text-[0.74em] text-slate-200/92">{versionLine}</div> : null}
         </div>
         <div
           className={clsx(
-            "mt-2 uppercase tracking-[0.18em] text-slate-300",
-            veryLongName ? "text-[10px]" : "text-[11px]",
+            "mt-2 text-slate-300",
+            compact ? "text-[10px]" : veryLongName ? "text-[10px]" : "text-[11px]",
           )}
         >
-          Natural Position: {naturalPositions}
+          <div className={clsx("uppercase text-slate-300/90", compact ? "tracking-[0.16em]" : "tracking-[0.18em]")}>
+            Natural Position:
+          </div>
+          <div className={clsx("mt-1 leading-5 text-white/92", compact ? "line-clamp-2 text-[11px]" : "text-[11px]")}>
+            {naturalPositions}
+          </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
           <DynamicDuoBadge
             playerId={player.id}
             draftedPlayerIds={draftedPlayerIds}
+            dense={compact}
           />
           <PlayerSynergyBadges
             playerId={player.id}
             draftedPlayerIds={draftedPlayerIds}
+            dense={compact}
             excludeTypes={["dynamic-duo"]}
           />
         </div>
       </div>
 
       <div className="relative mt-auto flex flex-col justify-end pt-3">
-        <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-slate-300 whitespace-nowrap text-center">
-          Tap to draft
-        </div>
+        <div
+          className={clsx(
+            "rounded-2xl border border-white/10 bg-white/5 px-3 text-center uppercase text-slate-300",
+            compact ? "py-2 text-[9px] tracking-[0.12em]" : "py-2 text-[10px] tracking-[0.16em]",
+          )}
+        >
+            {actionLabel}
+          </div>
       </div>
     </button>
   );

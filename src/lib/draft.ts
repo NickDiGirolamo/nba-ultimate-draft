@@ -3,6 +3,7 @@ import { Player, Position, RosterSlot, RosterSlotType } from "../types";
 import { clamp, mulberry32, randomItem, randomInt } from "./random";
 
 export const STORAGE_KEY = "legends-draft-state-v1";
+export const DRAFT_GENERATOR_VERSION = "2026-04-15-scarcity-v1";
 
 export const rosterTemplate = (): RosterSlot[] => [
   { slot: "PG", label: "Starting PG", allowedPositions: ["PG"], player: null },
@@ -19,11 +20,12 @@ export const rosterTemplate = (): RosterSlot[] => [
 
 const tierWeights: Record<string, number> = { S: 1.2, A: 2.4, B: 3.6, C: 1.7 };
 const choiceTierProfiles = [
-  { S: 2, A: 2, B: 1, C: 0 },
-  { S: 1, A: 2, B: 2, C: 0 },
-  { S: 1, A: 1, B: 2, C: 1 },
-  { S: 0, A: 2, B: 2, C: 1 },
-  { S: 0, A: 1, B: 3, C: 1 },
+  { weight: 34, slots: { S: 0, A: 1, B: 3, C: 1 } },
+  { weight: 26, slots: { S: 0, A: 1, B: 2, C: 2 } },
+  { weight: 18, slots: { S: 0, A: 2, B: 2, C: 1 } },
+  { weight: 10, slots: { S: 1, A: 1, B: 2, C: 1 } },
+  { weight: 6, slots: { S: 1, A: 2, B: 2, C: 0 } },
+  { weight: 6, slots: { S: 0, A: 0, B: 4, C: 1 } },
 ];
 
 const slotPriority: Record<RosterSlotType, number> = {
@@ -129,6 +131,18 @@ const fillRemainingChoices = (currentChoices: Player[], pool: Player[], rng: () 
   return [...currentChoices, ...weightedSampleWithoutReplacement(remainder, 5 - currentChoices.length, rng)];
 };
 
+const chooseTierProfile = (rng: () => number) => {
+  const totalWeight = choiceTierProfiles.reduce((sum, profile) => sum + profile.weight, 0);
+  let threshold = rng() * totalWeight;
+
+  for (const profile of choiceTierProfiles) {
+    threshold -= profile.weight;
+    if (threshold <= 0) return profile.slots;
+  }
+
+  return choiceTierProfiles[choiceTierProfiles.length - 1].slots;
+};
+
 const shuffleChoices = (choices: Player[], rng: () => number) => {
   const shuffled = [...choices];
 
@@ -154,7 +168,7 @@ export const generateChoices = (roster: RosterSlot[], draftedPlayerIds: string[]
       !draftedIdentityKeys.has(getPlayerIdentityKey(player)),
   );
   const neededPositions = chooseNeededPositions(roster);
-  const profile = randomItem(choiceTierProfiles, rng);
+  const profile = chooseTierProfile(rng);
   const choices: Player[] = [];
   const usedIds = new Set<string>();
 

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
   BookOpen,
@@ -9,7 +10,33 @@ import {
   Users,
   X,
   Zap,
+  Link2,
+  LayoutPanelTop,
 } from "lucide-react";
+
+const quickStartSteps = [
+  {
+    title: "Start with the challenge goal",
+    description:
+      "If the run is focused on offense, defense, passing, or another category, let that break ties between similar players from the very first pick.",
+    icon: Target,
+    tone: "text-amber-100 bg-amber-300/12 border-amber-200/15",
+  },
+  {
+    title: "Watch Chemistry every pick",
+    description:
+      "Chemistry now covers both badge synergies and whether your roster makes sense positionally, so it is one of the fastest ways to feel a pick's real impact.",
+    icon: Link2,
+    tone: "text-lime-100 bg-lime-300/12 border-lime-200/15",
+  },
+  {
+    title: "Use the reorder screen seriously",
+    description:
+      "Starter slots matter more than bench slots. A team can look strong on paper and still lose value if the roles are arranged poorly.",
+    icon: LayoutPanelTop,
+    tone: "text-sky-100 bg-sky-300/12 border-sky-200/15",
+  },
+];
 
 const categoryCards = [
   {
@@ -79,6 +106,16 @@ const badgeCards = [
     description:
       "High-friction player history. Rivals can change the way a roster feels and add interesting tension to lineup building.",
   },
+  {
+    label: "Role Player",
+    description:
+      "A supporting piece tied to a specific centerpiece star. These help complete identity builds and make certain stars feel more intentional to draft around.",
+  },
+  {
+    label: "Centerpiece",
+    description:
+      "A star who gets stronger when the right supporting role players are already on your roster. If this badge glows, drafting that star would cash in on work you've already done.",
+  },
 ];
 
 const gameplayNotes = [
@@ -93,6 +130,17 @@ interface LearnOverlayProps {
 }
 
 export const LearnOverlay = ({ onClose }: LearnOverlayProps) => {
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
   if (typeof document === "undefined") return null;
 
   return createPortal(
@@ -100,9 +148,9 @@ export const LearnOverlay = ({ onClose }: LearnOverlayProps) => {
       className="fixed inset-0 z-[130] bg-slate-950/72 backdrop-blur-md"
       onMouseDown={onClose}
     >
-      <div className="mx-auto flex min-h-screen max-w-[1280px] items-start justify-center px-4 py-8 md:px-6">
+      <div className="mx-auto flex h-screen max-w-[1280px] items-start justify-center overflow-y-auto px-4 py-8 md:px-6">
         <div
-          className="glass-panel w-full rounded-[34px] border border-white/12 bg-slate-950/95 p-6 shadow-card lg:p-8"
+          className="glass-panel my-auto w-full rounded-[34px] border border-white/12 bg-slate-950/95 p-6 shadow-card lg:p-8"
           onMouseDown={(event) => event.stopPropagation()}
         >
         <div className="flex items-start justify-between gap-4">
@@ -129,7 +177,20 @@ export const LearnOverlay = ({ onClose }: LearnOverlayProps) => {
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="glass-panel rounded-[28px] p-5 shadow-card">
-            <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Core Categories</div>
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Quick Start</div>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              {quickStartSteps.map((item) => (
+                <div key={item.title} className={`rounded-[22px] border p-4 ${item.tone}`}>
+                  <div className="flex items-center gap-2">
+                    <item.icon size={16} />
+                    <div className="font-semibold text-white">{item.title}</div>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-slate-200">{item.description}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 text-xs uppercase tracking-[0.22em] text-slate-400">Core Categories</div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               {categoryCards.map((item) => (
                 <div key={item.label} className={`rounded-[22px] border p-4 ${item.tone}`}>

@@ -40,6 +40,7 @@ interface ResultsShowcaseProps {
   roster: RosterSlot[];
   onDraftAgain: () => void;
   onBackToHome: () => void;
+  onBackToChallenges: () => void;
   meta: MetaProgress;
   history: RunHistoryEntry[];
 }
@@ -722,15 +723,139 @@ const PlayoffBracketBoard = ({ bracket }: { bracket: PlayoffBracket }) => (
   </div>
 );
 
+const getLeagueContextTone = (leagueContext: string) => {
+  const lower = leagueContext.toLowerCase();
+  if (lower.includes("loaded") || lower.includes("top-heavy")) {
+    return {
+      label: "Loaded Field",
+      className: "border-amber-200/18 bg-amber-300/10 text-amber-100",
+    };
+  }
+  if (lower.includes("balanced") || lower.includes("narrow")) {
+    return {
+      label: "Balanced Race",
+      className: "border-sky-200/18 bg-sky-300/10 text-sky-100",
+    };
+  }
+  return {
+    label: "League Context",
+    className: "border-emerald-200/18 bg-emerald-300/10 text-emerald-100",
+  };
+};
+
+const getChallengeAudit = (result: SimulationResult) => {
+  if (result.mode === "category-focus" && result.categoryChallenge) {
+    const target = getCategoryChallengeTarget(result.categoryChallenge.metric);
+    const score = result.focusScore ?? 0;
+    return {
+      headline: `${result.categoryChallenge.metricLabel}: ${score} / ${target}`,
+      detail:
+        score >= target
+          ? `You beat the required ${result.categoryChallenge.metricLabel.toLowerCase()} target by ${Math.round((score - target) * 10) / 10}.`
+          : `You finished ${Math.round((target - score) * 10) / 10} short of the required ${result.categoryChallenge.metricLabel.toLowerCase()} target.`,
+    };
+  }
+
+  return {
+    headline: `Playoff Finish: ${result.playoffFinish}`,
+    detail:
+      result.playoffFinish === "NBA Champion"
+        ? "This route clears because you finished the run as NBA Champion."
+        : "This route needed a championship. Everything else counts as a failed attempt.",
+  };
+};
+
+const ChallengeOutcomeBanner = ({
+  result,
+  surpriseClear,
+}: {
+  result: SimulationResult;
+  surpriseClear?: boolean;
+}) => {
+  const audit = getChallengeAudit(result);
+  const challengeTone = result.prestigeChallengeCleared
+    ? "border-emerald-200/30 bg-[linear-gradient(135deg,rgba(6,41,31,0.98),rgba(11,63,48,0.96),rgba(6,28,51,0.95))] shadow-[0_0_0_1px_rgba(110,231,183,0.08),0_0_42px_rgba(16,185,129,0.42)]"
+    : "border-rose-200/28 bg-[linear-gradient(135deg,rgba(60,14,24,0.98),rgba(84,22,36,0.96),rgba(36,12,32,0.95))] shadow-[0_0_0_1px_rgba(251,113,133,0.08),0_0_42px_rgba(244,63,94,0.38)]";
+  const iconTone = result.prestigeChallengeCleared
+    ? "bg-emerald-200/16 text-emerald-50"
+    : "bg-rose-200/16 text-rose-50";
+  const labelTone = result.prestigeChallengeCleared ? "text-emerald-100" : "text-rose-100";
+  const BannerIcon = result.prestigeChallengeCleared ? Crown : Swords;
+  const statusLine = result.prestigeChallengeCleared
+    ? `Challenge Cleared · +${result.prestigeChallengeReward ?? 0} Prestige XP`
+    : `Challenge Failed · +${result.prestigeChallengeReward ?? 0} Prestige XP was on the line`;
+
+  return (
+    <div className={`rounded-[32px] border p-6 ${challengeTone}`}>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] xl:items-stretch">
+        <div className="grid gap-4 xl:grid-cols-[auto_minmax(0,1fr)] xl:items-start">
+          <div className={`w-fit rounded-[22px] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${iconTone}`}>
+            {surpriseClear ? <Gift size={20} /> : <BannerIcon size={20} />}
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs uppercase tracking-[0.26em] text-slate-400">
+              {surpriseClear
+                ? "Bonus Challenge Clear"
+                : result.prestigeChallengeSource === "surprise"
+                  ? "Detected Challenge Route"
+                  : "Loaded Challenge Route"}
+            </div>
+            <h2 className="mt-2 font-display text-3xl text-white">
+              {result.prestigeChallengeTitle}
+            </h2>
+            <div className={`mt-2 text-sm font-semibold uppercase tracking-[0.18em] ${labelTone}`}>
+              {surpriseClear ? "You cleared an untracked challenge route on this run" : statusLine}
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className="rounded-[20px] border border-white/12 bg-black/18 p-4">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Challenge Goal</div>
+                <div className="mt-2 text-sm leading-6 text-slate-100">{result.prestigeChallengeGoal}</div>
+              </div>
+              <div className="rounded-[20px] border border-white/12 bg-black/18 p-4">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Challenge Audit</div>
+                <div className="mt-2 text-sm font-semibold text-white">{audit.headline}</div>
+                <div className="mt-1 text-sm leading-6 text-slate-300">{audit.detail}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:h-full">
+          <div className="flex h-full flex-col justify-between rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Prestige Reward</div>
+            <div className="mt-2 text-3xl font-semibold text-white">
+              +{result.prestigeChallengeReward ?? 0}
+            </div>
+            <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">One-time route payout</div>
+          </div>
+          <div className="flex h-full flex-col rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Outcome</div>
+            <div className="mt-2 text-xl font-semibold text-white">
+              {result.prestigeChallengeCleared ? "Challenge Cleared" : "Try Again"}
+            </div>
+            <div className="mt-1 text-xs leading-5 text-slate-400">
+              {result.prestigeChallengeCleared
+                ? "This route is now banked toward your Prestige progression."
+                : "You can replay this exact route from the Challenges page."}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const ResultsShowcase = ({
   result,
   roster,
   onDraftAgain,
   onBackToHome,
+  onBackToChallenges,
   meta,
   history,
 }: ResultsShowcaseProps) => {
   const [resultsPage, setResultsPage] = useState<"season" | "dashboard">("season");
+  const leagueContextTone = getLeagueContextTone(result.leagueContext);
   const prestigeChallengeActive = Boolean(
     result.prestigeChallengeId &&
       result.prestigeChallengeTitle &&
@@ -742,27 +867,11 @@ export const ResultsShowcase = ({
       result.prestigeChallengeSource === "surprise" &&
       result.prestigeChallengeNewlyCleared,
   );
-  const prestigeChallengeStatusLine = result.prestigeChallengeCleared
-    ? `Cleared for +${result.prestigeChallengeReward ?? 0} Prestige`
-    : `Failed · +${result.prestigeChallengeReward ?? 0} was on the line`;
-  const prestigeChallengeDetail =
-    result.mode === "category-focus"
-      ? `Final focus score: ${result.focusScore ?? 0} / ${
-          result.categoryChallenge
-            ? getCategoryChallengeTarget(result.categoryChallenge.metric)
-            : 95
-        } target`
-      : `Final playoff result: ${result.playoffFinish}`;
-  const prestigeChallengeTone = result.prestigeChallengeCleared
-    ? "border-emerald-200/30 bg-[linear-gradient(135deg,rgba(8,38,31,0.98),rgba(11,54,42,0.96),rgba(9,28,49,0.95))] shadow-[0_0_0_1px_rgba(110,231,183,0.08),0_0_38px_rgba(16,185,129,0.34)]"
-    : "border-rose-200/28 bg-[linear-gradient(135deg,rgba(56,14,21,0.98),rgba(76,21,33,0.96),rgba(36,12,32,0.95))] shadow-[0_0_0_1px_rgba(251,113,133,0.08),0_0_38px_rgba(244,63,94,0.32)]";
-  const prestigeChallengeIconTone = result.prestigeChallengeCleared
-    ? "bg-emerald-200/16 text-emerald-50"
-    : "bg-rose-200/16 text-rose-50";
-  const prestigeChallengeLabelTone = result.prestigeChallengeCleared
-    ? "text-emerald-100"
-    : "text-rose-100";
-  const PrestigeChallengeIcon = result.prestigeChallengeCleared ? Crown : Swords;
+  const showBackToChallenges = Boolean(
+    result.prestigeChallengeId ||
+      result.prestigeChallengeSource === "loaded" ||
+      result.prestigeChallengeSource === "surprise",
+  );
 
   if (result.mode === "category-focus" && result.categoryChallenge) {
     const focusHistory = history
@@ -791,87 +900,8 @@ export const ResultsShowcase = ({
 
     return (
       <section className="space-y-8">
-        {surpriseChallengeClear && (
-          <div className={`rounded-[32px] border p-6 ${prestigeChallengeTone}`}>
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-start gap-4">
-                <div className={`rounded-[22px] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${prestigeChallengeIconTone}`}>
-                  <Gift size={20} />
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-[0.26em] text-slate-400">
-                    Bonus Challenge Clear
-                  </div>
-                  <h2 className="mt-2 font-display text-3xl text-white">
-                    {result.prestigeChallengeTitle}
-                  </h2>
-                  <div className={`mt-2 text-sm font-semibold uppercase tracking-[0.18em] ${prestigeChallengeLabelTone}`}>
-                    You cleared an untracked challenge route on this run
-                  </div>
-                  <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-200">
-                    Goal: {result.prestigeChallengeGoal}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-400">{prestigeChallengeDetail}</p>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Prestige Reward</div>
-                  <div className="mt-2 text-3xl font-semibold text-white">
-                    +{result.prestigeChallengeReward ?? 0}
-                  </div>
-                </div>
-                <div className="rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Outcome</div>
-                  <div className="mt-2 text-xl font-semibold text-white">Challenge Cleared</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {prestigeChallengeActive && (
-          <div className={`rounded-[32px] border p-6 ${prestigeChallengeTone}`}>
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-start gap-4">
-                <div className={`rounded-[22px] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${prestigeChallengeIconTone}`}>
-                  <PrestigeChallengeIcon size={20} />
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-[0.26em] text-slate-400">
-                    {result.prestigeChallengeSource === "surprise" ? "Detected Challenge Route" : "Loaded Challenge Route"}
-                  </div>
-                  <h2 className="mt-2 font-display text-3xl text-white">
-                    {result.prestigeChallengeTitle}
-                  </h2>
-                  <div className={`mt-2 text-sm font-semibold uppercase tracking-[0.18em] ${prestigeChallengeLabelTone}`}>
-                    {prestigeChallengeStatusLine}
-                  </div>
-                  <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-200">
-                    Goal: {result.prestigeChallengeGoal}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-400">{prestigeChallengeDetail}</p>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Prestige Reward</div>
-                  <div className="mt-2 text-3xl font-semibold text-white">
-                    +{result.prestigeChallengeReward ?? 0}
-                  </div>
-                </div>
-                <div className="rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Outcome</div>
-                  <div className="mt-2 text-xl font-semibold text-white">
-                    {result.prestigeChallengeCleared ? "Challenge Cleared" : "Try Again"}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {surpriseChallengeClear && <ChallengeOutcomeBanner result={result} surpriseClear />}
+        {prestigeChallengeActive && <ChallengeOutcomeBanner result={result} />}
 
         <div className="glass-panel overflow-hidden rounded-[34px] p-8 shadow-card lg:p-10">
           <div className="relative flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
@@ -909,6 +939,16 @@ export const ResultsShowcase = ({
               <RotateCcw size={18} />
               Draft Again
             </button>
+            {showBackToChallenges ? (
+              <button
+                type="button"
+                onClick={onBackToChallenges}
+                className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/12"
+              >
+                <Target size={18} />
+                Back to Challenges
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={onBackToHome}
@@ -1158,6 +1198,16 @@ export const ResultsShowcase = ({
             <RotateCcw size={18} />
             Draft Again
           </button>
+          {showBackToChallenges ? (
+            <button
+              type="button"
+              onClick={onBackToChallenges}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/12 bg-white/8 px-7 py-3 text-sm font-semibold text-white transition hover:bg-white/12"
+            >
+              <Target size={18} />
+              Back to Challenges
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={onBackToHome}
@@ -1169,87 +1219,8 @@ export const ResultsShowcase = ({
         </div>
       </div>
 
-      {surpriseChallengeClear && (
-        <div className={`rounded-[32px] border p-6 ${prestigeChallengeTone}`}>
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-start gap-4">
-              <div className={`rounded-[22px] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${prestigeChallengeIconTone}`}>
-                <Gift size={20} />
-              </div>
-              <div>
-                <div className="text-xs uppercase tracking-[0.26em] text-slate-400">
-                  Bonus Challenge Clear
-                </div>
-                <h2 className="mt-2 font-display text-3xl text-white">
-                  {result.prestigeChallengeTitle}
-                </h2>
-                <div className={`mt-2 text-sm font-semibold uppercase tracking-[0.18em] ${prestigeChallengeLabelTone}`}>
-                  You cleared an untracked challenge route on this run
-                </div>
-                <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-200">
-                  Goal: {result.prestigeChallengeGoal}
-                </p>
-                <p className="mt-1 text-sm text-slate-400">{prestigeChallengeDetail}</p>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Prestige Reward</div>
-                <div className="mt-2 text-3xl font-semibold text-white">
-                  +{result.prestigeChallengeReward ?? 0}
-                </div>
-              </div>
-              <div className="rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Outcome</div>
-                <div className="mt-2 text-xl font-semibold text-white">Challenge Cleared</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {prestigeChallengeActive && (
-        <div className={`rounded-[32px] border p-6 ${prestigeChallengeTone}`}>
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-start gap-4">
-              <div className={`rounded-[22px] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${prestigeChallengeIconTone}`}>
-                <PrestigeChallengeIcon size={20} />
-              </div>
-              <div>
-                <div className="text-xs uppercase tracking-[0.26em] text-slate-400">
-                  {result.prestigeChallengeSource === "surprise" ? "Detected Challenge Route" : "Loaded Challenge Route"}
-                </div>
-                <h2 className="mt-2 font-display text-3xl text-white">
-                  {result.prestigeChallengeTitle}
-                </h2>
-                <div className={`mt-2 text-sm font-semibold uppercase tracking-[0.18em] ${prestigeChallengeLabelTone}`}>
-                  {prestigeChallengeStatusLine}
-                </div>
-                <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-200">
-                  Goal: {result.prestigeChallengeGoal}
-                </p>
-                <p className="mt-1 text-sm text-slate-400">{prestigeChallengeDetail}</p>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Prestige Reward</div>
-                <div className="mt-2 text-3xl font-semibold text-white">
-                  +{result.prestigeChallengeReward ?? 0}
-                </div>
-              </div>
-              <div className="rounded-[22px] border border-white/12 bg-black/18 p-4 backdrop-blur-sm">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Outcome</div>
-                <div className="mt-2 text-xl font-semibold text-white">
-                  {result.prestigeChallengeCleared ? "Challenge Cleared" : "Try Again"}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {surpriseChallengeClear && <ChallengeOutcomeBanner result={result} surpriseClear />}
+        {prestigeChallengeActive && <ChallengeOutcomeBanner result={result} />}
 
       <div className="flex justify-center">
         <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1">
@@ -1593,9 +1564,19 @@ export const ResultsShowcase = ({
                 </span>{" "}
                 {result.reason}
               </div>
-              <div className="mt-6 rounded-[24px] border border-white/10 bg-black/15 p-5 text-sm leading-7 text-slate-300">
-                <span className="font-semibold text-white">All-time league context:</span>{" "}
-                This simulation assumes the rest of the field is also built from all-time caliber rosters, so even a great team can run into a crowded standings race or a stronger optimized build elsewhere in the league.
+              <div className={`mt-6 rounded-[24px] border p-5 text-sm leading-7 ${leagueContextTone}`}>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-slate-100">
+                    League Context
+                  </span>
+                  <span className="text-xs uppercase tracking-[0.18em] text-slate-300/80">
+                    All-time field strength
+                  </span>
+                </div>
+                <div className="mt-3 text-base font-semibold text-white">{result.leagueContext}</div>
+                <p className="mt-2 text-sm leading-7 text-slate-200/90">
+                  Your team is being judged inside a league full of all-time-caliber rosters, so even elite builds can run into loaded standings races and more optimized contenders elsewhere in the field.
+                </p>
               </div>
 
               <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -1736,4 +1717,5 @@ export const ResultsShowcase = ({
     </section>
   );
 };
+
 

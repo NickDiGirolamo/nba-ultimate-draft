@@ -185,6 +185,8 @@ export interface SimulationResult {
   prestigeChallengeSource?: "loaded" | "surprise" | null;
   prestigeChallengeNewlyCleared?: boolean;
   prestigeChallengeReward?: number;
+  prestigeXpAward?: number;
+  tokenReward?: number;
   prestigeLevelUp?: PrestigeLevelUpEvent | null;
   metrics: TeamMetrics;
   categoryChallenge: CategoryChallenge | null;
@@ -265,6 +267,8 @@ export interface RunHistoryEntry {
   prestigeChallengeCleared?: boolean;
   prestigeChallengeSource?: "loaded" | "surprise" | null;
   prestigeChallengeReward?: number | null;
+  prestigeXpAward?: number | null;
+  tokenReward?: number | null;
   focusScore?: number | null;
   titleOdds: number;
   metrics: TeamMetrics;
@@ -277,6 +281,7 @@ export interface PrestigeChallengeDefinition {
   description: string;
   goal: string;
   reward: number;
+  difficulty: "rookie" | "role-player" | "starter" | "all-star" | "superstar" | "goat";
   draftChallengeId: string;
   rareEventId: string;
   categoryChallengeId: string | null;
@@ -360,8 +365,14 @@ export interface PrestigeProgress {
   }>;
 }
 
+export interface TokenProgress {
+  balance: number;
+  lifetimeEarned: number;
+}
+
 export interface MetaProgress {
   prestige: PrestigeProgress;
+  tokens: TokenProgress;
   personalBests: PersonalBests;
   leaderboards: LeaderboardEntry[];
   trophies: Trophy[];

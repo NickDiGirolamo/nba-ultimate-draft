@@ -1,14 +1,17 @@
 import clsx from "clsx";
 import { Users } from "lucide-react";
 import { PlayerBadgeType, getPlayerBadgeStates } from "../lib/dynamicDuos";
+import { HoverTooltip } from "./HoverTooltip";
 
 interface PlayerSynergyBadgesProps {
   playerId: string;
   draftedPlayerIds: string[];
   compact?: boolean;
+  dense?: boolean;
   align?: "start" | "center";
   className?: string;
   excludeTypes?: PlayerBadgeType[];
+  previewEligible?: boolean;
 }
 
 const RivalIcon = ({ compact = false }: { compact?: boolean }) => (
@@ -106,14 +109,15 @@ const badgeTooltip = (
   players: string[],
   active: boolean,
 ) => {
+  const formatPlayerName = (playerId: string) =>
+    playerId
+      .split("-")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+
   if (type === "big-3") {
     const playerList = players
-      .map((playerId) =>
-        playerId
-          .split("-")
-          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-          .join(" "),
-      )
+      .map(formatPlayerName)
       .join(" + ");
 
     return active
@@ -122,22 +126,21 @@ const badgeTooltip = (
   }
 
   if (type === "role-player" || type === "centerpiece") {
-    const playerList = players
-      .map((playerId) =>
-        playerId
-          .split("-")
-          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-          .join(" "),
-      )
-      .join(" - ");
+    const playerList = players.map(formatPlayerName).join(" - ");
 
     if (type === "centerpiece") {
       return `Centerpiece: Role Players - ${playerList}`;
     }
 
+    const centerpieceName = players[1] ? formatPlayerName(players[1]) : "Centerpiece";
+      return `Role Player: Linked to ${centerpieceName}`;
+  }
+
+  if (type === "dynamic-duo") {
+    const playerList = players.map(formatPlayerName).join(" or ");
     return active
-      ? `${title} active: ${playerList}`
-      : `${title} available with: ${playerList}`;
+      ? `Dynamic Duo active: ${playerList}`
+      : `Dynamic Duo available with: ${playerList}`;
   }
 
   return active ? `${title} active` : `${title} available`;
@@ -147,9 +150,11 @@ export const PlayerSynergyBadges = ({
   playerId,
   draftedPlayerIds,
   compact = false,
+  dense = false,
   align = "center",
   className,
   excludeTypes = [],
+  previewEligible = true,
 }: PlayerSynergyBadgesProps) => {
   const badges = getPlayerBadgeStates(playerId, draftedPlayerIds).filter(
     ({ definition }) => !excludeTypes.includes(definition.type),
@@ -165,27 +170,28 @@ export const PlayerSynergyBadges = ({
       )}
     >
       {badges.map(({ definition, active, previewActive, tooltipPlayers }) => (
-        <div
+        <HoverTooltip
           key={definition.id}
-          className="group/badge relative inline-flex"
+          content={badgeTooltip(definition.type, definition.title, tooltipPlayers, active)}
+          className="inline-flex"
         >
           <div
-            title={badgeTooltip(definition.type, definition.title, tooltipPlayers, active)}
             className={clsx(
               "inline-flex cursor-help items-center gap-1.5 rounded-full border px-2.5 transition-all duration-300",
-              compact ? "h-7 text-[10px]" : "h-8 text-[11px]",
-              previewActive
+              compact ? "h-7 text-[10px]" : dense ? "h-7 text-[9px]" : "h-8 text-[11px]",
+              active || (previewEligible && previewActive)
                 ? "border-lime-300/70 bg-lime-300/18 text-lime-200 shadow-[0_0_18px_rgba(163,230,53,0.45)]"
                 : "border-white/12 bg-black/30 text-slate-500",
             )}
           >
             {badgeContent(definition.type, compact)}
-            {!compact ? <span className="uppercase tracking-[0.16em]">{badgeLabel(definition.type)}</span> : null}
+            {!compact ? (
+              <span className={clsx("uppercase", dense ? "tracking-[0.1em]" : "tracking-[0.16em]")}>
+                {badgeLabel(definition.type)}
+              </span>
+            ) : null}
           </div>
-          <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-max max-w-[240px] -translate-x-1/2 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-[11px] font-medium text-slate-100 opacity-0 shadow-[0_18px_40px_rgba(2,6,23,0.6)] transition duration-150 group-hover/badge:block group-hover/badge:opacity-100">
-            {badgeTooltip(definition.type, definition.title, tooltipPlayers, active)}
-          </div>
-        </div>
+        </HoverTooltip>
       ))}
     </div>
   );

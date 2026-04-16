@@ -25,6 +25,7 @@ export const DraftBriefing = ({
   onBegin,
 }: DraftBriefingProps) => {
   const classicMode = challenge.id === "classic";
+  const tokenReward = prestigeReward * 10;
   const activeRule = classicMode
     ? "Draft the strongest all-around 10-player team you can."
     : challenge.id === "none"
@@ -79,19 +80,42 @@ export const DraftBriefing = ({
           <div className="mt-4 rounded-[22px] border border-white/10 bg-black/20 p-5">
             <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">
               <Crown size={14} className="text-amber-200" />
-              Prestige Reward
+              Rewards
             </div>
-            <div className="mt-3 text-4xl font-semibold text-white">
-              +{prestigeReward} XP
+            <div className="mt-3 flex items-end justify-between gap-4">
+              <div>
+                <div className="text-4xl font-semibold text-white">+{prestigeReward} XP</div>
+                <div className="mt-1 text-sm font-medium text-amber-100">+{tokenReward} Tokens</div>
+              </div>
             </div>
             <p className="mt-3 text-sm leading-7 text-slate-300">
-              Clear this challenge route to bank its one-time Prestige payout toward your next level.
+              Clear this challenge route to bank its one-time Prestige payout toward your next level and earn Tokens at a 10-to-1 rate.
             </p>
           </div>
         </div>
       </div>
 
       <div className="mt-8 rounded-[28px] border border-white/10 bg-black/20 p-6">
+        <div className="flex items-center gap-3 text-slate-200">
+          <Target size={18} />
+          <span className="text-xs uppercase tracking-[0.22em] text-slate-400">How To Win This Run</span>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {[
+            categoryChallengesEnabled && categoryChallenge
+              ? `Prioritize players who move ${categoryChallenge.metricLabel.toLowerCase()} immediately, then use chemistry as the tiebreaker.`
+              : "Start with the best available core, then keep the roster balanced enough to survive a full season.",
+            "Watch badge previews before you pick. A glowing badge means that player would activate value the moment you draft them.",
+            "Use the reorder screen to put your real best five in the starter slots. The sim rewards strong top-end lineup ordering.",
+          ].map((tip) => (
+            <div key={tip} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-7 text-slate-200">
+              {tip}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-[28px] border border-white/10 bg-black/20 p-6">
         <div className="flex items-center gap-3 text-slate-200">
           <Shield size={18} />
           <span className="text-xs uppercase tracking-[0.22em] text-slate-400">Quick Notes</span>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Crown, Flag, Sparkles, Swords, Target, Trophy } from "lucide-react";
+import { BookOpen, Coins, Crown, Flag, Sparkles, Swords, Target, Trophy } from "lucide-react";
 import { DraftBriefing } from "./components/DraftBriefing";
 import { DraftPlayerCard } from "./components/DraftPlayerCard";
 import { LandingHub } from "./components/LandingHub";
@@ -9,10 +9,14 @@ import { PrestigeLevelUpModal } from "./components/PrestigeLevelUpModal";
 import { PrestigeOverlay } from "./components/PrestigeOverlay";
 import { ProgressHeader } from "./components/ProgressHeader";
 import { ResultsShowcase } from "./components/ResultsShowcase";
+import { RoguelikeMode } from "./components/RoguelikeMode";
 import { RosterSidebar } from "./components/RosterSidebar";
 import { SimulationScreen } from "./components/SimulationScreen";
 import { useDraftGame } from "./hooks/useDraftGame";
 import { getCategoryChallengeTarget } from "./lib/simulate";
+
+const ROGUELIKE_UI_STORAGE_KEY = "legends-draft-roguelike-ui-v1";
+const ROGUELIKE_RUN_STORAGE_KEY = "legends-draft-roguelike-run-v1";
 
 const challengeStrategyMap: Record<string, string> = {
   "classic": "Take the best long-term team, not the flashiest individual player.",
@@ -75,6 +79,17 @@ function App() {
   const [learnOpen, setLearnOpen] = useState(false);
   const [showPrestigeLevelUp, setShowPrestigeLevelUp] = useState(false);
   const [showExtraPickIntro, setShowExtraPickIntro] = useState(false);
+  const [roguelikeOpen, setRoguelikeOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+
+    try {
+      const openFlag = window.localStorage.getItem(ROGUELIKE_UI_STORAGE_KEY);
+      const hasSavedRun = Boolean(window.localStorage.getItem(ROGUELIKE_RUN_STORAGE_KEY));
+      return openFlag === "true" || hasSavedRun;
+    } catch {
+      return false;
+    }
+  });
   const draftIntel = useMemo(() => {
     const cards = [
       {
@@ -195,13 +210,26 @@ function App() {
     setShowExtraPickIntro(false);
   }, [state.screen, state.bonusPickActive]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(ROGUELIKE_UI_STORAGE_KEY, roguelikeOpen ? "true" : "false");
+  }, [roguelikeOpen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [state.screen, roguelikeOpen, prestigeOpen, learnOpen, showPrestigeLevelUp]);
+
   return (
     <div className="arena-shell text-white">
       <div className="mx-auto max-w-[1520px] px-4 py-6 md:px-6 lg:px-8 lg:py-8">
         <div className="mb-5 flex items-center justify-between gap-4">
           <button
             type="button"
-            onClick={resetDraft}
+            onClick={() => {
+              setRoguelikeOpen(false);
+              resetDraft();
+            }}
             className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-black/18 px-4 py-3 text-left transition hover:border-amber-200/22 hover:bg-black/24"
           >
             <div className="rounded-2xl border border-amber-200/18 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.24),rgba(249,115,22,0.14),rgba(15,23,42,0.2))] p-2.5 text-amber-200 shadow-[0_10px_24px_rgba(251,191,36,0.16)]">
@@ -221,8 +249,8 @@ function App() {
               onClick={() => setLearnOpen(true)}
               className="glass-panel group h-[94px] min-w-[230px] rounded-2xl border border-sky-200/12 bg-[linear-gradient(135deg,rgba(9,18,34,0.96),rgba(16,26,46,0.92))] px-4 py-3 text-left shadow-[0_16px_32px_rgba(0,0,0,0.24)] transition hover:border-sky-200/28 hover:bg-[linear-gradient(135deg,rgba(12,24,44,0.98),rgba(20,34,58,0.94))] hover:shadow-[0_18px_36px_rgba(56,189,248,0.14)]"
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-slate-300">
+	              <div className="flex items-center justify-between gap-3">
+	                <div className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.2em] text-slate-200">
                   <div className="rounded-full border border-sky-200/18 bg-sky-300/12 p-1.5 text-sky-200 transition group-hover:border-sky-200/28 group-hover:bg-sky-300/18">
                     <BookOpen size={13} />
                   </div>
@@ -232,10 +260,25 @@ function App() {
                   Open
                 </span>
               </div>
-              <div className="mt-3 text-[1.02rem] font-semibold leading-5 text-white">
-                Learn categories, badges, and draft tips
-              </div>
+	              <div className="mt-3 text-[0.88rem] font-medium leading-5 text-slate-300">
+	                Learn categories, badges, and draft tips
+	              </div>
             </button>
+            <div className="glass-panel h-[94px] min-w-[200px] rounded-2xl px-4 py-3">
+              <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                <Coins size={13} className="text-amber-200" />
+                Tokens
+              </div>
+              <div className="mt-2 flex items-end justify-between gap-3">
+                <div className="text-[2rem] font-semibold leading-none text-white">
+                  {metaProgress.tokens.balance}
+                </div>
+                <div className="pb-1 text-right text-[10px] uppercase tracking-[0.12em] text-slate-400">
+                  Spendable
+                </div>
+              </div>
+              <div className="mt-2 h-1" />
+            </div>
             <button
               type="button"
               onClick={() => {
@@ -275,7 +318,16 @@ function App() {
           </div>
         </div>
 
-        {state.screen === "landing" && (
+        {roguelikeOpen && (
+          <RoguelikeMode
+            onBackToHome={() => {
+              setRoguelikeOpen(false);
+              resetDraft();
+            }}
+          />
+        )}
+
+        {!roguelikeOpen && state.screen === "landing" && (
           <LandingHub
             onOpenPrestige={() => {
               setPrestigeInitialView("overview");
@@ -289,12 +341,13 @@ function App() {
               setPrestigeInitialView("collection");
               setPrestigeOpen(true);
             }}
+            onOpenRoguelike={() => setRoguelikeOpen(true)}
             history={state.history}
             meta={metaProgress}
           />
         )}
 
-        {state.screen === "briefing" && (
+        {!roguelikeOpen && state.screen === "briefing" && (
           <DraftBriefing
             challenge={state.currentChallenge}
             rareEvent={state.currentRareEvent}
@@ -308,7 +361,7 @@ function App() {
           />
         )}
 
-        {state.screen === "draft" && (
+        {!roguelikeOpen && state.screen === "draft" && (
           <section className="space-y-6">
             <div
               style={{
@@ -571,7 +624,7 @@ function App() {
           </section>
         )}
 
-        {state.screen === "lineup" && (
+        {!roguelikeOpen && state.screen === "lineup" && (
           <LineupReorderScreen
             roster={state.roster}
             onMovePlayer={moveRosterPlayer}
@@ -580,14 +633,18 @@ function App() {
           />
         )}
 
-        {state.screen === "simulating" && <SimulationScreen />}
+        {!roguelikeOpen && state.screen === "simulating" && <SimulationScreen />}
 
-        {state.screen === "results" && state.simulationResult && (
+        {!roguelikeOpen && state.screen === "results" && state.simulationResult && (
           <ResultsShowcase
             result={state.simulationResult}
             roster={state.roster}
             onDraftAgain={startDraft}
             onBackToHome={resetDraft}
+            onBackToChallenges={() => {
+              setPrestigeInitialView("challenges");
+              setPrestigeOpen(true);
+            }}
             meta={metaProgress}
             history={state.history}
           />

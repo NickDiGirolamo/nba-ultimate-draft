@@ -8,6 +8,7 @@ interface LandingHubProps {
   onOpenPrestige: () => void;
   onOpenChallenges: () => void;
   onOpenCollection: () => void;
+  onOpenRoguelike: () => void;
   history: RunHistoryEntry[];
   meta: MetaProgress;
 }
@@ -16,6 +17,7 @@ export const LandingHub = ({
   onOpenPrestige,
   onOpenChallenges,
   onOpenCollection,
+  onOpenRoguelike,
   history,
   meta,
 }: LandingHubProps) => {
@@ -32,7 +34,7 @@ export const LandingHub = ({
           Draft a 10-man all-time NBA roster, balance star power with chemistry, and simulate an 82-game season plus the entire playoff run.
         </p>
 
-        <div className="mt-10 flex justify-center">
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
           <button
             type="button"
             onClick={onOpenChallenges}
@@ -41,11 +43,32 @@ export const LandingHub = ({
             Start Draft Challenges
             <ChevronRight size={18} />
           </button>
+          <button
+            type="button"
+            onClick={onOpenRoguelike}
+            className="inline-flex items-center gap-2 rounded-full border border-fuchsia-200/18 bg-fuchsia-300/10 px-8 py-3.5 text-sm font-semibold text-fuchsia-100 transition hover:scale-[1.02] hover:bg-fuchsia-300/14"
+          >
+            Try Roguelike Mode
+            <ChevronRight size={18} />
+          </button>
         </div>
 
         <p className="mt-4 text-center text-sm leading-7 text-slate-300">
           Take on challenge routes, chase prestige rewards, and prove you can build elite rosters in every draft environment.
         </p>
+
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          {[
+            ["1. Start with Challenge 1", "The first category-focus routes are the cleanest way to learn the draft loop."],
+            ["2. Watch Chemistry", "Chemistry now shows both lineup sense and badge synergy, so it explains why a pick helps or hurts."],
+            ["3. Chase Prestige", "Challenge clears are the main way to level up, unlock rewards, and open deeper systems."],
+          ].map(([title, description]) => (
+            <div key={title} className="rounded-[22px] border border-white/10 bg-black/20 p-4 text-left">
+              <div className="font-semibold text-white">{title}</div>
+              <div className="mt-2 text-sm leading-6 text-slate-300">{description}</div>
+            </div>
+          ))}
+        </div>
 
         <button
           type="button"

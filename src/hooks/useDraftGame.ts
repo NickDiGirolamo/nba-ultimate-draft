@@ -5,6 +5,7 @@ import { allPlayers } from "../data/players";
 import { evaluateDraftChemistry, getCategoryChallengeTarget, runSeasonSimulation } from "../lib/simulate";
 import {
   buildPrestigeChallengeId,
+  calculateRunEconomyRewards,
   buildMetaProgress,
   getCategoryChallengeById,
   getDraftChallengeById,
@@ -58,6 +59,15 @@ const LEGACY_PLAYER_ID_MIGRATIONS: Record<string, string> = {
   "carmelo-anthony": "carmelo-anthony-nuggets",
   "tracy-mcgrady": "tracy-mcgrady-rockets",
   "vince-carter": "vince-carter-raptors",
+  "dennis-rodman": "dennis-rodman-bulls",
+  "charles-barkley": "charles-barkley-suns",
+  "clyde-drexler": "clyde-drexler-blazers",
+  "luka-doncic": "luka-doncic-lakers",
+  "anthony-davis": "anthony-davis-pelicans",
+  "kawhi-leonard": "kawhi-leonard-raptors",
+  "pascal-siakam": "pascal-siakam-pacers",
+  "kevin-love": "kevin-love-timberwolves",
+  "kyrie-irving": "kyrie-irving-cavs",
 };
 
 const LEGACY_PLAYER_NAME_MIGRATIONS: Record<string, string> = {
@@ -78,6 +88,15 @@ const LEGACY_PLAYER_NAME_MIGRATIONS: Record<string, string> = {
   "Carmelo Anthony": "Carmelo Anthony (Nuggets)",
   "Tracy McGrady": "Tracy McGrady (Rockets)",
   "Vince Carter": "Vince Carter (Raptors)",
+  "Dennis Rodman": "Dennis Rodman (Bulls)",
+  "Charles Barkley": "Charles Barkley (Suns)",
+  "Clyde Drexler": "Clyde Drexler (Blazers)",
+  "Luka Doncic": "Luka Doncic (Lakers)",
+  "Anthony Davis": "Anthony Davis (Pelicans)",
+  "Kawhi Leonard": "Kawhi Leonard (Raptors)",
+  "Pascal Siakam": "Pascal Siakam (Pacers)",
+  "Kevin Love": "Kevin Love (Timberwolves)",
+  "Kyrie Irving": "Kyrie Irving (Cavs)",
 };
 
 const canonicalPlayersById = new Map(allPlayers.map((player) => [player.id, player]));
@@ -178,6 +197,14 @@ const upgradeHistoryEntry = (entry: Record<string, unknown>): RunHistoryEntry =>
     entry.prestigeChallengeReward === undefined || entry.prestigeChallengeReward === null
       ? null
       : Number(entry.prestigeChallengeReward),
+  prestigeXpAward:
+    entry.prestigeXpAward === undefined || entry.prestigeXpAward === null
+      ? null
+      : Number(entry.prestigeXpAward),
+  tokenReward:
+    entry.tokenReward === undefined || entry.tokenReward === null
+      ? null
+      : Number(entry.tokenReward),
   focusScore: entry.focusScore === undefined || entry.focusScore === null ? null : Number(entry.focusScore),
   titleOdds: Number(entry.titleOdds ?? 0),
   metrics: (entry.metrics as RunHistoryEntry["metrics"]) ?? DEFAULT_METRICS,
@@ -586,11 +613,24 @@ export const useDraftGame = () => {
         prestigeChallengeSource:
           prestigeChallengeSource === null ? null : prestigeChallengeSource,
         prestigeChallengeReward,
+        prestigeXpAward: 0,
+        tokenReward: 0,
         focusScore: simulationResult.focusScore,
         titleOdds: simulationResult.titleOdds,
         metrics: simulationResult.metrics,
       };
-      const nextHistory = [historyEntry, ...state.history].slice(0, HISTORY_LIMIT);
+      const provisionalHistory = [historyEntry, ...state.history].slice(0, HISTORY_LIMIT);
+      const { prestigeXpAward, tokenReward } = calculateRunEconomyRewards(
+        state.history,
+        provisionalHistory,
+        state.unlockedPlayerIds,
+      );
+      const finalizedHistoryEntry: RunHistoryEntry = {
+        ...historyEntry,
+        prestigeXpAward,
+        tokenReward,
+      };
+      const nextHistory = [finalizedHistoryEntry, ...state.history].slice(0, HISTORY_LIMIT);
       const nextMeta = buildMetaProgress(nextHistory, state.unlockedPlayerIds);
       const prestigeLevelUp =
         nextMeta.prestige.level > previousMeta.prestige.level
@@ -623,6 +663,8 @@ export const useDraftGame = () => {
           prestigeChallengeSource,
           prestigeChallengeNewlyCleared,
           prestigeChallengeReward,
+          prestigeXpAward,
+          tokenReward,
           prestigeLevelUp,
           newPersonalBests,
         },

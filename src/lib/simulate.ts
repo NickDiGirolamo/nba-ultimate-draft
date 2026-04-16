@@ -14,7 +14,12 @@ import {
   TeamMetrics,
 } from "../types";
 import { allPlayers } from "../data/players";
-import { assignPlayerToRoster, generateChoices, rosterTemplate } from "./draft";
+import {
+  assignPlayerToRoster,
+  DRAFT_GENERATOR_VERSION,
+  generateChoices,
+  rosterTemplate,
+} from "./draft";
 import {
   calculateLegacyScore,
   evaluateChallengeCompletion,
@@ -186,12 +191,13 @@ const getDraftGrade = (overall: number, chemistry: number, depth: number) => {
 };
 
 interface SimulationCalibration {
+  signature: string;
   sampleCount: number;
   sortedPowerScores: number[];
   categoryThresholds: Record<CategoryChallenge["metric"], number>;
 }
 
-const CALIBRATION_SAMPLE_COUNT = 900;
+const CALIBRATION_SAMPLE_COUNT = 1200;
 const CATEGORY_TARGET_PERCENTILE = 0.83;
 const CATEGORY_METRICS: CategoryChallenge["metric"][] = [
   "offense",
@@ -224,6 +230,11 @@ const TITLE_ODDS_PERCENTILE_ANCHORS = [
 ] as const;
 
 let simulationCalibrationCache: SimulationCalibration | null = null;
+
+const getCalibrationSignature = () =>
+  `${DRAFT_GENERATOR_VERSION}::${allPlayers.length}::${allPlayers
+    .map((player) => `${player.id}:${player.hallOfFameTier}:${player.overall}`)
+    .join("|")}`;
 
 const interpolateAnchors = (
   value: number,
@@ -404,7 +415,8 @@ const percentileScoreFromSorted = (sortedScores: number[], percentile: number) =
 };
 
 const getSimulationCalibration = () => {
-  if (simulationCalibrationCache) return simulationCalibrationCache;
+  const signature = getCalibrationSignature();
+  if (simulationCalibrationCache?.signature === signature) return simulationCalibrationCache;
 
   const sortedPowerScores = Array.from({ length: CALIBRATION_SAMPLE_COUNT }, (_, index) =>
     runSyntheticDraftPowerSample(700000 + index * 193),
@@ -425,6 +437,7 @@ const getSimulationCalibration = () => {
   );
 
   simulationCalibrationCache = {
+    signature,
     sampleCount: CALIBRATION_SAMPLE_COUNT,
     sortedPowerScores,
     categoryThresholds,
