@@ -2,12 +2,14 @@
 import clsx from "clsx";
 import {
   ArrowRight,
+  ArrowUpRight,
   CheckCircle2,
   ChevronDown,
   Coins,
   Crown,
   GripHorizontal,
   Package2,
+  RefreshCcw,
   Shield,
   Sparkles,
   Swords,
@@ -25,6 +27,8 @@ import { getPlayerDisplayLines } from "../lib/playerDisplay";
 import {
   buildRoguelikeOpponentLineup,
   buildOpeningDraftPool,
+  doesRoguelikeNodeAwardClearRewards,
+  getRoguelikeClearRewards,
   getRoguelikeFailureRewards,
   buildRoguelikeStarterLineup,
   buildStarterPool,
@@ -41,6 +45,7 @@ import {
   getRoguelikeSlotPenalty,
   generateFaceoffOpponentPlayerIds,
   getBundle,
+  RoguelikeClearRewards,
   RoguelikeFaceoffMatchup,
   RoguelikeFaceoffResult,
   RoguelikeFailureRewards,
@@ -322,6 +327,7 @@ const getNodeChoiceTiers = (node: RoguelikeNode) => {
 
   if (
     node.id === "glass-control" ||
+    node.id === "scouting-burst" ||
     node.id === "trade-deadline-1" ||
     node.id === "trade-deadline-2" ||
     node.id === "trade-deadline-3" ||
@@ -511,6 +517,89 @@ const getFaceoffFinalScore = (faceoffResult: RoguelikeFaceoffResult) => {
   };
 };
 
+const hasEarnedNodeReward = (
+  run: RoguelikeRun,
+  nodeIndex: number,
+  nodeResult?: RoguelikeRun["nodeResult"] | null,
+) => {
+  if (run.stage === "run-cleared") return true;
+  if (nodeIndex < run.floorIndex) return true;
+
+  return (
+    nodeIndex === run.floorIndex &&
+    (run.stage === "reward-draft" || run.stage === "node-result") &&
+    nodeResult?.passed !== false
+  );
+};
+
+const RogueNodeRewardsRail = ({
+  rewards,
+  earned,
+}: {
+  rewards: RoguelikeClearRewards;
+  earned: boolean;
+}) => {
+  const hasRewards = rewards.tokenReward > 0 || rewards.prestigeXpAward > 0;
+
+  return (
+    <div
+      className={clsx(
+        "rounded-[22px] border px-4 py-4 transition",
+        earned && hasRewards
+          ? "border-emerald-300/34 bg-[linear-gradient(180deg,rgba(6,78,59,0.34),rgba(16,185,129,0.14),rgba(5,46,22,0.34))] shadow-[0_0_0_1px_rgba(52,211,153,0.14),0_0_26px_rgba(16,185,129,0.14)]"
+          : "border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))]",
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className={clsx(
+          "text-[10px] uppercase tracking-[0.22em]",
+          earned && hasRewards ? "text-emerald-100/86" : "text-slate-400",
+        )}>
+          Rewards
+        </div>
+        {earned && hasRewards ? (
+          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/28 bg-emerald-300/14 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-emerald-50">
+            <CheckCircle2 size={11} />
+            Earned
+          </span>
+        ) : null}
+      </div>
+      {hasRewards ? (
+        <div className="mt-3 space-y-2.5">
+          <div
+            className={clsx(
+              "flex items-center justify-between gap-3 rounded-[16px] border px-3 py-2.5",
+              earned ? "border-amber-200/18 bg-amber-300/10" : "border-white/8 bg-black/14",
+            )}
+          >
+            <span className="inline-flex items-center gap-2 text-xs font-medium text-white/84">
+              <Coins size={14} className={earned ? "text-amber-200" : "text-slate-400"} />
+              Tokens
+            </span>
+            <span className="text-sm font-semibold text-white">+{rewards.tokenReward}</span>
+          </div>
+          <div
+            className={clsx(
+              "flex items-center justify-between gap-3 rounded-[16px] border px-3 py-2.5",
+              earned ? "border-sky-200/18 bg-sky-300/10" : "border-white/8 bg-black/14",
+            )}
+          >
+            <span className="inline-flex items-center gap-2 text-xs font-medium text-white/84">
+              <Sparkles size={14} className={earned ? "text-sky-200" : "text-slate-400"} />
+              Prestige XP
+            </span>
+            <span className="text-sm font-semibold text-white">+{rewards.prestigeXpAward}</span>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-3 rounded-[16px] border border-white/8 bg-black/14 px-3 py-4 text-center text-[11px] uppercase tracking-[0.18em] text-slate-500">
+          No completion rewards
+        </div>
+      )}
+    </div>
+  );
+};
+
 const RogueRosterSlotCard = ({
   slot,
   index,
@@ -649,7 +738,7 @@ const RogueRosterSlotCard = ({
                   overallDelta < 0 ? "text-rose-300" : boosted ? "text-lime-300" : "text-amber-100",
                 )}>
                   {overallDelta < 0 ? <ChevronDown size={12} className="mr-1 inline-block align-[-1px]" /> : null}
-                  {boosted ? <span className="mr-1 inline-block align-[-1px] text-lime-300">â†—</span> : null}
+                  {boosted ? <ArrowUpRight size={12} className="mr-1 inline-block align-[-1px] text-lime-300" /> : null}
                   {adjustedOverall}{" "}
                   <span className={clsx(
                     "text-[9px] uppercase tracking-[0.14em]",
@@ -816,61 +905,84 @@ const StarterRevealCard = ({
     <button
       type="button"
       onClick={onReveal}
+      disabled={revealed}
       className="group relative h-[420px] overflow-hidden rounded-[28px] border border-white/12 bg-[linear-gradient(180deg,rgba(8,12,20,0.94),rgba(16,24,36,0.96))] text-left transition duration-300 hover:-translate-y-1 hover:border-amber-200/24"
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_35%)]" />
-      {!revealed ? (
-        <div className="relative flex h-full flex-col justify-between p-6">
-          <div className="text-[11px] uppercase tracking-[0.28em] text-slate-400">
-            Starter Card {index + 1}
-          </div>
-          <div className="flex flex-1 items-center justify-center">
-            <div className="w-full rounded-[26px] border border-white/12 bg-[linear-gradient(145deg,rgba(31,41,55,0.94),rgba(12,18,28,0.98))] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-              <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[20px] border border-dashed border-amber-200/24 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.16),transparent_42%)] px-6 text-center">
-                <Package2 size={44} className="text-amber-100" />
-                <div className="mt-5 text-[11px] uppercase tracking-[0.32em] text-amber-100/80">
-                  Click To Reveal
+      <div className="relative flex h-full flex-col justify-between p-6">
+        <div className={revealed ? "text-[11px] uppercase tracking-[0.28em] text-emerald-100/80" : "text-[11px] uppercase tracking-[0.28em] text-slate-400"}>
+          {revealed ? "Revealed" : `Starter Card ${index + 1}`}
+        </div>
+        <div className="flex flex-1 flex-col items-center justify-center">
+          {!revealed ? (
+            <div className="mb-3 text-[11px] uppercase tracking-[0.32em] text-amber-100/84">
+              Click To Reveal
+            </div>
+          ) : (
+            <div className="mb-3 text-[11px] uppercase tracking-[0.32em] text-transparent">
+              Revealed
+            </div>
+          )}
+          <div className="w-full [perspective:1400px]">
+            <div
+              className={clsx(
+                "relative w-full transition-transform duration-700 [transform-style:preserve-3d]",
+                revealed ? "[transform:rotateY(180deg)]" : "",
+              )}
+            >
+              <div className="absolute inset-0 [backface-visibility:hidden]">
+                <div className="w-full rounded-[26px] border border-white/12 bg-[linear-gradient(145deg,rgba(37,45,60,0.96),rgba(12,18,28,0.98))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                  <div className="relative flex min-h-[220px] flex-col justify-between overflow-hidden rounded-[20px] border border-white/10 bg-[linear-gradient(160deg,rgba(61,52,35,0.22),rgba(23,29,41,0.96),rgba(14,18,28,0.98))] px-6 py-5">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_32%)]" />
+                    <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-amber-200/8 blur-3xl" />
+                    <div className="relative flex-1 overflow-hidden rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(33,39,52,0.92),rgba(11,15,24,0.98))]">
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.14),transparent_26%)]" />
+                      <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_0%,transparent_38%,rgba(255,255,255,0.08)_50%,transparent_62%,transparent_100%)] opacity-80" />
+                      <div className="absolute left-1/2 top-1/2 h-[180px] w-[180px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-[radial-gradient(circle,rgba(255,255,255,0.08),rgba(255,255,255,0.01)_58%,transparent_72%)]" />
+                      <div className="absolute left-1/2 top-1/2 h-[108px] w-[108px] -translate-x-1/2 -translate-y-1/2 rounded-[28px] border border-amber-100/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))] shadow-[0_0_40px_rgba(245,158,11,0.12)]" />
+                      <div className="absolute inset-5 rounded-[18px] border border-dashed border-white/12" />
+                      <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-slate-950/85 to-transparent" />
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-4 font-display text-3xl text-white">Face-Down Card</div>
+              </div>
+
+              <div className="relative [backface-visibility:hidden] [transform:rotateY(180deg)]">
+                <div className="relative flex h-full flex-col">
+                  <div className="overflow-hidden rounded-[26px] border border-white/12 bg-black/18">
+                    <div className="h-[240px] overflow-hidden rounded-[24px]">
+                      {imageUrl ? (
+                        <img
+                          src={imageUrl}
+                          alt={player.name}
+                          className="h-full w-full object-cover object-top"
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-slate-900 text-6xl text-white/70">
+                          {player.name.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-5 font-display text-3xl leading-tight text-white">
+                    <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{firstNameLine}</div>
+                    <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{lastNameLine}</div>
+                    {versionLine ? <div className="text-[0.72em] tracking-tight text-slate-200/90">{versionLine}</div> : null}
+                  </div>
+                  <div className="mt-3 text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                    {player.hallOfFameTier}-Tier • {player.overall} OVR • {player.primaryPosition}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <div className="text-sm text-slate-300 transition group-hover:text-white">
-            Reveal this starter to see who is joining your opening arsenal.
-          </div>
         </div>
-      ) : (
-        <div className="relative flex h-full flex-col p-6">
-          <div className="text-[11px] uppercase tracking-[0.28em] text-emerald-100/80">
-            Revealed
-          </div>
-          <div className="mt-5 overflow-hidden rounded-[26px] border border-white/12 bg-black/18">
-            <div className="h-[240px] overflow-hidden rounded-[24px]">
-              {imageUrl ? (
-                <img
-                  src={imageUrl}
-                  alt={player.name}
-                  className="h-full w-full object-cover object-top"
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center bg-slate-900 text-6xl text-white/70">
-                  {player.name.charAt(0)}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="mt-5 font-display text-3xl leading-tight text-white">
-            <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{firstNameLine}</div>
-            <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{lastNameLine}</div>
-            {versionLine ? <div className="text-[0.72em] tracking-tight text-slate-200/90">{versionLine}</div> : null}
-          </div>
-          <div className="mt-3 text-[11px] uppercase tracking-[0.24em] text-slate-400">
-            {player.hallOfFameTier}-Tier â€¢ {player.overall} OVR â€¢ {player.primaryPosition}
-          </div>
+        <div className="text-sm text-slate-300 transition group-hover:text-white">
+          Reveal this starter to see who is joining your opening arsenal.
         </div>
-      )}
+      </div>
     </button>
   );
 };
@@ -998,6 +1110,14 @@ export const RoguelikeMode = ({
     return rewards;
   };
 
+  const buildClearRewards = (node: RoguelikeNode) => {
+    const rewards = getRoguelikeClearRewards(node);
+    if (rewards.prestigeXpAward > 0) {
+      onAwardFailureRewards(rewards.prestigeXpAward);
+    }
+    return rewards;
+  };
+
   const previewFailureRewards = (floorIndex: number) => getRoguelikeFailureRewards(floorIndex);
 
   const revealStarterCard = (playerId: string) => {
@@ -1120,6 +1240,10 @@ export const RoguelikeMode = ({
         return;
       }
 
+      if (run.activeNode) {
+        buildClearRewards(run.activeNode);
+      }
+
       setRun({
         ...run,
         roster: nextRoster,
@@ -1147,6 +1271,10 @@ export const RoguelikeMode = ({
           }),
         );
         return;
+      }
+
+      if (run.activeNode) {
+        buildClearRewards(run.activeNode);
       }
 
       const nextFloorIndex = run.floorIndex + 1;
@@ -1225,6 +1353,7 @@ export const RoguelikeMode = ({
 
       if (evolutionOptions.length === 0) {
         const nextFloorIndex = run.floorIndex + 1;
+        buildClearRewards(node);
         setRun({
           ...run,
           draftShuffleTickets: run.draftShuffleTickets + 1,
@@ -1305,6 +1434,7 @@ export const RoguelikeMode = ({
     }
 
     if (resolution.passed && node.type === "boss" && run.floorIndex === roguelikeNodes.length - 1) {
+      buildClearRewards(node);
       setRun({
         ...run,
         stage: "run-cleared",
@@ -1320,6 +1450,7 @@ export const RoguelikeMode = ({
     }
 
     if (resolution.passed) {
+      buildClearRewards(node);
       const expandedPool = unlockBundlePlayers(
         run.availablePool,
         getRunOwnedPlayers(run),
@@ -1431,6 +1562,7 @@ export const RoguelikeMode = ({
     if ((node.draftShuffleReward ?? 0) > 0) {
       const nextFloorIndex = run.floorIndex + 1;
       const rewardAmount = node.draftShuffleReward ?? 0;
+      buildClearRewards(node);
       setRun({
         ...run,
         draftShuffleTickets: run.draftShuffleTickets + rewardAmount,
@@ -1449,6 +1581,7 @@ export const RoguelikeMode = ({
     }
 
     if (passed) {
+      buildClearRewards(node);
       const expandedPool = unlockBundlePlayers(
         run.availablePool,
         getRunOwnedPlayers(run),
@@ -1575,6 +1708,7 @@ export const RoguelikeMode = ({
     }
 
     if (node.id === "hall-of-fame-finals" || run.floorIndex === roguelikeNodes.length - 1) {
+      buildClearRewards(node);
       setRun({
         ...run,
         stage: "run-cleared",
@@ -1591,6 +1725,7 @@ export const RoguelikeMode = ({
     }
 
     if ((node.draftShuffleReward ?? 0) > 0 && node.rewardChoices === 0) {
+      buildClearRewards(node);
       const rewardAmount = node.draftShuffleReward ?? 0;
       const nextFloorIndex = run.floorIndex + 1;
       setRun({
@@ -1616,6 +1751,7 @@ export const RoguelikeMode = ({
     );
     const rewardDraftPool = getRewardDraftPool(run, node, expandedPool);
     const bundle = getBundle(node.rewardBundleId);
+    buildClearRewards(node);
     const nextChoicesState = drawRunChoices(
       run,
       rewardDraftPool,
@@ -1718,6 +1854,7 @@ export const RoguelikeMode = ({
     const nextNode = roguelikeNodes[nextFloorIndex] ?? null;
     const trainedPlayerIds = [...run.trainedPlayerIds, player.id];
     const trainingCount = trainedPlayerIds.filter((trainedPlayerId) => trainedPlayerId === player.id).length;
+    buildClearRewards(run.activeNode);
 
     setRun({
       ...run,
@@ -1751,6 +1888,7 @@ export const RoguelikeMode = ({
         : { ...slot },
     );
     const nextFloorIndex = run.floorIndex + 1;
+    buildClearRewards(run.activeNode);
 
     setRun({
       ...run,
@@ -1778,6 +1916,7 @@ export const RoguelikeMode = ({
 
     const nextFloorIndex = run.floorIndex + 1;
     const nextNode = roguelikeNodes[nextFloorIndex] ?? null;
+    buildClearRewards(run.activeNode);
 
     setRun({
       ...run,
@@ -2224,6 +2363,7 @@ export const RoguelikeMode = ({
     run.stage === "faceoff-game" && run.nodeResult?.faceoffResult
       ? getFaceoffFinalScore(run.nodeResult.faceoffResult)
       : null;
+  const nodeResultReferencesDraftShuffle = (run.nodeResult?.detail ?? "").includes("Draft Shuffle");
   const firstBossCleared = run.unlockedBundleIds.includes("synergy-hunters");
   const visibleRosterSlotCount = !firstBossCleared ? 5 : Math.min(10, Math.max(6, runOwnedPlayers.length));
   const visibleRunLineup = displayedRun.lineup.slice(0, visibleRosterSlotCount);
@@ -2335,7 +2475,8 @@ export const RoguelikeMode = ({
                   : "cursor-not-allowed border-white/10 bg-white/5 text-slate-300 opacity-70",
               )}
             >
-              <div className="text-[10px] uppercase tracking-[0.2em] text-current">
+              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-current">
+                <RefreshCcw size={12} />
                 Draft Shuffle
               </div>
               <div className="mt-2 text-xl font-semibold text-white">{run.draftShuffleTickets}</div>
@@ -2446,11 +2587,19 @@ export const RoguelikeMode = ({
                 This is the full run path. You will move through draft nodes, chemistry checks, and boss gates until you either survive the gauntlet or the run collapses. Study the ladder first, then begin your opening draft.
               </p>
 
-              <div className="relative mt-8 space-y-4 pl-7 before:absolute before:bottom-4 before:left-3 before:top-4 before:w-px before:bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.06),rgba(255,255,255,0))]">
+              <div className="mt-8 hidden grid-cols-[minmax(0,1fr)_220px] items-end gap-4 pl-7 pr-1 text-[10px] uppercase tracking-[0.22em] text-slate-400 xl:grid">
+                <div>Nodes</div>
+                <div className="text-right">Rewards</div>
+              </div>
+              <div className="relative mt-3 space-y-4 pl-7 before:absolute before:bottom-4 before:left-3 before:top-4 before:w-px before:bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.06),rgba(255,255,255,0))]">
                 {roguelikeNodes.map((node, index) => {
                   const isCurrent = index === run.floorIndex;
                   const isCleared = index < run.floorIndex;
                   const isLocked = index > run.floorIndex;
+                  const rewards = getRoguelikeClearRewards(node);
+                  const rewardsEarned =
+                    doesRoguelikeNodeAwardClearRewards(node) &&
+                    hasEarnedNodeReward(run, index, run.nodeResult);
                   const actTheme = getActLadderTheme(node.act);
                   const summary = node.targetLabel
                     ? { label: "Target", value: node.targetLabel }
@@ -2459,7 +2608,7 @@ export const RoguelikeMode = ({
                       : { label: "Reward", value: "Training boost" };
 
                   return (
-                    <div key={node.id} className="relative pl-4">
+                    <div key={node.id} className="relative grid gap-4 pl-4 xl:grid-cols-[minmax(0,1fr)_220px] xl:items-stretch">
                       <div
                         className={clsx(
                           "absolute left-[-1px] top-7 h-4 w-4 rounded-full border-4 border-[#090b12]",
@@ -2518,6 +2667,9 @@ export const RoguelikeMode = ({
                             </div>
                           </div>
                         </div>
+                      </div>
+                      <div className="xl:pt-1">
+                        <RogueNodeRewardsRail rewards={rewards} earned={rewardsEarned} />
                       </div>
                     </div>
                   );
@@ -2890,6 +3042,12 @@ export const RoguelikeMode = ({
             <div className="glass-panel rounded-[30px] p-6 shadow-card">
               <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Run Update</div>
               <h2 className="mt-2 font-display text-3xl text-white">{run.nodeResult?.title}</h2>
+              {nodeResultReferencesDraftShuffle ? (
+                <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-indigo-200/18 bg-indigo-300/10 px-4 py-2 text-[11px] uppercase tracking-[0.22em] text-indigo-100">
+                  <RefreshCcw size={14} />
+                  Draft Shuffle Ticket
+                </div>
+              ) : null}
               <p className="mt-3 text-sm leading-7 text-slate-300">{run.nodeResult?.detail}</p>
               <button
                 type="button"
@@ -2949,6 +3107,10 @@ export const RoguelikeMode = ({
             <>
               <div className="glass-panel rounded-[30px] p-6 shadow-card">
                 <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Run Ladder</div>
+                <div className="mt-4 hidden grid-cols-[minmax(0,1fr)_200px] items-end gap-3 pl-6 pr-1 text-[10px] uppercase tracking-[0.22em] text-slate-400 xl:grid">
+                  <div>Nodes</div>
+                  <div className="text-right">Rewards</div>
+                </div>
                 <div className="relative mt-5 space-y-3 pl-6 before:absolute before:bottom-4 before:left-2.5 before:top-3 before:w-px before:bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.06),rgba(255,255,255,0))]">
                   {roguelikeNodes.map((node, index) => {
                     const isCurrent = run.floorIndex === index && (
@@ -2960,12 +3122,16 @@ export const RoguelikeMode = ({
                       run.stage === "faceoff-game"
                     );
                     const isCleared = run.floorIndex > index || run.stage === "run-cleared";
+                    const rewards = getRoguelikeClearRewards(node);
+                    const rewardsEarned =
+                      doesRoguelikeNodeAwardClearRewards(node) &&
+                      hasEarnedNodeReward(run, index, run.nodeResult);
                     const actTheme = getActLadderTheme(node.act);
                     const summary = node.targetLabel
                       ? { label: "Target", value: node.targetLabel }
                       : { label: "Reward", value: getBundle(node.rewardBundleId).title };
                     return (
-                      <div key={node.id} className="relative pl-4">
+                      <div key={node.id} className="relative grid gap-3 pl-4 xl:grid-cols-[minmax(0,1fr)_200px] xl:items-stretch">
                         <div
                           className={clsx(
                             "absolute left-[-1px] top-6 h-3.5 w-3.5 rounded-full border-4 border-[#090b12]",
@@ -3031,6 +3197,7 @@ export const RoguelikeMode = ({
                             </div>
                           </div>
                         </div>
+                        <RogueNodeRewardsRail rewards={rewards} earned={rewardsEarned} />
                       </div>
                     );
                   })}

@@ -102,12 +102,48 @@ export interface RoguelikeFailureRewards {
   tokenReward: number;
 }
 
+export interface RoguelikeClearRewards {
+  prestigeXpAward: number;
+  tokenReward: number;
+}
+
 const VERSION_SUFFIX_PATTERN = /\s\([^)]*\)$/;
 const STARTING_FIVE_POSITIONS: Position[] = ["PG", "SG", "SF", "PF", "C"];
 const DEFAULT_FACEOFF_TARGET_AVERAGE = 84;
 
 export const getRoguelikeFailureRewards = (floorIndex: number): RoguelikeFailureRewards => {
   const prestigeXpAward = Math.max(2, Math.min(8, floorIndex + 1));
+
+  return {
+    prestigeXpAward,
+    tokenReward: prestigeXpAward * 10,
+  };
+};
+
+export const doesRoguelikeNodeAwardClearRewards = (
+  node: Pick<RoguelikeNode, "type" | "act" | "eliminationOnLoss">,
+) => node.type === "challenge" || Boolean(node.eliminationOnLoss);
+
+export const getRoguelikeClearRewards = (
+  node: Pick<RoguelikeNode, "act" | "type" | "eliminationOnLoss">,
+): RoguelikeClearRewards => {
+  if (!doesRoguelikeNodeAwardClearRewards(node)) {
+    return {
+      prestigeXpAward: 0,
+      tokenReward: 0,
+    };
+  }
+
+  const baseByType: Record<RoguelikeNodeType, number> = {
+    draft: 2,
+    training: 3,
+    trade: 3,
+    evolution: 4,
+    challenge: 4,
+    boss: 5,
+  };
+
+  const prestigeXpAward = Math.max(2, Math.min(8, baseByType[node.type] + node.act - 1));
 
   return {
     prestigeXpAward,

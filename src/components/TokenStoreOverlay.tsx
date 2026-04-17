@@ -156,6 +156,8 @@ export const TokenStoreOverlay = ({
         "border-fuchsia-200/20 bg-fuchsia-300/10 text-fuchsia-100",
       iconClass: "text-fuchsia-200",
     },
+  ];
+  const starterPackCards = [
     {
       item: tokenStoreUtilityItems[2],
       owned: ownedSilverStarterPacks,
@@ -190,6 +192,15 @@ export const TokenStoreOverlay = ({
       iconClass: "text-cyan-200",
     },
   ];
+  const orderedStarPlayers = useMemo(
+    () =>
+      [...sTierPlayers].sort((a, b) => {
+        const priceDelta = getTokenStorePlayerPrice(a, playerPriceMap) - getTokenStorePlayerPrice(b, playerPriceMap);
+        if (priceDelta !== 0) return priceDelta;
+        return a.name.localeCompare(b.name);
+      }),
+    [playerPriceMap, sTierPlayers],
+  );
 
   const overlay = (
     <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/82 px-4 py-8 backdrop-blur-md">
@@ -230,6 +241,42 @@ export const TokenStoreOverlay = ({
                 ? sTierPlayers.find((player) => player.id === activeRogueStarId)?.name ?? "Selected"
                 : "None Selected"}
             </div>
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
+            <Package2 size={14} className="text-amber-200" />
+            Starter Pack Upgrades
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {starterPackCards.map(({ item, owned, onBuy, icon: Icon, cardClass, badgeClass, iconClass }) => (
+              <div key={item.id} className={`rounded-[28px] border p-5 ${cardClass}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 text-xl font-semibold text-white">
+                      <Icon size={18} className={iconClass} />
+                      {item.title}
+                    </div>
+                    <div className="mt-3 text-sm leading-7 text-slate-300">{item.description}</div>
+                  </div>
+                  <div className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${badgeClass}`}>
+                    Owned {owned}
+                  </div>
+                </div>
+                <div className="mt-5 flex items-center justify-between gap-3">
+                  <div className="text-2xl font-semibold text-white">{formatNumber(item.price)}</div>
+                  <button
+                    type="button"
+                    onClick={onBuy}
+                    disabled={meta.tokens.balance < item.price}
+                    className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48"
+                  >
+                    Buy
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -278,7 +325,7 @@ export const TokenStoreOverlay = ({
             Every S-tier player in the game can be purchased here. Michael Jordan sits alone at the top of the market, and the cheapest star in the store starts at 100,000 tokens.
           </div>
           <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {sTierPlayers.map((player) => {
+            {orderedStarPlayers.map((player) => {
               const price = getTokenStorePlayerPrice(player, playerPriceMap);
               const owned = ownedRogueStarIds.includes(player.id);
               const active = activeRogueStarId === player.id;

@@ -399,6 +399,8 @@ const directImageOverrides: Record<string, string> = {
     "https://www.legendsofbasketball.com/wp-content/uploads/2020/11/bruce-bowen.jpg",
   "andrei-kirilenko":
     "https://i.redd.it/j3hz609fagz91.jpg",
+  "andre-iguodala":
+    "https://cdn.bleacherreport.net/images_root/slides/photos/000/628/641/86306010_original.jpg?1294782454",
   "adrian-dantley":
     "https://cdn.nba.com/teams/uploads/sites/1610612762/2023/11/GettyImages-499320108.jpg",
   "alex-english":
