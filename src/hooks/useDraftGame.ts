@@ -42,6 +42,14 @@ const DEFAULT_METRICS = {
   benchScoring: 0,
 };
 
+const DEFAULT_ROGUE_PERSONAL_BESTS: RoguePersonalBests = {
+  furthestFloor: 0,
+  overall: 0,
+  offense: 0,
+  defense: 0,
+  chemistry: 0,
+};
+
 const LEGACY_PLAYER_ID_MIGRATIONS: Record<string, string> = {
   "dwyane-wade-young": "dwayne-wade-03-10",
   "dwyane-wade-big-3": "dwayne-wade-10-14",
@@ -293,14 +301,15 @@ const createInitialState = (): DraftState => {
     bonusPickUsed: false,
     bonusPickActive: false,
     rogueBonusPrestigeXp: 0,
-      spentTokens: 0,
-      ownedTrainingCampTickets: 0,
-      ownedTradePhones: 0,
-      ownedSilverStarterPacks: 0,
-      ownedGoldStarterPacks: 0,
-      ownedPlatinumStarterPacks: 0,
-      ownedRogueStarIds: [],
-      activeRogueStarId: null,
+    roguePersonalBests: DEFAULT_ROGUE_PERSONAL_BESTS,
+    spentTokens: 0,
+    ownedTrainingCampTickets: 0,
+    ownedTradePhones: 0,
+    ownedSilverStarterPacks: 0,
+    ownedGoldStarterPacks: 0,
+    ownedPlatinumStarterPacks: 0,
+    ownedRogueStarIds: [],
+    activeRogueStarId: null,
     seed,
   };
 };
@@ -359,13 +368,14 @@ const normalizeState = (value: DraftState): DraftState => {
     bonusPickUsed: value.bonusPickUsed ?? false,
     bonusPickActive: value.bonusPickActive ?? false,
     rogueBonusPrestigeXp: value.rogueBonusPrestigeXp ?? 0,
-      spentTokens: value.spentTokens ?? 0,
-      ownedTrainingCampTickets: value.ownedTrainingCampTickets ?? 0,
-      ownedTradePhones: value.ownedTradePhones ?? 0,
-      ownedSilverStarterPacks: value.ownedSilverStarterPacks ?? 0,
-      ownedGoldStarterPacks: value.ownedGoldStarterPacks ?? 0,
-      ownedPlatinumStarterPacks: value.ownedPlatinumStarterPacks ?? 0,
-      ownedRogueStarIds: Array.isArray(value.ownedRogueStarIds) ? normalizePlayerIds(value.ownedRogueStarIds) : [],
+    roguePersonalBests: value.roguePersonalBests ?? DEFAULT_ROGUE_PERSONAL_BESTS,
+    spentTokens: value.spentTokens ?? 0,
+    ownedTrainingCampTickets: value.ownedTrainingCampTickets ?? 0,
+    ownedTradePhones: value.ownedTradePhones ?? 0,
+    ownedSilverStarterPacks: value.ownedSilverStarterPacks ?? 0,
+    ownedGoldStarterPacks: value.ownedGoldStarterPacks ?? 0,
+    ownedPlatinumStarterPacks: value.ownedPlatinumStarterPacks ?? 0,
+    ownedRogueStarIds: Array.isArray(value.ownedRogueStarIds) ? normalizePlayerIds(value.ownedRogueStarIds) : [],
     activeRogueStarId:
       typeof value.activeRogueStarId === "string"
         ? LEGACY_PLAYER_ID_MIGRATIONS[value.activeRogueStarId] ?? value.activeRogueStarId
