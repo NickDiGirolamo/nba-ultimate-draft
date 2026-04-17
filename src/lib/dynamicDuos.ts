@@ -173,6 +173,7 @@ export const rolePlayerPairs: RolePlayerPairDefinition[] = [
   { id: "kawhi-duncan", title: "Spurs Support Cast: Kawhi Leonard (Spurs) + Tim Duncan", rolePlayer: "kawhi-leonard-spurs", centerpiece: "tim-duncan" },
   { id: "jrue-giannis", title: "Bucks Support Cast: Jrue Holiday + Giannis Antetokounmpo", rolePlayer: "jrue-holiday", centerpiece: "giannis-antetokounmpo" },
   { id: "dawkins-erving", title: "76ers Support Cast: Darryl Dawkins + Julius Erving", rolePlayer: "darryl-dawkins", centerpiece: "julius-erving" },
+  { id: "iguodala-iverson", title: "76ers Support Cast: Andre Iguodala + Allen Iverson (76ers)", rolePlayer: "andre-iguodala", centerpiece: "allen-iverson-76ers" },
   { id: "kenyon-kidd", title: "Nets Support Cast: Kenyon Martin + Jason Kidd", rolePlayer: "kenyon-martin", centerpiece: "jason-kidd" },
   { id: "rj-kidd", title: "Nets Support Cast: Richard Jefferson + Jason Kidd", rolePlayer: "richard-jefferson", centerpiece: "jason-kidd" },
 ];

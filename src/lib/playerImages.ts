@@ -54,7 +54,7 @@ const directImageOverrides: Record<string, string> = {
   "amar-e-stoudemire":
     "https://cdnph.upi.com/svc/sv/upi/57901340742905/2012/1/17025180e46528d6cae8df3bf4247290/NBA-fines-Stoudemire-50000.jpg",
   "amar-e-stoudemire-suns":
-    "https://cdnph.upi.com/svc/sv/upi/57901340742905/2012/1/17025180e46528d6cae8df3bf4247290/NBA-fines-Stoudemire-50000.jpg",
+    "https://www.sun-sentinel.com/wp-content/uploads/migration/2015/07/15/6V6O5RVUEBDFFB7ZHREUDBZIMI.jpg?w=620",
   "amar-e-stoudemire-knicks":
     "https://cdnph.upi.com/svc/sv/upi/57901340742905/2012/1/17025180e46528d6cae8df3bf4247290/NBA-fines-Stoudemire-50000.jpg",
   "aaron-gordon":
@@ -133,6 +133,8 @@ const directImageOverrides: Record<string, string> = {
     "https://heavy.com/wp-content/uploads/2019/01/donovanmitchelljazz-e1548262534388.jpg?quality=65&strip=all",
   "domantas-sabonis":
     "https://static01.nyt.com/athletic/uploads/wp/2024/01/28193550/GettyImages-1961733651-e1706488587580.jpg",
+  "doc-rivers":
+    "https://cloudfront-us-east-1.images.arcpublishing.com/ajc/WXZNU4GI65N76A3KNRA6YRKOHY.jpg",
   "dirk-nowitzki":
     "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/DirkNowitzki.jpg/250px-DirkNowitzki.jpg",
   "tracy-mcgrady-raptors":
@@ -218,7 +220,7 @@ const directImageOverrides: Record<string, string> = {
   "kevin-love-timberwolves":
     "https://upload.wikimedia.org/wikipedia/commons/8/81/Kevin_Love_2.jpg",
   "kevin-love-cavs":
-    "https://upload.wikimedia.org/wikipedia/commons/8/81/Kevin_Love_2.jpg",
+    "https://legacymedia.sportsplatform.io/img/images/photos/003/376/297/hi-res-81a724c20c6dde3f6617649ef591bd46_crop_north.jpg?1430177991&w=630&h=420",
   "khris-middleton":
     "https://legacymedia.sportsplatform.io/image/upload/x_0,y_162,w_1800,h_1195,c_crop/v1733413087/gz9weasipxfilgyr6uke.jpg",
   "kyrie-irving":
@@ -297,6 +299,8 @@ const directImageOverrides: Record<string, string> = {
     "https://cdn.britannica.com/07/258007-050-4F67E33A/Basketball-player-Walt-Frazier-dribbles-the-ball-against-the-Baltimore-Bullets-during-an-NBA-basketball-game-1971.jpg",
   "oscar-robertson":
     "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Oscar_Robertson1971.jpg/250px-Oscar_Robertson1971.jpg",
+  "o-j-mayo":
+    "https://cdn.nba.com/teams/legacy/www.nba.com/grizzlies/sites/grizzlies/files/legacy/main_photo/mayo-081013-jm131-300.jpg",
   "pau-gasol":
     "https://static.wikia.nocookie.net/nbasports/images/9/91/San_Antonio_Spurs_v_Los_Angeles_Lakers_Game_0_MoFFLaWuhl.jpg/revision/latest/scale-to-width-down/323?cb=20130705212405",
   "paul-george":

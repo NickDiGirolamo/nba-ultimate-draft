@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CategoryChallengeSelection, DraftChallengeSelection, DraftState, Player, PrestigeChallengeDefinition, RareEventSelection, RunHistoryEntry, Screen } from "../types";
+import { CategoryChallengeSelection, DraftChallengeSelection, DraftState, Player, PrestigeChallengeDefinition, RareEventSelection, RoguePersonalBests, RunHistoryEntry, Screen } from "../types";
 import { STORAGE_KEY, assignPlayerToRoster, createSeed, generateChoices, rosterTemplate } from "../lib/draft";
 import { allPlayers } from "../data/players";
 import { evaluateDraftChemistry, getCategoryChallengeTarget, runSeasonSimulation } from "../lib/simulate";

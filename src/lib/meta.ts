@@ -7,6 +7,7 @@ import {
   LeaderboardEntry,
   MetaProgress,
   PersonalBests,
+  RoguePersonalBests,
   PrestigeChallengeDefinition,
   PrestigeProgress,
   PrestigeRewardDefinition,
@@ -632,6 +633,14 @@ const defaultBests = (): PersonalBests => ({
   playoffFinish: "Missed Playoffs",
 });
 
+const defaultRogueBests = (): RoguePersonalBests => ({
+  furthestFloor: 0,
+  overall: 0,
+  offense: 0,
+  defense: 0,
+  chemistry: 0,
+});
+
 export const buildPersonalBests = (history: RunHistoryEntry[]): PersonalBests => {
   if (history.length === 0) return defaultBests();
   const seasonHistory = seasonRunsOnly(history);
@@ -1011,6 +1020,7 @@ export const buildPrestigeProgress = (
 export const buildMetaProgress = (
   history: RunHistoryEntry[],
   unlockedPlayerIds: string[],
+  roguePersonalBests: RoguePersonalBests = defaultRogueBests(),
 ): MetaProgress => {
   const collection = buildCollectionGoals(unlockedPlayerIds);
   const prestige = buildPrestigeProgress(history, collection);
@@ -1019,6 +1029,7 @@ export const buildMetaProgress = (
     prestige,
     tokens: buildTokenProgress(prestige.score),
     personalBests: buildPersonalBests(history),
+    roguePersonalBests,
     leaderboards: buildLeaderboards(history),
     trophies: buildTrophies(history, collection),
     streaks: buildStreaks(history),

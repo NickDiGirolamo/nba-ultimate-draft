@@ -320,6 +320,14 @@ export interface PersonalBests {
   playoffFinish: SimulationResult["playoffFinish"];
 }
 
+export interface RoguePersonalBests {
+  furthestFloor: number;
+  overall: number;
+  offense: number;
+  defense: number;
+  chemistry: number;
+}
+
 export interface LeaderboardEntry {
   label: string;
   value: string;
@@ -374,6 +382,7 @@ export interface MetaProgress {
   prestige: PrestigeProgress;
   tokens: TokenProgress;
   personalBests: PersonalBests;
+  roguePersonalBests: RoguePersonalBests;
   leaderboards: LeaderboardEntry[];
   trophies: Trophy[];
   streaks: Streaks;
@@ -409,6 +418,7 @@ export interface DraftState {
   bonusPickUsed: boolean;
   bonusPickActive: boolean;
   rogueBonusPrestigeXp: number;
+  roguePersonalBests: RoguePersonalBests;
   spentTokens: number;
   ownedTrainingCampTickets: number;
   ownedTradePhones: number;

@@ -18,6 +18,7 @@ import { getCategoryChallengeTarget } from "./lib/simulate";
 
 const ROGUELIKE_UI_STORAGE_KEY = "legends-draft-roguelike-ui-v1";
 const ROGUELIKE_RUN_STORAGE_KEY = "legends-draft-roguelike-run-v1";
+const ROGUELIKE_PARKED_STORAGE_KEY = "legends-draft-roguelike-parked-v1";
 
 const challengeStrategyMap: Record<string, string> = {
   "classic": "Take the best long-term team, not the flashiest individual player.",
@@ -100,7 +101,8 @@ function App() {
     try {
       const openFlag = window.localStorage.getItem(ROGUELIKE_UI_STORAGE_KEY);
       const hasSavedRun = Boolean(window.localStorage.getItem(ROGUELIKE_RUN_STORAGE_KEY));
-      return openFlag === "true" || hasSavedRun;
+      const parkedRun = window.localStorage.getItem(ROGUELIKE_PARKED_STORAGE_KEY) === "true";
+      return openFlag === "true" || (hasSavedRun && !parkedRun);
     } catch {
       return false;
     }
@@ -242,6 +244,9 @@ function App() {
           <button
             type="button"
             onClick={() => {
+              if (roguelikeOpen && typeof window !== "undefined") {
+                window.localStorage.setItem(ROGUELIKE_PARKED_STORAGE_KEY, "true");
+              }
               setRoguelikeOpen(false);
               resetDraft();
             }}
@@ -351,6 +356,10 @@ function App() {
             onUseSilverStarterPack={useSilverStarterPack}
             onUseGoldStarterPack={useGoldStarterPack}
             onUsePlatinumStarterPack={usePlatinumStarterPack}
+            onLeaveRun={() => {
+              setRoguelikeOpen(false);
+              resetDraft();
+            }}
             onBackToHome={() => {
               setRoguelikeOpen(false);
               resetDraft();
