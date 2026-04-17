@@ -93,11 +93,27 @@ const LineupCard = ({
           </div>
         </div>
         <div className={clsx("mt-3", compact ? "min-h-[44px]" : "min-h-[54px]")}>
-          <div className={clsx("font-semibold text-white", compact ? "text-[0.82rem] leading-4" : "text-[0.95rem] leading-5")}>
-            <div className="whitespace-nowrap">{firstNameLine}</div>
-            {lastNameLine ? <div className="whitespace-nowrap">{lastNameLine}</div> : null}
-            {versionLine ? <div className="whitespace-nowrap text-[0.8em] text-slate-300">{versionLine}</div> : null}
+          {(() => {
+            const playerNameLength = player?.name.length ?? 0;
+            return (
+          <div
+            className={clsx(
+              "font-semibold text-white",
+              compact
+                ? playerNameLength >= 22
+                  ? "text-[0.72rem] leading-4"
+                  : "text-[0.82rem] leading-4"
+                : playerNameLength >= 22
+                  ? "text-[0.82rem] leading-4"
+                  : "text-[0.95rem] leading-5",
+            )}
+          >
+            <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{firstNameLine}</div>
+            {lastNameLine ? <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{lastNameLine}</div> : null}
+            {versionLine ? <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[0.8em] tracking-tight text-slate-300">{versionLine}</div> : null}
           </div>
+            );
+          })()}
           <div className={clsx("mt-1 text-slate-400", compact ? "text-[11px]" : "text-xs")}>
             {naturalPositions}
           </div>

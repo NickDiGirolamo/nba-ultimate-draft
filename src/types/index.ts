@@ -408,5 +408,14 @@ export interface DraftState {
   bonusPickAvailable: boolean;
   bonusPickUsed: boolean;
   bonusPickActive: boolean;
+  rogueBonusPrestigeXp: number;
+  spentTokens: number;
+  ownedTrainingCampTickets: number;
+  ownedTradePhones: number;
+  ownedSilverStarterPacks: number;
+  ownedGoldStarterPacks: number;
+  ownedPlatinumStarterPacks: number;
+  ownedRogueStarIds: string[];
+  activeRogueStarId: string | null;
   seed: number;
 }

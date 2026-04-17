@@ -1025,3 +1025,45 @@ export const buildMetaProgress = (
     collection,
   };
 };
+
+export const applyMetaProgressBonus = (
+  meta: MetaProgress,
+  bonusPrestigeXp: number,
+): MetaProgress => {
+  if (bonusPrestigeXp <= 0) return meta;
+
+  const bonusScore = meta.prestige.score + bonusPrestigeXp;
+  const level = getPrestigeLevelFromScore(bonusScore);
+  const currentLevelFloor = getPrestigeLevelFloor(level);
+  const nextLevelScore = getPrestigeLevelFloor(level + 1);
+  const progressToNextLevel =
+    nextLevelScore === currentLevelFloor
+      ? 1
+      : (bonusScore - currentLevelFloor) / (nextLevelScore - currentLevelFloor);
+
+  return {
+    ...meta,
+    prestige: {
+      ...meta.prestige,
+      score: bonusScore,
+      level,
+      title: getPrestigeTitleForLevel(level),
+      currentLevelFloor,
+      nextLevelScore,
+      progressToNextLevel: Math.max(0, Math.min(progressToNextLevel, 1)),
+      breakdown: [
+        {
+          label: "Rogue Run Rewards",
+          value: bonusPrestigeXp,
+          description:
+            "Failed Rogue runs still award Prestige XP so every climb keeps moving your account forward.",
+        },
+        ...meta.prestige.breakdown,
+      ],
+    },
+    tokens: {
+      balance: meta.tokens.balance + bonusPrestigeXp * 10,
+      lifetimeEarned: meta.tokens.lifetimeEarned + bonusPrestigeXp * 10,
+    },
+  };
+};

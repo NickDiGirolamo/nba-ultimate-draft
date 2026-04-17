@@ -22,6 +22,7 @@
 - Tooltips, badges, roster changes, challenge outcomes, and progression rewards should all clearly explain themselves.
 - Whenever a button, link, or other navigation action moves the user to a new page, screen, section, modal, or major state, reset scroll position to the top so the destination view starts at the top by default.
 - Minimize dead space, clipping, overflow, awkward text wrapping, and inconsistent alignment.
+- On player cards, never solve long names by clipping them or forcing ellipses when the full name should be visible; reduce the name font size as needed so the full player name fits cleanly on the card.
 - If a user earns or unlocks something, the payoff should feel visible and rewarding.
 
 ## Workflow Rules

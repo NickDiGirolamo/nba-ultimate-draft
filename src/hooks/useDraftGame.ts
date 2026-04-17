@@ -4,6 +4,7 @@ import { STORAGE_KEY, assignPlayerToRoster, createSeed, generateChoices, rosterT
 import { allPlayers } from "../data/players";
 import { evaluateDraftChemistry, getCategoryChallengeTarget, runSeasonSimulation } from "../lib/simulate";
 import {
+  applyMetaProgressBonus,
   buildPrestigeChallengeId,
   calculateRunEconomyRewards,
   buildMetaProgress,
@@ -68,6 +69,8 @@ const LEGACY_PLAYER_ID_MIGRATIONS: Record<string, string> = {
   "pascal-siakam": "pascal-siakam-pacers",
   "kevin-love": "kevin-love-timberwolves",
   "kyrie-irving": "kyrie-irving-cavs",
+  "allen-iverson": "allen-iverson-76ers",
+  "amar-e-stoudemire": "amar-e-stoudemire-suns",
 };
 
 const LEGACY_PLAYER_NAME_MIGRATIONS: Record<string, string> = {
@@ -97,6 +100,8 @@ const LEGACY_PLAYER_NAME_MIGRATIONS: Record<string, string> = {
   "Pascal Siakam": "Pascal Siakam (Pacers)",
   "Kevin Love": "Kevin Love (Timberwolves)",
   "Kyrie Irving": "Kyrie Irving (Cavs)",
+  "Allen Iverson": "Allen Iverson (76ers)",
+  "Amar'e Stoudemire": "Amar'e Stoudemire (Suns)",
 };
 
 const canonicalPlayersById = new Map(allPlayers.map((player) => [player.id, player]));
@@ -287,6 +292,15 @@ const createInitialState = (): DraftState => {
     bonusPickAvailable: false,
     bonusPickUsed: false,
     bonusPickActive: false,
+    rogueBonusPrestigeXp: 0,
+      spentTokens: 0,
+      ownedTrainingCampTickets: 0,
+      ownedTradePhones: 0,
+      ownedSilverStarterPacks: 0,
+      ownedGoldStarterPacks: 0,
+      ownedPlatinumStarterPacks: 0,
+      ownedRogueStarIds: [],
+      activeRogueStarId: null,
     seed,
   };
 };
@@ -344,6 +358,18 @@ const normalizeState = (value: DraftState): DraftState => {
     bonusPickAvailable: value.bonusPickAvailable ?? false,
     bonusPickUsed: value.bonusPickUsed ?? false,
     bonusPickActive: value.bonusPickActive ?? false,
+    rogueBonusPrestigeXp: value.rogueBonusPrestigeXp ?? 0,
+      spentTokens: value.spentTokens ?? 0,
+      ownedTrainingCampTickets: value.ownedTrainingCampTickets ?? 0,
+      ownedTradePhones: value.ownedTradePhones ?? 0,
+      ownedSilverStarterPacks: value.ownedSilverStarterPacks ?? 0,
+      ownedGoldStarterPacks: value.ownedGoldStarterPacks ?? 0,
+      ownedPlatinumStarterPacks: value.ownedPlatinumStarterPacks ?? 0,
+      ownedRogueStarIds: Array.isArray(value.ownedRogueStarIds) ? normalizePlayerIds(value.ownedRogueStarIds) : [],
+    activeRogueStarId:
+      typeof value.activeRogueStarId === "string"
+        ? LEGACY_PLAYER_ID_MIGRATIONS[value.activeRogueStarId] ?? value.activeRogueStarId
+        : null,
     seed,
   };
 };
@@ -366,8 +392,21 @@ export const useDraftGame = () => {
 
   const completedRoster = useMemo(() => state.roster.every((slot) => slot.player !== null), [state.roster]);
   const metaProgress = useMemo(
-    () => buildMetaProgress(state.history, state.unlockedPlayerIds),
-    [state.history, state.unlockedPlayerIds],
+    () => {
+      const boostedMeta = applyMetaProgressBonus(
+        buildMetaProgress(state.history, state.unlockedPlayerIds),
+        state.rogueBonusPrestigeXp,
+      );
+
+      return {
+        ...boostedMeta,
+        tokens: {
+          ...boostedMeta.tokens,
+          balance: Math.max(0, boostedMeta.tokens.balance - state.spentTokens),
+        },
+      };
+    },
+    [state.history, state.unlockedPlayerIds, state.rogueBonusPrestigeXp, state.spentTokens],
   );
   const teamAverage = useMemo(() => {
     const players = state.roster.map((slot) => slot.player).filter(Boolean) as Player[];
@@ -503,7 +542,10 @@ export const useDraftGame = () => {
     setState((current) => ({ ...current, screen: "simulating" }));
 
     window.setTimeout(() => {
-      const previousMeta = buildMetaProgress(state.history, state.unlockedPlayerIds);
+      const previousMeta = applyMetaProgressBonus(
+        buildMetaProgress(state.history, state.unlockedPlayerIds),
+        state.rogueBonusPrestigeXp,
+      );
       const simulationResult = runSeasonSimulation(
         state.roster,
         state.seed,
@@ -631,7 +673,10 @@ export const useDraftGame = () => {
         tokenReward,
       };
       const nextHistory = [finalizedHistoryEntry, ...state.history].slice(0, HISTORY_LIMIT);
-      const nextMeta = buildMetaProgress(nextHistory, state.unlockedPlayerIds);
+      const nextMeta = applyMetaProgressBonus(
+        buildMetaProgress(nextHistory, state.unlockedPlayerIds),
+        state.rogueBonusPrestigeXp,
+      );
       const prestigeLevelUp =
         nextMeta.prestige.level > previousMeta.prestige.level
           ? {
@@ -789,6 +834,15 @@ export const useDraftGame = () => {
       bonusPickAvailable: false,
       bonusPickUsed: false,
       bonusPickActive: false,
+      rogueBonusPrestigeXp: state.rogueBonusPrestigeXp,
+        spentTokens: state.spentTokens,
+        ownedTrainingCampTickets: state.ownedTrainingCampTickets,
+        ownedTradePhones: state.ownedTradePhones,
+        ownedSilverStarterPacks: state.ownedSilverStarterPacks,
+        ownedGoldStarterPacks: state.ownedGoldStarterPacks,
+        ownedPlatinumStarterPacks: state.ownedPlatinumStarterPacks,
+        ownedRogueStarIds: state.ownedRogueStarIds,
+      activeRogueStarId: state.activeRogueStarId,
       screen: "landing",
     });
   };
@@ -911,6 +965,15 @@ export const useDraftGame = () => {
         bonusPickAvailable: hasExtraPick,
         bonusPickUsed: false,
         bonusPickActive: false,
+        rogueBonusPrestigeXp: current.rogueBonusPrestigeXp,
+          spentTokens: current.spentTokens,
+          ownedTrainingCampTickets: current.ownedTrainingCampTickets,
+          ownedTradePhones: current.ownedTradePhones,
+          ownedSilverStarterPacks: current.ownedSilverStarterPacks,
+          ownedGoldStarterPacks: current.ownedGoldStarterPacks,
+          ownedPlatinumStarterPacks: current.ownedPlatinumStarterPacks,
+          ownedRogueStarIds: current.ownedRogueStarIds,
+        activeRogueStarId: current.activeRogueStarId,
         seed,
         roster,
         currentChoices: generateChoices(roster, [], seed, 1),
@@ -921,6 +984,141 @@ export const useDraftGame = () => {
 
   const setScreen = (screen: Screen) => {
     setState((current) => ({ ...current, screen }));
+  };
+
+  const awardRogueFailureRewards = (prestigeXpAward: number) => {
+    if (prestigeXpAward <= 0) return;
+
+    setState((current) => ({
+      ...current,
+      rogueBonusPrestigeXp: current.rogueBonusPrestigeXp + prestigeXpAward,
+    }));
+  };
+
+  const purchaseTrainingCampTicket = (price: number) => {
+    if (metaProgress.tokens.balance < price) return false;
+
+    setState((current) => ({
+      ...current,
+      spentTokens: current.spentTokens + price,
+      ownedTrainingCampTickets: current.ownedTrainingCampTickets + 1,
+    }));
+    return true;
+  };
+
+  const purchaseTradePhone = (price: number) => {
+    if (metaProgress.tokens.balance < price) return false;
+
+    setState((current) => ({
+      ...current,
+      spentTokens: current.spentTokens + price,
+      ownedTradePhones: current.ownedTradePhones + 1,
+    }));
+    return true;
+  };
+
+  const purchaseSilverStarterPack = (price: number) => {
+    if (metaProgress.tokens.balance < price) return false;
+
+    setState((current) => ({
+      ...current,
+      spentTokens: current.spentTokens + price,
+      ownedSilverStarterPacks: current.ownedSilverStarterPacks + 1,
+    }));
+    return true;
+  };
+
+  const purchaseGoldStarterPack = (price: number) => {
+    if (metaProgress.tokens.balance < price) return false;
+
+    setState((current) => ({
+      ...current,
+      spentTokens: current.spentTokens + price,
+      ownedGoldStarterPacks: current.ownedGoldStarterPacks + 1,
+    }));
+    return true;
+  };
+
+  const purchasePlatinumStarterPack = (price: number) => {
+    if (metaProgress.tokens.balance < price) return false;
+
+    setState((current) => ({
+      ...current,
+      spentTokens: current.spentTokens + price,
+      ownedPlatinumStarterPacks: current.ownedPlatinumStarterPacks + 1,
+    }));
+    return true;
+  };
+
+  const purchaseRogueStar = (playerId: string, price: number) => {
+    if (metaProgress.tokens.balance < price) return false;
+    if (state.ownedRogueStarIds.includes(playerId)) return false;
+
+    setState((current) => ({
+      ...current,
+      spentTokens: current.spentTokens + price,
+      ownedRogueStarIds: [...current.ownedRogueStarIds, playerId],
+      activeRogueStarId: current.activeRogueStarId ?? playerId,
+    }));
+    return true;
+  };
+
+  const setActiveRogueStar = (playerId: string | null) => {
+    setState((current) => ({
+      ...current,
+      activeRogueStarId:
+        playerId && current.ownedRogueStarIds.includes(playerId) ? playerId : null,
+    }));
+  };
+
+  const useTrainingCampTicket = () => {
+    if (state.ownedTrainingCampTickets <= 0) return false;
+
+    setState((current) => ({
+      ...current,
+      ownedTrainingCampTickets: Math.max(0, current.ownedTrainingCampTickets - 1),
+    }));
+    return true;
+  };
+
+  const useTradePhone = () => {
+    if (state.ownedTradePhones <= 0) return false;
+
+    setState((current) => ({
+      ...current,
+      ownedTradePhones: Math.max(0, current.ownedTradePhones - 1),
+    }));
+    return true;
+  };
+
+  const useSilverStarterPack = () => {
+    if (state.ownedSilverStarterPacks <= 0) return false;
+
+    setState((current) => ({
+      ...current,
+      ownedSilverStarterPacks: Math.max(0, current.ownedSilverStarterPacks - 1),
+    }));
+    return true;
+  };
+
+  const useGoldStarterPack = () => {
+    if (state.ownedGoldStarterPacks <= 0) return false;
+
+    setState((current) => ({
+      ...current,
+      ownedGoldStarterPacks: Math.max(0, current.ownedGoldStarterPacks - 1),
+    }));
+    return true;
+  };
+
+  const usePlatinumStarterPack = () => {
+    if (state.ownedPlatinumStarterPacks <= 0) return false;
+
+    setState((current) => ({
+      ...current,
+      ownedPlatinumStarterPacks: Math.max(0, current.ownedPlatinumStarterPacks - 1),
+    }));
+    return true;
   };
 
   return {
@@ -942,5 +1140,18 @@ export const useDraftGame = () => {
     setRareEventSelection,
     setCategoryChallengeSelection,
     applyRunPreset,
+    awardRogueFailureRewards,
+    purchaseTrainingCampTicket,
+    purchaseTradePhone,
+    purchaseSilverStarterPack,
+    purchaseGoldStarterPack,
+    purchasePlatinumStarterPack,
+    purchaseRogueStar,
+    setActiveRogueStar,
+    useTrainingCampTicket,
+    useTradePhone,
+    useSilverStarterPack,
+    useGoldStarterPack,
+    usePlatinumStarterPack,
   };
 };

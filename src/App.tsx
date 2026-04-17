@@ -12,6 +12,7 @@ import { ResultsShowcase } from "./components/ResultsShowcase";
 import { RoguelikeMode } from "./components/RoguelikeMode";
 import { RosterSidebar } from "./components/RosterSidebar";
 import { SimulationScreen } from "./components/SimulationScreen";
+import { TokenStoreOverlay } from "./components/TokenStoreOverlay";
 import { useDraftGame } from "./hooks/useDraftGame";
 import { getCategoryChallengeTarget } from "./lib/simulate";
 
@@ -65,6 +66,19 @@ function App() {
     setCategoryChallengeSelection,
     applyRunPreset,
     beginDraftFromBriefing,
+    awardRogueFailureRewards,
+    purchaseTrainingCampTicket,
+    purchaseTradePhone,
+    purchaseSilverStarterPack,
+    purchaseGoldStarterPack,
+    purchasePlatinumStarterPack,
+    purchaseRogueStar,
+    setActiveRogueStar,
+    useTrainingCampTicket,
+    useTradePhone,
+    useSilverStarterPack,
+    useGoldStarterPack,
+    usePlatinumStarterPack,
   } = useDraftGame();
 
   const choiceSignature = useMemo(
@@ -77,6 +91,7 @@ function App() {
   const [prestigeOpen, setPrestigeOpen] = useState(false);
   const [prestigeInitialView, setPrestigeInitialView] = useState<"overview" | "challenges" | "rewards" | "collection">("overview");
   const [learnOpen, setLearnOpen] = useState(false);
+  const [tokenStoreOpen, setTokenStoreOpen] = useState(false);
   const [showPrestigeLevelUp, setShowPrestigeLevelUp] = useState(false);
   const [showExtraPickIntro, setShowExtraPickIntro] = useState(false);
   const [roguelikeOpen, setRoguelikeOpen] = useState(() => {
@@ -218,7 +233,7 @@ function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }, [state.screen, roguelikeOpen, prestigeOpen, learnOpen, showPrestigeLevelUp]);
+  }, [state.screen, roguelikeOpen, prestigeOpen, tokenStoreOpen, learnOpen, showPrestigeLevelUp]);
 
   return (
     <div className="arena-shell text-white">
@@ -264,7 +279,11 @@ function App() {
 	                Learn categories, badges, and draft tips
 	              </div>
             </button>
-            <div className="glass-panel h-[94px] min-w-[200px] rounded-2xl px-4 py-3">
+            <button
+              type="button"
+              onClick={() => setTokenStoreOpen(true)}
+              className="glass-panel h-[94px] min-w-[200px] rounded-2xl px-4 py-3 text-left transition hover:border-amber-200/24 hover:bg-white/10"
+            >
               <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-slate-400">
                 <Coins size={13} className="text-amber-200" />
                 Tokens
@@ -278,7 +297,7 @@ function App() {
                 </div>
               </div>
               <div className="mt-2 h-1" />
-            </div>
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -320,6 +339,18 @@ function App() {
 
         {roguelikeOpen && (
           <RoguelikeMode
+            activeRogueStarId={state.activeRogueStarId}
+            ownedTrainingCampTickets={state.ownedTrainingCampTickets}
+            ownedTradePhones={state.ownedTradePhones}
+            ownedSilverStarterPacks={state.ownedSilverStarterPacks}
+            ownedGoldStarterPacks={state.ownedGoldStarterPacks}
+            ownedPlatinumStarterPacks={state.ownedPlatinumStarterPacks}
+            onAwardFailureRewards={awardRogueFailureRewards}
+            onUseTrainingCampTicket={useTrainingCampTicket}
+            onUseTradePhone={useTradePhone}
+            onUseSilverStarterPack={useSilverStarterPack}
+            onUseGoldStarterPack={useGoldStarterPack}
+            onUsePlatinumStarterPack={usePlatinumStarterPack}
             onBackToHome={() => {
               setRoguelikeOpen(false);
               resetDraft();
@@ -658,6 +689,27 @@ function App() {
           initialView={prestigeInitialView}
           onApplyChallengePreset={applyRunPreset}
           onClose={() => setPrestigeOpen(false)}
+        />
+      )}
+
+      {tokenStoreOpen && (
+        <TokenStoreOverlay
+          meta={metaProgress}
+          ownedTrainingCampTickets={state.ownedTrainingCampTickets}
+          ownedTradePhones={state.ownedTradePhones}
+          ownedSilverStarterPacks={state.ownedSilverStarterPacks}
+          ownedGoldStarterPacks={state.ownedGoldStarterPacks}
+          ownedPlatinumStarterPacks={state.ownedPlatinumStarterPacks}
+          ownedRogueStarIds={state.ownedRogueStarIds}
+          activeRogueStarId={state.activeRogueStarId}
+          onBuyTrainingCampTicket={() => purchaseTrainingCampTicket(10_000)}
+          onBuyTradePhone={() => purchaseTradePhone(5_000)}
+          onBuySilverStarterPack={() => purchaseSilverStarterPack(35_000)}
+          onBuyGoldStarterPack={() => purchaseGoldStarterPack(70_000)}
+          onBuyPlatinumStarterPack={() => purchasePlatinumStarterPack(100_000)}
+          onBuyRogueStar={purchaseRogueStar}
+          onSetActiveRogueStar={setActiveRogueStar}
+          onClose={() => setTokenStoreOpen(false)}
         />
       )}
 

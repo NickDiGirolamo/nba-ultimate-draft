@@ -36,10 +36,10 @@ export const DraftPlayerCard = ({
   const imageUrl = usePlayerImage(player);
   const naturalPositions = [player.primaryPosition, ...player.secondaryPositions].join(" / ");
   const { firstNameLine, lastNameLine, versionLine } = getPlayerDisplayLines(player);
-  const longestNameLine = Math.max(firstNameLine.length, lastNameLine.length, versionLine.length);
-  const longName = longestNameLine >= 9;
-  const veryLongName = longestNameLine >= 11;
-  const extremeName = longestNameLine >= 14;
+  const longestPrimaryNameLine = Math.max(firstNameLine.length, lastNameLine.length);
+  const longName = longestPrimaryNameLine >= 8;
+  const veryLongName = longestPrimaryNameLine >= 10;
+  const extremeName = longestPrimaryNameLine >= 12;
 
   return (
     <button
@@ -144,9 +144,9 @@ export const DraftPlayerCard = ({
                   : "text-[1.32rem]",
           )}
         >
-          <div className="truncate">{firstNameLine}</div>
-          <div className="mt-1 truncate">{lastNameLine}</div>
-          {versionLine ? <div className="mt-1 truncate text-[0.74em] text-slate-200/92">{versionLine}</div> : null}
+          <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{firstNameLine}</div>
+          <div className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{lastNameLine}</div>
+          {versionLine ? <div className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-[0.74em] tracking-tight text-slate-200/92">{versionLine}</div> : null}
         </div>
         <div
           className={clsx(

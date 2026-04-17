@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import {
   ArrowRight,
   CheckCircle2,
   ChevronDown,
+  Coins,
   Crown,
   GripHorizontal,
   Package2,
@@ -20,23 +21,29 @@ import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { allPlayers } from "../data/players";
 import { assignPlayerToRoster } from "../lib/draft";
+import { getPlayerDisplayLines } from "../lib/playerDisplay";
 import {
   buildRoguelikeOpponentLineup,
   buildOpeningDraftPool,
+  getRoguelikeFailureRewards,
   buildRoguelikeStarterLineup,
   buildStarterPool,
   drawRoguelikeStarterRevealPlayers,
   drawRoguelikeChoices,
   getRoguelikeAdjustedDefenseForSlot,
+  getRoguelikeEvolutionOptions,
+  getRoguelikeEvolutionRewardPool,
   getRoguelikeAdjustedOffenseForSlot,
+  getRoguelikeAdjustedReboundingForSlot,
   evaluateRoguelikeLineup,
   evaluateRoguelikeRoster,
   getRoguelikeAdjustedOverallForSlot,
   getRoguelikeSlotPenalty,
-  generateActOneFaceoffOpponentPlayerIds,
+  generateFaceoffOpponentPlayerIds,
   getBundle,
   RoguelikeFaceoffMatchup,
   RoguelikeFaceoffResult,
+  RoguelikeFailureRewards,
   RoguelikeNode,
   RoguelikeStarterPackageId,
   roguelikeNodes,
@@ -55,6 +62,7 @@ type RoguelikeStage =
   | "training-select"
   | "trade-offer"
   | "trade-select"
+  | "evolution-select"
   | "faceoff-setup"
   | "faceoff-game"
   | "node-preview"
@@ -76,8 +84,15 @@ interface RoguelikeRun {
   lives: number;
   floorIndex: number;
   initialPicks: number;
+  draftShuffleTickets: number;
   unlockedBundleIds: string[];
   trainedPlayerIds: string[];
+  utilityReturnState?: {
+    stage: RoguelikeStage;
+    activeNode: RoguelikeNode | null;
+    activeOpponentPlayerIds: string[] | null;
+    nodeResult: RoguelikeRun["nodeResult"] | null;
+  } | null;
   failureReviewStage?: RoguelikeStage | null;
   stage: RoguelikeStage;
   activeNode: RoguelikeNode | null;
@@ -87,11 +102,24 @@ interface RoguelikeRun {
     detail: string;
     passed?: boolean;
     faceoffResult?: RoguelikeFaceoffResult | null;
+    failureRewards?: RoguelikeFailureRewards | null;
   } | null;
 }
 
 interface RoguelikeModeProps {
+  activeRogueStarId: string | null;
+  ownedTrainingCampTickets: number;
+  ownedTradePhones: number;
+  ownedSilverStarterPacks: number;
+  ownedGoldStarterPacks: number;
+  ownedPlatinumStarterPacks: number;
   onBackToHome: () => void;
+  onAwardFailureRewards: (prestigeXpAward: number) => void;
+  onUseTrainingCampTicket: () => boolean;
+  onUseTradePhone: () => boolean;
+  onUseSilverStarterPack: () => boolean;
+  onUseGoldStarterPack: () => boolean;
+  onUsePlatinumStarterPack: () => boolean;
 }
 
 const ROGUELIKE_STORAGE_KEY = "legends-draft-roguelike-run-v1";
@@ -99,6 +127,56 @@ const ROGUELIKE_STORAGE_KEY = "legends-draft-roguelike-run-v1";
 const createSeed = () => Math.floor(Date.now() % 1_000_000) + Math.floor(Math.random() * 1000);
 
 const nextChoiceSeed = (seed: number, step: number) => seed + step * 97 + 13;
+
+const STORE_TRAINING_NODE: RoguelikeNode = {
+  id: "store-training-camp",
+  floor: 0,
+  act: 0,
+  type: "training",
+  title: "Training Camp Ticket",
+  description: "Send one player from your Rogue roster to training camp for a +1 OVR boost for the rest of the run.",
+  rewardBundleId: "elite-closers",
+  rewardChoices: 0,
+  targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+};
+
+const STORE_TRADE_NODE: RoguelikeNode = {
+  id: "store-trade-phone",
+  floor: 0,
+  act: 0,
+  type: "trade",
+  title: "Trade Phone",
+  description: "Trade away one player from your Rogue roster and choose 1 replacement from a fresh 1-of-5 board.",
+  rewardBundleId: "elite-closers",
+  rewardChoices: 5,
+  targetLabel: "Trade 1 player, then draft 1 replacement from 5 options",
+};
+
+const getPlayerById = (playerId: string | null) =>
+  (playerId ? allPlayers.find((player) => player.id === playerId) ?? null : null);
+
+const injectActiveRogueStarIntoReveal = (starterRevealPlayers: Player[], activeRogueStar: Player | null) => {
+  if (!activeRogueStar) return starterRevealPlayers;
+  if (starterRevealPlayers.some((player) => player.id === activeRogueStar.id)) {
+    return starterRevealPlayers;
+  }
+
+  const nextRevealPlayers = [...starterRevealPlayers];
+  const replaceIndex = nextRevealPlayers.reduce(
+    (lowestIndex, player, index, players) =>
+      player.overall < players[lowestIndex].overall ? index : lowestIndex,
+    0,
+  );
+  nextRevealPlayers[replaceIndex] = activeRogueStar;
+  return nextRevealPlayers;
+};
+
+const getStarterPackAverageForUpgrade = (upgrade: "standard" | "silver" | "gold" | "platinum") => {
+  if (upgrade === "silver") return 84;
+  if (upgrade === "gold") return 85;
+  if (upgrade === "platinum") return 86;
+  return 83;
+};
 
 const getRevealedStarterPlayers = (run: RoguelikeRun) => {
   const revealedPlayers = run.starterRevealPlayers.filter((player) =>
@@ -131,21 +209,40 @@ const getEarlyRunRosterState = (run: RoguelikeRun) => {
   };
 };
 
+const compactBenchSlots = (lineup: RosterSlot[]) => {
+  if (lineup.length <= 5) return lineup;
+
+  const starters: RosterSlot[] = lineup.slice(0, 5).map((slot) => ({ ...slot }));
+  const benchTemplate: RosterSlot[] = lineup.slice(5).map((slot) => ({ ...slot, player: null }));
+  const benchPlayers = lineup.slice(5)
+    .map((slot) => slot.player)
+    .filter((player): player is Player => Boolean(player));
+
+  benchPlayers.forEach((player, index) => {
+    if (benchTemplate[index]) {
+      benchTemplate[index] = { ...benchTemplate[index], player };
+    }
+  });
+
+  return [...starters, ...benchTemplate];
+};
+
 const hydrateRunLineup = (run: RoguelikeRun, ownedPlayers: Player[]) => {
   const playerById = new Map(ownedPlayers.map((player) => [player.id, player]));
   const hasPlacedPlayers = run.lineup.some((slot) => Boolean(slot.player));
 
   if (!hasPlacedPlayers) {
-    return ownedPlayers.length <= 5
+    const hydratedLineup = ownedPlayers.length <= 5
       ? buildRoguelikeStarterLineup(ownedPlayers)
       : ownedPlayers.reduce(
           (currentLineup, player) => assignPlayerToRoster(currentLineup, player).roster,
           buildRoguelikeStarterLineup(ownedPlayers),
         );
+    return compactBenchSlots(hydratedLineup);
   }
 
   const placedPlayerIds = new Set<string>();
-  const hydratedLineup = run.lineup.map((slot) => {
+  const syncedLineup = run.lineup.map((slot) => {
     const hydratedPlayer = slot.player ? playerById.get(slot.player.id) ?? null : null;
     if (hydratedPlayer) {
       placedPlayerIds.add(hydratedPlayer.id);
@@ -158,10 +255,11 @@ const hydrateRunLineup = (run: RoguelikeRun, ownedPlayers: Player[]) => {
   });
 
   const unplacedPlayers = ownedPlayers.filter((player) => !placedPlayerIds.has(player.id));
-  return unplacedPlayers.reduce(
+  const hydratedLineup = unplacedPlayers.reduce(
     (currentLineup, player) => assignPlayerToRoster(currentLineup, player).roster,
-    hydratedLineup,
+    syncedLineup,
   );
+  return compactBenchSlots(hydratedLineup);
 };
 
 const getHydratedRun = (run: RoguelikeRun) => {
@@ -186,20 +284,114 @@ const getHydratedRun = (run: RoguelikeRun) => {
   };
 };
 
+const restoreUtilityReturnState = (run: RoguelikeRun, fallbackStage: RoguelikeStage = "ladder-overview") => {
+  if (!run.utilityReturnState) {
+    return {
+      ...run,
+      stage: fallbackStage,
+      activeNode: null,
+      activeOpponentPlayerIds: null,
+      nodeResult: null,
+      utilityReturnState: null,
+    };
+  }
+
+  return {
+    ...run,
+    stage: run.utilityReturnState.stage,
+    activeNode: run.utilityReturnState.activeNode,
+    activeOpponentPlayerIds: run.utilityReturnState.activeOpponentPlayerIds,
+    nodeResult: run.utilityReturnState.nodeResult,
+    utilityReturnState: null,
+  };
+};
+
 const getNodeChoiceTiers = (node: RoguelikeNode) => {
   if (node.id === "starter-cache") {
     return ["B", "C"] as const;
   }
 
-  if (node.id === "act-one-faceoff" || node.id === "frontcourt-wave") {
+  if (
+    node.id === "act-one-faceoff" ||
+    node.id === "frontcourt-wave" ||
+    node.id === "defense-travels" ||
+    node.id === "burn-the-nets"
+  ) {
     return ["B"] as const;
   }
 
-  if (node.id === "trade-deadline-1") {
+  if (
+    node.id === "glass-control" ||
+    node.id === "trade-deadline-1" ||
+    node.id === "trade-deadline-2" ||
+    node.id === "trade-deadline-3" ||
+    node.id === "trade-deadline-4"
+  ) {
     return ["B", "C"] as const;
   }
 
   return undefined;
+};
+
+const getActHeading = (act: number) => {
+  if (act === 1) return "Act 1 Climb";
+  if (act === 2) return "Act 2 Push";
+  if (act === 3) return "Act 3 Pressure";
+  return "Act 4 Finals";
+};
+
+const getActDescription = (act: number) => {
+  if (act === 1) {
+    return "Build the first real version of your team, survive the early checks, and reach the opening playoff gate.";
+  }
+  if (act === 2) {
+    return "The roster starts widening here. Rebounding, training, and cleaner rotation decisions begin to matter more.";
+  }
+  if (act === 3) {
+    return "This is the tightening phase. Defensive structure, evolution upgrades, and sharper lineup choices decide whether the run can contend.";
+  }
+  return "Only the strongest builds survive the finals stretch. Every node now needs to feel worthy of a championship run.";
+};
+
+const getActLadderTheme = (act: number) => {
+  if (act === 1) {
+    return {
+      accent: "bg-fuchsia-300",
+      shell: "border-fuchsia-200/14 bg-[linear-gradient(135deg,rgba(58,29,77,0.26),rgba(24,20,35,0.94),rgba(10,10,16,0.98))]",
+      current: "border-fuchsia-200/26 bg-[linear-gradient(135deg,rgba(168,85,247,0.18),rgba(58,29,77,0.94),rgba(14,10,22,0.98))] shadow-[0_18px_40px_rgba(192,132,252,0.12)]",
+      eyebrow: "text-fuchsia-100/82",
+      target: "border-fuchsia-200/22 bg-[linear-gradient(135deg,rgba(192,132,252,0.16),rgba(15,23,42,0.84),rgba(88,28,135,0.14))] text-fuchsia-50",
+      reward: "border-fuchsia-200/14 bg-fuchsia-300/8 text-fuchsia-50/92",
+    };
+  }
+  if (act === 2) {
+    return {
+      accent: "bg-sky-300",
+      shell: "border-sky-200/14 bg-[linear-gradient(135deg,rgba(16,55,90,0.26),rgba(20,24,35,0.94),rgba(10,10,16,0.98))]",
+      current: "border-sky-200/26 bg-[linear-gradient(135deg,rgba(56,189,248,0.18),rgba(16,55,90,0.94),rgba(10,16,26,0.98))] shadow-[0_18px_40px_rgba(56,189,248,0.12)]",
+      eyebrow: "text-sky-100/82",
+      target: "border-sky-200/22 bg-[linear-gradient(135deg,rgba(56,189,248,0.16),rgba(15,23,42,0.84),rgba(14,116,144,0.14))] text-sky-50",
+      reward: "border-sky-200/14 bg-sky-300/8 text-sky-50/92",
+    };
+  }
+  if (act === 3) {
+    return {
+      accent: "bg-amber-300",
+      shell: "border-amber-200/14 bg-[linear-gradient(135deg,rgba(97,54,14,0.24),rgba(24,22,19,0.94),rgba(10,10,16,0.98))]",
+      current: "border-amber-200/26 bg-[linear-gradient(135deg,rgba(245,158,11,0.18),rgba(97,54,14,0.92),rgba(20,14,10,0.98))] shadow-[0_18px_40px_rgba(245,158,11,0.12)]",
+      eyebrow: "text-amber-100/82",
+      target: "border-amber-200/22 bg-[linear-gradient(135deg,rgba(245,158,11,0.16),rgba(15,23,42,0.84),rgba(146,64,14,0.14))] text-amber-50",
+      reward: "border-amber-200/14 bg-amber-300/8 text-amber-50/92",
+    };
+  }
+  return {
+    accent: "bg-emerald-300",
+    shell: "border-emerald-200/14 bg-[linear-gradient(135deg,rgba(10,84,68,0.24),rgba(18,24,24,0.94),rgba(10,10,16,0.98))]",
+    current: "border-emerald-200/26 bg-[linear-gradient(135deg,rgba(52,211,153,0.18),rgba(10,84,68,0.92),rgba(10,18,16,0.98))] shadow-[0_18px_40px_rgba(16,185,129,0.12)]",
+    eyebrow: "text-emerald-100/82",
+    target: "border-emerald-200/22 bg-[linear-gradient(135deg,rgba(52,211,153,0.16),rgba(15,23,42,0.84),rgba(6,78,59,0.14))] text-emerald-50",
+    reward: "border-emerald-200/14 bg-emerald-300/8 text-emerald-50/92",
+  };
 };
 
 const drawRunChoices = (
@@ -226,6 +418,14 @@ const drawRunChoices = (
   };
 };
 
+const getRewardDraftPool = (run: RoguelikeRun, node: RoguelikeNode, expandedPool: Player[]) => {
+  if (node.id === "act-one-boss") {
+    return getRoguelikeEvolutionRewardPool();
+  }
+
+  return expandedPool;
+};
+
 const getRogueSlotLabel = (slot: RosterSlot, index: number) => {
   if (slot.slot === "UTIL") return index === 8 ? "Util 1" : "Util 2";
   if (index === 5) return "Bench 1";
@@ -234,10 +434,11 @@ const getRogueSlotLabel = (slot: RosterSlot, index: number) => {
   return slot.slot;
 };
 
-const getChallengeMetricLabel = (metric: "overall" | "offense" | "defense" | "chemistry") => {
+const getChallengeMetricLabel = (metric: "overall" | "offense" | "defense" | "chemistry" | "rebounding") => {
   if (metric === "overall") return "OVR";
   if (metric === "offense") return "OFF";
   if (metric === "defense") return "DEF";
+  if (metric === "rebounding") return "REB";
   return "CHEM";
 };
 
@@ -261,6 +462,55 @@ const getAverageAdjustedOffense = (
   );
 };
 
+const getAverageAdjustedRebounding = (
+  lineup: RosterSlot[],
+  ownedPlayerIds: string[],
+  trainedPlayerIds: string[],
+) => {
+  const filledSlots = lineup.filter((slot) => Boolean(slot.player));
+  if (filledSlots.length === 0) return 0;
+
+  return (
+    Math.round(
+      (filledSlots.reduce(
+        (sum, slot) => sum + getRoguelikeAdjustedReboundingForSlot(slot.player, slot, ownedPlayerIds, trainedPlayerIds),
+        0,
+      ) /
+        filledSlots.length) *
+        10,
+    ) / 10
+  );
+};
+
+const getFaceoffFinalScore = (faceoffResult: RoguelikeFaceoffResult) => {
+  const averageEdge =
+    Math.abs(faceoffResult.userTeamWinProbability - faceoffResult.opponentTeamWinProbability) / 5;
+  const scoreMargin = Math.max(3, Math.min(22, Math.round(averageEdge / 3) + 3));
+  const paceScore = Math.max(
+    92,
+    Math.min(
+      118,
+      Math.round(
+        101 +
+          (faceoffResult.userTeamWinProbability + faceoffResult.opponentTeamWinProbability - 500) /
+            18,
+      ),
+    ),
+  );
+
+  if (faceoffResult.userTeamWinProbability >= faceoffResult.opponentTeamWinProbability) {
+    return {
+      userScore: Math.min(132, paceScore + Math.ceil(scoreMargin / 2)),
+      opponentScore: Math.max(78, paceScore - Math.floor(scoreMargin / 2)),
+    };
+  }
+
+  return {
+    userScore: Math.max(78, paceScore - Math.floor(scoreMargin / 2)),
+    opponentScore: Math.min(132, paceScore + Math.ceil(scoreMargin / 2)),
+  };
+};
+
 const RogueRosterSlotCard = ({
   slot,
   index,
@@ -273,7 +523,7 @@ const RogueRosterSlotCard = ({
   index: number;
   ownedPlayerIds: string[];
   trainedPlayerIds: string[];
-  focusMetrics?: Array<"overall" | "offense" | "defense" | "chemistry">;
+  focusMetrics?: Array<"overall" | "offense" | "defense" | "chemistry" | "rebounding">;
   dragged: boolean;
 }) => {
   const player = slot.player;
@@ -286,6 +536,7 @@ const RogueRosterSlotCard = ({
   const outOfPosition = slotPenalty > 0;
   const overallDelta = player ? adjustedOverall - player.overall : 0;
   const boosted = overallDelta > 0;
+  const playerNameLength = player?.name.length ?? 0;
   const metricChips = player
     ? focusMetrics
         .filter((metric) => metric !== "overall" && metric !== "chemistry")
@@ -293,7 +544,9 @@ const RogueRosterSlotCard = ({
           const value =
             metric === "offense"
               ? Math.round(getRoguelikeAdjustedOffenseForSlot(player, slot, ownedPlayerIds, trainedPlayerIds) * 10) / 10
-              : Math.round(getRoguelikeAdjustedDefenseForSlot(player, slot, ownedPlayerIds, trainedPlayerIds) * 10) / 10;
+              : metric === "defense"
+                ? Math.round(getRoguelikeAdjustedDefenseForSlot(player, slot, ownedPlayerIds, trainedPlayerIds) * 10) / 10
+                : Math.round(getRoguelikeAdjustedReboundingForSlot(player, slot, ownedPlayerIds, trainedPlayerIds) * 10) / 10;
 
           return {
             metric,
@@ -336,7 +589,16 @@ const RogueRosterSlotCard = ({
                 {getRogueSlotLabel(slot, index)}
               </div>
               <div className="mt-0.5 flex items-center gap-2">
-                <div className="truncate text-[0.98rem] font-semibold leading-5 text-white">
+                <div
+                  className={clsx(
+                    "break-words font-semibold text-white",
+                    playerNameLength >= 24
+                      ? "text-[0.82rem] leading-4"
+                      : playerNameLength >= 18
+                        ? "text-[0.9rem] leading-5"
+                        : "text-[0.98rem] leading-5",
+                  )}
+                >
                   {player?.name ?? "Open Slot"}
                 </div>
                 {player ? (
@@ -387,7 +649,7 @@ const RogueRosterSlotCard = ({
                   overallDelta < 0 ? "text-rose-300" : boosted ? "text-lime-300" : "text-amber-100",
                 )}>
                   {overallDelta < 0 ? <ChevronDown size={12} className="mr-1 inline-block align-[-1px]" /> : null}
-                  {boosted ? <span className="mr-1 inline-block align-[-1px] text-lime-300">↗</span> : null}
+                  {boosted ? <span className="mr-1 inline-block align-[-1px] text-lime-300">â†—</span> : null}
                   {adjustedOverall}{" "}
                   <span className={clsx(
                     "text-[9px] uppercase tracking-[0.14em]",
@@ -427,6 +689,7 @@ const FaceoffStarterCard = ({
     ? getRoguelikeAdjustedOverallForSlot(player, slot, ownedPlayerIds, trainedPlayerIds)
     : 0;
   const outOfPosition = slotPenalty > 0;
+  const playerNameLength = player?.name.length ?? 0;
 
   return (
     <div className="rounded-[22px] border border-white/10 bg-white/5 p-3">
@@ -450,7 +713,16 @@ const FaceoffStarterCard = ({
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-base font-semibold text-white">
+          <div
+            className={clsx(
+              "break-words font-semibold text-white",
+              playerNameLength >= 24
+                ? "text-[0.86rem] leading-4"
+                : playerNameLength >= 18
+                  ? "text-[0.94rem] leading-5"
+                  : "text-base",
+            )}
+          >
             {player?.name ?? "Open Slot"}
           </div>
           <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">
@@ -538,6 +810,7 @@ const StarterRevealCard = ({
   onReveal: () => void;
 }) => {
   const imageUrl = usePlayerImage(player);
+  const { firstNameLine, lastNameLine, versionLine } = getPlayerDisplayLines(player);
 
   return (
     <button
@@ -588,9 +861,13 @@ const StarterRevealCard = ({
               )}
             </div>
           </div>
-          <div className="mt-5 font-display text-3xl leading-tight text-white">{player.name}</div>
+          <div className="mt-5 font-display text-3xl leading-tight text-white">
+            <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{firstNameLine}</div>
+            <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{lastNameLine}</div>
+            {versionLine ? <div className="text-[0.72em] tracking-tight text-slate-200/90">{versionLine}</div> : null}
+          </div>
           <div className="mt-3 text-[11px] uppercase tracking-[0.24em] text-slate-400">
-            {player.hallOfFameTier}-Tier • {player.overall} OVR • {player.primaryPosition}
+            {player.hallOfFameTier}-Tier â€¢ {player.overall} OVR â€¢ {player.primaryPosition}
           </div>
         </div>
       )}
@@ -598,7 +875,21 @@ const StarterRevealCard = ({
   );
 };
 
-export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
+export const RoguelikeMode = ({
+  activeRogueStarId,
+  ownedTrainingCampTickets,
+  ownedTradePhones,
+  ownedSilverStarterPacks,
+  ownedGoldStarterPacks,
+  ownedPlatinumStarterPacks,
+  onBackToHome,
+  onAwardFailureRewards,
+  onUseTrainingCampTicket,
+  onUseTradePhone,
+  onUseSilverStarterPack,
+  onUseGoldStarterPack,
+  onUsePlatinumStarterPack,
+}: RoguelikeModeProps) => {
   const [run, setRun] = useState<RoguelikeRun | null>(() => {
     if (typeof window === "undefined") return null;
 
@@ -610,9 +901,17 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
         ...parsed,
         seenChoicePlayerIds: parsed.seenChoicePlayerIds ?? [],
         revealedStarterIds: parsed.revealedStarterIds ?? [],
+        draftShuffleTickets: parsed.draftShuffleTickets ?? 0,
         unlockedBundleIds: parsed.unlockedBundleIds ?? [],
         trainedPlayerIds: parsed.trainedPlayerIds ?? [],
+        utilityReturnState: parsed.utilityReturnState ?? null,
         failureReviewStage: parsed.failureReviewStage ?? null,
+        nodeResult: parsed.nodeResult
+          ? {
+              ...parsed.nodeResult,
+              failureRewards: parsed.nodeResult.failureRewards ?? null,
+            }
+          : null,
       } as RoguelikeRun;
     } catch {
       return null;
@@ -621,6 +920,7 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [showOutcomeOverlay, setShowOutcomeOverlay] = useState(false);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  const [selectedStarterPackUpgrade, setSelectedStarterPackUpgrade] = useState<"standard" | "silver" | "gold" | "platinum">("standard");
   const [dragPointer, setDragPointer] = useState<{
     x: number;
     y: number;
@@ -646,10 +946,26 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
   }, [run]);
 
   const startRun = (packageId: RoguelikeStarterPackageId) => {
+    const usingSilverStarterPack = selectedStarterPackUpgrade === "silver";
+    const usingGoldStarterPack = selectedStarterPackUpgrade === "gold";
+    const usingPlatinumStarterPack = selectedStarterPackUpgrade === "platinum";
+    if (usingSilverStarterPack && !onUseSilverStarterPack()) return;
+    if (usingGoldStarterPack && !onUseGoldStarterPack()) return;
+    if (usingPlatinumStarterPack && !onUsePlatinumStarterPack()) return;
+
     const seed = createSeed();
-    const starterPool = buildStarterPool(packageId);
-    const starterRevealPlayers = drawRoguelikeStarterRevealPlayers(packageId, nextChoiceSeed(seed, 1));
+    const activeRogueStar = getPlayerById(activeRogueStarId);
+    const starterPool = buildStarterPool(packageId).filter((player) => player.id !== activeRogueStar?.id);
+    const starterRevealPlayers = injectActiveRogueStarIntoReveal(
+      drawRoguelikeStarterRevealPlayers(
+        packageId,
+        nextChoiceSeed(seed, 1),
+        getStarterPackAverageForUpgrade(selectedStarterPackUpgrade),
+      ),
+      activeRogueStar,
+    );
     const lineup = buildRoguelikeStarterLineup(starterRevealPlayers);
+    setSelectedStarterPackUpgrade("standard");
 
     setRun({
       seed,
@@ -664,15 +980,25 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
       lives: 3,
       floorIndex: 0,
         initialPicks: 0,
+        draftShuffleTickets: 0,
         unlockedBundleIds: [],
-        trainedPlayerIds: [],
-        failureReviewStage: null,
-        stage: "starter-reveal",
+      trainedPlayerIds: [],
+      utilityReturnState: null,
+      failureReviewStage: null,
+      stage: "starter-reveal",
       activeNode: null,
       activeOpponentPlayerIds: null,
       nodeResult: null,
     });
   };
+
+  const buildFailureRewards = (floorIndex: number) => {
+    const rewards = getRoguelikeFailureRewards(floorIndex);
+    onAwardFailureRewards(rewards.prestigeXpAward);
+    return rewards;
+  };
+
+  const previewFailureRewards = (floorIndex: number) => getRoguelikeFailureRewards(floorIndex);
 
   const revealStarterCard = (playerId: string) => {
     if (!run || run.stage !== "starter-reveal" || run.revealedStarterIds.includes(playerId)) return;
@@ -732,9 +1058,9 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
           detail:
             currentNode.id === "starter-cache"
               ? "Starter Cache is open. Choose 1 of 5 B-tier or C-tier players to add to your run roster."
-              : bundle.description,
-          passed: true,
-        },
+                : bundle.description,
+            passed: true,
+          },
       });
       return;
     }
@@ -744,9 +1070,12 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
       activeNode: currentNode,
       activeOpponentPlayerIds:
         currentNode.battleMode === "starting-five-faceoff"
-          ? generateActOneFaceoffOpponentPlayerIds(
+          ? currentNode.opponentStarterPlayerIds ??
+            currentNode.opponentPlayerIds ??
+            generateFaceoffOpponentPlayerIds(
               getRunOwnedPlayers(run),
               nextChoiceSeed(run.seed, 200 + run.floorIndex * 17),
+              currentNode.opponentAverageOverall,
             )
           : null,
       stage: "node-preview",
@@ -807,6 +1136,19 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
     }
 
     if (run.stage === "reward-draft") {
+      if (run.activeNode?.id === STORE_TRADE_NODE.id) {
+        setRun(
+          restoreUtilityReturnState({
+            ...run,
+            roster: nextRoster,
+            lineup: nextLineup,
+            choices: [],
+            nodeResult: null,
+          }),
+        );
+        return;
+      }
+
       const nextFloorIndex = run.floorIndex + 1;
 
       setRun({
@@ -878,17 +1220,48 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
       return;
     }
 
-    if (node.battleMode === "starting-five-faceoff") {
+    if (node.type === "evolution") {
+      const evolutionOptions = getRoguelikeEvolutionOptions(getRunOwnedPlayers(run));
+
+      if (evolutionOptions.length === 0) {
+        const nextFloorIndex = run.floorIndex + 1;
+        setRun({
+          ...run,
+          draftShuffleTickets: run.draftShuffleTickets + 1,
+          floorIndex: nextFloorIndex,
+          stage: "node-result",
+          activeNode: null,
+          activeOpponentPlayerIds: null,
+          nodeResult: {
+            title: `${node.title} complete`,
+            detail: "No eligible version player was on your roster, so this node converted into 1 Draft Shuffle ticket instead. You can use it later to reroll a live five-player board.",
+            passed: true,
+          },
+        });
+        return;
+      }
+
       setRun({
         ...run,
-        lineup: buildRoguelikeStarterLineup(run.roster),
+        stage: "evolution-select",
+        nodeResult: null,
+      });
+      return;
+    }
+
+    if (node.battleMode === "starting-five-faceoff") {
+      const hydratedRun = getHydratedRun(run);
+      setRun({
+        ...run,
+        roster: hydratedRun.roster,
+        lineup: hydratedRun.lineup,
         stage: "faceoff-setup",
         nodeResult: null,
       });
       return;
     }
 
-    if (node.id === "frontcourt-wave") {
+    if (node.type === "challenge") {
       setRun({
         ...run,
         stage: "challenge-setup",
@@ -911,6 +1284,7 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
       : Math.max(0, run.lives - (node.livesPenalty ?? 1));
 
     if (!resolution.passed && remainingLives === 0) {
+      const failureRewards = buildFailureRewards(run.floorIndex);
       setRun({
         ...run,
         lives: 0,
@@ -924,6 +1298,7 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
               ? `You missed ${resolution.failedChecks.map((check) => `${check.metric} ${check.target}`).join(", ")} and the run collapsed.`
               : "The run ended here.",
           passed: false,
+          failureRewards,
         },
       });
       return;
@@ -950,10 +1325,11 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
         getRunOwnedPlayers(run),
         node.rewardBundleId,
       );
+      const rewardDraftPool = getRewardDraftPool(run, node, expandedPool);
       const bundle = getBundle(node.rewardBundleId);
       const nextChoicesState = drawRunChoices(
         run,
-        expandedPool,
+        rewardDraftPool,
         getRunOwnedPlayers(run),
         node.rewardChoices,
         nextChoiceSeed(run.seed, run.floorIndex + 30),
@@ -976,8 +1352,10 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
           detail:
             node.id === "act-one-faceoff"
               ? `You beat ${node.opponentTeamName ?? "the challenge team"}. Bench 1 is now open, ${bundle.title} is added to your run pool, and you can choose 1 of 5 B-tier players for your run roster.`
-              : node.id === "frontcourt-wave"
-                ? `Your selected starting five reached ${resolution.metrics.offense} Offense. ${bundle.title} is now added to your run pool, and you can choose 1 of 5 B-tier players for your run roster.`
+              : node.id === "act-one-boss"
+                ? `You beat ${node.opponentTeamName ?? "the challenge team"}. Choose 1 of 3 B-tier version players now, each being the lowest version of a player who has a stronger version available later in the run.`
+                : node.id === "frontcourt-wave"
+                  ? `Your selected starting five reached ${resolution.metrics.offense} Offense. ${bundle.title} is now added to your run pool, and you can choose 1 of 5 B-tier players for your run roster.`
                 : resolution.opponentPlayers.length > 0
                   ? `You beat ${node.opponentTeamName ?? "the challenge team"}. ${bundle.title} is now added to your run pool, and you earn one reward pick.`
                   : resolution.failedChecks.length === 0
@@ -991,6 +1369,7 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
 
     const nextFloorIndex = run.floorIndex + 1;
     const nextNode = roguelikeNodes[nextFloorIndex] ?? null;
+    const failureRewards = nextNode ? null : buildFailureRewards(nextFloorIndex);
     setRun({
       ...run,
       lives: remainingLives,
@@ -1008,6 +1387,7 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
                 .join(", ")}.`
             : `You lost ${node.livesPenalty ?? 1} life.`,
         passed: false,
+        failureRewards,
       },
     });
   };
@@ -1019,13 +1399,18 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
     const challengeLineup = run.lineup.slice(0, 5).map((slot) => ({ ...slot }));
     const resolution = resolveRoguelikeNode(node, getRunOwnedPlayers(run), challengeLineup, run.trainedPlayerIds ?? []);
     const ownedPlayerIds = getRunOwnedPlayers(run).map((player) => player.id);
+    const challengeMetric = node.checks?.[0]?.metric ?? "offense";
+    const challengeMetricLabel = getChallengeMetricLabel(challengeMetric);
     const challengeScore =
-      node.id === "frontcourt-wave"
+      challengeMetric === "offense"
         ? getAverageAdjustedOffense(challengeLineup, ownedPlayerIds, run.trainedPlayerIds ?? [])
-        : resolution.metrics.offense;
+        : challengeMetric === "rebounding"
+          ? getAverageAdjustedRebounding(challengeLineup, ownedPlayerIds, run.trainedPlayerIds ?? [])
+          : resolution.metrics[challengeMetric];
     const passed = challengeScore >= (node.checks?.[0]?.target ?? 0);
 
     if (!passed) {
+      const failureRewards = buildFailureRewards(run.floorIndex);
       setRun({
         ...run,
         lives: 0,
@@ -1034,10 +1419,31 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
         activeOpponentPlayerIds: null,
         nodeResult: {
           title: `${node.title} failed`,
-          detail: `Your starting five posted ${challengeScore} Offense, short of the ${node.checks?.[0]?.target ?? 0} target. The run ends here.`,
+          detail: `Your starting five posted ${challengeScore} ${challengeMetricLabel}, short of the ${node.checks?.[0]?.target ?? 0} target. The run ends here.`,
           passed: false,
+          failureRewards,
         },
         failureReviewStage: "challenge-setup",
+      });
+      return;
+    }
+
+    if ((node.draftShuffleReward ?? 0) > 0) {
+      const nextFloorIndex = run.floorIndex + 1;
+      const rewardAmount = node.draftShuffleReward ?? 0;
+      setRun({
+        ...run,
+        draftShuffleTickets: run.draftShuffleTickets + rewardAmount,
+        floorIndex: nextFloorIndex,
+        stage: "node-result",
+        activeNode: null,
+        activeOpponentPlayerIds: null,
+        nodeResult: {
+          title: `${node.title} cleared`,
+          detail: `Your starting five reached ${challengeScore} ${challengeMetricLabel}. You earned ${rewardAmount} Draft Shuffle ticket${rewardAmount > 1 ? "s" : ""}, which let${rewardAmount > 1 ? "" : "s"} you reroll any visible five-player draft board later in this run.`,
+          passed: true,
+        },
+        failureReviewStage: null,
       });
       return;
     }
@@ -1049,14 +1455,21 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
         node.rewardBundleId,
       );
       const bundle = getBundle(node.rewardBundleId);
+      const nodeChoiceTiers = getNodeChoiceTiers(node);
       const nextChoicesState = drawRunChoices(
         run,
         expandedPool,
         getRunOwnedPlayers(run),
         node.rewardChoices,
         nextChoiceSeed(run.seed, run.floorIndex + 30),
-        getNodeChoiceTiers(node) ? [...getNodeChoiceTiers(node)!] : undefined,
+        nodeChoiceTiers ? [...nodeChoiceTiers] : undefined,
       );
+      const rewardTierLabel =
+        nodeChoiceTiers?.length === 2
+          ? `${nodeChoiceTiers[0]} or ${nodeChoiceTiers[1]} tier`
+          : nodeChoiceTiers?.length === 1
+            ? `${nodeChoiceTiers[0]}-tier`
+            : "reward";
       setRun({
         ...run,
         availablePool: expandedPool,
@@ -1071,7 +1484,7 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
         activeOpponentPlayerIds: null,
         nodeResult: {
           title: `${node.title} cleared`,
-          detail: `Your selected starting five reached ${challengeScore} Offense. ${bundle.title} is now added to your run pool, and you can choose 1 of 5 B-tier players for your run roster.`,
+          detail: `Your selected starting five reached ${challengeScore} ${challengeMetricLabel}. ${bundle.title} is now added to your run pool, and you can choose 1 of ${node.rewardChoices} ${rewardTierLabel} players for your run roster.`,
           passed: true,
         },
         failureReviewStage: null,
@@ -1104,6 +1517,10 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
           : `Your starters finished at ${faceoffResult.userTeamWinProbability}% against ${faceoffResult.opponentTeamWinProbability}% for ${node.opponentTeamName ?? "the boss team"}. ${edge < 0 ? "The boss lineup won the faceoff." : "The matchup was too close to swing your way."}`,
         passed: resolution.passed,
         faceoffResult,
+        failureRewards:
+          !resolution.passed && node.eliminationOnLoss
+            ? previewFailureRewards(run.floorIndex)
+            : null,
       },
     });
   };
@@ -1116,6 +1533,10 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
 
     if (!passed) {
       if (node.eliminationOnLoss) {
+        const failureRewards = run.nodeResult.failureRewards ?? buildFailureRewards(run.floorIndex);
+        if (run.nodeResult.failureRewards) {
+          onAwardFailureRewards(run.nodeResult.failureRewards.prestigeXpAward);
+        }
         setRun({
           ...run,
           stage: "run-over",
@@ -1126,6 +1547,7 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
             detail: `You lost the faceoff to ${node.opponentTeamName ?? "the boss team"}, so the run ends here.`,
             passed: false,
             faceoffResult: run.nodeResult.faceoffResult ?? null,
+            failureRewards,
           },
         });
         return;
@@ -1134,6 +1556,7 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
       const remainingLives = Math.max(0, run.lives - (node.livesPenalty ?? 1));
       const nextFloorIndex = run.floorIndex + 1;
       const nextNode = roguelikeNodes[nextFloorIndex] ?? null;
+      const failureRewards = nextNode ? null : buildFailureRewards(nextFloorIndex);
       setRun({
         ...run,
         lives: remainingLives,
@@ -1145,6 +1568,42 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
           title: `${node.title} failed`,
           detail: `You lost ${node.livesPenalty ?? 1} life${(node.livesPenalty ?? 1) > 1 ? "s" : ""} in the faceoff.`,
           passed: false,
+          failureRewards,
+        },
+      });
+      return;
+    }
+
+    if (node.id === "hall-of-fame-finals" || run.floorIndex === roguelikeNodes.length - 1) {
+      setRun({
+        ...run,
+        stage: "run-cleared",
+        activeNode: null,
+        activeOpponentPlayerIds: null,
+        nodeResult: {
+          title: "Run cleared",
+          detail: "You beat the final Hall of Fame lineup and completed the full four-act Rogue climb.",
+          passed: true,
+          faceoffResult: run.nodeResult.faceoffResult ?? null,
+        },
+      });
+      return;
+    }
+
+    if ((node.draftShuffleReward ?? 0) > 0 && node.rewardChoices === 0) {
+      const rewardAmount = node.draftShuffleReward ?? 0;
+      const nextFloorIndex = run.floorIndex + 1;
+      setRun({
+        ...run,
+        draftShuffleTickets: run.draftShuffleTickets + rewardAmount,
+        floorIndex: nextFloorIndex,
+        stage: "node-result",
+        activeNode: null,
+        activeOpponentPlayerIds: null,
+        nodeResult: {
+          title: `${node.title} cleared`,
+          detail: `You beat ${node.opponentTeamName ?? "the boss team"} and earned ${rewardAmount} Draft Shuffle ticket${rewardAmount > 1 ? "s" : ""}. Your next node is ready.`,
+          passed: true,
         },
       });
       return;
@@ -1155,10 +1614,11 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
       getRunOwnedPlayers(run),
       node.rewardBundleId,
     );
+    const rewardDraftPool = getRewardDraftPool(run, node, expandedPool);
     const bundle = getBundle(node.rewardBundleId);
     const nextChoicesState = drawRunChoices(
       run,
-      expandedPool,
+      rewardDraftPool,
       getRunOwnedPlayers(run),
       node.rewardChoices,
       nextChoiceSeed(run.seed, run.floorIndex + 30),
@@ -1180,9 +1640,11 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
         detail:
           node.id === "act-one-faceoff"
             ? `You beat ${node.opponentTeamName ?? "the boss team"}. Bench 1 is now open, ${bundle.title} is added to your run pool, and you can choose 1 of 5 B-tier players for your run roster.`
-            : `You beat ${node.opponentTeamName ?? "the boss team"}. ${bundle.title} is now added to your run pool, and you earn one reward pick.`,
-        passed: true,
-      },
+            : node.id === "act-one-boss"
+              ? `You beat ${node.opponentTeamName ?? "the boss team"}. Choose 1 of 3 B-tier version players now, then look for a future evolution node to upgrade that player into a higher-rated version.`
+              : `You beat ${node.opponentTeamName ?? "the boss team"}. ${bundle.title} is now added to your run pool, and you earn one reward pick.`,
+          passed: true,
+        },
     });
   };
 
@@ -1199,14 +1661,63 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
     });
   };
 
+  const openStoreTrainingCamp = () => {
+    if (!run || ownedTrainingCampTickets <= 0) return;
+
+    const hydratedRun = getHydratedRun(run);
+    setRun({
+      ...hydratedRun,
+      stage: "training-select",
+      activeNode: STORE_TRAINING_NODE,
+      nodeResult: null,
+      utilityReturnState: {
+        stage: hydratedRun.stage,
+        activeNode: hydratedRun.activeNode,
+        activeOpponentPlayerIds: hydratedRun.activeOpponentPlayerIds,
+        nodeResult: hydratedRun.nodeResult,
+      },
+    });
+  };
+
+  const openStoreTradePhone = () => {
+    if (!run || ownedTradePhones <= 0) return;
+
+    const hydratedRun = getHydratedRun(run);
+    setRun({
+      ...hydratedRun,
+      stage: "trade-offer",
+      activeNode: STORE_TRADE_NODE,
+      nodeResult: null,
+      utilityReturnState: {
+        stage: hydratedRun.stage,
+        activeNode: hydratedRun.activeNode,
+        activeOpponentPlayerIds: hydratedRun.activeOpponentPlayerIds,
+        nodeResult: hydratedRun.nodeResult,
+      },
+    });
+  };
+
   const sendPlayerToTraining = (player: Player) => {
     if (!run?.activeNode || run.stage !== "training-select") return;
 
+    if (run.activeNode.id === STORE_TRAINING_NODE.id) {
+      if (!onUseTrainingCampTicket()) return;
+
+      const trainedPlayerIds = [...run.trainedPlayerIds, player.id];
+
+      setRun(
+        restoreUtilityReturnState({
+          ...run,
+          trainedPlayerIds,
+        }),
+      );
+      return;
+    }
+
     const nextFloorIndex = run.floorIndex + 1;
     const nextNode = roguelikeNodes[nextFloorIndex] ?? null;
-    const trainedPlayerIds = run.trainedPlayerIds.includes(player.id)
-      ? run.trainedPlayerIds
-      : [...run.trainedPlayerIds, player.id];
+    const trainedPlayerIds = [...run.trainedPlayerIds, player.id];
+    const trainingCount = trainedPlayerIds.filter((trainedPlayerId) => trainedPlayerId === player.id).length;
 
     setRun({
       ...run,
@@ -1217,7 +1728,41 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
       activeOpponentPlayerIds: null,
       nodeResult: {
         title: "Training Day complete",
-        detail: `${player.name} went to training and gains +1 OVR for the rest of this run. ${nextNode ? "Your next node is ready." : ""}`,
+        detail: `${player.name} went to training and now has +${trainingCount} total training OVR applied for the rest of this run. ${nextNode ? "Your next node is ready." : ""}`,
+        passed: true,
+      },
+    });
+  };
+
+  const evolveRunPlayer = (player: Player) => {
+    if (!run?.activeNode || run.stage !== "evolution-select") return;
+
+    const evolution = getRoguelikeEvolutionOptions(getRunOwnedPlayers(run)).find(
+      (option) => option.currentPlayer.id === player.id,
+    );
+    if (!evolution) return;
+
+    const nextRoster = run.roster.map((owned) =>
+      owned.id === evolution.currentPlayer.id ? evolution.nextPlayer : owned,
+    );
+    const nextLineup = run.lineup.map((slot) =>
+      slot.player?.id === evolution.currentPlayer.id
+        ? { ...slot, player: evolution.nextPlayer }
+        : { ...slot },
+    );
+    const nextFloorIndex = run.floorIndex + 1;
+
+    setRun({
+      ...run,
+      roster: nextRoster,
+      lineup: nextLineup,
+      floorIndex: nextFloorIndex,
+      stage: "node-result",
+      activeNode: null,
+      activeOpponentPlayerIds: null,
+      nodeResult: {
+        title: `${run.activeNode.title} complete`,
+        detail: `${evolution.currentPlayer.name} evolved into ${evolution.nextPlayer.name}. The upgraded version is now locked into your run for the rest of the climb.`,
         passed: true,
       },
     });
@@ -1225,6 +1770,11 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
 
   const declineTradeDeadline = () => {
     if (!run?.activeNode || run.stage !== "trade-offer") return;
+
+    if (run.activeNode.id === STORE_TRADE_NODE.id) {
+      setRun(restoreUtilityReturnState(run));
+      return;
+    }
 
     const nextFloorIndex = run.floorIndex + 1;
     const nextNode = roguelikeNodes[nextFloorIndex] ?? null;
@@ -1253,8 +1803,49 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
     });
   };
 
+  const useDraftShuffleTicket = () => {
+    if (!run || run.draftShuffleTickets <= 0) return;
+    if (run.stage !== "initial-draft" && run.stage !== "reward-draft") return;
+    if (run.choices.length === 0) return;
+
+    const sourceNode = run.activeNode ?? roguelikeNodes[run.floorIndex] ?? null;
+    const rerollPool =
+      run.stage === "initial-draft"
+        ? buildOpeningDraftPool()
+        : sourceNode
+          ? getRewardDraftPool(run, sourceNode, run.availablePool)
+          : run.availablePool;
+    const rerollRoster =
+      run.stage === "initial-draft"
+        ? run.lineup.map((slot) => slot.player).filter((player): player is Player => Boolean(player))
+        : getRunOwnedPlayers(run);
+    const allowedTiers =
+      run.stage === "initial-draft"
+        ? (["B", "C"] as PlayerTier[])
+        : sourceNode && getNodeChoiceTiers(sourceNode)
+          ? [...getNodeChoiceTiers(sourceNode)!]
+          : undefined;
+    const nextChoicesState = drawRunChoices(
+      run,
+      rerollPool,
+      rerollRoster,
+      5,
+      nextChoiceSeed(run.seed, 600 + run.floorIndex * 31 + run.draftShuffleTickets * 7),
+      allowedTiers,
+    );
+
+    setRun({
+      ...run,
+      draftShuffleTickets: Math.max(0, run.draftShuffleTickets - 1),
+      seenChoicePlayerIds: nextChoicesState.seenChoicePlayerIds,
+      choices: nextChoicesState.choices,
+    });
+  };
+
   const tradePlayerForReplacement = (player: Player) => {
     if (!run?.activeNode || run.stage !== "trade-select") return;
+
+    if (run.activeNode.id === STORE_TRADE_NODE.id && !onUseTradePhone()) return;
 
     const hydratedRun = getHydratedRun(run);
     const nextRoster = hydratedRun.roster.filter((owned) => owned.id !== player.id);
@@ -1431,6 +2022,7 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
     if (!run || run.stage !== "run-over" || run.failureReviewStage !== "challenge-setup") return;
     setShowOutcomeOverlay(false);
   };
+  const activeRogueStar = getPlayerById(activeRogueStarId);
 
   if (!run) {
     return (
@@ -1445,6 +2037,65 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
           <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-200/85">
             This new mode is run-based. You start with a small player pool, draft just a few cards, then survive a ladder of draft nodes, chemistry checks, and boss gates while unlocking stronger bundles into your run.
           </p>
+
+          {activeRogueStar ? (
+            <div className="mt-6 inline-flex max-w-3xl flex-wrap items-center gap-3 rounded-[22px] border border-amber-200/18 bg-amber-300/10 px-5 py-4 text-sm text-amber-50">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-amber-100/78">Active Rogue Star</div>
+              <div className="font-semibold text-white">{activeRogueStar.name}</div>
+              <div className="text-amber-100/76">{activeRogueStar.overall} OVR will replace one starter-pack card in this run.</div>
+            </div>
+          ) : null}
+
+          <div className="mt-6 rounded-[24px] border border-white/10 bg-black/20 p-5">
+            <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Starter Pack Power-Up</div>
+            <div className="mt-2 text-xl font-semibold text-white">Choose which starter pack quality to open this run</div>
+            <div className="mt-3 text-sm leading-7 text-slate-300">
+              Standard packs average 83 OVR. Token Store upgrades can be spent here to raise your 3-card starter pack quality before you choose Passing, Balanced, or Defense.
+            </div>
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {[
+                { id: "standard", title: "Standard", detail: "83 avg", owned: null },
+                { id: "silver", title: "Silver", detail: "84 avg", owned: ownedSilverStarterPacks },
+                { id: "gold", title: "Gold", detail: "85 avg", owned: ownedGoldStarterPacks },
+                { id: "platinum", title: "Platinum", detail: "86 avg", owned: ownedPlatinumStarterPacks },
+              ].map((option) => {
+                const selected = selectedStarterPackUpgrade === option.id;
+                const available = option.owned === null || option.owned > 0;
+
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => available && setSelectedStarterPackUpgrade(option.id as "standard" | "silver" | "gold" | "platinum")}
+                    disabled={!available}
+                    className={clsx(
+                      "rounded-[20px] border px-4 py-4 text-left transition",
+                      selected
+                        ? "border-amber-200/32 bg-amber-300/12"
+                        : "border-white/10 bg-white/5 hover:bg-white/8",
+                      !available && "cursor-not-allowed opacity-45 hover:bg-white/5",
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">{option.title} Starter Pack</div>
+                        <div className="mt-2 text-lg font-semibold text-white">{option.detail}</div>
+                      </div>
+                      {option.owned !== null ? (
+                        <div className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-200">
+                          {option.owned} owned
+                        </div>
+                      ) : (
+                        <div className="rounded-full border border-emerald-200/16 bg-emerald-300/10 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-emerald-100">
+                          Default
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             {[
@@ -1540,6 +2191,8 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
   const displayedRun = getHydratedRun(run);
   const runOwnedPlayers = getRunOwnedPlayers(displayedRun);
   const runOwnedPlayerIds = runOwnedPlayers.map((player) => player.id);
+  const currentLadderNode = roguelikeNodes[Math.min(run.floorIndex, roguelikeNodes.length - 1)] ?? null;
+  const currentAct = activeNode?.act ?? currentLadderNode?.act ?? 1;
   const challengeFocusMetrics =
     run.stage === "challenge-setup" || run.stage === "node-preview" || run.failureReviewStage === "challenge-setup"
       ? activeNode?.checks?.map((check) => check.metric) ?? []
@@ -1548,7 +2201,18 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
   const startingFiveReady = startingFive.every((slot) => Boolean(slot.player));
   const startingFiveMetrics = evaluateRoguelikeLineup(startingFive, runOwnedPlayerIds, run.trainedPlayerIds ?? []);
   const shotCreationScore = getAverageAdjustedOffense(startingFive, runOwnedPlayerIds, run.trainedPlayerIds ?? []);
-  const activeChallengeScore = activeNode?.id === "frontcourt-wave" ? shotCreationScore : startingFiveMetrics.offense;
+  const reboundingChallengeScore = getAverageAdjustedRebounding(startingFive, runOwnedPlayerIds, run.trainedPlayerIds ?? []);
+  const challengeMetric = activeNode?.checks?.[0]?.metric ?? "offense";
+  const activeChallengeScore =
+    challengeMetric === "offense"
+      ? shotCreationScore
+      : challengeMetric === "rebounding"
+        ? reboundingChallengeScore
+        : startingFiveMetrics[challengeMetric];
+  const canUseDraftShuffle =
+    run.draftShuffleTickets > 0 &&
+    (run.stage === "initial-draft" || run.stage === "reward-draft") &&
+    run.choices.length > 0;
   const faceoffOpponentLineup =
     activeNode?.battleMode === "starting-five-faceoff" && run.activeOpponentPlayerIds
       ? buildRoguelikeOpponentLineup({
@@ -1556,9 +2220,15 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
           opponentPlayerIds: run.activeOpponentPlayerIds,
         }).slice(0, 5)
       : [];
+  const faceoffFinalScore =
+    run.stage === "faceoff-game" && run.nodeResult?.faceoffResult
+      ? getFaceoffFinalScore(run.nodeResult.faceoffResult)
+      : null;
   const firstBossCleared = run.unlockedBundleIds.includes("synergy-hunters");
   const visibleRosterSlotCount = !firstBossCleared ? 5 : Math.min(10, Math.max(6, runOwnedPlayers.length));
   const visibleRunLineup = displayedRun.lineup.slice(0, visibleRosterSlotCount);
+  const canUseStoreUtilities =
+    !["starter-reveal", "initial-draft", "reward-draft", "training-select", "trade-offer", "trade-select", "evolution-select", "faceoff-game", "node-result", "run-over", "run-cleared"].includes(run.stage);
   const showDraftRosterRail =
         run.stage === "initial-draft" ||
         run.stage === "reward-draft" ||
@@ -1567,6 +2237,7 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
         run.stage === "training-select" ||
         run.stage === "trade-offer" ||
         run.stage === "trade-select" ||
+        run.stage === "evolution-select" ||
         (run.stage === "run-over" && run.failureReviewStage === "challenge-setup" && !showOutcomeOverlay);
   const reviewingFailedChallenge =
     run.stage === "run-over" && run.failureReviewStage === "challenge-setup" && !showOutcomeOverlay;
@@ -1598,23 +2269,32 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
       </div>
       <div className="mt-5 space-y-3">
         {visibleRunLineup.map((slot, index) => (
-          <div
-            key={`${slot.slot}-${index}`}
-            data-rogue-slot-index={index}
-            className={clsx(
-              "rounded-[24px] border border-dashed p-1.5 transition",
-              dropTargetIndex === index ? "border-amber-300/60 bg-amber-300/10" : "border-white/12 bg-black/12",
-            )}
-          >
-            <div onPointerDown={(event) => handleRosterPointerDown(index, event)}>
-              <RogueRosterSlotCard
-                slot={slot}
-                index={index}
-                ownedPlayerIds={runOwnedPlayerIds}
-                trainedPlayerIds={run.trainedPlayerIds ?? []}
-                focusMetrics={challengeFocusMetrics}
-                dragged={draggingIndex === index}
-              />
+          <div key={`${slot.slot}-${index}`}>
+            {index === 5 ? (
+              <div className="mb-5 mt-7">
+                <div className="h-px w-full bg-gradient-to-r from-transparent via-white/18 to-transparent" />
+                <div className="mt-2 text-center text-[10px] uppercase tracking-[0.24em] text-slate-500">
+                  Bench Unit
+                </div>
+              </div>
+            ) : null}
+            <div
+              data-rogue-slot-index={index}
+              className={clsx(
+                "rounded-[24px] border border-dashed p-1.5 transition",
+                dropTargetIndex === index ? "border-amber-300/60 bg-amber-300/10" : "border-white/12 bg-black/12",
+              )}
+            >
+              <div onPointerDown={(event) => handleRosterPointerDown(index, event)}>
+                <RogueRosterSlotCard
+                  slot={slot}
+                  index={index}
+                  ownedPlayerIds={runOwnedPlayerIds}
+                  trainedPlayerIds={run.trainedPlayerIds ?? []}
+                  focusMetrics={challengeFocusMetrics}
+                  dragged={draggingIndex === index}
+                />
+              </div>
             </div>
           </div>
         ))}
@@ -1628,9 +2308,9 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="text-xs uppercase tracking-[0.24em] text-fuchsia-100/80">Roguelike Run</div>
-            <h1 className="mt-2 font-display text-4xl text-white">Act {Math.min(2, (run.floorIndex || 0) < 4 ? 1 : 2)} Climb</h1>
+            <h1 className="mt-2 font-display text-4xl text-white">{getActHeading(currentAct)}</h1>
             <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
-              First playable scaffold: constrained start, bundle unlocks, node checks, and real fail states.
+              {getActDescription(currentAct)}
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -1644,6 +2324,55 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
               </div>
               <div className="mt-2 text-2xl font-semibold text-white">End Now</div>
             </button>
+            <button
+              type="button"
+              onClick={useDraftShuffleTicket}
+              disabled={!canUseDraftShuffle}
+              className={clsx(
+                "rounded-[22px] border px-5 py-3 text-left transition",
+                canUseDraftShuffle
+                  ? "border-indigo-200/22 bg-[linear-gradient(135deg,rgba(37,46,104,0.95),rgba(67,56,202,0.88),rgba(20,24,60,0.96))] text-indigo-50 shadow-[0_16px_36px_rgba(67,56,202,0.24)] hover:scale-[1.02] hover:border-indigo-100/30"
+                  : "cursor-not-allowed border-white/10 bg-white/5 text-slate-300 opacity-70",
+              )}
+            >
+              <div className="text-[10px] uppercase tracking-[0.2em] text-current">
+                Draft Shuffle
+              </div>
+              <div className="mt-2 text-xl font-semibold text-white">{run.draftShuffleTickets}</div>
+              <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-current">
+                {canUseDraftShuffle ? "Reroll current board" : "No live board to reroll"}
+              </div>
+            </button>
+            {canUseStoreUtilities && ownedTrainingCampTickets > 0 ? (
+              <button
+                type="button"
+                onClick={openStoreTrainingCamp}
+                className="rounded-[22px] border border-sky-200/18 bg-[linear-gradient(135deg,rgba(15,23,42,0.95),rgba(15,52,96,0.9),rgba(9,19,34,0.96))] px-5 py-3 text-left text-sky-50 shadow-[0_16px_36px_rgba(14,116,144,0.2)] transition hover:scale-[1.02] hover:border-sky-100/30"
+              >
+                <div className="text-[10px] uppercase tracking-[0.2em] text-sky-100/82">
+                  Training Camp Ticket
+                </div>
+                <div className="mt-2 text-xl font-semibold text-white">Use Ticket</div>
+                <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-sky-100/74">
+                  {ownedTrainingCampTickets} owned
+                </div>
+              </button>
+            ) : null}
+            {canUseStoreUtilities && ownedTradePhones > 0 ? (
+              <button
+                type="button"
+                onClick={openStoreTradePhone}
+                className="rounded-[22px] border border-fuchsia-200/18 bg-[linear-gradient(135deg,rgba(54,18,76,0.95),rgba(91,33,182,0.84),rgba(25,12,48,0.96))] px-5 py-3 text-left text-fuchsia-50 shadow-[0_16px_36px_rgba(126,34,206,0.22)] transition hover:scale-[1.02] hover:border-fuchsia-100/30"
+              >
+                <div className="text-[10px] uppercase tracking-[0.2em] text-fuchsia-100/82">
+                  Trade Phone
+                </div>
+                <div className="mt-2 text-xl font-semibold text-white">Make A Trade</div>
+                <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-fuchsia-100/74">
+                  {ownedTradePhones} owned
+                </div>
+              </button>
+            ) : null}
             {[
               { label: "OVR", value: metrics.overall || "--", icon: Crown, tone: "text-amber-100 bg-amber-300/10 border-amber-200/16" },
               { label: "OFF", value: metrics.offense || "--", icon: Zap, tone: "text-orange-100 bg-orange-300/10 border-orange-200/16" },
@@ -1717,48 +2446,78 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
                 This is the full run path. You will move through draft nodes, chemistry checks, and boss gates until you either survive the gauntlet or the run collapses. Study the ladder first, then begin your opening draft.
               </p>
 
-              <div className="mt-8 grid gap-4 xl:grid-cols-2">
+              <div className="relative mt-8 space-y-4 pl-7 before:absolute before:bottom-4 before:left-3 before:top-4 before:w-px before:bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.06),rgba(255,255,255,0))]">
                 {roguelikeNodes.map((node, index) => {
                   const isCurrent = index === run.floorIndex;
                   const isCleared = index < run.floorIndex;
                   const isLocked = index > run.floorIndex;
+                  const actTheme = getActLadderTheme(node.act);
+                  const summary = node.targetLabel
+                    ? { label: "Target", value: node.targetLabel }
+                    : node.rewardBundleId
+                      ? { label: "Reward", value: getBundle(node.rewardBundleId).title }
+                      : { label: "Reward", value: "Training boost" };
 
                   return (
-                    <div
-                      key={node.id}
-                      className={clsx(
-                        "rounded-[24px] border px-5 py-5 transition",
-                        isCurrent
-                          ? "border-fuchsia-200/24 bg-fuchsia-300/10"
-                          : isCleared
-                            ? "border-emerald-200/18 bg-emerald-300/8"
-                            : "border-white/10 bg-white/5 opacity-70",
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
-                            Act {node.act} • Floor {node.floor}
-                          </div>
-                          <div className="mt-2 font-semibold text-white">{node.title}</div>
-                        </div>
-                        {isCurrent ? (
-                          <button
-                            type="button"
-                            onClick={startOpeningDraft}
-                            className="rounded-full bg-white px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-900 transition hover:scale-[1.02]"
-                          >
-                            {node.battleMode === "starting-five-faceoff" ? "Set Lineup" : "Go"}
-                          </button>
-                        ) : (
-                          <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-300">
-                            {isCleared ? "Cleared" : isLocked ? "Locked" : node.type}
-                          </div>
+                    <div key={node.id} className="relative pl-4">
+                      <div
+                        className={clsx(
+                          "absolute left-[-1px] top-7 h-4 w-4 rounded-full border-4 border-[#090b12]",
+                          isCleared ? "bg-emerald-300 shadow-[0_0_18px_rgba(16,185,129,0.45)]" : actTheme.accent,
                         )}
-                      </div>
-                      <div className="mt-3 text-sm leading-6 text-slate-300">{node.description}</div>
-                      <div className="mt-4 rounded-[18px] border border-fuchsia-200/12 bg-black/18 px-4 py-3 text-sm text-slate-100">
-                        {node.targetLabel ? `Target: ${node.targetLabel}` : node.rewardBundleId ? `Reward: ${getBundle(node.rewardBundleId).title}` : "Reward: Training boost"}
+                      />
+                      <div
+                        className={clsx(
+                          "rounded-[24px] border px-5 py-5 transition",
+                          isCurrent
+                            ? actTheme.current
+                            : isCleared
+                              ? "border-emerald-300/45 bg-[linear-gradient(135deg,rgba(6,78,59,0.42),rgba(16,185,129,0.16),rgba(5,46,22,0.5))] shadow-[0_0_0_1px_rgba(52,211,153,0.18),0_0_34px_rgba(16,185,129,0.2)]"
+                              : actTheme.shell,
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className={clsx("text-[10px] uppercase tracking-[0.2em]", isCleared ? "text-emerald-100/90" : actTheme.eyebrow)}>
+                              Act {node.act} • Floor {node.floor}
+                            </div>
+                            <div className="mt-2 font-semibold text-white">{node.title}</div>
+                          </div>
+                          {isCurrent ? (
+                            <button
+                              type="button"
+                              onClick={startOpeningDraft}
+                              className="rounded-full bg-white px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-900 transition hover:scale-[1.02]"
+                            >
+                              {node.battleMode === "starting-five-faceoff" ? "Set Lineup" : "Go"}
+                            </button>
+                          ) : (
+                            <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-300">
+                              {isCleared ? "Cleared" : isLocked ? "Locked" : node.type}
+                            </div>
+                          )}
+                        </div>
+                        <div className="mt-3 text-sm leading-6 text-slate-300">{node.description}</div>
+                        <div
+                          className={clsx(
+                            "mt-4 rounded-[18px] border px-4 py-3.5",
+                            isCleared ? "border-emerald-200/22 bg-emerald-300/10 text-emerald-50/94" : node.targetLabel ? actTheme.target : actTheme.reward,
+                          )}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/6 text-white">
+                              <Target size={14} />
+                            </div>
+                            <div>
+                              <div className="text-[10px] uppercase tracking-[0.22em] text-white/62">
+                                {summary.label}
+                              </div>
+                              <div className="mt-1 text-sm font-semibold leading-6 text-current">
+                                {summary.value}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
@@ -1840,13 +2599,15 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
             </div>
           )}
 
-          {(run.stage === "challenge-setup" || reviewingFailedChallenge) && activeNode && (
-            <div className="glass-panel rounded-[30px] p-6 shadow-card">
-              <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Set Your Starting Five</div>
-              <h2 className="mt-2 font-display text-3xl text-white">{activeNode.title}</h2>
-              <p className="mt-3 text-sm leading-7 text-slate-300">
-                Drag your best five players into the starter slots. This challenge grades your Starting 5 Score as the average Offense rating of your five starters, so use your bench slot to sit your weakest offensive piece.
-              </p>
+            {(run.stage === "challenge-setup" || reviewingFailedChallenge) && activeNode && (
+              <div className="glass-panel rounded-[30px] p-6 shadow-card">
+                <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Set Your Starting Five</div>
+                <h2 className="mt-2 font-display text-3xl text-white">{activeNode.title}</h2>
+                <p className="mt-3 text-sm leading-7 text-slate-300">
+                  {challengeMetric === "rebounding"
+                    ? "Drag your best five players into the starter slots. This challenge grades your Starting 5 Score as the average Rebounding rating of your five starters, so build for size, positioning, and control on the glass."
+                    : "Drag your best five players into the starter slots. This challenge grades your Starting 5 Score as the average Offense rating of your five starters, so use your bench slot to sit your weakest offensive piece."}
+                </p>
               <div className="mt-6 rounded-[24px] border border-white/12 bg-black/14 p-5">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
@@ -1962,12 +2723,47 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
             </div>
           )}
 
+          {run.stage === "evolution-select" && activeNode && (
+            <div className="glass-panel rounded-[30px] p-6 shadow-card">
+              <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Evolution Node</div>
+              <h2 className="mt-2 font-display text-3xl text-white">{activeNode.title}</h2>
+              <p className="mt-3 text-sm leading-7 text-slate-300">
+                Select 1 eligible version player from your run roster to evolve. The player will be replaced by their next stronger version for the rest of this run.
+              </p>
+              <div className="mt-5 rounded-[22px] border border-cyan-200/14 bg-cyan-300/8 px-4 py-4 text-sm text-slate-100">
+                Evolution only works on players who already have a stronger version in the pool. If you found a lower version earlier, this is where it pays off.
+              </div>
+              <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                {getRoguelikeEvolutionOptions(runOwnedPlayers).map((option) => (
+                  <DraftPlayerCard
+                    key={option.currentPlayer.id}
+                    player={option.currentPlayer}
+                    onSelect={evolveRunPlayer}
+                    compact
+                    draftedPlayerIds={runOwnedPlayerIds}
+                    actionLabel={`Evolve to ${option.nextPlayer.overall} OVR`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           {run.stage === "node-preview" && activeNode && (
             <div className="glass-panel rounded-[30px] p-6 shadow-card">
               <div className="flex items-center gap-3 text-xs uppercase tracking-[0.24em] text-slate-400">
                 <span>Floor {activeNode.floor}</span>
-                <span>•</span>
-                <span>{activeNode.type === "boss" ? "Boss Gate" : activeNode.type === "training" ? "Training Node" : activeNode.type === "trade" ? "Trade Node" : activeNode.type}</span>
+                <span>â€¢</span>
+                <span>
+                  {activeNode.type === "boss"
+                    ? "Boss Gate"
+                    : activeNode.type === "training"
+                      ? "Training Node"
+                      : activeNode.type === "trade"
+                        ? "Trade Node"
+                        : activeNode.type === "evolution"
+                          ? "Evolution Node"
+                          : activeNode.type}
+                </span>
               </div>
               <h2 className="mt-2 font-display text-3xl text-white">{activeNode.title}</h2>
               <p className="mt-3 text-sm leading-7 text-slate-300">{activeNode.description}</p>
@@ -2046,7 +2842,7 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
               </div>
               <button
                 type="button"
-                onClick={run.nodeResult?.passed ? continueAfterFaceoff : () => startRun(run.packageId)}
+                onClick={run.nodeResult?.passed ? continueAfterFaceoff : abortRun}
                 className="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900"
               >
                 {run.nodeResult?.passed ? "Continue" : "Try Again"}
@@ -2069,7 +2865,14 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
               <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Reward Draft</div>
               <h2 className="mt-2 font-display text-3xl text-white">{run.nodeResult?.title ?? "Choose 1 reward"}</h2>
               <p className="mt-3 text-sm leading-7 text-slate-300">{run.nodeResult?.detail}</p>
-              <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+              <div
+                className={clsx(
+                  "mt-6 grid gap-5",
+                  run.choices.length === 3
+                    ? "mx-auto max-w-5xl md:grid-cols-2 xl:grid-cols-3"
+                    : "md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5",
+                )}
+              >
                 {run.choices.map((player) => (
                   <DraftPlayerCard
                     key={player.id}
@@ -2146,7 +2949,7 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
             <>
               <div className="glass-panel rounded-[30px] p-6 shadow-card">
                 <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Run Ladder</div>
-                <div className="mt-5 space-y-3">
+                <div className="relative mt-5 space-y-3 pl-6 before:absolute before:bottom-4 before:left-2.5 before:top-3 before:w-px before:bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.06),rgba(255,255,255,0))]">
                   {roguelikeNodes.map((node, index) => {
                     const isCurrent = run.floorIndex === index && (
                       run.stage === "node-preview" ||
@@ -2157,55 +2960,77 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
                       run.stage === "faceoff-game"
                     );
                     const isCleared = run.floorIndex > index || run.stage === "run-cleared";
+                    const actTheme = getActLadderTheme(node.act);
+                    const summary = node.targetLabel
+                      ? { label: "Target", value: node.targetLabel }
+                      : { label: "Reward", value: getBundle(node.rewardBundleId).title };
                     return (
-                      <div
-                        key={node.id}
-                        className={clsx(
-                          "rounded-[22px] border px-4 py-4 transition",
-                          isCurrent
-                            ? "border-fuchsia-200/24 bg-fuchsia-300/10"
-                            : isCleared
-                              ? "border-emerald-300/45 bg-[linear-gradient(135deg,rgba(6,78,59,0.42),rgba(16,185,129,0.16),rgba(5,46,22,0.5))] shadow-[0_0_0_1px_rgba(52,211,153,0.18),0_0_34px_rgba(16,185,129,0.2)]"
-                              : "border-white/10 bg-white/5",
-                        )}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <div className={clsx(
-                              "text-[10px] uppercase tracking-[0.2em]",
-                              isCleared ? "text-emerald-100/90" : "text-slate-400",
-                            )}>
-                              Floor {node.floor}
+                      <div key={node.id} className="relative pl-4">
+                        <div
+                          className={clsx(
+                            "absolute left-[-1px] top-6 h-3.5 w-3.5 rounded-full border-4 border-[#090b12]",
+                            isCleared ? "bg-emerald-300 shadow-[0_0_16px_rgba(16,185,129,0.4)]" : actTheme.accent,
+                          )}
+                        />
+                        <div
+                          className={clsx(
+                            "rounded-[22px] border px-4 py-4 transition",
+                            isCurrent
+                              ? actTheme.current
+                              : isCleared
+                                ? "border-emerald-300/45 bg-[linear-gradient(135deg,rgba(6,78,59,0.42),rgba(16,185,129,0.16),rgba(5,46,22,0.5))] shadow-[0_0_0_1px_rgba(52,211,153,0.18),0_0_34px_rgba(16,185,129,0.2)]"
+                                : actTheme.shell,
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <div className={clsx(
+                                "text-[10px] uppercase tracking-[0.2em]",
+                                isCleared ? "text-emerald-100/90" : actTheme.eyebrow,
+                              )}>
+                                Act {node.act} • Floor {node.floor}
+                              </div>
+                              <div className="mt-1 font-semibold text-white">{node.title}</div>
                             </div>
-                            <div className="mt-1 font-semibold text-white">{node.title}</div>
+                            <div
+                              className={clsx(
+                                "rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em]",
+                                isCleared
+                                  ? "border-emerald-200/35 bg-emerald-300/14 text-emerald-50"
+                                  : "border-white/10 bg-black/20 text-slate-300",
+                              )}
+                            >
+                              {isCleared ? (
+                                <span className="inline-flex items-center gap-1.5">
+                                  <CheckCircle2 size={12} />
+                                  Cleared
+                                </span>
+                              ) : (
+                                node.type
+                              )}
+                            </div>
                           </div>
                           <div
                             className={clsx(
-                              "rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em]",
-                              isCleared
-                                ? "border-emerald-200/35 bg-emerald-300/14 text-emerald-50"
-                                : "border-white/10 bg-black/20 text-slate-300",
+                              "mt-3 rounded-[18px] border px-4 py-3",
+                              isCleared ? "border-emerald-200/22 bg-emerald-300/10 text-emerald-50/94" : node.targetLabel ? actTheme.target : actTheme.reward,
                             )}
                           >
-                            {isCleared ? (
-                              <span className="inline-flex items-center gap-1.5">
-                                <CheckCircle2 size={12} />
-                                Cleared
-                              </span>
-                            ) : (
-                              node.type
-                            )}
+                            <div className="flex items-start gap-3">
+                              <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/6 text-white">
+                                <Target size={13} />
+                              </div>
+                              <div>
+                                <div className="text-[10px] uppercase tracking-[0.22em] text-white/62">
+                                  {summary.label}
+                                </div>
+                                <div className="mt-1 text-sm font-semibold leading-6 text-current">
+                                  {summary.value}
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        {node.targetLabel ? (
-                          <div className={clsx("mt-2 text-sm", isCleared ? "text-emerald-50/88" : "text-slate-300")}>
-                            {node.targetLabel}
-                          </div>
-                        ) : (
-                          <div className={clsx("mt-2 text-sm", isCleared ? "text-emerald-50/88" : "text-slate-300")}>
-                            {getBundle(node.rewardBundleId).title}
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -2298,23 +3123,98 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
                 {run.nodeResult?.detail}
               </p>
 
-              {run.stage === "faceoff-game" && run.nodeResult?.faceoffResult ? (
+              {run.stage === "faceoff-game" && run.nodeResult?.faceoffResult && faceoffFinalScore ? (
                 <div className="mt-8 grid gap-4 lg:grid-cols-2">
-                  <div className={clsx(
-                    "rounded-[26px] border p-5",
-                    outcomeTone === "failure"
-                      ? "border-rose-100/22 bg-rose-950/18"
-                      : "border-emerald-100/20 bg-emerald-950/18",
-                  )}>
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-white/72">Your Team Total</div>
-                    <div className="mt-2 text-4xl font-semibold text-white">
-                      {run.nodeResult.faceoffResult.userTeamWinProbability}%
+                    <div className={clsx(
+                      "rounded-[26px] border p-5",
+                      outcomeTone === "failure"
+                        ? "border-rose-100/22 bg-rose-950/18"
+                        : "border-emerald-100/20 bg-emerald-950/18",
+                    )}>
+                      <div className="text-center text-[10px] uppercase tracking-[0.24em] text-white/72">Final Score</div>
+                      <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+                        <div className="rounded-[22px] border border-white/10 bg-black/18 px-4 py-4 text-center">
+                          <div className="text-[10px] uppercase tracking-[0.2em] text-white/58">
+                            {activeNode?.opponentTeamName ?? "Boss Team"}
+                          </div>
+                          <div className="mt-3 text-4xl font-semibold leading-none text-white">
+                            {faceoffFinalScore.opponentScore}
+                          </div>
+                        </div>
+                        <div className="text-sm font-semibold uppercase tracking-[0.24em] text-white/46">
+                          vs
+                        </div>
+                        <div className="rounded-[22px] border border-white/10 bg-black/18 px-4 py-4 text-center">
+                          <div className="text-[10px] uppercase tracking-[0.2em] text-white/58">
+                            Your Team
+                          </div>
+                          <div className="mt-3 text-4xl font-semibold leading-none text-white">
+                            {faceoffFinalScore.userScore}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-4 text-center text-sm text-white/74">
+                        You {run.nodeResult.passed ? "won" : "lost"} the faceoff against {activeNode?.opponentTeamName ?? "the boss team"}.
+                      </div>
                     </div>
+                  {run.nodeResult.passed ? (
+                    <div className="rounded-[26px] border border-amber-100/18 bg-[linear-gradient(135deg,rgba(64,36,6,0.26),rgba(122,76,18,0.18),rgba(28,20,8,0.22))] p-5">
+                      <div className="text-[10px] uppercase tracking-[0.22em] text-amber-100/78">Reward Unlocked</div>
+                        <div className="mt-2 text-2xl font-semibold text-white">
+                          Add 1 player to your run roster
+                        </div>
+                        <div className="mt-2 text-sm leading-7 text-white/76">
+                          {activeNode?.id === "act-one-boss"
+                            ? "Choose 1 of 3 B-tier version players and set up a future evolution upgrade."
+                            : "Choose 1 of 5 reward players and strengthen your run for the next node."}
+                        </div>
+                      </div>
+                  ) : (
+                    <div className="rounded-[26px] border border-white/16 bg-black/18 p-5">
+                      <div className="text-[10px] uppercase tracking-[0.22em] text-white/72">Boss Team</div>
+                      <div className="mt-2 text-2xl font-semibold text-white">
+                        {activeNode?.opponentTeamName ?? "Boss Team"}
+                      </div>
+                      <div className="mt-2 text-sm leading-7 text-white/74">
+                        Reset your lineup if needed and take another look at the matchups before your next attempt.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              {((run.stage === "run-over") || (run.stage === "faceoff-game" && !run.nodeResult?.passed)) && run.nodeResult?.failureRewards ? (
+                <div className="mt-8 rounded-[28px] border border-amber-100/18 bg-[linear-gradient(135deg,rgba(20,8,16,0.36),rgba(84,36,18,0.22),rgba(16,10,20,0.28))] p-5 shadow-[0_20px_44px_rgba(0,0,0,0.18)]">
+                  <div className="text-[11px] uppercase tracking-[0.24em] text-amber-100/78">
+                    Failure Rewards
                   </div>
-                  <div className="rounded-[26px] border border-white/16 bg-black/18 p-5">
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-white/72">Boss Team Total</div>
-                    <div className="mt-2 text-4xl font-semibold text-white">
-                      {run.nodeResult.faceoffResult.opponentTeamWinProbability}%
+                  <div className="mt-2 max-w-3xl text-sm leading-7 text-white/84">
+                    This run ended, but you still earned progression for the climb. Every failed Rogue run pays out Tokens and Prestige XP so your next attempt starts with a little more momentum.
+                  </div>
+                  <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-[24px] border border-amber-100/18 bg-amber-300/10 p-5">
+                      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-amber-100/78">
+                        <Coins size={14} />
+                        Token Reward
+                      </div>
+                      <div className="mt-3 text-4xl font-semibold text-white">
+                        +{run.nodeResult.failureRewards.tokenReward}
+                      </div>
+                      <div className="mt-1 text-xs uppercase tracking-[0.18em] text-amber-100/72">
+                        Tokens added
+                      </div>
+                    </div>
+                    <div className="rounded-[24px] border border-sky-100/18 bg-sky-300/10 p-5">
+                      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-sky-100/78">
+                        <Sparkles size={14} />
+                        Prestige XP
+                      </div>
+                      <div className="mt-3 text-4xl font-semibold text-white">
+                        +{run.nodeResult.failureRewards.prestigeXpAward}
+                      </div>
+                      <div className="mt-1 text-xs uppercase tracking-[0.18em] text-sky-100/72">
+                        Progress saved
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2389,7 +3289,7 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => startRun(run.packageId)}
+                        onClick={abortRun}
                         className="inline-flex items-center justify-center gap-2 rounded-full border border-white/18 bg-white/8 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-white/12"
                       >
                         Try Again
@@ -2421,3 +3321,4 @@ export const RoguelikeMode = ({ onBackToHome }: RoguelikeModeProps) => {
     </section>
   );
 };
+

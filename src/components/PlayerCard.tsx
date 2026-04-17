@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { Shield, Sparkles, Target } from "lucide-react";
+import { getPlayerDisplayLines } from "../lib/playerDisplay";
 import { getPlayerVisual } from "../lib/playerVisuals";
 import { Player } from "../types";
 
@@ -26,6 +27,7 @@ export const PlayerCard = ({
   compact = false,
 }: PlayerCardProps) => {
   const visual = getPlayerVisual(player);
+  const { firstNameLine, lastNameLine, versionLine } = getPlayerDisplayLines(player);
 
   return (
     <button
@@ -95,8 +97,10 @@ export const PlayerCard = ({
             <div className="mb-2 inline-flex rounded-full border border-white/12 bg-white/8 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-200/80">
               Tier {player.hallOfFameTier}
             </div>
-            <h3 className="max-w-[14ch] font-display text-2xl font-semibold leading-tight text-white">
-              {player.name}
+            <h3 className="max-w-full font-display text-2xl font-semibold leading-tight text-white">
+              <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{firstNameLine}</div>
+              <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{lastNameLine}</div>
+              {versionLine ? <div className="text-[0.72em] tracking-tight text-slate-200/90">{versionLine}</div> : null}
             </h3>
             <p className="mt-1 text-sm text-slate-300">
               {player.primaryPosition} • {player.teamLabel}

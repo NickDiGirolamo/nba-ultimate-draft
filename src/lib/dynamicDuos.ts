@@ -69,7 +69,7 @@ export const dynamicDuos: PlayerBadgeDefinition[] = [
   { id: "heat-shaq-wade", title: "Dynamic Duos: Heat Shaq + Wade", type: "dynamic-duo", players: ["shaquille-o-neal-heat", "dwayne-wade-03-10"] },
   { id: "kobe-shaq", title: "Dynamic Duos: Kobe + Shaq", type: "dynamic-duo", players: ["kobe-bryant-8", "shaquille-o-neal-lakers"] },
   { id: "payton-kemp", title: "Dynamic Duos: Payton + Kemp", type: "dynamic-duo", players: ["gary-payton", "shawn-kemp"] },
-  { id: "nash-amare", title: "Dynamic Duos: Nash + Amar'e", type: "dynamic-duo", players: ["steve-nash", "amar-e-stoudemire"] },
+  { id: "nash-amare", title: "Dynamic Duos: Nash + Amar'e", type: "dynamic-duo", players: ["steve-nash", "amar-e-stoudemire-suns"] },
   { id: "heat-lebron-wade", title: "Dynamic Duos: Heat LeBron + Wade", type: "dynamic-duo", players: ["lebron-james-heat", "dwayne-wade-10-14"] },
   { id: "cp3-west", title: "Dynamic Duos: Chris Paul + David West", type: "dynamic-duo", players: ["chris-paul-hornets", "david-west"] },
   { id: "cp3-blake", title: "Dynamic Duos: Chris Paul + Blake Griffin", type: "dynamic-duo", players: ["chris-paul-clippers", "blake-griffin"] },
@@ -99,6 +99,7 @@ export const dynamicDuos: PlayerBadgeDefinition[] = [
   { id: "webber-divac", title: "Dynamic Duos: Chris Webber + Vlade Divac", type: "dynamic-duo", players: ["chris-webber", "vlade-divac"] },
   { id: "tatum-brown", title: "Dynamic Duos: Tatum + Brown", type: "dynamic-duo", players: ["jayson-tatum", "jaylen-brown"] },
   { id: "rose-noah", title: "Dynamic Duos: Derrick Rose + Joakim Noah", type: "dynamic-duo", players: ["derrick-rose", "joakim-noah"] },
+  { id: "mitchell-gobert", title: "Dynamic Duos: Donovan Mitchell + Rudy Gobert", type: "dynamic-duo", players: ["donovan-mitchell", "rudy-gobert"] },
   { id: "steph-klay", title: "Dynamic Duos: Steph + Klay", type: "dynamic-duo", players: ["steph-curry", "klay-thompson"] },
   { id: "tmac-vince", title: "Dynamic Duos: T-Mac + Vince", type: "dynamic-duo", players: ["tracy-mcgrady-raptors", "vince-carter-raptors"] },
   { id: "tmac-yao", title: "Dynamic Duos: T-Mac + Yao", type: "dynamic-duo", players: ["tracy-mcgrady-rockets", "yao-ming"] },
@@ -106,6 +107,9 @@ export const dynamicDuos: PlayerBadgeDefinition[] = [
   { id: "bucks-kareem-oscar", title: "Dynamic Duos: Kareem + Oscar", type: "dynamic-duo", players: ["kareem-abdul-jabbar-bucks", "oscar-robertson"] },
   { id: "penny-shaq", title: "Dynamic Duos: Penny + Shaq", type: "dynamic-duo", players: ["penny-hardaway", "shaquille-o-neal-magic"] },
   { id: "kobe-pau", title: "Dynamic Duos: Kobe + Pau", type: "dynamic-duo", players: ["kobe-bryant-24", "pau-gasol"] },
+  { id: "iverson-dikembe", title: "Dynamic Duos: Allen Iverson + Dikembe Mutombo", type: "dynamic-duo", players: ["allen-iverson-76ers", "dikembe-mutombo"] },
+  { id: "iverson-melo-nuggets", title: "Dynamic Duos: Allen Iverson + Carmelo Anthony", type: "dynamic-duo", players: ["allen-iverson-nuggets", "carmelo-anthony-nuggets"] },
+  { id: "amare-melo-knicks", title: "Dynamic Duos: Amar'e Stoudemire + Carmelo Anthony", type: "dynamic-duo", players: ["amar-e-stoudemire-knicks", "carmelo-anthony-knicks"] },
 ];
 
 export const bigThrees: PlayerBadgeDefinition[] = [
@@ -151,13 +155,14 @@ export const rolePlayerPairs: RolePlayerPairDefinition[] = [
   { id: "smits-reggie", title: "Pacers Support Cast: Rik Smits + Reggie Miller", rolePlayer: "rik-smits", centerpiece: "reggie-miller" },
   { id: "marion-nash", title: "Suns Support Cast: Shawn Marion + Steve Nash", rolePlayer: "shawn-marion", centerpiece: "steve-nash" },
   { id: "gordon-jokic", title: "Nuggets Support Cast: Aaron Gordon + Nikola Jokic", rolePlayer: "aaron-gordon", centerpiece: "nikola-jokic" },
-  { id: "dikembe-iverson", title: "76ers Support Cast: Dikembe Mutombo + Allen Iverson", rolePlayer: "dikembe-mutombo", centerpiece: "allen-iverson" },
   { id: "worthy-magic", title: "Lakers Support Cast: James Worthy + Magic Johnson", rolePlayer: "james-worthy", centerpiece: "magic-johnson" },
   { id: "kukoc-jordan", title: "Bulls Support Cast: Tony Kukoc + Michael Jordan", rolePlayer: "tony-kukoc", centerpiece: "michael-jordan" },
   { id: "kerr-jordan", title: "Bulls Support Cast: Steve Kerr + Michael Jordan", rolePlayer: "steve-kerr", centerpiece: "michael-jordan" },
   { id: "parish-bird", title: "Celtics Support Cast: Robert Parish + Larry Bird", rolePlayer: "robert-parish", centerpiece: "larry-bird" },
   { id: "hibbert-pg", title: "Pacers Support Cast: Roy Hibbert + Paul George", rolePlayer: "roy-hibbert", centerpiece: "paul-george" },
   { id: "lance-pg", title: "Pacers Support Cast: Lance Stephenson + Paul George", rolePlayer: "lance-stephenson", centerpiece: "paul-george" },
+  { id: "doc-nique", title: "Hawks Support Cast: Doc Rivers + Dominique Wilkins", rolePlayer: "doc-rivers", centerpiece: "dominique-wilkins" },
+  { id: "willis-nique", title: "Hawks Support Cast: Kevin Willis + Dominique Wilkins", rolePlayer: "kevin-willis", centerpiece: "dominique-wilkins" },
   { id: "deng-rose", title: "Bulls Support Cast: Luol Deng + Derrick Rose", rolePlayer: "luol-deng", centerpiece: "derrick-rose" },
   { id: "capela-harden", title: "Rockets Support Cast: Clint Capela + James Harden", rolePlayer: "clint-capela", centerpiece: "james-harden" },
   { id: "pj-harden", title: "Rockets Support Cast: P.J. Tucker + James Harden", rolePlayer: "p-j-tucker", centerpiece: "james-harden" },
@@ -208,6 +213,8 @@ export const getPlayerDynamicDuo = (playerId: string) =>
 export const getActiveDynamicDuos = (playerIds: string[]) => getActiveBadges(dynamicDuos, playerIds);
 
 export const getActiveBigThrees = (playerIds: string[]) => getActiveBadges(bigThrees, playerIds);
+
+export const getActiveRivalBadges = (playerIds: string[]) => getActiveBadges(rivalBadges, playerIds);
 
 export const getPlayerBadgeStates = (playerId: string, playerIds: string[]) => {
   const owned = new Set(playerIds);

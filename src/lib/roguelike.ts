@@ -1,6 +1,11 @@
 import { allPlayers } from "../data/players";
 import { assignPlayerToRoster, rosterTemplate } from "./draft";
-import { isDynamicDuoActiveForPlayer } from "./dynamicDuos";
+import {
+  getActiveBigThrees,
+  getActiveDynamicDuos,
+  getActiveRivalBadges,
+  getActiveRolePlayerPairs,
+} from "./dynamicDuos";
 import { mulberry32 } from "./random";
 import { evaluateDraftChemistry } from "./simulate";
 import { Player, PlayerTier, Position, RosterSlot, RosterSlotType } from "../types";
@@ -18,8 +23,8 @@ export type RoguelikeBundleId =
   | "jumbo-wings"
   | "spacing-punch";
 
-export type RoguelikeNodeType = "draft" | "challenge" | "boss" | "training" | "trade";
-export type RoguelikeMetric = "overall" | "offense" | "defense" | "chemistry";
+export type RoguelikeNodeType = "draft" | "challenge" | "boss" | "training" | "trade" | "evolution";
+export type RoguelikeMetric = "overall" | "offense" | "defense" | "chemistry" | "rebounding";
 export type RoguelikeBattleMode = "starting-five-faceoff";
 
 export interface RoguelikeStarterPackage {
@@ -45,16 +50,19 @@ export interface RoguelikeNode {
   description: string;
   rewardBundleId: RoguelikeBundleId;
   rewardChoices: number;
+  draftShuffleReward?: number;
   livesPenalty?: number;
   targetLabel?: string;
   battleMode?: RoguelikeBattleMode;
   eliminationOnLoss?: boolean;
+  opponentAverageOverall?: number;
   checks?: Array<{
     metric: RoguelikeMetric;
     target: number;
   }>;
   opponentTeamName?: string;
   opponentPlayerIds?: string[];
+  opponentStarterPlayerIds?: string[];
 }
 
 export interface RoguelikeRosterMetrics {
@@ -62,6 +70,7 @@ export interface RoguelikeRosterMetrics {
   offense: number;
   defense: number;
   chemistry: number;
+  rebounding: number;
 }
 
 export interface RoguelikeFaceoffMatchup {
@@ -83,9 +92,28 @@ export interface RoguelikeFaceoffResult {
   opponentTeamWinProbability: number;
 }
 
+export interface RoguelikeEvolutionOption {
+  currentPlayer: Player;
+  nextPlayer: Player;
+}
+
+export interface RoguelikeFailureRewards {
+  prestigeXpAward: number;
+  tokenReward: number;
+}
+
 const VERSION_SUFFIX_PATTERN = /\s\([^)]*\)$/;
 const STARTING_FIVE_POSITIONS: Position[] = ["PG", "SG", "SF", "PF", "C"];
-const ACT_ONE_FACEOFF_TARGET_TOTAL = 420;
+const DEFAULT_FACEOFF_TARGET_AVERAGE = 84;
+
+export const getRoguelikeFailureRewards = (floorIndex: number): RoguelikeFailureRewards => {
+  const prestigeXpAward = Math.max(2, Math.min(8, floorIndex + 1));
+
+  return {
+    prestigeXpAward,
+    tokenReward: prestigeXpAward * 10,
+  };
+};
 
 export const roguelikeStarterPackages: RoguelikeStarterPackage[] = [
   {
@@ -164,21 +192,15 @@ export const roguelikeNodes: RoguelikeNode[] = [
     act: 1,
     type: "boss",
     title: "Act I Faceoff",
-    description: "Your first real test is a fixed five-man opponent built to punish sloppy openings and reward coherent early builds.",
+    description: "Your first real test is a freshly generated five-man opponent built to punish sloppy openings and reward coherent early builds.",
     rewardBundleId: "synergy-hunters",
     rewardChoices: 5,
     targetLabel: "Beat the Midrange Machine starting five",
     battleMode: "starting-five-faceoff",
     eliminationOnLoss: true,
+    opponentAverageOverall: 84.2,
     livesPenalty: 1,
     opponentTeamName: "Midrange Machine",
-    opponentPlayerIds: [
-      "chauncey-billups",
-      "eddie-jones",
-      "shawn-marion",
-      "al-horford",
-      "joakim-noah",
-    ],
   },
   {
     id: "frontcourt-wave",
@@ -189,9 +211,9 @@ export const roguelikeNodes: RoguelikeNode[] = [
     description: "You have six players now. Arrange your best offensive starting five and prove this run can generate enough scoring pressure to keep climbing.",
     rewardBundleId: "frontcourt-pressure",
     rewardChoices: 5,
-    targetLabel: "Reach 86 Offense with your starting five",
+    targetLabel: "Reach 81 Offense with your starting five",
     livesPenalty: 1,
-    checks: [{ metric: "offense", target: 86 }],
+    checks: [{ metric: "offense", target: 81 }],
   },
   {
     id: "training-day",
@@ -220,71 +242,304 @@ export const roguelikeNodes: RoguelikeNode[] = [
     floor: 6,
     act: 1,
     type: "boss",
-    title: "Act I Boss: Core Audit",
-    description: "Your run survives if the top of the roster is both strong and structurally coherent.",
+    title: "NBA Playoffs Round 1",
+    description: "A stronger five-man boss lineup is waiting here. Set your starters carefully and survive one more direct faceoff to close Act I.",
     rewardBundleId: "elite-closers",
     rewardChoices: 3,
-    targetLabel: "Reach 89 OVR and 15 Chemistry",
+    targetLabel: "Beat the NBA Playoffs Round 1 starting five",
+    battleMode: "starting-five-faceoff",
+    eliminationOnLoss: true,
+    opponentAverageOverall: 86,
     livesPenalty: 2,
-    checks: [
-      { metric: "overall", target: 89 },
-      { metric: "chemistry", target: 15 },
-    ],
+    opponentTeamName: "NBA Playoffs Round 1",
   },
   {
-    id: "jumbo-wing-lab",
+    id: "training-day-2",
     floor: 7,
     act: 2,
-    type: "draft",
-    title: "Jumbo Wing Lab",
-    description: "Longer wings and flexible forwards arrive. This is where balanced runs often separate.",
+    type: "training",
+    title: "Training Day 2",
+    description: "Take one more player from your run roster and send them to training. The boost lasts for the rest of the run.",
     rewardBundleId: "jumbo-wings",
-    rewardChoices: 3,
+    rewardChoices: 0,
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
   },
   {
-    id: "spacing-test",
+    id: "glass-control",
     floor: 8,
     act: 2,
     type: "challenge",
-    title: "Spacing Test",
-    description: "Can the offense breathe, or have you drafted yourself into a traffic jam?",
+    title: "Challenge 2: Own The Glass",
+    description: "Set your strongest rebounding lineup and prove this run can control possessions on the boards.",
     rewardBundleId: "spacing-punch",
-    rewardChoices: 3,
-    targetLabel: "Reach 89 Offense",
+    rewardChoices: 5,
+    targetLabel: "Reach 69 Rebounding with your starting five",
     livesPenalty: 1,
-    checks: [{ metric: "offense", target: 89 }],
+    checks: [{ metric: "rebounding", target: 69 }],
   },
   {
-    id: "closer-cache",
+    id: "trade-deadline-2",
     floor: 9,
     act: 2,
-    type: "draft",
-    title: "Closer Cache",
-    description: "One last push before the final gate. Take ceiling if you can still hold the structure together.",
-    rewardBundleId: "elite-closers",
-    rewardChoices: 3,
+    type: "trade",
+    title: "Trade Deadline 2",
+    description: "The market is moving again. Flip one player if you want a better fit, or stay disciplined and keep your current build together.",
+    rewardBundleId: "jumbo-wings",
+    rewardChoices: 5,
+    targetLabel: "Optionally trade 1 player, then draft 1 replacement from 5 options",
   },
   {
-    id: "final-boss",
+    id: "scouting-burst",
     floor: 10,
     act: 2,
+    type: "draft",
+    title: "Scouting Burst",
+    description: "A fresh scouting wave is in. Add one more player from a five-card board and keep shaping your rotation before the next boss.",
+    rewardBundleId: "spacing-punch",
+    rewardChoices: 5,
+  },
+  {
+    id: "act-two-boss",
+    floor: 11,
+    act: 2,
     type: "boss",
-    title: "Final Boss: Championship Gate",
-    description: "This run only ends in victory if the roster looks like something that could really survive the whole gauntlet.",
+    title: "NBA Playoffs Round 2",
+    description: "Act II ends with a deeper, sharper boss team. Your starters need to be organized cleanly or this round will punish every weak matchup.",
+    rewardBundleId: "jumbo-wings",
+    rewardChoices: 0,
+    draftShuffleReward: 1,
+    targetLabel: "Beat the NBA Playoffs Round 2 starting five",
+    battleMode: "starting-five-faceoff",
+    eliminationOnLoss: true,
+    opponentAverageOverall: 89,
+    livesPenalty: 2,
+    opponentTeamName: "NBA Playoffs Round 2",
+  },
+  {
+    id: "training-day-3",
+    floor: 12,
+    act: 3,
+    type: "training",
+    title: "Training Day 3",
+    description: "Another player can be sharpened before the semifinal climb. Pick one member of your run roster to gain +1 OVR for the rest of the run.",
     rewardBundleId: "elite-closers",
     rewardChoices: 0,
-    targetLabel: "Reach 91 OVR, 87 Defense, and 18 Chemistry",
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+  },
+  {
+    id: "defense-travels",
+    floor: 13,
+    act: 3,
+    type: "challenge",
+    title: "Challenge 3: Defense Wins Championships",
+    description: "Set your best five-man defensive lineup and prove this run can survive a slower, more physical stage of the climb.",
+    rewardBundleId: "jumbo-wings",
+    rewardChoices: 5,
+    targetLabel: "Reach 80 Defense with your starting five",
+    livesPenalty: 1,
+    checks: [{ metric: "defense", target: 80 }],
+  },
+  {
+    id: "trade-deadline-3",
+    floor: 14,
+    act: 3,
+    type: "trade",
+    title: "Trade Deadline 3",
+    description: "You are close enough to the endgame that one calculated move can swing the whole run. Trade one player if you want another shot at fit.",
+    rewardBundleId: "spacing-punch",
+    rewardChoices: 5,
+    targetLabel: "Optionally trade 1 player, then draft 1 replacement from 5 options",
+  },
+  {
+    id: "evolution-chamber-1",
+    floor: 15,
+    act: 3,
+    type: "evolution",
+    title: "Evolution Chamber",
+    description: "If you drafted a lower-version player earlier in the run, you can now evolve one eligible player into their stronger version.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 0,
+    targetLabel: "Choose 1 eligible version player to evolve",
+  },
+  {
+    id: "draft-lab",
+    floor: 16,
+    act: 3,
+    type: "draft",
+    title: "Draft Lab",
+    description: "One more five-player board opens before the conference-finals fight. Add a final rotation piece and tighten your bench.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 5,
+  },
+  {
+    id: "act-three-boss",
+    floor: 17,
+    act: 3,
+    type: "boss",
+    title: "NBA Playoffs Round 3",
+    description: "This boss lineup is almost championship-level. Matchups matter more than ever, and sloppy slotting will cost you immediately.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 0,
+    draftShuffleReward: 2,
+    targetLabel: "Beat the NBA Playoffs Round 3 starting five",
+    battleMode: "starting-five-faceoff",
+    eliminationOnLoss: true,
+    opponentAverageOverall: 92,
+    livesPenalty: 2,
+    opponentTeamName: "NBA Playoffs Round 3",
+  },
+  {
+    id: "training-day-4",
+    floor: 18,
+    act: 4,
+    type: "training",
+    title: "Training Day 4",
+    description: "This is the last camp before the finals gauntlet. Choose one player to gain +1 OVR for the remainder of the run.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 0,
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+  },
+  {
+    id: "burn-the-nets",
+    floor: 19,
+    act: 4,
+    type: "challenge",
+    title: "Challenge 4: Burn The Nets",
+    description: "Your team should score like a contender now. Arrange the best offensive starting five you can and clear one last threshold before the title rounds.",
+    rewardBundleId: "synergy-hunters",
+    rewardChoices: 5,
+    targetLabel: "Reach 91 Offense with your starting five",
+    livesPenalty: 1,
+    checks: [{ metric: "offense", target: 91 }],
+  },
+  {
+    id: "trade-deadline-4",
+    floor: 20,
+    act: 4,
+    type: "trade",
+    title: "Trade Deadline 4",
+    description: "One final chance to reshape the roster before the title rounds. Cash in a player only if the replacement upside is worth the risk.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 5,
+    targetLabel: "Optionally trade 1 player, then draft 1 replacement from 5 options",
+  },
+  {
+    id: "evolution-chamber-2",
+    floor: 21,
+    act: 4,
+    type: "evolution",
+    title: "Evolution Chamber 2",
+    description: "A second evolution station opens. Upgrade one eligible version player into their stronger form before the final rounds.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 0,
+    targetLabel: "Choose 1 eligible version player to evolve",
+  },
+  {
+    id: "film-room",
+    floor: 22,
+    act: 4,
+    type: "draft",
+    title: "Film Room",
+    description: "A final scouting board appears with polished veterans and playoff fits. Add one more card if your roster still has room to improve.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 5,
+  },
+  {
+    id: "act-four-boss",
+    floor: 23,
+    act: 4,
+    type: "boss",
+    title: "NBA Finals",
+    description: "One last randomly generated title-round boss stands in front of the true final battle. Beat them to reach the all-time closing lineup.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 0,
+    draftShuffleReward: 2,
+    targetLabel: "Beat the NBA Finals starting five",
+    battleMode: "starting-five-faceoff",
+    eliminationOnLoss: true,
+    opponentAverageOverall: 95,
+    livesPenalty: 2,
+    opponentTeamName: "NBA Finals",
+  },
+  {
+    id: "hall-of-fame-finals",
+    floor: 24,
+    act: 4,
+    type: "boss",
+    title: "Hall of Fame Finals",
+    description: "The final challenge is a legendary closing five. This is the last node in the run, and only a fully built team should survive it.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 0,
+    targetLabel: "Beat the Hall of Fame Finals starting five",
+    battleMode: "starting-five-faceoff",
+    eliminationOnLoss: true,
     livesPenalty: 3,
-    checks: [
-      { metric: "overall", target: 91 },
-      { metric: "defense", target: 87 },
-      { metric: "chemistry", target: 18 },
+    opponentTeamName: "Hall of Fame Finals",
+    opponentStarterPlayerIds: [
+      "lebron-james-14-18",
+      "michael-jordan",
+      "kobe-bryant-24",
+      "tim-duncan",
+      "kareem-abdul-jabbar-bucks",
     ],
   },
 ];
 
 const getPlayerIdentityKey = (player: Player) =>
   player.name.replace(VERSION_SUFFIX_PATTERN, "").trim().toLowerCase();
+
+export const getRoguelikeEvolutionRewardPool = () => {
+  const groupedByIdentity = allPlayers.reduce((groups, player) => {
+    const identity = getPlayerIdentityKey(player);
+    const current = groups.get(identity) ?? [];
+    current.push(player);
+    groups.set(identity, current);
+    return groups;
+  }, new Map<string, Player[]>());
+
+  return Array.from(groupedByIdentity.values())
+    .flatMap((versions) => {
+      if (versions.length < 2) return [];
+      const sortedVersions = [...versions].sort(
+        (a, b) => a.overall - b.overall || a.name.localeCompare(b.name),
+      );
+      const lowestVersion = sortedVersions[0];
+      const highestOverall = sortedVersions[sortedVersions.length - 1]?.overall ?? lowestVersion.overall;
+      if (lowestVersion.overall >= highestOverall) return [];
+      return lowestVersion.hallOfFameTier === "B" ? [lowestVersion] : [];
+    })
+    .sort((a, b) => b.overall - a.overall || a.name.localeCompare(b.name));
+};
+
+export const getRoguelikeEvolutionOptions = (roster: Player[]) => {
+  const rosterIdentities = new Set(roster.map(getPlayerIdentityKey));
+  const groupedByIdentity = allPlayers.reduce((groups, player) => {
+    const identity = getPlayerIdentityKey(player);
+    const current = groups.get(identity) ?? [];
+    current.push(player);
+    groups.set(identity, current);
+    return groups;
+  }, new Map<string, Player[]>());
+
+  return roster
+    .flatMap((player) => {
+      const identity = getPlayerIdentityKey(player);
+      if (!rosterIdentities.has(identity)) return [];
+      const versions = [...(groupedByIdentity.get(identity) ?? [])].sort(
+        (a, b) => a.overall - b.overall || a.name.localeCompare(b.name),
+      );
+      const currentIndex = versions.findIndex((version) => version.id === player.id);
+      if (currentIndex < 0) return [];
+      const nextPlayer = versions[currentIndex + 1];
+      if (!nextPlayer) return [];
+      return [{ currentPlayer: player, nextPlayer }];
+    })
+    .sort(
+      (a, b) =>
+        b.nextPlayer.overall - a.nextPlayer.overall ||
+        a.currentPlayer.name.localeCompare(b.currentPlayer.name),
+    );
+};
 
 const rankPlayers = (scorer: (player: Player) => number, limit: number) =>
   allPlayers
@@ -374,7 +629,6 @@ const starterRevealSlots = [
   ["SG", "SF", "PF"],
   ["PF", "C"],
 ] as const;
-const STARTER_REVEAL_TARGET_TOTAL = 249;
 
 const scoreStarterRevealPlayer = (
   player: Player,
@@ -401,8 +655,12 @@ const canFillStarterRevealSlot = (player: Player, slotPositions: readonly string
 export const drawRoguelikeStarterRevealPlayers = (
   packageId: RoguelikeStarterPackageId,
   seed: number,
+  targetAverageOverall = 83,
 ) => {
   const rng = mulberry32(seed);
+  const minimumOverall = Math.max(80, targetAverageOverall - 1);
+  const maximumOverall = Math.min(99, targetAverageOverall + 1);
+  const targetTotalOverall = targetAverageOverall * starterRevealSlots.length;
   const eligible = uniqueByIdentity(
     allPlayers.filter((player) => player.hallOfFameTier === "B" || player.hallOfFameTier === "C"),
   );
@@ -410,16 +668,16 @@ export const drawRoguelikeStarterRevealPlayers = (
   const slotCandidatePools = starterRevealSlots.map((slotPositions) =>
     eligible
       .filter((player) => canFillStarterRevealSlot(player, slotPositions))
-      .filter((player) => player.overall >= 82 && player.overall <= 84)
+      .filter((player) => player.overall >= minimumOverall && player.overall <= maximumOverall)
       .sort((a, b) => scoreStarterRevealPlayer(b, packageId) - scoreStarterRevealPlayer(a, packageId))
-      .slice(0, 18),
+      .slice(0, 24),
   );
   const validSelections: Player[][] = [];
   const currentSelection: Player[] = [];
 
   const search = (slotIndex: number, totalOverall: number) => {
     if (slotIndex === slotCandidatePools.length) {
-      if (totalOverall === STARTER_REVEAL_TARGET_TOTAL) {
+      if (totalOverall === targetTotalOverall) {
         validSelections.push([...currentSelection]);
       }
       return;
@@ -432,9 +690,9 @@ export const drawRoguelikeStarterRevealPlayers = (
       if (selectedIds.has(candidate.id)) continue;
 
       const nextTotal = totalOverall + candidate.overall;
-      const minPossible = nextTotal + remainingSlots * 82;
-      const maxPossible = nextTotal + remainingSlots * 84;
-      if (minPossible > STARTER_REVEAL_TARGET_TOTAL || maxPossible < STARTER_REVEAL_TARGET_TOTAL) {
+      const minPossible = nextTotal + remainingSlots * minimumOverall;
+      const maxPossible = nextTotal + remainingSlots * maximumOverall;
+      if (minPossible > targetTotalOverall || maxPossible < targetTotalOverall) {
         continue;
       }
 
@@ -577,8 +835,16 @@ const POSITION_INDEX: Record<Position, number> = {
   C: 4,
 };
 
+const isRoguelikeStarterSlot = (slot: RosterSlot) =>
+  slot.slot === "PG" ||
+  slot.slot === "SG" ||
+  slot.slot === "SF" ||
+  slot.slot === "PF" ||
+  slot.slot === "C";
+
 const getRoguelikeSlotMismatchSeverity = (player: Player | null, slot: RosterSlot) => {
   if (!player) return 0;
+  if (!isRoguelikeStarterSlot(slot)) return 0;
   if (slot.allowedPositions.includes(player.primaryPosition)) return 0;
   if (player.secondaryPositions.some((position) => slot.allowedPositions.includes(position))) return 0;
 
@@ -611,6 +877,48 @@ const ROGUELIKE_DUO_BOOST = {
   perimeterDefense: 2,
 } as const;
 
+const ROGUELIKE_ROLE_PAIR_BOOST = {
+  overall: 1,
+  offense: 1,
+  defense: 1,
+  playmaking: 1,
+  shooting: 1,
+  rebounding: 1,
+  athleticism: 0,
+  intangibles: 1,
+  ballDominance: 1,
+  interiorDefense: 1,
+  perimeterDefense: 1,
+} as const;
+
+const ROGUELIKE_BIG_THREE_BOOST = {
+  overall: 3,
+  offense: 3,
+  defense: 3,
+  playmaking: 2,
+  shooting: 2,
+  rebounding: 2,
+  athleticism: 1,
+  intangibles: 3,
+  ballDominance: 2,
+  interiorDefense: 2,
+  perimeterDefense: 2,
+} as const;
+
+const ROGUELIKE_RIVAL_BOOST = {
+  overall: 1,
+  offense: 1,
+  defense: 1,
+  playmaking: 1,
+  shooting: 1,
+  rebounding: 0,
+  athleticism: 0,
+  intangibles: 1,
+  ballDominance: 1,
+  interiorDefense: 1,
+  perimeterDefense: 1,
+} as const;
+
 const ROGUELIKE_TRAINING_BOOST = {
   overall: 1,
   offense: 1,
@@ -631,7 +939,36 @@ const getRoguelikeDynamicDuoBoost = (
   stat: keyof typeof ROGUELIKE_DUO_BOOST = "overall",
 ) => {
   if (!player || playerIds.length === 0) return 0;
-  return isDynamicDuoActiveForPlayer(player.id, playerIds) ? ROGUELIKE_DUO_BOOST[stat] : 0;
+  return getActiveDynamicDuos(playerIds).filter((duo) => duo.players.includes(player.id)).length * ROGUELIKE_DUO_BOOST[stat];
+};
+
+const getRoguelikeRolePairBoost = (
+  player: Player | null,
+  playerIds: string[] = [],
+  stat: keyof typeof ROGUELIKE_ROLE_PAIR_BOOST = "overall",
+) => {
+  if (!player || playerIds.length === 0) return 0;
+  return getActiveRolePlayerPairs(playerIds).filter(
+    (pair) => pair.rolePlayer === player.id || pair.centerpiece === player.id,
+  ).length * ROGUELIKE_ROLE_PAIR_BOOST[stat];
+};
+
+const getRoguelikeBigThreeBoost = (
+  player: Player | null,
+  playerIds: string[] = [],
+  stat: keyof typeof ROGUELIKE_BIG_THREE_BOOST = "overall",
+) => {
+  if (!player || playerIds.length === 0) return 0;
+  return getActiveBigThrees(playerIds).filter((group) => group.players.includes(player.id)).length * ROGUELIKE_BIG_THREE_BOOST[stat];
+};
+
+const getRoguelikeRivalBoost = (
+  player: Player | null,
+  playerIds: string[] = [],
+  stat: keyof typeof ROGUELIKE_RIVAL_BOOST = "overall",
+) => {
+  if (!player || playerIds.length === 0) return 0;
+  return getActiveRivalBadges(playerIds).filter((group) => group.players.includes(player.id)).length * ROGUELIKE_RIVAL_BOOST[stat];
 };
 
 const getRoguelikeTrainingBoost = (
@@ -640,7 +977,8 @@ const getRoguelikeTrainingBoost = (
   stat: keyof typeof ROGUELIKE_TRAINING_BOOST = "overall",
 ) => {
   if (!player || trainedPlayerIds.length === 0) return 0;
-  return trainedPlayerIds.includes(player.id) ? ROGUELIKE_TRAINING_BOOST[stat] : 0;
+  const trainingCount = trainedPlayerIds.filter((trainedPlayerId) => trainedPlayerId === player.id).length;
+  return trainingCount * ROGUELIKE_TRAINING_BOOST[stat];
 };
 
 const getRoguelikeAdjustedRatingForSlot = (
@@ -658,6 +996,9 @@ const getRoguelikeAdjustedRatingForSlot = (
   const baseValue =
     selector(player) +
     getRoguelikeDynamicDuoBoost(player, playerIds, boostStat) +
+    getRoguelikeRolePairBoost(player, playerIds, boostStat) +
+    getRoguelikeBigThreeBoost(player, playerIds, boostStat) +
+    getRoguelikeRivalBoost(player, playerIds, boostStat) +
     getRoguelikeTrainingBoost(player, trainedPlayerIds, boostStat);
   const slotPenalty = getRoguelikeSlotPenalty(player, slot);
   const mismatchSeverity = getRoguelikeSlotMismatchSeverity(player, slot);
@@ -719,6 +1060,7 @@ export const buildRoguelikeStarterLineup = (players: Player[]) => {
 
 export const getRoguelikeSlotPenalty = (player: Player | null, slot: RosterSlot) => {
   if (!player) return 0;
+  if (!isRoguelikeStarterSlot(slot)) return 0;
   if (slot.allowedPositions.includes(player.primaryPosition)) return 0;
   if (player.secondaryPositions.some((position) => slot.allowedPositions.includes(position))) return 0;
   return 5;
@@ -735,6 +1077,9 @@ export const getRoguelikeAdjustedOverallForSlot = (
     0,
     player.overall +
       getRoguelikeDynamicDuoBoost(player, playerIds, "overall") +
+      getRoguelikeRolePairBoost(player, playerIds, "overall") +
+      getRoguelikeBigThreeBoost(player, playerIds, "overall") +
+      getRoguelikeRivalBoost(player, playerIds, "overall") +
       getRoguelikeTrainingBoost(player, trainedPlayerIds, "overall") -
       getRoguelikeSlotPenalty(player, slot),
   );
@@ -796,6 +1141,20 @@ export const getRoguelikeAdjustedIntangiblesForSlot = (
 
 export const buildRoguelikeOpponentLineup = (node: RoguelikeNode) => {
   const lineup = rosterTemplate();
+  const explicitStarterPlayers =
+    node.opponentStarterPlayerIds
+      ?.map((playerId) => allPlayers.find((player) => player.id === playerId))
+      .filter((player): player is Player => Boolean(player)) ?? [];
+  if (explicitStarterPlayers.length > 0) {
+    explicitStarterPlayers.slice(0, 5).forEach((player, index) => {
+      lineup[index] = {
+        ...lineup[index],
+        player,
+      };
+    });
+    return lineup;
+  }
+
   const players =
     node.opponentPlayerIds
       ?.map((playerId) => allPlayers.find((player) => player.id === playerId))
@@ -841,6 +1200,7 @@ const shufflePlayers = (players: Player[], rng: () => number) => {
 const buildExactPositionCandidateMap = (
   blockedIdentities: Set<string>,
   rng: () => number,
+  targetAverageOverall = DEFAULT_FACEOFF_TARGET_AVERAGE,
 ) =>
   STARTING_FIVE_POSITIONS.reduce((accumulator, position) => {
     const allExactPositionPlayers = uniqueByIdentity(
@@ -848,28 +1208,38 @@ const buildExactPositionCandidateMap = (
         if (player.primaryPosition !== position) return false;
         return !blockedIdentities.has(getPlayerIdentityKey(player));
       }),
-    ).sort((a, b) => Math.abs(a.overall - 84) - Math.abs(b.overall - 84) || b.overall - a.overall);
+    ).sort(
+      (a, b) =>
+        Math.abs(a.overall - targetAverageOverall) - Math.abs(b.overall - targetAverageOverall) ||
+        b.overall - a.overall,
+    );
 
-    const boundedPlayers = allExactPositionPlayers.filter((player) => player.overall >= 82 && player.overall <= 88);
+    const boundedPlayers = allExactPositionPlayers.filter(
+      (player) => player.overall >= targetAverageOverall - 2 && player.overall <= targetAverageOverall + 4,
+    );
     const positionPlayers = boundedPlayers.length > 0 ? boundedPlayers : allExactPositionPlayers;
 
     accumulator[position] = shufflePlayers(positionPlayers, rng);
     return accumulator;
   }, {} as Record<Position, Player[]>);
 
-export const generateActOneFaceoffOpponentPlayerIds = (
+export const generateFaceoffOpponentPlayerIds = (
   roster: Player[],
   seed: number,
+  targetAverageOverall = DEFAULT_FACEOFF_TARGET_AVERAGE,
 ) => {
   const rng = mulberry32(seed);
   const blockedIdentities = new Set(roster.map(getPlayerIdentityKey));
-  const candidatesByPosition = buildExactPositionCandidateMap(blockedIdentities, rng);
+  const candidatesByPosition = buildExactPositionCandidateMap(blockedIdentities, rng, targetAverageOverall);
   const selected: Player[] = [];
   const usedIdentities = new Set<string>();
+  const targetTotalOverall = targetAverageOverall * STARTING_FIVE_POSITIONS.length;
+  const minimumRemainingOverall = Math.max(80, targetAverageOverall - 2);
+  const maximumRemainingOverall = Math.min(99, targetAverageOverall + 4);
 
   const search = (positionIndex: number, totalOverall: number): boolean => {
     if (positionIndex === STARTING_FIVE_POSITIONS.length) {
-      return totalOverall === ACT_ONE_FACEOFF_TARGET_TOTAL;
+      return totalOverall === targetTotalOverall;
     }
 
     const position = STARTING_FIVE_POSITIONS[positionIndex];
@@ -881,9 +1251,9 @@ export const generateActOneFaceoffOpponentPlayerIds = (
       if (usedIdentities.has(identity)) continue;
 
       const nextTotal = totalOverall + candidate.overall;
-      const minimumPossible = nextTotal + remainingSlots * 82;
-      const maximumPossible = nextTotal + remainingSlots * 88;
-      if (minimumPossible > ACT_ONE_FACEOFF_TARGET_TOTAL || maximumPossible < ACT_ONE_FACEOFF_TARGET_TOTAL) {
+      const minimumPossible = nextTotal + remainingSlots * minimumRemainingOverall;
+      const maximumPossible = nextTotal + remainingSlots * maximumRemainingOverall;
+      if (minimumPossible > targetTotalOverall || maximumPossible < targetTotalOverall) {
         continue;
       }
 
@@ -921,12 +1291,13 @@ export const generateActOneFaceoffOpponentPlayerIds = (
 
 export const evaluateRoguelikeRoster = (players: Player[], trainedPlayerIds: string[] = []): RoguelikeRosterMetrics => {
   if (players.length === 0) {
-    return {
-      overall: 0,
-      offense: 0,
-      defense: 0,
-      chemistry: 0,
-    };
+      return {
+        overall: 0,
+        offense: 0,
+        defense: 0,
+        chemistry: 0,
+        rebounding: 0,
+      };
   }
 
   const average = (selector: (player: Player) => number) =>
@@ -939,6 +1310,7 @@ export const evaluateRoguelikeRoster = (players: Player[], trainedPlayerIds: str
     offense: average((player) => player.offense + getRoguelikeTrainingBoost(player, trainedPlayerIds, "offense")),
     defense: average((player) => player.defense + getRoguelikeTrainingBoost(player, trainedPlayerIds, "defense")),
     chemistry: Math.round(chemistry * 10) / 10,
+    rebounding: average((player) => player.rebounding + getRoguelikeTrainingBoost(player, trainedPlayerIds, "rebounding")),
   };
 };
 
@@ -952,12 +1324,13 @@ export const evaluateRoguelikeLineup = (
     ownedPlayerIds.length > 0 ? Array.from(new Set([...ownedPlayerIds, ...players.map((player) => player.id)])) : players.map((player) => player.id);
 
   if (players.length === 0) {
-    return {
-      overall: 0,
-      offense: 0,
-      defense: 0,
-      chemistry: 0,
-    };
+      return {
+        overall: 0,
+        offense: 0,
+        defense: 0,
+        chemistry: 0,
+        rebounding: 0,
+      };
   }
 
   const filledSlots = lineup.filter((slot) => Boolean(slot.player));
@@ -993,6 +1366,7 @@ export const evaluateRoguelikeLineup = (
       return Math.round((adjustedDefense * 0.64 + adjustedRebounding * 0.22 + adjustedAthleticism * 0.14) * 10) / 10;
     }),
     chemistry: Math.round(chemistry * 10) / 10,
+    rebounding: average((slot) => getRoguelikeAdjustedReboundingForSlot(slot.player, slot, playerIds, trainedPlayerIds)),
   };
 };
 
@@ -1083,7 +1457,7 @@ export const resolveRoguelikeNode = (
   const playerIds = players.map((player) => player.id);
   const metrics = lineup ? evaluateRoguelikeLineup(lineup, playerIds, trainedPlayerIds) : evaluateRoguelikeRoster(players, trainedPlayerIds);
   const opponentPlayers =
-    node.opponentPlayerIds?.map((playerId) => allPlayers.find((player) => player.id === playerId)).filter(
+    (node.opponentStarterPlayerIds ?? node.opponentPlayerIds)?.map((playerId) => allPlayers.find((player) => player.id === playerId)).filter(
       (player): player is Player => Boolean(player),
     ) ?? [];
   const opponentMetrics =
