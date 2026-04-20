@@ -452,7 +452,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     targetLabel: "Beat your First Round Opponent",
     battleMode: "starting-five-faceoff",
     eliminationOnLoss: true,
-    opponentAverageOverall: 86,
+    opponentAverageOverall: 84,
     opponentTeamName: "NBA Playoffs Round 1",
     playerPoolMode: "current-season",
     allowedRewardTiers: ["C"],
