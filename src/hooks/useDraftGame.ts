@@ -71,7 +71,7 @@ const LEGACY_PLAYER_ID_MIGRATIONS: Record<string, string> = {
   "dennis-rodman": "dennis-rodman-bulls",
   "charles-barkley": "charles-barkley-suns",
   "clyde-drexler": "clyde-drexler-blazers",
-  "luka-doncic": "luka-doncic-lakers",
+  "luka-doncic": "luka-doncic-mavericks",
   "anthony-davis": "anthony-davis-pelicans",
   "kawhi-leonard": "kawhi-leonard-raptors",
   "pascal-siakam": "pascal-siakam-pacers",
@@ -102,7 +102,7 @@ const LEGACY_PLAYER_NAME_MIGRATIONS: Record<string, string> = {
   "Dennis Rodman": "Dennis Rodman (Bulls)",
   "Charles Barkley": "Charles Barkley (Suns)",
   "Clyde Drexler": "Clyde Drexler (Blazers)",
-  "Luka Doncic": "Luka Doncic (Lakers)",
+  "Luka Doncic": "Luka Doncic (Mavericks)",
   "Anthony Davis": "Anthony Davis (Pelicans)",
   "Kawhi Leonard": "Kawhi Leonard (Raptors)",
   "Pascal Siakam": "Pascal Siakam (Pacers)",
@@ -404,7 +404,7 @@ export const useDraftGame = () => {
   const metaProgress = useMemo(
     () => {
       const boostedMeta = applyMetaProgressBonus(
-        buildMetaProgress(state.history, state.unlockedPlayerIds),
+        buildMetaProgress(state.history, state.unlockedPlayerIds, state.roguePersonalBests),
         state.rogueBonusPrestigeXp,
       );
 
@@ -416,7 +416,7 @@ export const useDraftGame = () => {
         },
       };
     },
-    [state.history, state.unlockedPlayerIds, state.rogueBonusPrestigeXp, state.spentTokens],
+    [state.history, state.unlockedPlayerIds, state.roguePersonalBests, state.rogueBonusPrestigeXp, state.spentTokens],
   );
   const teamAverage = useMemo(() => {
     const players = state.roster.map((slot) => slot.player).filter(Boolean) as Player[];
@@ -553,7 +553,7 @@ export const useDraftGame = () => {
 
     window.setTimeout(() => {
       const previousMeta = applyMetaProgressBonus(
-        buildMetaProgress(state.history, state.unlockedPlayerIds),
+        buildMetaProgress(state.history, state.unlockedPlayerIds, state.roguePersonalBests),
         state.rogueBonusPrestigeXp,
       );
       const simulationResult = runSeasonSimulation(
@@ -684,7 +684,7 @@ export const useDraftGame = () => {
       };
       const nextHistory = [finalizedHistoryEntry, ...state.history].slice(0, HISTORY_LIMIT);
       const nextMeta = applyMetaProgressBonus(
-        buildMetaProgress(nextHistory, state.unlockedPlayerIds),
+        buildMetaProgress(nextHistory, state.unlockedPlayerIds, state.roguePersonalBests),
         state.rogueBonusPrestigeXp,
       );
       const prestigeLevelUp =
@@ -1005,6 +1005,34 @@ export const useDraftGame = () => {
     }));
   };
 
+  const updateRoguePersonalBests = (nextValues: Partial<RoguePersonalBests>) => {
+    setState((current) => ({
+      ...current,
+      roguePersonalBests: {
+        furthestFloor: Math.max(
+          current.roguePersonalBests?.furthestFloor ?? 0,
+          nextValues.furthestFloor ?? 0,
+        ),
+        overall: Math.max(
+          current.roguePersonalBests?.overall ?? 0,
+          nextValues.overall ?? 0,
+        ),
+        offense: Math.max(
+          current.roguePersonalBests?.offense ?? 0,
+          nextValues.offense ?? 0,
+        ),
+        defense: Math.max(
+          current.roguePersonalBests?.defense ?? 0,
+          nextValues.defense ?? 0,
+        ),
+        chemistry: Math.max(
+          current.roguePersonalBests?.chemistry ?? 0,
+          nextValues.chemistry ?? 0,
+        ),
+      },
+    }));
+  };
+
   const purchaseTrainingCampTicket = (price: number) => {
     if (metaProgress.tokens.balance < price) return false;
 
@@ -1151,6 +1179,7 @@ export const useDraftGame = () => {
     setCategoryChallengeSelection,
     applyRunPreset,
     awardRogueFailureRewards,
+    updateRoguePersonalBests,
     purchaseTrainingCampTicket,
     purchaseTradePhone,
     purchaseSilverStarterPack,

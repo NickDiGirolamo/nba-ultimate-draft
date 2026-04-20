@@ -1,4 +1,5 @@
 import { Player } from "../types";
+import { currentSeasonHeadshotUrls } from "../data/current-season-headshots";
 
 const STORAGE_KEY = "legends-draft-player-images-v2";
 
@@ -26,8 +27,6 @@ const wikiTitleOverrides: Record<string, string> = {
   "lebron-james-lakers": "LeBron_James",
   "luka-doncic": "Luka_Don%C4%8Di%C4%87",
   "luka-doncic-mavericks": "Luka_Don%C4%8Di%C4%87",
-  "luka-doncic-lakers": "Luka_Don%C4%8Di%C4%87",
-  "austin-reaves": "Austin_Reaves",
   "pascal-siakam": "Pascal_Siakam",
   "pascal-siakam-raptors": "Pascal_Siakam",
   "pascal-siakam-pacers": "Pascal_Siakam",
@@ -57,8 +56,6 @@ const directImageOverrides: Record<string, string> = {
     "https://www.sun-sentinel.com/wp-content/uploads/migration/2015/07/15/6V6O5RVUEBDFFB7ZHREUDBZIMI.jpg?w=620",
   "amar-e-stoudemire-knicks":
     "https://cdnph.upi.com/svc/sv/upi/57901340742905/2012/1/17025180e46528d6cae8df3bf4247290/NBA-fines-Stoudemire-50000.jpg",
-  "aaron-gordon":
-    "https://heavy.com/wp-content/uploads/2025/05/Aaron-Gordon.jpg?quality=65&strip=all",
   "lebron-james-03-10":
     "https://people.com/thmb/JniFF0gr_aiZGdimoMhcJBZy-Y8=/4000x0/filters:no_upscale():max_bytes(150000):strip_icc():focal(667x0:669x2)/gettyimages-2674798-2000-54630ad5a0da4f9183d390d943552844.jpg",
   "lebron-james-heat":
@@ -123,8 +120,6 @@ const directImageOverrides: Record<string, string> = {
     "https://cdn.nba.com/teams/legacy/www.nba.com/hornets/sites/hornets/files/curry_10.jpg",
   "demarcus-cousins":
     "https://imageio.forbes.com/specials-images/dam/imageserve/889147320/960x0.jpg?height=491&width=711&fit=bounds",
-  "demar-derozan":
-    "https://s.hdnux.com/photos/55/04/41/11814990/4/ratio3x2_1920.jpg",
   "hedo-turkoglu":
     "https://cdn.nba.com/teams/legacy/www.nba.com/magic/sites/magic/files/legacy/photos/turk7_700_040313.jpg",
   "devin-booker":
@@ -242,8 +237,6 @@ const directImageOverrides: Record<string, string> = {
   "luka-doncic":
     "https://media.about.nike.com/img/c287f478-579c-4c31-a5da-3a92411694e9/luka-doncic-enlarge2-2.jpg?m=eyJlZGl0cyI6eyJqcGVnIjp7InF1YWxpdHkiOjEwMH0sIndlYnAiOnsicXVhbGl0eSI6MTAwfSwiZXh0cmFjdCI6eyJsZWZ0Ijo3OTQsInRvcCI6MTAsIndpZHRoIjoxMjc1LCJoZWlnaHQiOjIxMjN9LCJyZXNpemUiOnsid2lkdGgiOjM4NDB9fX0%3D&s=383fe9bab9113f62527527c9c79a8719d45edbdf7d0213113a9373d21d927848",
   "luka-doncic-mavericks":
-    "https://media.about.nike.com/img/c287f478-579c-4c31-a5da-3a92411694e9/luka-doncic-enlarge2-2.jpg?m=eyJlZGl0cyI6eyJqcGVnIjp7InF1YWxpdHkiOjEwMH0sIndlYnAiOnsicXVhbGl0eSI6MTAwfSwiZXh0cmFjdCI6eyJsZWZ0Ijo3OTQsInRvcCI6MTAsIndpZHRoIjoxMjc1LCJoZWlnaHQiOjIxMjN9LCJyZXNpemUiOnsid2lkdGgiOjM4NDB9fX0%3D&s=383fe9bab9113f62527527c9c79a8719d45edbdf7d0213113a9373d21d927848",
-  "luka-doncic-lakers":
     "https://media.about.nike.com/img/c287f478-579c-4c31-a5da-3a92411694e9/luka-doncic-enlarge2-2.jpg?m=eyJlZGl0cyI6eyJqcGVnIjp7InF1YWxpdHkiOjEwMH0sIndlYnAiOnsicXVhbGl0eSI6MTAwfSwiZXh0cmFjdCI6eyJsZWZ0Ijo3OTQsInRvcCI6MTAsIndpZHRoIjoxMjc1LCJoZWlnaHQiOjIxMjN9LCJyZXNpemUiOnsid2lkdGgiOjM4NDB9fX0%3D&s=383fe9bab9113f62527527c9c79a8719d45edbdf7d0213113a9373d21d927848",
   "luol-deng":
     "https://s.yimg.com/ny/api/res/1.2/GEAryxjoxksW27QRWzM0Zg--/YXBwaWQ9aGlnaGxhbmRlcjt3PTQyMDtoPTEyMTA7Y2Y9d2VicA--/https://s.yimg.com/os/en_US/Sports/USA_Today/20130422_ajl_aw8_068-c6ede438b04fba0c579c583e4f962544",
@@ -381,8 +374,6 @@ const directImageOverrides: Record<string, string> = {
     "https://hoopshallny.org/wp-content/uploads/2023/08/Chris-Mullin.jpg",
   "chris-webber":
     "https://preview.redd.it/how-well-do-you-guys-see-a-prime-chris-webber-doing-in-v0-l2kk3m3vv2xf1.jpeg?width=640&crop=smart&auto=webp&s=5a5b2716a6b1f5db7dca2179333fd4db7077faf7",
-  "cj-mccollum":
-    "https://cdn.nba.com/manage/2020/10/cj-mccollum-784x492.jpg",
   "charles-barkley-76ers":
     "https://cdn.nba.com/teams/uploads/sites/1610612755/2023/01/barkley2.png",
   "charles-barkley-suns":
@@ -496,11 +487,26 @@ const saveStorageCache = (cache: Record<string, string | null>) => {
   }
 };
 
+const getImageLookupName = (player: Player) =>
+  player.name
+    .replace(/\s*\(2025-26\)$/, "")
+    .replace(/\./g, "")
+    .replace(/Åž/g, "S")
+    .replace(/Å¡/g, "s")
+    .replace(/Ã¼/g, "u")
+    .replace(/Ã¶/g, "o")
+    .replace(/Ã¤/g, "a")
+    .replace(/Ã³/g, "o")
+    .replace(/Ã¡/g, "a")
+    .replace(/Ã©/g, "e")
+    .replace(/Ã±/g, "n");
+
 const getWikiTitle = (player: Player) =>
-  wikiTitleOverrides[player.id] ?? encodeURIComponent(player.name.replace(/\./g, ""));
+  wikiTitleOverrides[player.id] ?? encodeURIComponent(getImageLookupName(player));
 
 export const getCachedPlayerImage = (player: Player) => {
-  const directOverride = directImageOverrides[player.id];
+  const directOverride =
+    currentSeasonHeadshotUrls[player.id] ?? directImageOverrides[player.id];
   if (directOverride) {
     runtimeCache.set(player.id, directOverride);
     const storageCache = getStorageCache();
@@ -521,7 +527,8 @@ export const getCachedPlayerImage = (player: Player) => {
 };
 
 export const fetchPlayerImage = async (player: Player) => {
-  const directOverride = directImageOverrides[player.id];
+  const directOverride =
+    currentSeasonHeadshotUrls[player.id] ?? directImageOverrides[player.id];
   if (directOverride) {
     runtimeCache.set(player.id, directOverride);
     const storageCache = getStorageCache();

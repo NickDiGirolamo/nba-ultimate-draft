@@ -782,8 +782,8 @@ const ChallengeOutcomeBanner = ({
   const labelTone = result.prestigeChallengeCleared ? "text-emerald-100" : "text-rose-100";
   const BannerIcon = result.prestigeChallengeCleared ? Crown : Swords;
   const statusLine = result.prestigeChallengeCleared
-    ? `Challenge Cleared · +${result.prestigeChallengeReward ?? 0} Prestige XP`
-    : `Challenge Failed · +${result.prestigeChallengeReward ?? 0} Prestige XP was on the line`;
+    ? `Challenge Cleared | +${result.prestigeChallengeReward ?? 0} Prestige XP`
+    : `Challenge Failed | +${result.prestigeChallengeReward ?? 0} Prestige XP was on the line`;
 
   return (
     <div className={`rounded-[32px] border p-6 ${challengeTone}`}>

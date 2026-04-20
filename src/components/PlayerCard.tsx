@@ -1,15 +1,9 @@
 import clsx from "clsx";
 import { Shield, Sparkles, Target } from "lucide-react";
 import { getPlayerDisplayLines } from "../lib/playerDisplay";
+import { getPlayerTier, playerTierCardStyles } from "../lib/playerTier";
 import { getPlayerVisual } from "../lib/playerVisuals";
 import { Player } from "../types";
-
-const tierStyles = {
-  S: "from-amber-300/30 via-amber-100/10 to-yellow-500/30 border-amber-300/45 shadow-[0_22px_50px_rgba(251,191,36,0.18)]",
-  A: "from-sky-300/25 via-cyan-100/10 to-blue-500/25 border-sky-300/35 shadow-[0_22px_50px_rgba(56,189,248,0.16)]",
-  B: "from-fuchsia-300/20 via-slate-100/5 to-violet-500/20 border-fuchsia-300/25 shadow-[0_22px_50px_rgba(167,139,250,0.12)]",
-  C: "from-slate-300/14 via-slate-100/5 to-slate-500/14 border-slate-200/15 shadow-card",
-};
 
 interface PlayerCardProps {
   player: Player;
@@ -27,6 +21,7 @@ export const PlayerCard = ({
   compact = false,
 }: PlayerCardProps) => {
   const visual = getPlayerVisual(player);
+  const tier = getPlayerTier(player);
   const { firstNameLine, lastNameLine, versionLine } = getPlayerDisplayLines(player);
 
   return (
@@ -37,7 +32,7 @@ export const PlayerCard = ({
       className={clsx(
         "tier-shine group relative flex h-full w-full flex-col overflow-hidden rounded-[26px] border bg-gradient-to-br p-5 text-left transition duration-300",
         compact ? "min-h-[214px]" : "min-h-[360px]",
-        tierStyles[player.hallOfFameTier],
+        playerTierCardStyles[tier],
         disabled ? "cursor-default opacity-70" : "hover:-translate-y-2 hover:scale-[1.01]",
         selected && "scale-[1.02] ring-2 ring-glow",
       )}
@@ -95,15 +90,15 @@ export const PlayerCard = ({
         <div className="relative flex items-start justify-between">
           <div>
             <div className="mb-2 inline-flex rounded-full border border-white/12 bg-white/8 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-200/80">
-              Tier {player.hallOfFameTier}
+              Tier {tier}
             </div>
             <h3 className="max-w-full font-display text-2xl font-semibold leading-tight text-white">
-              <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{firstNameLine}</div>
-              <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{lastNameLine}</div>
+              <div className="tracking-tight">{firstNameLine}</div>
+              <div className="tracking-tight">{lastNameLine}</div>
               {versionLine ? <div className="text-[0.72em] tracking-tight text-slate-200/90">{versionLine}</div> : null}
             </h3>
             <p className="mt-1 text-sm text-slate-300">
-              {player.primaryPosition} • {player.teamLabel}
+              {player.primaryPosition} | {player.teamLabel}
             </p>
           </div>
           <div className="rounded-2xl border border-white/12 bg-black/20 px-3 py-2 text-center">

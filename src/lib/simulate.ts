@@ -26,6 +26,7 @@ import {
   evaluateRareEventBonus,
   getChemistryBonuses,
 } from "./meta";
+import { getPlayerTier } from "./playerTier";
 import {
   applySynergyBonuses,
   getActiveBigThrees,
@@ -1348,7 +1349,7 @@ export const runSeasonSimulation = (
   const challengeCompleted = evaluateChallengeCompletion(
     challenge,
     rosterPlayers.map((player) => player.id),
-    rosterPlayers.map((player) => player.hallOfFameTier),
+    rosterPlayers.map((player) => getPlayerTier(player)),
     baseResult,
   );
   const challengeReward = challengeCompleted ? challenge.reward : 0;

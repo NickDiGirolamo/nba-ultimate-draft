@@ -1,5 +1,6 @@
 import { allPlayers } from "../data/players";
 import { Player } from "../types";
+import { getPlayerTier } from "./playerTier";
 
 export interface TokenStoreUtilityItem {
   id:
@@ -32,21 +33,21 @@ export const tokenStoreUtilityItems: TokenStoreUtilityItem[] = [
     id: "silver-starter-pack",
     title: "Silver Starter Pack",
     description:
-      "Use this before a Rogue run to upgrade your 3-card starter pack to an average of 84 OVR instead of 83.",
+      "Use this before a Rogue run to upgrade your 3-card starter pack to an average of 84 OVR instead of 80.",
     price: 35_000,
   },
   {
     id: "gold-starter-pack",
     title: "Gold Starter Pack",
     description:
-      "Use this before a Rogue run to upgrade your 3-card starter pack to an average of 85 OVR instead of 83.",
+      "Use this before a Rogue run to upgrade your 3-card starter pack to an average of 85 OVR instead of 80.",
     price: 70_000,
   },
   {
     id: "platinum-starter-pack",
     title: "Platinum Starter Pack",
     description:
-      "Use this before a Rogue run to upgrade your 3-card starter pack to an average of 86 OVR instead of 83.",
+      "Use this before a Rogue run to upgrade your 3-card starter pack to an average of 86 OVR instead of 80.",
     price: 100_000,
   },
 ];
@@ -55,7 +56,7 @@ const roundToNearestThousand = (value: number) => Math.round(value / 1_000) * 1_
 
 export const getTokenStoreSPlayers = () =>
   allPlayers
-    .filter((player) => player.hallOfFameTier === "S")
+    .filter((player) => getPlayerTier(player) === "S")
     .sort((a, b) => {
       if (a.name === "Michael Jordan") return -1;
       if (b.name === "Michael Jordan") return 1;

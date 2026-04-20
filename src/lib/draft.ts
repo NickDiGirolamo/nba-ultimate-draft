@@ -1,5 +1,6 @@
 import { allPlayers } from "../data/players";
 import { Player, Position, RosterSlot, RosterSlotType } from "../types";
+import { getPlayerTier } from "./playerTier";
 import { clamp, mulberry32, randomItem, randomInt } from "./random";
 
 export const STORAGE_KEY = "legends-draft-state-v1";
@@ -18,7 +19,7 @@ export const rosterTemplate = (): RosterSlot[] => [
   { slot: "UTIL", label: "Utility", allowedPositions: ["PG", "SG", "SF", "PF", "C"], player: null },
 ];
 
-const tierWeights: Record<string, number> = { S: 1.2, A: 2.4, B: 3.6, C: 1.7 };
+const tierWeights: Record<string, number> = { S: 1.2, A: 2.4, B: 3.6, C: 1.9, D: 1.2 };
 const choiceTierProfiles = [
   { weight: 34, slots: { S: 0, A: 1, B: 3, C: 1 } },
   { weight: 26, slots: { S: 0, A: 1, B: 2, C: 2 } },
@@ -92,12 +93,12 @@ const weightedSampleWithoutReplacement = (pool: Player[], count: number, rng: ()
   const results: Player[] = [];
 
   while (results.length < count && available.length > 0) {
-    const totalWeight = available.reduce((sum, player) => sum + (tierWeights[player.hallOfFameTier] ?? 1), 0);
+    const totalWeight = available.reduce((sum, player) => sum + (tierWeights[getPlayerTier(player)] ?? 1), 0);
     let threshold = rng() * totalWeight;
     let selectedIndex = 0;
 
     for (let index = 0; index < available.length; index += 1) {
-      threshold -= tierWeights[available[index].hallOfFameTier] ?? 1;
+      threshold -= tierWeights[getPlayerTier(available[index])] ?? 1;
       if (threshold <= 0) {
         selectedIndex = index;
         break;
@@ -176,7 +177,7 @@ export const generateChoices = (roster: RosterSlot[], draftedPlayerIds: string[]
     if (count <= 0) continue;
     const tierPool = availablePool.filter(
       (player) =>
-        player.hallOfFameTier === tier &&
+        getPlayerTier(player) === tier &&
         !usedIds.has(player.id) &&
         getPlayerPositions(player).some((position) => neededPositions.includes(position)),
     );

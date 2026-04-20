@@ -3,15 +3,9 @@ import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import { DynamicDuoBadge } from "./DynamicDuoBadge";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { getPlayerDisplayLines } from "../lib/playerDisplay";
+import { getPlayerTier, getPlayerTierLabel, playerTierCardStyles } from "../lib/playerTier";
 import { getPlayerVisual } from "../lib/playerVisuals";
 import { Player } from "../types";
-
-const tierStyles = {
-  S: "from-amber-300/30 via-amber-100/10 to-yellow-500/30 border-amber-300/45 shadow-[0_22px_50px_rgba(251,191,36,0.18)]",
-  A: "from-sky-300/25 via-cyan-100/10 to-blue-500/25 border-sky-300/35 shadow-[0_22px_50px_rgba(56,189,248,0.16)]",
-  B: "from-fuchsia-300/20 via-slate-100/5 to-violet-500/20 border-fuchsia-300/25 shadow-[0_22px_50px_rgba(167,139,250,0.12)]",
-  C: "from-slate-300/14 via-slate-100/5 to-slate-500/14 border-slate-200/15 shadow-card",
-};
 
 interface DraftPlayerCardProps {
   player: Player;
@@ -33,7 +27,9 @@ export const DraftPlayerCard = ({
   actionLabel = "Tap to draft",
 }: DraftPlayerCardProps) => {
   const visual = getPlayerVisual(player);
+  const tier = getPlayerTier(player);
   const imageUrl = usePlayerImage(player);
+  const currentSeasonCard = player.era === "2025-26";
   const naturalPositions = [player.primaryPosition, ...player.secondaryPositions].join(" / ");
   const { firstNameLine, lastNameLine, versionLine } = getPlayerDisplayLines(player);
   const longestPrimaryNameLine = Math.max(firstNameLine.length, lastNameLine.length);
@@ -49,7 +45,9 @@ export const DraftPlayerCard = ({
       className={clsx(
         "tier-shine group relative z-0 flex h-full w-full flex-col overflow-visible rounded-[26px] border bg-gradient-to-br text-left transition duration-300",
         compact ? "min-h-[420px] p-4" : "min-h-[1040px] p-5",
-        tierStyles[player.hallOfFameTier],
+        playerTierCardStyles[tier],
+        currentSeasonCard &&
+          "before:absolute before:inset-[1px] before:z-0 before:rounded-[24px] before:border before:border-emerald-200/12 before:bg-[linear-gradient(155deg,rgba(8,145,178,0.08),transparent_34%,rgba(16,185,129,0.08)_72%,rgba(255,255,255,0.02))]",
         disabled ? "cursor-default opacity-70" : "hover:z-20 hover:-translate-y-2 hover:scale-[1.01]",
         selected && "scale-[1.02] ring-2 ring-glow",
       )}
@@ -59,20 +57,23 @@ export const DraftPlayerCard = ({
       <div
         className={clsx(
           "relative mb-4 rounded-[22px] border border-white/12 bg-black/20 text-center",
+          currentSeasonCard && "overflow-hidden border-emerald-200/20 bg-[linear-gradient(180deg,rgba(5,20,24,0.88),rgba(2,6,23,0.7))]",
           compact ? "px-4 py-3" : "px-4 py-3",
         )}
       >
+        {currentSeasonCard ? <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-200/50 to-transparent" /> : null}
         <div className={clsx("font-display font-semibold leading-none text-white", compact ? "text-[2.3rem]" : "text-[2.6rem]")}>
           {player.overall}
         </div>
         <div className={clsx("font-medium uppercase tracking-[0.2em] text-white/90", compact ? "mt-1.5 text-[10px]" : "mt-2 text-[11px]")}>
-          {player.hallOfFameTier}-Tier
+          {getPlayerTierLabel(player)}
         </div>
       </div>
 
       <div
         className={clsx(
           "relative mb-4 w-full flex-none overflow-hidden rounded-[24px]",
+          currentSeasonCard && "border border-emerald-200/18 shadow-[0_18px_34px_rgba(15,23,42,0.34)]",
           imageUrl ? "bg-black" : visual.bg,
           compact ? "h-[180px] min-h-[180px] max-h-[180px]" : "h-[303px] min-h-[303px] max-h-[303px]",
         )}
@@ -84,7 +85,7 @@ export const DraftPlayerCard = ({
               alt={player.name}
               className={clsx(
                 "absolute inset-0 h-full w-full",
-                compact ? "object-cover object-top scale-[1.02]" : "object-cover object-center",
+                compact ? "object-cover object-top scale-[1.02]" : "object-cover object-top",
               )}
               loading="lazy"
               referrerPolicy="no-referrer"
@@ -121,6 +122,16 @@ export const DraftPlayerCard = ({
         )}
 
         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
+        {currentSeasonCard ? (
+          <>
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(8,145,178,0.14),transparent_30%,transparent_65%,rgba(16,185,129,0.16))] mix-blend-screen" />
+            <div className="absolute inset-x-3 bottom-3 z-10 rounded-full border border-emerald-300/25 bg-slate-950/72 px-3 py-1.5 backdrop-blur-sm">
+              <div className="text-[9px] font-semibold uppercase tracking-[0.28em] text-emerald-200/90">
+                Current Season
+              </div>
+            </div>
+          </>
+        ) : null}
       </div>
 
       <div className="relative">
@@ -144,9 +155,9 @@ export const DraftPlayerCard = ({
                   : "text-[1.32rem]",
           )}
         >
-          <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{firstNameLine}</div>
-          <div className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{lastNameLine}</div>
-          {versionLine ? <div className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-[0.74em] tracking-tight text-slate-200/92">{versionLine}</div> : null}
+          <div className="tracking-tight">{firstNameLine}</div>
+          <div className="mt-1 tracking-tight">{lastNameLine}</div>
+          {versionLine ? <div className="mt-1 text-[0.74em] tracking-tight text-slate-200/92">{versionLine}</div> : null}
         </div>
         <div
           className={clsx(

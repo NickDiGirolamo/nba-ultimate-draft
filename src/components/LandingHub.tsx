@@ -82,7 +82,7 @@ export const LandingHub = ({
                 Prestige Profile
               </div>
               <h2 className="mt-2 font-display text-3xl text-white">
-                Level {meta.prestige.level} · {meta.prestige.title}
+                Level {meta.prestige.level} | {meta.prestige.title}
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
                 Prestige tracks your long-term all-time GM legacy across completed runs, titles, challenge clears, and collection growth.
@@ -218,6 +218,24 @@ export const LandingHub = ({
             </div>
           ))}
         </div>
+
+        <div className="mt-6 border-t border-white/10 pt-6">
+          <div className="text-xs uppercase tracking-[0.22em] text-fuchsia-100/78">Rogue Run Bests</div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {[
+              ["Furthest Floor", meta.roguePersonalBests.furthestFloor],
+              ["Best OVR", meta.roguePersonalBests.overall],
+              ["Best OFF", meta.roguePersonalBests.offense],
+              ["Best DEF", meta.roguePersonalBests.defense],
+              ["Best CHEM", meta.roguePersonalBests.chemistry],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-2xl border border-fuchsia-200/12 bg-fuchsia-300/6 p-4">
+                <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{label}</div>
+                <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="glass-panel rounded-[30px] p-6 shadow-card">
@@ -240,13 +258,13 @@ export const LandingHub = ({
                     <div className="font-medium text-white">{item.teamName}</div>
                     <div className="mt-1 text-sm text-slate-300">
                       {item.mode === "category-focus"
-                        ? `${item.categoryFocusTitle ?? "Category Focus"} • ${item.focusScore ?? "--"}`
-                        : `${item.record} • ${item.playoffFinish}`}
+                        ? `${item.categoryFocusTitle ?? "Category Focus"} | ${item.focusScore ?? "--"}`
+                        : `${item.record} | ${item.playoffFinish}`}
                     </div>
                     <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
                       {item.mode === "category-focus"
-                        ? `${item.categoryFocusTitle ?? "Category Focus"} mode • ${item.rareEventTitle}`
-                        : `${item.challengeTitle} • ${item.rareEventTitle}`}
+                        ? `${item.categoryFocusTitle ?? "Category Focus"} mode | ${item.rareEventTitle}`
+                        : `${item.challengeTitle} | ${item.rareEventTitle}`}
                     </div>
                   </div>
                   <div className="text-right">

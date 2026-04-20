@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import { useRef } from "react";
 import {
@@ -25,6 +25,7 @@ import { usePlayerImage } from "../hooks/usePlayerImage";
 import { allPlayers } from "../data/players";
 import { assignPlayerToRoster } from "../lib/draft";
 import { getPlayerDisplayLines } from "../lib/playerDisplay";
+import { getPlayerTier, getPlayerTierLabel } from "../lib/playerTier";
 import {
   buildRoguelikeOpponentLineup,
   buildOpeningDraftPool,
@@ -42,6 +43,7 @@ import {
   getRoguelikeAdjustedReboundingForSlot,
   evaluateRoguelikeLineup,
   evaluateRoguelikeRoster,
+  buildPreviewRoster,
   getRoguelikeAdjustedOverallForSlot,
   getRoguelikeSlotPenalty,
   generateFaceoffOpponentPlayerIds,
@@ -57,7 +59,8 @@ import {
   resolveRoguelikeNode,
   unlockBundlePlayers,
 } from "../lib/roguelike";
-import { Player, PlayerTier, RosterSlot } from "../types";
+import { Player, PlayerTier, Position, RosterSlot } from "../types";
+import type { RoguePersonalBests } from "../types";
 
 type RoguelikeStage =
   | "package-select"
@@ -65,6 +68,9 @@ type RoguelikeStage =
   | "ladder-overview"
   | "initial-draft"
   | "challenge-setup"
+  | "add-position-select"
+  | "all-star-select"
+  | "roster-cut-select"
   | "training-select"
   | "trade-offer"
   | "trade-select"
@@ -95,6 +101,14 @@ interface RoguelikeRun {
   draftShuffleTickets: number;
   unlockedBundleIds: string[];
   trainedPlayerIds: string[];
+  selectedCutPlayerIds: string[];
+  selectedNaturalPositionPlayerId: string | null;
+  selectedNaturalPosition: Position | null;
+  allStarAssignments: {
+    dunkContest: string | null;
+    threePointContest: string | null;
+    skillsChallenge: string | null;
+  };
   utilityReturnState?: {
     stage: RoguelikeStage;
     activeNode: RoguelikeNode | null;
@@ -124,6 +138,7 @@ interface RoguelikeModeProps {
   onLeaveRun: () => void;
   onBackToHome: () => void;
   onAwardFailureRewards: (prestigeXpAward: number) => void;
+  onUpdatePersonalBests: (nextValues: Partial<RoguePersonalBests>) => void;
   onUseTrainingCampTicket: () => boolean;
   onUseTradePhone: () => boolean;
   onUseSilverStarterPack: () => boolean;
@@ -185,7 +200,7 @@ const getStarterPackAverageForUpgrade = (upgrade: "standard" | "silver" | "gold"
   if (upgrade === "silver") return 84;
   if (upgrade === "gold") return 85;
   if (upgrade === "platinum") return 86;
-  return 83;
+  return 80;
 };
 
 const getRevealedStarterPlayers = (run: RoguelikeRun) => {
@@ -193,6 +208,14 @@ const getRevealedStarterPlayers = (run: RoguelikeRun) => {
     run.revealedStarterIds.includes(player.id),
   );
   return revealedPlayers.length > 0 ? revealedPlayers : run.starterRevealPlayers;
+};
+
+const buildRevealedStarterRosterState = (run: RoguelikeRun, revealedStarterIds: string[]) => {
+  const revealedPlayers = run.starterRevealPlayers.filter((player) => revealedStarterIds.includes(player.id));
+  return {
+    roster: revealedPlayers,
+    lineup: buildRoguelikeStarterLineup(revealedPlayers),
+  };
 };
 
 const getRunOwnedPlayers = (run: RoguelikeRun) => {
@@ -204,6 +227,29 @@ const getRunOwnedPlayers = (run: RoguelikeRun) => {
     seen.add(player.id);
     return true;
   });
+};
+
+const getTrainingCountForPlayer = (playerId: string, trainedPlayerIds: string[] = []) =>
+  trainedPlayerIds.filter((trainedPlayerId) => trainedPlayerId === playerId).length;
+
+const getRunDisplayPlayer = (player: Player, trainedPlayerIds: string[] = []) => {
+  const trainingCount = getTrainingCountForPlayer(player.id, trainedPlayerIds);
+  if (trainingCount === 0) return player;
+
+  return {
+    ...player,
+    overall: player.overall + trainingCount,
+    offense: player.offense + trainingCount,
+    defense: player.defense + trainingCount,
+    playmaking: player.playmaking + trainingCount,
+    shooting: player.shooting + trainingCount,
+    rebounding: player.rebounding + trainingCount,
+    athleticism: player.athleticism + trainingCount,
+    intangibles: player.intangibles + trainingCount,
+    ballDominance: player.ballDominance + trainingCount,
+    interiorDefense: player.interiorDefense + trainingCount,
+    perimeterDefense: player.perimeterDefense + trainingCount,
+  };
 };
 
 const getEarlyRunRosterState = (run: RoguelikeRun) => {
@@ -326,40 +372,32 @@ const restoreUtilityReturnState = (run: RoguelikeRun, fallbackStage: RoguelikeSt
 };
 
 const getNodeChoiceTiers = (node: RoguelikeNode) => {
-  if (node.id === "starter-cache") {
-    return ["B", "C"] as const;
-  }
-
-  if (
-    node.id === "act-one-faceoff" ||
-    node.id === "act-one-boss" ||
-    node.id === "frontcourt-wave" ||
-    node.id === "burn-the-nets"
-  ) {
-    return ["B"] as const;
-  }
-
-  if (node.id === "defense-travels") {
-    return ["A"] as const;
-  }
-
-  if (node.id === "draft-lab") {
-    return ["A"] as const;
-  }
-
-  if (
-    node.id === "glass-control" ||
-    node.id === "scouting-burst" ||
-    node.id === "trade-deadline-1" ||
-    node.id === "trade-deadline-2" ||
-    node.id === "trade-deadline-3" ||
-    node.id === "trade-deadline-4"
-  ) {
-    return ["B", "C"] as const;
-  }
-
-  return undefined;
+  return node.allowedRewardTiers;
 };
+
+const getNodePlayerPool = (node: RoguelikeNode | null, pool: Player[]) => {
+  const applyNodeFilters = (source: Player[]) =>
+    source
+      .filter((player) => (node?.playerPoolMode === "current-season" ? player.era === "2025-26" : true))
+      .filter((player) =>
+        node?.allowedRewardTiers?.length ? node.allowedRewardTiers.includes(getPlayerTier(player)) : true,
+      );
+
+  const filteredPool = applyNodeFilters(pool);
+  if (!node) return filteredPool;
+
+  const fallbackPool = applyNodeFilters(allPlayers);
+  const seenIds = new Set<string>();
+
+  return [...filteredPool, ...fallbackPool].filter((player) => {
+    if (seenIds.has(player.id)) return false;
+    seenIds.add(player.id);
+    return true;
+  });
+};
+
+const shouldStrictlyUseNodePool = (node: RoguelikeNode | null) =>
+  node?.playerPoolMode === "current-season";
 
 const getActHeading = (act: number) => {
   if (act === 1) return "Act 1 Climb";
@@ -429,6 +467,7 @@ const drawRunChoices = (
   count: number,
   seed: number,
   allowedTiers?: PlayerTier[],
+  strictPool = false,
 ) => {
   const seenChoicePlayerIds = run.seenChoicePlayerIds ?? [];
   let choices = drawRoguelikeChoices(
@@ -438,20 +477,45 @@ const drawRunChoices = (
     seed,
     allowedTiers,
     seenChoicePlayerIds,
+    strictPool ? pool : undefined,
   );
 
   // Never strand a run on an empty reward board. Prefer the intended tier band first,
   // then relax repeat restrictions before finally broadening the tier filter.
   if (choices.length < count && allowedTiers) {
-    choices = drawRoguelikeChoices(pool, roster, count, seed + 1, allowedTiers, []);
+    choices = drawRoguelikeChoices(
+      pool,
+      roster,
+      count,
+      seed + 1,
+      allowedTiers,
+      [],
+      strictPool ? pool : undefined,
+    );
   }
 
   if (choices.length < count) {
-    choices = drawRoguelikeChoices(pool, roster, count, seed + 2, undefined, seenChoicePlayerIds);
+    choices = drawRoguelikeChoices(
+      pool,
+      roster,
+      count,
+      seed + 2,
+      undefined,
+      seenChoicePlayerIds,
+      strictPool ? pool : undefined,
+    );
   }
 
   if (choices.length < count) {
-    choices = drawRoguelikeChoices(pool, roster, count, seed + 3, undefined, []);
+    choices = drawRoguelikeChoices(
+      pool,
+      roster,
+      count,
+      seed + 3,
+      undefined,
+      [],
+      strictPool ? pool : undefined,
+    );
   }
 
   return {
@@ -461,11 +525,15 @@ const drawRunChoices = (
 };
 
 const getRewardDraftPool = (run: RoguelikeRun, node: RoguelikeNode, expandedPool: Player[]) => {
-  if (node.id === "act-one-boss") {
-    return getRoguelikeEvolutionRewardPool().filter((player) => player.hallOfFameTier === "B");
+  if (node.id === "act-one-boss" || node.id === "act-one-boss-current") {
+    return getRoguelikeEvolutionRewardPool().filter(
+      (player) =>
+        getPlayerTier(player) === "B" &&
+        (node.playerPoolMode !== "current-season" || player.era === "2025-26"),
+    );
   }
 
-  return expandedPool;
+  return getNodePlayerPool(node, expandedPool);
 };
 
 const getNodeCompletionRewardCopy = (node: RoguelikeNode) => {
@@ -506,7 +574,7 @@ const getNodeCompletionRewardCopy = (node: RoguelikeNode) => {
     };
   }
 
-  if (node.id === "act-one-faceoff") {
+  if (node.id === "act-one-faceoff" || node.id === "act-one-faceoff-current") {
     return {
       title: "Bench unlock + reward draft",
       description:
@@ -514,7 +582,7 @@ const getNodeCompletionRewardCopy = (node: RoguelikeNode) => {
     };
   }
 
-  if (node.id === "act-one-boss") {
+  if (node.id === "act-one-boss" || node.id === "act-one-boss-current") {
     return {
       title: "Version player reward",
       description:
@@ -534,6 +602,19 @@ const getNodeCompletionRewardCopy = (node: RoguelikeNode) => {
     description: getBundle(node.rewardBundleId).description,
   };
 };
+
+const BackToRunLadderButton = ({ onClick, className = "mt-6" }: { onClick: () => void; className?: string }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={clsx(
+      className,
+      "inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/6 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10",
+    )}
+  >
+    Back to Run Ladder
+  </button>
+);
 
 const getRogueSlotLabel = (slot: RosterSlot, index: number) => {
   if (slot.slot === "UTIL") return index === 8 ? "Util 1" : "Util 2";
@@ -1075,7 +1156,7 @@ const StarterRevealCard = ({
                     {versionLine ? <div className="text-[0.72em] tracking-tight text-slate-200/90">{versionLine}</div> : null}
                   </div>
                   <div className="mt-3 text-[11px] uppercase tracking-[0.24em] text-slate-400">
-                    {player.hallOfFameTier}-Tier • {player.overall} OVR • {player.primaryPosition}
+                    {getPlayerTierLabel(player)} | {player.overall} OVR | {player.primaryPosition}
                   </div>
                 </div>
               </div>
@@ -1100,6 +1181,7 @@ export const RoguelikeMode = ({
   onLeaveRun,
   onBackToHome,
   onAwardFailureRewards,
+  onUpdatePersonalBests,
   onUseTrainingCampTicket,
   onUseTradePhone,
   onUseSilverStarterPack,
@@ -1120,6 +1202,14 @@ export const RoguelikeMode = ({
         draftShuffleTickets: parsed.draftShuffleTickets ?? 0,
         unlockedBundleIds: parsed.unlockedBundleIds ?? [],
         trainedPlayerIds: parsed.trainedPlayerIds ?? [],
+        selectedCutPlayerIds: parsed.selectedCutPlayerIds ?? [],
+        selectedNaturalPositionPlayerId: parsed.selectedNaturalPositionPlayerId ?? null,
+        selectedNaturalPosition: parsed.selectedNaturalPosition ?? null,
+        allStarAssignments: parsed.allStarAssignments ?? {
+          dunkContest: null,
+          threePointContest: null,
+          skillsChallenge: null,
+        },
         utilityReturnState: parsed.utilityReturnState ?? null,
         failureReviewStage: parsed.failureReviewStage ?? null,
         nodeResult: parsed.nodeResult
@@ -1171,6 +1261,30 @@ export const RoguelikeMode = ({
     );
   }, [run]);
 
+  useEffect(() => {
+    if (!run) return;
+
+    const furthestFloor =
+      run.stage === "run-cleared"
+        ? roguelikeNodes.length
+        : Math.min(run.floorIndex + 1, roguelikeNodes.length);
+
+    onUpdatePersonalBests({
+      furthestFloor,
+      overall: metrics.overall,
+      offense: metrics.offense,
+      defense: metrics.defense,
+      chemistry: metrics.chemistry,
+    });
+  }, [
+    run,
+    metrics.overall,
+    metrics.offense,
+    metrics.defense,
+    metrics.chemistry,
+    onUpdatePersonalBests,
+  ]);
+
   const setParkedRunState = (parked: boolean) => {
     if (typeof window === "undefined") return;
 
@@ -1192,16 +1306,21 @@ export const RoguelikeMode = ({
 
     const seed = createSeed();
     const activeRogueStar = getPlayerById(activeRogueStarId);
-    const starterPool = buildStarterPool(packageId).filter((player) => player.id !== activeRogueStar?.id);
+    const currentSeasonStarterSource = allPlayers.filter((player) => player.era === "2025-26");
+    const starterRevealSource = currentSeasonStarterSource.filter((player) => player.id !== activeRogueStar?.id);
+    const starterPool = buildStarterPool(packageId, currentSeasonStarterSource).filter(
+      (player) => player.id !== activeRogueStar?.id,
+    );
     const starterRevealPlayers = injectActiveRogueStarIntoReveal(
       drawRoguelikeStarterRevealPlayers(
         packageId,
         nextChoiceSeed(seed, 1),
         getStarterPackAverageForUpgrade(selectedStarterPackUpgrade),
+        starterRevealSource,
       ),
       activeRogueStar,
     );
-    const lineup = buildRoguelikeStarterLineup(starterRevealPlayers);
+    const lineup = buildRoguelikeStarterLineup([]);
     setSelectedStarterPackUpgrade("standard");
     setShowPackSelectionHub(false);
     setParkedRunState(false);
@@ -1209,7 +1328,7 @@ export const RoguelikeMode = ({
     setRun({
       seed,
       packageId: packageId,
-      roster: starterRevealPlayers,
+      roster: [],
       lineup,
       availablePool: starterPool,
       seenChoicePlayerIds: [],
@@ -1221,6 +1340,14 @@ export const RoguelikeMode = ({
         initialPicks: 0,
         draftShuffleTickets: 0,
         unlockedBundleIds: [],
+      selectedCutPlayerIds: [],
+      selectedNaturalPositionPlayerId: null,
+      selectedNaturalPosition: null,
+      allStarAssignments: {
+        dunkContest: null,
+        threePointContest: null,
+        skillsChallenge: null,
+      },
       trainedPlayerIds: [],
       utilityReturnState: null,
       failureReviewStage: null,
@@ -1250,9 +1377,12 @@ export const RoguelikeMode = ({
   const revealStarterCard = (playerId: string) => {
     if (!run || run.stage !== "starter-reveal" || run.revealedStarterIds.includes(playerId)) return;
 
+    const nextRevealedStarterIds = [...run.revealedStarterIds, playerId];
+    const revealedStarterRosterState = buildRevealedStarterRosterState(run, nextRevealedStarterIds);
     setRun({
       ...run,
-      revealedStarterIds: [...run.revealedStarterIds, playerId],
+      ...revealedStarterRosterState,
+      revealedStarterIds: nextRevealedStarterIds,
     });
   };
 
@@ -1325,7 +1455,10 @@ export const RoguelikeMode = ({
               ...getEarlyRunRosterState(run),
             }
           : run;
-      const openingDraftPool = run.initialPicks === 0 ? buildOpeningDraftPool() : nextRun.availablePool;
+      const openingDraftPool = getNodePlayerPool(
+        currentNode,
+        run.initialPicks === 0 ? buildOpeningDraftPool() : nextRun.availablePool,
+      );
       const draftedPlayers = getRunOwnedPlayers(nextRun);
       const nextChoicesState = drawRunChoices(
         nextRun,
@@ -1334,6 +1467,7 @@ export const RoguelikeMode = ({
         5,
         nextChoiceSeed(run.seed, 11 + run.floorIndex * 19),
         getNodeChoiceTiers(currentNode) ? [...getNodeChoiceTiers(currentNode)!] : undefined,
+        shouldStrictlyUseNodePool(currentNode),
       );
       setRun({
         ...nextRun,
@@ -1344,8 +1478,8 @@ export const RoguelikeMode = ({
         nodeResult: {
           title: bundle.title,
           detail:
-            currentNode.id === "starter-cache"
-              ? "Starter Cache is open. Choose 1 of 5 B-tier or C-tier players to add to your run roster."
+            currentNode.floor === 1
+              ? "Starter Cache is open. Choose 1 of 5 current-season D-tier players to add to your run roster."
                 : bundle.description,
             passed: true,
           },
@@ -1359,6 +1493,47 @@ export const RoguelikeMode = ({
         activeNode: currentNode,
         activeOpponentPlayerIds: null,
         stage: "training-select",
+        nodeResult: null,
+      });
+      return;
+    }
+
+    if (currentNode.type === "add-position") {
+      setRun({
+        ...run,
+        activeNode: currentNode,
+        activeOpponentPlayerIds: null,
+        selectedNaturalPositionPlayerId: null,
+        selectedNaturalPosition: null,
+        stage: "add-position-select",
+        nodeResult: null,
+      });
+      return;
+    }
+
+    if (currentNode.type === "all-star") {
+      setRun({
+        ...run,
+        activeNode: currentNode,
+        activeOpponentPlayerIds: null,
+        allStarAssignments: {
+          dunkContest: null,
+          threePointContest: null,
+          skillsChallenge: null,
+        },
+        stage: "all-star-select",
+        nodeResult: null,
+      });
+      return;
+    }
+
+    if (currentNode.type === "roster-cut") {
+      setRun({
+        ...run,
+        activeNode: currentNode,
+        activeOpponentPlayerIds: null,
+        selectedCutPlayerIds: [],
+        stage: "roster-cut-select",
         nodeResult: null,
       });
       return;
@@ -1421,6 +1596,9 @@ export const RoguelikeMode = ({
             getRunOwnedPlayers(run),
             nextChoiceSeed(run.seed, 200 + run.floorIndex * 17),
             currentNode.opponentAverageOverall,
+            currentNode.playerPoolMode === "current-season"
+              ? allPlayers.filter((player) => player.era === "2025-26")
+              : undefined,
           ),
         stage: "faceoff-setup",
         nodeResult: null,
@@ -1473,7 +1651,10 @@ export const RoguelikeMode = ({
 
     if (run.stage === "initial-draft") {
       if (nextInitialPicks < 2) {
-        const openingDraftPool = buildOpeningDraftPool();
+        const initialDraftNode = run.activeNode;
+        if (!initialDraftNode) return;
+        const openingDraftPool = getNodePlayerPool(initialDraftNode, buildOpeningDraftPool());
+        const initialDraftChoiceTiers = getNodeChoiceTiers(initialDraftNode);
         const nextChoicesState = drawRunChoices(
           run,
           openingDraftPool,
@@ -1482,7 +1663,8 @@ export const RoguelikeMode = ({
             .filter((owned): owned is Player => Boolean(owned)),
           5,
           nextChoiceSeed(run.seed, nextInitialPicks + 1),
-          ["B", "C"],
+          initialDraftChoiceTiers ? [...initialDraftChoiceTiers] : undefined,
+          shouldStrictlyUseNodePool(initialDraftNode),
         );
         setRun({
           ...run,
@@ -1520,8 +1702,175 @@ export const RoguelikeMode = ({
   };
 
   const skipRewardDraft = () => {
-    if (!run || run.stage !== "reward-draft" || run.activeNode?.id !== "draft-lab") return;
+    if (!run || run.stage !== "reward-draft") return;
     completeRewardDraftSelection(run, run.roster, run.lineup);
+  };
+
+  const toggleRosterCutPlayer = (player: Player) => {
+    if (!run || run.stage !== "roster-cut-select") return;
+
+    const alreadySelected = run.selectedCutPlayerIds.includes(player.id);
+    const nextSelectedCutPlayerIds = alreadySelected
+      ? run.selectedCutPlayerIds.filter((playerId) => playerId !== player.id)
+      : run.selectedCutPlayerIds.length < 2
+        ? [...run.selectedCutPlayerIds, player.id]
+        : run.selectedCutPlayerIds;
+
+    setRun({
+      ...run,
+      selectedCutPlayerIds: nextSelectedCutPlayerIds,
+    });
+  };
+
+  const confirmRosterCut = () => {
+    if (!run || run.stage !== "roster-cut-select" || !run.activeNode) return;
+    if (run.selectedCutPlayerIds.length !== 2) return;
+
+    const cutPlayerIds = new Set(run.selectedCutPlayerIds);
+    const nextRoster = run.roster.filter((player) => !cutPlayerIds.has(player.id));
+    const nextFloorIndex = run.floorIndex + 1;
+
+    setRun({
+      ...run,
+      roster: nextRoster,
+      lineup: buildPreviewRoster(nextRoster),
+      floorIndex: nextFloorIndex,
+      stage: "node-result",
+      activeNode: null,
+      activeOpponentPlayerIds: null,
+      selectedCutPlayerIds: [],
+      nodeResult: {
+        title: `${run.activeNode.title} complete`,
+        detail: "You finalized your cuts and tightened the rotation for the next stop on the ladder.",
+        passed: true,
+      },
+    });
+  };
+
+  const selectNaturalPositionPlayer = (player: Player) => {
+    if (!run || run.stage !== "add-position-select") return;
+
+    setRun({
+      ...run,
+      selectedNaturalPositionPlayerId: player.id,
+      selectedNaturalPosition: null,
+    });
+  };
+
+  const selectNaturalPosition = (position: Position) => {
+    if (!run || run.stage !== "add-position-select") return;
+
+    setRun({
+      ...run,
+      selectedNaturalPosition: position,
+    });
+  };
+
+  const confirmNaturalPositionAdd = () => {
+    if (!run || run.stage !== "add-position-select" || !run.activeNode) return;
+    if (!run.selectedNaturalPositionPlayerId || !run.selectedNaturalPosition) return;
+    const naturalPositionToAdd = run.selectedNaturalPosition;
+
+    const nextRoster = run.roster.map((player) => {
+      if (player.id !== run.selectedNaturalPositionPlayerId) return player;
+      if (
+        player.primaryPosition === naturalPositionToAdd ||
+        player.secondaryPositions.includes(naturalPositionToAdd)
+      ) {
+        return player;
+      }
+
+      return {
+        ...player,
+        secondaryPositions: [...player.secondaryPositions, naturalPositionToAdd],
+      };
+    });
+    const upgradedPlayer = nextRoster.find((player) => player.id === run.selectedNaturalPositionPlayerId);
+    const nextFloorIndex = run.floorIndex + 1;
+
+    setRun({
+      ...run,
+      roster: nextRoster,
+      lineup: hydrateRunLineup(run, nextRoster),
+      floorIndex: nextFloorIndex,
+      stage: "node-result",
+      activeNode: null,
+      activeOpponentPlayerIds: null,
+      selectedNaturalPositionPlayerId: null,
+      selectedNaturalPosition: null,
+      nodeResult: {
+        title: `${run.activeNode.title} complete`,
+        detail: upgradedPlayer
+          ? `${upgradedPlayer.name} can now naturally play ${naturalPositionToAdd} for the rest of this run.`
+          : "A new natural position was added for the rest of this run.",
+        passed: true,
+      },
+    });
+  };
+
+  const assignAllStarPlayer = (
+    slot: "dunkContest" | "threePointContest" | "skillsChallenge",
+    player: Player,
+  ) => {
+    if (!run || run.stage !== "all-star-select") return;
+
+    const nextAssignments = {
+      ...run.allStarAssignments,
+      [slot]: player.id,
+    };
+
+    const selectedIds = new Set(Object.values(nextAssignments).filter((value): value is string => Boolean(value)));
+    if (selectedIds.size < Object.values(nextAssignments).filter(Boolean).length) {
+      return;
+    }
+
+    setRun({
+      ...run,
+      allStarAssignments: nextAssignments,
+    });
+  };
+
+  const runAllStarSaturday = () => {
+    if (!run || run.stage !== "all-star-select" || !run.activeNode) return;
+    const { dunkContest, threePointContest, skillsChallenge } = run.allStarAssignments;
+    if (!dunkContest || !threePointContest || !skillsChallenge) return;
+
+    const nextRoster = run.roster.map((player) => {
+      if (player.id === dunkContest) {
+        return { ...player, athleticism: player.athleticism + 5 };
+      }
+      if (player.id === threePointContest) {
+        return { ...player, shooting: player.shooting + 5 };
+      }
+      if (player.id === skillsChallenge) {
+        return { ...player, ballDominance: player.ballDominance + 5 };
+      }
+      return player;
+    });
+    const nextFloorIndex = run.floorIndex + 1;
+    const dunkPlayer = nextRoster.find((player) => player.id === dunkContest);
+    const threePointPlayer = nextRoster.find((player) => player.id === threePointContest);
+    const skillsPlayer = nextRoster.find((player) => player.id === skillsChallenge);
+
+    setRun({
+      ...run,
+      roster: nextRoster,
+      lineup: hydrateRunLineup(run, nextRoster),
+      floorIndex: nextFloorIndex,
+      stage: "node-result",
+      activeNode: null,
+      activeOpponentPlayerIds: null,
+      allStarAssignments: {
+        dunkContest: null,
+        threePointContest: null,
+        skillsChallenge: null,
+      },
+      nodeResult: {
+        title: `${run.activeNode.title} complete`,
+        detail: `${dunkPlayer?.name ?? "Your dunk contestant"} gained +5 Athleticism, ${threePointPlayer?.name ?? "your 3PT contestant"} gained +5 Shooting, and ${skillsPlayer?.name ?? "your skills contestant"} gained +5 Ball Dominance for the rest of this run.`,
+        passed: true,
+      },
+    });
   };
 
   const openNode = () => {
@@ -1536,12 +1885,15 @@ export const RoguelikeMode = ({
         node.rewardBundleId,
       );
       const bundle = getBundle(node.rewardBundleId);
+      const nodeChoiceTiers = getNodeChoiceTiers(node);
       const nextChoicesState = drawRunChoices(
         run,
-        expandedPool,
+        getNodePlayerPool(node, expandedPool),
         getRunOwnedPlayers(run),
         node.rewardChoices,
         nextChoiceSeed(run.seed, run.floorIndex + 30),
+        nodeChoiceTiers ? [...nodeChoiceTiers] : undefined,
+        shouldStrictlyUseNodePool(node),
       );
       setRun({
         ...run,
@@ -1565,6 +1917,41 @@ export const RoguelikeMode = ({
       setRun({
         ...run,
         stage: "training-select",
+        nodeResult: null,
+      });
+      return;
+    }
+
+    if (node.type === "add-position") {
+      setRun({
+        ...run,
+        stage: "add-position-select",
+        selectedNaturalPositionPlayerId: null,
+        selectedNaturalPosition: null,
+        nodeResult: null,
+      });
+      return;
+    }
+
+    if (node.type === "all-star") {
+      setRun({
+        ...run,
+        stage: "all-star-select",
+        allStarAssignments: {
+          dunkContest: null,
+          threePointContest: null,
+          skillsChallenge: null,
+        },
+        nodeResult: null,
+      });
+      return;
+    }
+
+    if (node.type === "roster-cut") {
+      setRun({
+        ...run,
+        stage: "roster-cut-select",
+        selectedCutPlayerIds: [],
         nodeResult: null,
       });
       return;
@@ -1696,6 +2083,7 @@ export const RoguelikeMode = ({
         node.rewardChoices,
         nextChoiceSeed(run.seed, run.floorIndex + 30),
         getNodeChoiceTiers(node) ? [...getNodeChoiceTiers(node)!] : undefined,
+        shouldStrictlyUseNodePool(node),
       );
       setRun({
         ...run,
@@ -1712,11 +2100,11 @@ export const RoguelikeMode = ({
         nodeResult: {
           title: `${node.title} cleared`,
           detail:
-            node.id === "act-one-faceoff"
+            node.id === "act-one-faceoff" || node.id === "act-one-faceoff-current"
               ? `You beat ${node.opponentTeamName ?? "the challenge team"}. Bench 1 is now open, ${bundle.title} is added to your run pool, and you can choose 1 of 5 B-tier players for your run roster.`
-              : node.id === "act-one-boss"
+              : node.id === "act-one-boss" || node.id === "act-one-boss-current"
                 ? `You beat ${node.opponentTeamName ?? "the challenge team"}. Choose 1 of 3 B-tier version players now, each being the lowest version of a player who has a stronger version available later in the run.`
-                : node.id === "frontcourt-wave"
+                : node.id === "frontcourt-wave" || node.id === "frontcourt-wave-current"
                   ? `Your selected starting five reached ${resolution.metrics.offense} Offense. ${bundle.title} is now added to your run pool, and you can choose 1 of 5 B-tier players for your run roster.`
                 : resolution.opponentPlayers.length > 0
                   ? `You beat ${node.opponentTeamName ?? "the challenge team"}. ${bundle.title} is now added to your run pool, and you earn one reward pick.`
@@ -1818,15 +2206,17 @@ export const RoguelikeMode = ({
         getRunOwnedPlayers(run),
         node.rewardBundleId,
       );
+      const rewardDraftPool = getRewardDraftPool(run, node, expandedPool);
       const bundle = getBundle(node.rewardBundleId);
       const nodeChoiceTiers = getNodeChoiceTiers(node);
       const nextChoicesState = drawRunChoices(
         run,
-        expandedPool,
+        rewardDraftPool,
         getRunOwnedPlayers(run),
         node.rewardChoices,
         nextChoiceSeed(run.seed, run.floorIndex + 30),
         nodeChoiceTiers ? [...nodeChoiceTiers] : undefined,
+        shouldStrictlyUseNodePool(node),
       );
       const rewardTierLabel =
         nodeChoiceTiers?.length === 2
@@ -1991,6 +2381,7 @@ export const RoguelikeMode = ({
       node.rewardChoices,
       nextChoiceSeed(run.seed, run.floorIndex + 30),
       getNodeChoiceTiers(node) ? [...getNodeChoiceTiers(node)!] : undefined,
+      shouldStrictlyUseNodePool(node),
     );
     setRun({
       ...run,
@@ -2004,12 +2395,12 @@ export const RoguelikeMode = ({
       activeNode: node,
       activeOpponentPlayerIds: null,
       nodeResult: {
-        title: `${node.title} cleared`,
-        detail:
-          node.id === "act-one-faceoff"
-            ? `You beat ${node.opponentTeamName ?? "the boss team"}. Bench 1 is now open, ${bundle.title} is added to your run pool, and you can choose 1 of 5 B-tier players for your run roster.`
-            : node.id === "act-one-boss"
-              ? `You beat ${node.opponentTeamName ?? "the boss team"}. Choose 1 of 3 B-tier version players now, then look for a future evolution node to upgrade that player into a higher-rated version.`
+          title: `${node.title} cleared`,
+          detail:
+            node.id === "act-one-faceoff" || node.id === "act-one-faceoff-current"
+              ? `You beat ${node.opponentTeamName ?? "the boss team"}. Bench 1 is now open, ${bundle.title} is added to your run pool, and you can choose 1 of 5 B-tier players for your run roster.`
+              : node.id === "act-one-boss" || node.id === "act-one-boss-current"
+                ? `You beat ${node.opponentTeamName ?? "the boss team"}. Choose 1 of 3 B-tier version players now, then look for a future evolution node to upgrade that player into a higher-rated version.`
               : `You beat ${node.opponentTeamName ?? "the boss team"}. ${bundle.title} is now added to your run pool, and you earn one reward pick.`,
           passed: true,
         },
@@ -2182,7 +2573,7 @@ export const RoguelikeMode = ({
     const sourceNode = run.activeNode ?? roguelikeNodes[run.floorIndex] ?? null;
     const rerollPool =
       run.stage === "initial-draft"
-        ? buildOpeningDraftPool()
+        ? getNodePlayerPool(sourceNode, buildOpeningDraftPool())
         : sourceNode
           ? getRewardDraftPool(run, sourceNode, run.availablePool)
           : run.availablePool;
@@ -2192,7 +2583,9 @@ export const RoguelikeMode = ({
         : getRunOwnedPlayers(run);
     const allowedTiers =
       run.stage === "initial-draft"
-        ? (["B", "C"] as PlayerTier[])
+        ? sourceNode && getNodeChoiceTiers(sourceNode)
+          ? [...getNodeChoiceTiers(sourceNode)!]
+          : undefined
         : sourceNode && getNodeChoiceTiers(sourceNode)
           ? [...getNodeChoiceTiers(sourceNode)!]
           : undefined;
@@ -2203,6 +2596,7 @@ export const RoguelikeMode = ({
       5,
       nextChoiceSeed(run.seed, 600 + run.floorIndex * 31 + run.draftShuffleTickets * 7),
       allowedTiers,
+      shouldStrictlyUseNodePool(sourceNode),
     );
 
     setRun({
@@ -2227,11 +2621,12 @@ export const RoguelikeMode = ({
     );
     const nextChoicesState = drawRunChoices(
       run,
-      run.availablePool,
+      getNodePlayerPool(run.activeNode, run.availablePool),
       nextRoster,
       run.activeNode.rewardChoices,
       nextChoiceSeed(run.seed, run.floorIndex + 30),
       getNodeChoiceTiers(run.activeNode) ? [...getNodeChoiceTiers(run.activeNode)!] : undefined,
+      shouldStrictlyUseNodePool(run.activeNode),
     );
 
     setRun({
@@ -2381,6 +2776,7 @@ export const RoguelikeMode = ({
       sourceNode.rewardChoices,
       nextChoiceSeed(run.seed, 900 + run.floorIndex * 37),
       getNodeChoiceTiers(sourceNode) ? [...getNodeChoiceTiers(sourceNode)!] : undefined,
+      shouldStrictlyUseNodePool(sourceNode),
     );
 
     if (repairedChoicesState.choices.length === 0) return;
@@ -2503,6 +2899,33 @@ export const RoguelikeMode = ({
     setRun(null);
   };
 
+  const backToRunLadder = () => {
+    if (!run) return;
+
+    setShowOutcomeOverlay(false);
+    setDraggingIndex(null);
+    setDropTargetIndex(null);
+    setDragPointer(null);
+    setRun({
+      ...run,
+      stage: "ladder-overview",
+      activeNode: null,
+      activeOpponentPlayerIds: null,
+      nodeResult: null,
+      pendingRewardPlayer: null,
+      selectedCutPlayerIds: [],
+      selectedNaturalPositionPlayerId: null,
+      selectedNaturalPosition: null,
+      allStarAssignments: {
+        dunkContest: null,
+        threePointContest: null,
+        skillsChallenge: null,
+      },
+      utilityReturnState: null,
+      failureReviewStage: null,
+    });
+  };
+
   const reviewFailedChallenge = () => {
     if (!run || run.stage !== "run-over" || run.failureReviewStage !== "challenge-setup") return;
     setShowOutcomeOverlay(false);
@@ -2568,11 +2991,11 @@ export const RoguelikeMode = ({
             <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Starter Pack Power-Up</div>
             <div className="mt-2 text-xl font-semibold text-white">Choose which starter pack quality to open this run</div>
             <div className="mt-3 text-sm leading-7 text-slate-300">
-              Standard packs average 83 OVR. Token Store upgrades can be spent here to raise your 3-card starter pack quality before you choose Balanced, Defense, or Offense.
+              Standard packs average 80 OVR. Token Store upgrades can be spent here to raise your 3-card starter pack quality before you choose Balanced, Defense, or Offense.
             </div>
             <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {[
-                { id: "standard", title: "Standard", detail: "83 avg", owned: null },
+                { id: "standard", title: "Standard", detail: "80 avg", owned: null },
                 { id: "silver", title: "Silver", detail: "84 avg", owned: ownedSilverStarterPacks },
                 { id: "gold", title: "Gold", detail: "85 avg", owned: ownedGoldStarterPacks },
                 { id: "platinum", title: "Platinum", detail: "86 avg", owned: ownedPlatinumStarterPacks },
@@ -2713,6 +3136,8 @@ export const RoguelikeMode = ({
   const allStarterCardsRevealed = run.revealedStarterIds.length === run.starterRevealPlayers.length;
   const displayedRun = getHydratedRun(run);
   const runOwnedPlayers = getRunOwnedPlayers(displayedRun);
+  const runOwnedDisplayPlayers = runOwnedPlayers.map((player) => getRunDisplayPlayer(player, run.trainedPlayerIds ?? []));
+  const runOwnedDisplayPlayerById = new Map(runOwnedDisplayPlayers.map((player) => [player.id, player]));
   const runOwnedPlayerIds = runOwnedPlayers.map((player) => player.id);
   const currentLadderNode = roguelikeNodes[Math.min(run.floorIndex, roguelikeNodes.length - 1)] ?? null;
   const currentAct = activeNode?.act ?? currentLadderNode?.act ?? 1;
@@ -2766,8 +3191,24 @@ export const RoguelikeMode = ({
     ((nodeResultClearRewards?.tokenReward ?? 0) > 0 || (nodeResultClearRewards?.prestigeXpAward ?? 0) > 0);
   const nodeResultRewardCopy = nodeResultDisplayNode ? getNodeCompletionRewardCopy(nodeResultDisplayNode) : null;
   const nodeResultReferencesDraftShuffle = (run.nodeResult?.detail ?? "").includes("Draft Shuffle");
+  const nodeResultHasRewardChoices = run.stage === "node-result" && run.choices.length > 0;
+  const nodeResultShowsRewardSummary =
+    nodeResultHasRewardChoices || nodeResultReferencesDraftShuffle || nodeResultShowsClearRewards;
+  const upcomingNodeAfterResult = run.stage === "node-result" ? roguelikeNodes[run.floorIndex] ?? null : null;
+  const nodeResultNextStepDescription = nodeResultHasRewardChoices
+    ? `Next up: choose 1 of ${run.choices.length} player${run.choices.length === 1 ? "" : "s"} to add to your run roster${upcomingNodeAfterResult ? ` before ${upcomingNodeAfterResult.title}.` : "."}`
+    : upcomingNodeAfterResult
+      ? `Next up: head back to the run ladder and get ready for ${upcomingNodeAfterResult.title}.`
+      : "This node is complete. Continue when you're ready for the next step.";
   const firstBossCleared = run.unlockedBundleIds.includes("synergy-hunters");
-  const visibleRosterSlotCount = !firstBossCleared ? 5 : Math.min(10, Math.max(6, runOwnedPlayers.length));
+  const furthestOccupiedSlotIndex = displayedRun.lineup.reduce(
+    (furthestIndex, slot, index) => (slot.player ? index : furthestIndex),
+    -1,
+  );
+  const visibleRosterSlotCount = Math.min(
+    10,
+    Math.max(5, runOwnedPlayers.length, furthestOccupiedSlotIndex + 1),
+  );
   const visibleRunLineup = displayedRun.lineup.slice(0, visibleRosterSlotCount);
   const canUseStoreUtilities =
     !["starter-reveal", "initial-draft", "reward-draft", "training-select", "trade-offer", "trade-select", "evolution-select", "faceoff-game", "node-result", "run-over", "run-cleared"].includes(run.stage);
@@ -2776,6 +3217,9 @@ export const RoguelikeMode = ({
         run.stage === "reward-draft" ||
         run.stage === "faceoff-setup" ||
         run.stage === "challenge-setup" ||
+        run.stage === "add-position-select" ||
+        run.stage === "all-star-select" ||
+        run.stage === "roster-cut-select" ||
         run.stage === "training-select" ||
         run.stage === "trade-offer" ||
         run.stage === "trade-select" ||
@@ -2801,8 +3245,8 @@ export const RoguelikeMode = ({
         <div>
           <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Run Roster</div>
           <div className="mt-2 text-sm leading-6 text-slate-300">
-            {firstBossCleared
-              ? "Your run roster is expanding. New slots unlock as you survive deeper and add more cards."
+            {runOwnedPlayers.length > 5
+              ? "Your run roster is expanding. Every new player added to the run opens the next roster slot, up to a full 10-player group."
               : "Early run focus: build and organize your starting five before the first boss faceoff."}
           </div>
         </div>
@@ -3042,7 +3486,7 @@ export const RoguelikeMode = ({
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <div className={clsx("text-[10px] uppercase tracking-[0.2em]", isCleared ? "text-emerald-100/90" : actTheme.eyebrow)}>
-                              Act {node.act} • Floor {node.floor}
+                              Act {node.act} | Floor {node.floor}
                             </div>
                             <div className="mt-2 font-semibold text-white">{node.title}</div>
                           </div>
@@ -3097,7 +3541,7 @@ export const RoguelikeMode = ({
               <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Opening Draft</div>
               <h2 className="mt-2 font-display text-3xl text-white">Complete your starting five</h2>
               <p className="mt-3 text-sm leading-7 text-slate-300">
-                Starter Cache is open. Make two picks from B-tier and C-tier boards to turn your three-card starter pack into a full opening lineup.
+                Starter Cache is open. Make two picks from current-season D-tier boards to turn your three-card starter pack into a full opening lineup.
               </p>
               <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
                 {run.choices.map((player) => (
@@ -3110,6 +3554,7 @@ export const RoguelikeMode = ({
                   />
                 ))}
               </div>
+              <BackToRunLadderButton onClick={backToRunLadder} />
             </div>
           )}
 
@@ -3161,6 +3606,7 @@ export const RoguelikeMode = ({
                   Start Faceoff Game
                   <ArrowRight size={16} />
                 </button>
+                <BackToRunLadderButton onClick={backToRunLadder} className="" />
               </div>
             </div>
           )}
@@ -3206,6 +3652,7 @@ export const RoguelikeMode = ({
                 {reviewingFailedChallenge ? "Run Failed" : "Run Challenge"}
                 <ArrowRight size={16} />
               </button>
+              {!reviewingFailedChallenge ? <BackToRunLadderButton onClick={backToRunLadder} /> : null}
             </div>
           )}
 
@@ -3220,7 +3667,7 @@ export const RoguelikeMode = ({
                 The training boost is permanent for the rest of this Rogue run and carries through the underlying lineup calculations too.
               </div>
               <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                {runOwnedPlayers.map((player) => (
+                {runOwnedDisplayPlayers.map((player) => (
                   <DraftPlayerCard
                     key={player.id}
                     player={player}
@@ -3230,6 +3677,253 @@ export const RoguelikeMode = ({
                     actionLabel="Send to training"
                   />
                 ))}
+              </div>
+              <BackToRunLadderButton onClick={backToRunLadder} />
+            </div>
+          )}
+
+          {run.stage === "roster-cut-select" && activeNode && (
+            <div className="glass-panel rounded-[30px] p-6 shadow-card">
+              <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Roster Cut</div>
+              <h2 className="mt-2 font-display text-3xl text-white">{activeNode.title}</h2>
+              <p className="mt-3 text-sm leading-7 text-slate-300">
+                Select exactly 2 players to cut from your run roster. Those players will be removed permanently, and the rest of your rotation will carry forward.
+              </p>
+              <div className="mt-5 rounded-[22px] border border-rose-200/14 bg-rose-300/8 px-4 py-4 text-sm text-slate-100">
+                Cuts selected: {run.selectedCutPlayerIds.length}/2. Choose carefully. Once you confirm, those cards are gone for the rest of this Rogue run.
+              </div>
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {runOwnedDisplayPlayers.map((player) => {
+                  const selected = run.selectedCutPlayerIds.includes(player.id);
+
+                  return (
+                    <button
+                      key={player.id}
+                      type="button"
+                      onClick={() => toggleRosterCutPlayer(player)}
+                      className={clsx(
+                        "rounded-[24px] border px-5 py-4 text-left transition",
+                        selected
+                          ? "border-rose-300/50 bg-[linear-gradient(135deg,rgba(127,29,29,0.32),rgba(153,27,27,0.18),rgba(69,10,10,0.32))] shadow-[0_0_0_1px_rgba(252,165,165,0.14)]"
+                          : "border-white/10 bg-black/18 hover:border-white/18 hover:bg-white/6",
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
+                            {player.primaryPosition}
+                          </div>
+                          <div className="mt-2 text-xl font-semibold text-white">{player.name}</div>
+                          <div className="mt-2 text-sm text-slate-300">
+                            {player.overall} OVR
+                            {player.secondaryPositions.length > 0
+                              ? ` | ${[player.primaryPosition, ...player.secondaryPositions].join(" / ")}`
+                              : ""}
+                          </div>
+                        </div>
+                        <div
+                          className={clsx(
+                            "rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em]",
+                            selected
+                              ? "border-rose-200/30 bg-rose-300/16 text-rose-50"
+                              : "border-white/10 bg-white/6 text-slate-300",
+                          )}
+                        >
+                          {selected ? "Cutting" : "Keep"}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={confirmRosterCut}
+                  disabled={run.selectedCutPlayerIds.length !== 2}
+                  className={clsx(
+                    "inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition",
+                    run.selectedCutPlayerIds.length === 2
+                      ? "bg-white text-slate-900 hover:scale-[1.02]"
+                      : "cursor-not-allowed bg-white/10 text-slate-500",
+                  )}
+                >
+                  Confirm Cuts
+                  <ArrowRight size={16} />
+                </button>
+                <BackToRunLadderButton onClick={backToRunLadder} className="" />
+              </div>
+            </div>
+          )}
+
+          {run.stage === "add-position-select" && activeNode && (
+            <div className="glass-panel rounded-[30px] p-6 shadow-card">
+              <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Add A Natural Position</div>
+              <h2 className="mt-2 font-display text-3xl text-white">{activeNode.title}</h2>
+              <p className="mt-3 text-sm leading-7 text-slate-300">
+                Choose 1 player from your run roster, then add 1 new natural position that player does not already have.
+              </p>
+              <div className="mt-5 rounded-[22px] border border-sky-200/14 bg-sky-300/8 px-4 py-4 text-sm text-slate-100">
+                This new natural position lasts for the rest of the Rogue run and improves lineup flexibility anywhere that position matters.
+              </div>
+
+              <div className="mt-6">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Step 1</div>
+                <div className="mt-2 text-sm font-semibold text-white">Select a player</div>
+                <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {runOwnedDisplayPlayers.map((player) => {
+                    const selected = run.selectedNaturalPositionPlayerId === player.id;
+                    return (
+                      <button
+                        key={player.id}
+                        type="button"
+                        onClick={() => selectNaturalPositionPlayer(player)}
+                        className={clsx(
+                          "rounded-[24px] border px-5 py-4 text-left transition",
+                          selected
+                            ? "border-sky-300/50 bg-[linear-gradient(135deg,rgba(14,116,144,0.28),rgba(59,130,246,0.18),rgba(15,23,42,0.32))]"
+                            : "border-white/10 bg-black/18 hover:border-white/18 hover:bg-white/6",
+                        )}
+                      >
+                        <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">{player.primaryPosition}</div>
+                        <div className="mt-2 text-xl font-semibold text-white">{player.name}</div>
+                        <div className="mt-2 text-sm text-slate-300">
+                          {[player.primaryPosition, ...player.secondaryPositions].join(" / ")}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {run.selectedNaturalPositionPlayerId ? (
+                <div className="mt-8">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Step 2</div>
+                  <div className="mt-2 text-sm font-semibold text-white">Choose a new natural position</div>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    {(["PG", "SG", "SF", "PF", "C"] as Position[]).map((position) => {
+                      const selectedPlayer = runOwnedDisplayPlayers.find(
+                        (player) => player.id === run.selectedNaturalPositionPlayerId,
+                      );
+                      const alreadyNatural = selectedPlayer
+                        ? selectedPlayer.primaryPosition === position ||
+                          selectedPlayer.secondaryPositions.includes(position)
+                        : false;
+
+                      return (
+                        <button
+                          key={position}
+                          type="button"
+                          onClick={() => selectNaturalPosition(position)}
+                          disabled={alreadyNatural}
+                          className={clsx(
+                            "rounded-full border px-5 py-3 text-sm font-semibold transition",
+                            alreadyNatural
+                              ? "cursor-not-allowed border-white/10 bg-white/5 text-slate-500"
+                              : run.selectedNaturalPosition === position
+                                ? "border-sky-300/50 bg-sky-300/14 text-white"
+                                : "border-white/12 bg-white/6 text-white hover:bg-white/10",
+                          )}
+                        >
+                          {position}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="mt-8 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={confirmNaturalPositionAdd}
+                  disabled={!run.selectedNaturalPositionPlayerId || !run.selectedNaturalPosition}
+                  className={clsx(
+                    "inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition",
+                    run.selectedNaturalPositionPlayerId && run.selectedNaturalPosition
+                      ? "bg-white text-slate-900 hover:scale-[1.02]"
+                      : "cursor-not-allowed bg-white/10 text-slate-500",
+                  )}
+                >
+                  Confirm New Position
+                  <ArrowRight size={16} />
+                </button>
+                <BackToRunLadderButton onClick={backToRunLadder} className="" />
+              </div>
+            </div>
+          )}
+
+          {run.stage === "all-star-select" && activeNode && (
+            <div className="glass-panel rounded-[30px] p-6 shadow-card">
+              <div className="text-xs uppercase tracking-[0.24em] text-slate-400">All-Star Saturday</div>
+              <h2 className="mt-2 font-display text-3xl text-white">{activeNode.title}</h2>
+              <p className="mt-3 text-sm leading-7 text-slate-300">
+                Assign one player to each event. Dunk Contest gives +5 Athleticism, 3PT Contest gives +5 Shooting, and Skills Challenge gives +5 Ball Dominance for the rest of the run.
+              </p>
+              <div className="mt-6 grid gap-5 xl:grid-cols-3">
+                {[
+                  { key: "dunkContest" as const, title: "Dunk Contest", stat: "Athleticism +5" },
+                  { key: "threePointContest" as const, title: "3PT Contest", stat: "Shooting +5" },
+                  { key: "skillsChallenge" as const, title: "Skills Challenge", stat: "Ball Dominance +5" },
+                ].map((eventCard) => (
+                  <div key={eventCard.key} className="rounded-[24px] border border-white/10 bg-black/18 p-5">
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">{eventCard.title}</div>
+                    <div className="mt-2 text-sm font-semibold text-white">{eventCard.stat}</div>
+                    <div className="mt-4 space-y-3">
+                      {runOwnedDisplayPlayers.map((player) => {
+                        const selected = run.allStarAssignments[eventCard.key] === player.id;
+                        const alreadyUsedInAnotherEvent = Object.entries(run.allStarAssignments).some(
+                          ([assignmentKey, playerId]) => assignmentKey !== eventCard.key && playerId === player.id,
+                        );
+
+                        return (
+                          <button
+                            key={`${eventCard.key}-${player.id}`}
+                            type="button"
+                            onClick={() => assignAllStarPlayer(eventCard.key, player)}
+                            disabled={alreadyUsedInAnotherEvent}
+                            className={clsx(
+                              "w-full rounded-[18px] border px-4 py-3 text-left transition",
+                              selected
+                                ? "border-amber-300/40 bg-amber-300/12"
+                                : alreadyUsedInAnotherEvent
+                                  ? "cursor-not-allowed border-white/10 bg-white/5 text-slate-500"
+                                  : "border-white/10 bg-white/6 hover:bg-white/10",
+                            )}
+                          >
+                            <div className="text-sm font-semibold text-white">{player.name}</div>
+                            <div className="mt-1 text-xs text-slate-300">
+                              {player.overall} OVR | {[player.primaryPosition, ...player.secondaryPositions].join(" / ")}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={runAllStarSaturday}
+                  disabled={
+                    !run.allStarAssignments.dunkContest ||
+                    !run.allStarAssignments.threePointContest ||
+                    !run.allStarAssignments.skillsChallenge
+                  }
+                  className={clsx(
+                    "inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition",
+                    run.allStarAssignments.dunkContest &&
+                    run.allStarAssignments.threePointContest &&
+                    run.allStarAssignments.skillsChallenge
+                      ? "bg-white text-slate-900 hover:scale-[1.02]"
+                      : "cursor-not-allowed bg-white/10 text-slate-500",
+                  )}
+                >
+                  Run All-Star Saturday
+                  <ArrowRight size={16} />
+                </button>
+                <BackToRunLadderButton onClick={backToRunLadder} className="" />
               </div>
             </div>
           )}
@@ -3249,14 +3943,14 @@ export const RoguelikeMode = ({
                 <div className="text-[10px] uppercase tracking-[0.2em] text-indigo-100/80">Incoming Reward</div>
                 <div className="mt-2 text-2xl font-semibold text-white">{run.pendingRewardPlayer.name}</div>
                 <div className="mt-1 text-sm text-slate-200">
-                  {run.pendingRewardPlayer.overall} OVR • {run.pendingRewardPlayer.primaryPosition}
+                  {run.pendingRewardPlayer.overall} OVR | {run.pendingRewardPlayer.primaryPosition}
                   {run.pendingRewardPlayer.secondaryPositions.length
                     ? ` / ${run.pendingRewardPlayer.secondaryPositions.join(" / ")}`
                     : ""}
                 </div>
               </div>
               <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                {runOwnedPlayers.map((player) => (
+                {runOwnedDisplayPlayers.map((player) => (
                   <DraftPlayerCard
                     key={player.id}
                     player={player}
@@ -3275,6 +3969,7 @@ export const RoguelikeMode = ({
                 Skip This Pick
                 <ArrowRight size={16} />
               </button>
+              <BackToRunLadderButton onClick={backToRunLadder} className="mt-4" />
             </div>
           )}
 
@@ -3304,6 +3999,7 @@ export const RoguelikeMode = ({
                 >
                   Keep My Team
                 </button>
+                <BackToRunLadderButton onClick={backToRunLadder} className="" />
               </div>
             </div>
           )}
@@ -3319,7 +4015,7 @@ export const RoguelikeMode = ({
                 The selected player leaves your run immediately, so this is a true swap instead of a free add.
               </div>
               <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                {runOwnedPlayers.map((player) => (
+                {runOwnedDisplayPlayers.map((player) => (
                   <DraftPlayerCard
                     key={player.id}
                     player={player}
@@ -3330,6 +4026,7 @@ export const RoguelikeMode = ({
                   />
                 ))}
               </div>
+              <BackToRunLadderButton onClick={backToRunLadder} />
             </div>
           )}
 
@@ -3347,7 +4044,7 @@ export const RoguelikeMode = ({
                 {getRoguelikeEvolutionOptions(runOwnedPlayers).map((option) => (
                   <DraftPlayerCard
                     key={option.currentPlayer.id}
-                    player={option.currentPlayer}
+                    player={runOwnedDisplayPlayerById.get(option.currentPlayer.id) ?? option.currentPlayer}
                     onSelect={evolveRunPlayer}
                     compact
                     draftedPlayerIds={runOwnedPlayerIds}
@@ -3355,6 +4052,7 @@ export const RoguelikeMode = ({
                   />
                 ))}
               </div>
+              <BackToRunLadderButton onClick={backToRunLadder} />
             </div>
           )}
 
@@ -3428,17 +4126,16 @@ export const RoguelikeMode = ({
                   />
                 ))}
               </div>
-              {run.activeNode?.id === "draft-lab" ? (
-                <div className="mt-6 flex justify-center">
-                  <button
-                    type="button"
-                    onClick={skipRewardDraft}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/6 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-                  >
-                    Skip This Pick
-                  </button>
-                </div>
-              ) : null}
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={skipRewardDraft}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/6 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                >
+                  Skip This Pick
+                </button>
+                <BackToRunLadderButton onClick={backToRunLadder} className="" />
+              </div>
             </div>
           )}
 
@@ -3595,7 +4292,7 @@ export const RoguelikeMode = ({
                                 "text-[10px] uppercase tracking-[0.2em]",
                                 isCleared ? "text-emerald-100/90" : actTheme.eyebrow,
                               )}>
-                                Act {node.act} • Floor {node.floor}
+                                Act {node.act} | Floor {node.floor}
                               </div>
                               <div className="mt-1 font-semibold text-white">{node.title}</div>
                             </div>
@@ -3727,9 +4424,11 @@ export const RoguelikeMode = ({
                     ? "Run Cleared"
                     : run.nodeResult?.title}
               </h2>
-              <p className="mt-5 max-w-4xl text-base leading-8 text-white/88 lg:text-lg">
-                {run.nodeResult?.detail}
-              </p>
+              {!(run.stage === "faceoff-game" && run.nodeResult?.faceoffResult) ? (
+                <p className="mt-5 max-w-4xl text-base leading-8 text-white/88 lg:text-lg">
+                  {run.nodeResult?.detail}
+                </p>
+              ) : null}
 
               {run.stage === "faceoff-game" && run.nodeResult?.faceoffResult && faceoffFinalScore ? (
                 <div className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -3767,17 +4466,17 @@ export const RoguelikeMode = ({
                     </div>
                   {run.nodeResult.passed ? (
                     <div className="rounded-[26px] border border-amber-100/18 bg-[linear-gradient(135deg,rgba(64,36,6,0.26),rgba(122,76,18,0.18),rgba(28,20,8,0.22))] p-5">
-                      <div className="text-[10px] uppercase tracking-[0.22em] text-amber-100/78">Completion Rewards</div>
+                      <div className="text-[10px] uppercase tracking-[0.22em] text-amber-100/78">What You Earned</div>
                       <div className="mt-3 space-y-4">
                         <div className="rounded-[22px] border border-amber-100/16 bg-black/14 px-4 py-4">
-                          <div className="text-[10px] uppercase tracking-[0.2em] text-amber-100/72">Roster Reward</div>
+                          <div className="text-[10px] uppercase tracking-[0.2em] text-amber-100/72">What Happens Next</div>
                           <div className="mt-2 text-2xl font-semibold text-white">
-                            Add 1 player to your run roster
+                            Claim your boss reward draft
                           </div>
                           <div className="mt-2 text-sm leading-7 text-white/76">
                             {activeNode?.id === "act-one-boss"
                               ? "Choose 1 of 3 B-tier version players and set up a future evolution upgrade."
-                              : "Choose 1 of 5 reward players and strengthen your run for the next node."}
+                              : "Choose 1 reward player and strengthen your roster before the next node."}
                           </div>
                         </div>
                         {activeNodeShowsClearRewards && activeNodeClearRewards ? (
@@ -3812,12 +4511,12 @@ export const RoguelikeMode = ({
                     </div>
                   ) : (
                     <div className="rounded-[26px] border border-white/16 bg-black/18 p-5">
-                      <div className="text-[10px] uppercase tracking-[0.22em] text-white/72">Boss Team</div>
+                      <div className="text-[10px] uppercase tracking-[0.22em] text-white/72">What Happens Next</div>
                       <div className="mt-2 text-2xl font-semibold text-white">
-                        {activeNode?.opponentTeamName ?? "Boss Team"}
+                        Run ends on this loss
                       </div>
                       <div className="mt-2 text-sm leading-7 text-white/74">
-                        Reset your lineup if needed and take another look at the matchups before your next attempt.
+                        You were eliminated by {activeNode?.opponentTeamName ?? "the boss team"}. Failure rewards are still paid out below so the next run starts with more momentum.
                       </div>
                     </div>
                   )}
@@ -3854,81 +4553,95 @@ export const RoguelikeMode = ({
                     </div>
                   ) : (
                     <div className="rounded-[26px] border border-emerald-100/20 bg-emerald-950/18 p-5">
-                      <div className="text-[10px] uppercase tracking-[0.22em] text-emerald-100/78">Result</div>
+                      <div className="text-[10px] uppercase tracking-[0.22em] text-emerald-100/78">What Happened</div>
                       <div className="mt-2 text-2xl font-semibold text-white">
-                        {nodeResultRewardCopy?.title ?? "Node cleared"}
+                        {run.nodeResult.title}
                       </div>
                       <div className="mt-2 text-sm leading-7 text-white/76">
-                        {nodeResultDisplayNode.targetLabel ?? run.nodeResult.detail}
+                        {run.nodeResult.detail}
                       </div>
                     </div>
                   )}
-                  <div className="rounded-[26px] border border-amber-100/18 bg-[linear-gradient(135deg,rgba(64,36,6,0.26),rgba(122,76,18,0.18),rgba(28,20,8,0.22))] p-5">
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-amber-100/78">Completion Rewards</div>
-                    <div className="mt-3 space-y-4">
-                      <div className="rounded-[22px] border border-amber-100/16 bg-black/14 px-4 py-4">
-                        <div className="text-[10px] uppercase tracking-[0.2em] text-amber-100/72">Primary Reward</div>
-                        <div className="mt-2 text-2xl font-semibold text-white">
-                          {nodeResultRewardCopy?.title ?? "Node reward"}
-                        </div>
-                        <div className="mt-2 text-sm leading-7 text-white/76">
-                          {nodeResultRewardCopy?.description ?? run.nodeResult.detail}
-                        </div>
+                  {nodeResultShowsRewardSummary ? (
+                    <div className="rounded-[26px] border border-amber-100/18 bg-[linear-gradient(135deg,rgba(64,36,6,0.26),rgba(122,76,18,0.18),rgba(28,20,8,0.22))] p-5">
+                      <div className="text-[10px] uppercase tracking-[0.22em] text-amber-100/78">What You Earned</div>
+                      <div className="mt-3 space-y-4">
+                        {nodeResultHasRewardChoices && nodeResultRewardCopy ? (
+                          <div className="rounded-[22px] border border-amber-100/16 bg-black/14 px-4 py-4">
+                            <div className="text-[10px] uppercase tracking-[0.2em] text-amber-100/72">Reward Draft</div>
+                            <div className="mt-2 text-2xl font-semibold text-white">
+                              {nodeResultRewardCopy.title}
+                            </div>
+                            <div className="mt-2 text-sm leading-7 text-white/76">
+                              {nodeResultRewardCopy.description}
+                            </div>
+                          </div>
+                        ) : null}
+                        {nodeResultReferencesDraftShuffle ? (
+                          <div className="rounded-[22px] border border-indigo-100/16 bg-indigo-300/10 px-4 py-4">
+                            <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-indigo-100/78">
+                              <RefreshCcw size={14} />
+                              Draft Shuffle Reward
+                            </div>
+                            <div className="mt-2 text-3xl font-semibold text-white">
+                              +{nodeResultDisplayNode.draftShuffleReward ?? 0}
+                            </div>
+                            <div className="mt-1 text-xs uppercase tracking-[0.18em] text-indigo-100/72">
+                              Tickets earned
+                            </div>
+                          </div>
+                        ) : null}
+                        {nodeResultShowsClearRewards && nodeResultClearRewards ? (
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-[22px] border border-amber-100/16 bg-amber-300/10 px-4 py-4">
+                              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-amber-100/78">
+                                <Coins size={14} />
+                                Token Reward
+                              </div>
+                              <div className="mt-2 text-3xl font-semibold text-white">
+                                +{nodeResultClearRewards.tokenReward}
+                              </div>
+                              <div className="mt-1 text-xs uppercase tracking-[0.18em] text-amber-100/72">
+                                Tokens earned
+                              </div>
+                            </div>
+                            <div className="rounded-[22px] border border-sky-100/16 bg-sky-300/10 px-4 py-4">
+                              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-sky-100/78">
+                                <Sparkles size={14} />
+                                Prestige XP
+                              </div>
+                              <div className="mt-2 text-3xl font-semibold text-white">
+                                +{nodeResultClearRewards.prestigeXpAward}
+                              </div>
+                              <div className="mt-1 text-xs uppercase tracking-[0.18em] text-sky-100/72">
+                                Progress earned
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
-                      {nodeResultReferencesDraftShuffle ? (
-                        <div className="rounded-[22px] border border-indigo-100/16 bg-indigo-300/10 px-4 py-4">
-                          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-indigo-100/78">
-                            <RefreshCcw size={14} />
-                            Draft Shuffle Reward
-                          </div>
-                          <div className="mt-2 text-3xl font-semibold text-white">
-                            +{nodeResultDisplayNode.draftShuffleReward ?? 0}
-                          </div>
-                          <div className="mt-1 text-xs uppercase tracking-[0.18em] text-indigo-100/72">
-                            Tickets earned
-                          </div>
-                        </div>
-                      ) : null}
-                      {nodeResultShowsClearRewards && nodeResultClearRewards ? (
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div className="rounded-[22px] border border-amber-100/16 bg-amber-300/10 px-4 py-4">
-                            <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-amber-100/78">
-                              <Coins size={14} />
-                              Token Reward
-                            </div>
-                            <div className="mt-2 text-3xl font-semibold text-white">
-                              +{nodeResultClearRewards.tokenReward}
-                            </div>
-                            <div className="mt-1 text-xs uppercase tracking-[0.18em] text-amber-100/72">
-                              Tokens earned
-                            </div>
-                          </div>
-                          <div className="rounded-[22px] border border-sky-100/16 bg-sky-300/10 px-4 py-4">
-                            <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-sky-100/78">
-                              <Sparkles size={14} />
-                              Prestige XP
-                            </div>
-                            <div className="mt-2 text-3xl font-semibold text-white">
-                              +{nodeResultClearRewards.prestigeXpAward}
-                            </div>
-                            <div className="mt-1 text-xs uppercase tracking-[0.18em] text-sky-100/72">
-                              Progress earned
-                            </div>
-                          </div>
-                        </div>
-                      ) : null}
                     </div>
-                  </div>
+                  ) : (
+                    <div className="rounded-[26px] border border-white/16 bg-black/18 p-5">
+                      <div className="text-[10px] uppercase tracking-[0.22em] text-white/72">What Happens Next</div>
+                      <div className="mt-2 text-2xl font-semibold text-white">
+                        Return to the run ladder
+                      </div>
+                      <div className="mt-2 text-sm leading-7 text-white/74">
+                        {nodeResultNextStepDescription}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : null}
 
               {((run.stage === "run-over") || (run.stage === "faceoff-game" && !run.nodeResult?.passed)) && run.nodeResult?.failureRewards ? (
                 <div className="mt-8 rounded-[28px] border border-amber-100/18 bg-[linear-gradient(135deg,rgba(20,8,16,0.36),rgba(84,36,18,0.22),rgba(16,10,20,0.28))] p-5 shadow-[0_20px_44px_rgba(0,0,0,0.18)]">
                   <div className="text-[11px] uppercase tracking-[0.24em] text-amber-100/78">
-                    Failure Rewards
+                    What You Keep
                   </div>
                   <div className="mt-2 max-w-3xl text-sm leading-7 text-white/84">
-                    This run ended, but you still earned progression for the climb. Every failed Rogue run pays out Tokens and Prestige XP so your next attempt starts with a little more momentum.
+                    This run is over, but you still bank the progression you earned here for your next attempt.
                   </div>
                   <div className="mt-5 grid gap-4 sm:grid-cols-2">
                     <div className="rounded-[24px] border border-amber-100/18 bg-amber-300/10 p-5">

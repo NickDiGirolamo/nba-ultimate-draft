@@ -9,6 +9,7 @@ import {
 import { mulberry32 } from "./random";
 import { evaluateDraftChemistry } from "./simulate";
 import { Player, PlayerTier, Position, RosterSlot, RosterSlotType } from "../types";
+import { getPlayerTier } from "./playerTier";
 
 export type RoguelikeStarterPackageId =
   | "balanced-foundation"
@@ -23,9 +24,19 @@ export type RoguelikeBundleId =
   | "jumbo-wings"
   | "spacing-punch";
 
-export type RoguelikeNodeType = "draft" | "challenge" | "boss" | "training" | "trade" | "evolution";
+export type RoguelikeNodeType =
+  | "draft"
+  | "challenge"
+  | "boss"
+  | "training"
+  | "trade"
+  | "evolution"
+  | "roster-cut"
+  | "add-position"
+  | "all-star";
 export type RoguelikeMetric = "overall" | "offense" | "defense" | "chemistry" | "rebounding";
 export type RoguelikeBattleMode = "starting-five-faceoff";
+export type RoguelikePlayerPoolMode = "all" | "current-season";
 
 export interface RoguelikeStarterPackage {
   id: RoguelikeStarterPackageId;
@@ -63,6 +74,10 @@ export interface RoguelikeNode {
   opponentTeamName?: string;
   opponentPlayerIds?: string[];
   opponentStarterPlayerIds?: string[];
+  playerPoolMode?: RoguelikePlayerPoolMode;
+  allowedRewardTiers?: PlayerTier[];
+  clearRewardsOverride?: RoguelikeClearRewards;
+  unlocksBench?: boolean;
 }
 
 export interface RoguelikeRosterMetrics {
@@ -125,8 +140,12 @@ export const doesRoguelikeNodeAwardClearRewards = (
 ) => node.type === "challenge" || Boolean(node.eliminationOnLoss);
 
 export const getRoguelikeClearRewards = (
-  node: Pick<RoguelikeNode, "act" | "type" | "eliminationOnLoss">,
+  node: Pick<RoguelikeNode, "act" | "type" | "eliminationOnLoss" | "clearRewardsOverride">,
 ): RoguelikeClearRewards => {
+  if (node.clearRewardsOverride) {
+    return node.clearRewardsOverride;
+  }
+
   if (!doesRoguelikeNodeAwardClearRewards(node)) {
     return {
       prestigeXpAward: 0,
@@ -139,6 +158,9 @@ export const getRoguelikeClearRewards = (
     training: 3,
     trade: 3,
     evolution: 4,
+    "roster-cut": 0,
+    "add-position": 0,
+    "all-star": 0,
     challenge: 4,
     boss: 5,
   };
@@ -211,320 +233,764 @@ export const roguelikeBundles: RoguelikeBundle[] = [
   },
 ];
 
+const REGULAR_BOSS_COUNT = 16;
+
+const getProgressiveBossRewards = (bossIndex: number): RoguelikeClearRewards => ({
+  tokenReward: 20 + (bossIndex - 1) * 4,
+  prestigeXpAward: 4 + Math.round((26 * (bossIndex - 1)) / (REGULAR_BOSS_COUNT - 1)),
+});
+
+const makeDraftNode = (node: Omit<RoguelikeNode, "type">): RoguelikeNode => ({
+  ...node,
+  type: "draft",
+});
+
+const makeTrainingNode = (node: Omit<RoguelikeNode, "type" | "rewardChoices">): RoguelikeNode => ({
+  ...node,
+  type: "training",
+  rewardChoices: 0,
+});
+
+const makeTradeNode = (node: Omit<RoguelikeNode, "type">): RoguelikeNode => ({
+  ...node,
+  type: "trade",
+});
+
+const makeChallengeNode = (
+  node: Omit<RoguelikeNode, "type" | "clearRewardsOverride"> & { clearRewardsOverride: RoguelikeClearRewards },
+): RoguelikeNode => ({
+  ...node,
+  type: "challenge",
+});
+
+const makeBossNode = (
+  bossIndex: number,
+  node: Omit<RoguelikeNode, "type" | "clearRewardsOverride">,
+): RoguelikeNode => ({
+  ...node,
+  type: "boss",
+  clearRewardsOverride: getProgressiveBossRewards(bossIndex),
+});
+
+const makeRosterCutNode = (node: Omit<RoguelikeNode, "type" | "rewardChoices">): RoguelikeNode => ({
+  ...node,
+  type: "roster-cut",
+  rewardChoices: 0,
+});
+
+const makeAddPositionNode = (node: Omit<RoguelikeNode, "type" | "rewardChoices">): RoguelikeNode => ({
+  ...node,
+  type: "add-position",
+  rewardChoices: 0,
+});
+
+const makeAllStarNode = (node: Omit<RoguelikeNode, "type" | "rewardChoices">): RoguelikeNode => ({
+  ...node,
+  type: "all-star",
+  rewardChoices: 0,
+});
+
 export const roguelikeNodes: RoguelikeNode[] = [
-  {
-    id: "starter-cache",
+  makeDraftNode({
+    id: "year-1-starting-five",
     floor: 1,
     act: 1,
-    type: "draft",
-    title: "Starter Cache",
-    description: "Add two more B-tier or C-tier players to complete your opening five before the first challenge.",
+    title: "Draft Your Starting 5",
+    description: "Add two more current-season rotation pieces from Starter Cache to complete your opening five.",
     rewardBundleId: "balanced-floor",
     rewardChoices: 0,
-  },
-  {
-    id: "act-one-faceoff",
+    targetLabel: "Choose 2 current-season D-tier players to complete your opening five",
+    playerPoolMode: "current-season",
+    allowedRewardTiers: ["D"],
+  }),
+  makeDraftNode({
+    id: "year-1-free-agency-1",
     floor: 2,
     act: 1,
-    type: "boss",
-    title: "Opening Night",
-    description: "Your first real test is a freshly generated five-man opponent built to punish sloppy openings and reward coherent early builds.",
-    rewardBundleId: "synergy-hunters",
+    title: "Free Agency 1",
+    description: "Sign your first free agent from a current-season C-tier board.",
+    rewardBundleId: "balanced-floor",
     rewardChoices: 5,
-    targetLabel: "Beat the Midrange Machine starting five",
-    battleMode: "starting-five-faceoff",
-    eliminationOnLoss: true,
-    opponentAverageOverall: 84.2,
-    livesPenalty: 1,
-    opponentTeamName: "Midrange Machine",
-  },
-  {
-    id: "frontcourt-wave",
+    targetLabel: "Choose 1 of 5 current-season C-tier players",
+    playerPoolMode: "current-season",
+    allowedRewardTiers: ["C"],
+  }),
+  makeTrainingNode({
+    id: "year-1-offseason-training",
     floor: 3,
     act: 1,
-    type: "challenge",
-    title: "Challenge 1: Offense is the Best Defense",
-    description: "You have six players now. Arrange your best offensive starting five and prove this run can generate enough scoring pressure to keep climbing.",
-    rewardBundleId: "frontcourt-pressure",
-    rewardChoices: 5,
-    targetLabel: "Reach 81 Offense with your starting five",
-    livesPenalty: 1,
-    checks: [{ metric: "offense", target: 81 }],
-  },
-  {
-    id: "training-day",
+    title: "Off-Season Training Camp",
+    description: "Choose one player to sharpen before the first real test.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+  }),
+  makeBossNode(1, {
+    id: "year-1-summer-league-championship",
     floor: 4,
     act: 1,
-    type: "training",
-    title: "Training Camp: Day 1",
-    description: "Pick one player from your run roster and send them to training. That player gains +1 Overall for the rest of the run.",
-    rewardBundleId: "elite-closers",
-    rewardChoices: 0,
-    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
-  },
-  {
-    id: "trade-deadline-1",
+    title: "Summer League Championship",
+    description: "Beat the Summer League Champs in your first direct faceoff.",
+    rewardBundleId: "balanced-floor",
+    rewardChoices: 5,
+    targetLabel: "Beat the Summer League Champs starting five",
+    battleMode: "starting-five-faceoff",
+    eliminationOnLoss: true,
+    opponentAverageOverall: 79,
+    opponentTeamName: "Summer League Champs",
+    playerPoolMode: "current-season",
+    allowedRewardTiers: ["C"],
+    unlocksBench: true,
+  }),
+  makeRosterCutNode({
+    id: "year-1-roster-cut",
     floor: 5,
     act: 1,
-    type: "trade",
-    title: "Trade Deadline 1",
-    description: "It's Trade Deadline day. Decide whether to move one player from your run roster for a shot at a new 1-of-5 draft board.",
-    rewardBundleId: "elite-closers",
-    rewardChoices: 5,
-    targetLabel: "Optionally trade 1 player, then draft 1 replacement from 5 options",
-  },
-  {
-    id: "act-one-boss",
+    title: "Roster Cut",
+    description: "Trim your roster back down by cutting two players before Opening Night.",
+    rewardBundleId: "balanced-floor",
+    targetLabel: "Select 2 players to cut from your roster",
+  }),
+  makeBossNode(2, {
+    id: "year-1-opening-night",
     floor: 6,
     act: 1,
-    type: "boss",
-    title: "NBA Playoffs Round 1",
-    description: "A stronger five-man boss lineup is waiting here. Set your starters carefully and survive one more direct faceoff to close Act I.",
+    title: "Opening Night",
+    description: "Beat the Atlanta Hawks and prove this roster is ready for real games.",
+    rewardBundleId: "balanced-floor",
+    rewardChoices: 5,
+    targetLabel: "Beat the Atlanta Hawks starting five",
+    battleMode: "starting-five-faceoff",
+    eliminationOnLoss: true,
+    opponentAverageOverall: 81,
+    opponentTeamName: "Atlanta Hawks",
+    playerPoolMode: "current-season",
+    allowedRewardTiers: ["C"],
+    unlocksBench: true,
+  }),
+  makeTrainingNode({
+    id: "year-1-in-season-training",
+    floor: 7,
+    act: 1,
+    title: "In-Season Training Camp",
+    description: "Give one player another round of development.",
     rewardBundleId: "elite-closers",
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+  }),
+  makeChallengeNode({
+    id: "year-1-offense-challenge",
+    floor: 8,
+    act: 1,
+    title: "Challenge 1: Offense is the Best Defense",
+    description: "Arrange your best offensive starting five and hit the season-opening threshold.",
+    rewardBundleId: "frontcourt-pressure",
+    rewardChoices: 5,
+    targetLabel: "Reach 83 Offense with your starting five",
+    checks: [{ metric: "offense", target: 83 }],
+    playerPoolMode: "current-season",
+    allowedRewardTiers: ["C"],
+    clearRewardsOverride: { tokenReward: 20, prestigeXpAward: 4 },
+  }),
+  makeTradeNode({
+    id: "year-1-early-season-trade",
+    floor: 9,
+    act: 1,
+    title: "Early Season Trade",
+    description: "Optionally trade one player and replace them from a current-season C-tier board.",
+    rewardBundleId: "balanced-floor",
+    rewardChoices: 5,
+    targetLabel: "Optionally trade 1 player, then draft 1 current-season C-tier replacement",
+    playerPoolMode: "current-season",
+    allowedRewardTiers: ["C"],
+  }),
+  makeAddPositionNode({
+    id: "year-1-new-rotation-test",
+    floor: 10,
+    act: 1,
+    title: "New Rotation Test",
+    description: "Teach one player a new natural position for the rest of the run.",
+    rewardBundleId: "balanced-floor",
+    targetLabel: "Choose 1 player and add 1 new natural position",
+  }),
+  makeAllStarNode({
+    id: "year-1-all-star-saturday",
+    floor: 11,
+    act: 1,
+    title: "All-Star Saturday",
+    description: "Send three players into the Dunk Contest, 3PT Contest, and Skills Challenge for permanent Rogue stat boosts.",
+    rewardBundleId: "balanced-floor",
+    targetLabel: "Assign 1 player to each event and run All-Star Saturday",
+  }),
+  makeDraftNode({
+    id: "year-1-mid-season-free-agent-add",
+    floor: 12,
+    act: 1,
+    title: "Mid-Season Free Agent Add",
+    description: "Add one more current-season C-tier contributor to the run.",
+    rewardBundleId: "balanced-floor",
+    rewardChoices: 5,
+    targetLabel: "Choose 1 of 5 current-season C-tier players",
+    playerPoolMode: "current-season",
+    allowedRewardTiers: ["C"],
+  }),
+  makeTrainingNode({
+    id: "year-1-in-season-training-2",
+    floor: 13,
+    act: 1,
+    title: "In-Season Training Camp - Day 2",
+    description: "One more focused upgrade before the playoffs begin.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+  }),
+  makeBossNode(3, {
+    id: "year-1-playoffs-round-1",
+    floor: 14,
+    act: 1,
+    title: "NBA Playoffs Round 1",
+    description: "Win your first playoff series faceoff.",
+    rewardBundleId: "balanced-floor",
     rewardChoices: 3,
-    targetLabel: "Beat the NBA Playoffs Round 1 starting five",
+    targetLabel: "Beat your First Round Opponent",
     battleMode: "starting-five-faceoff",
     eliminationOnLoss: true,
     opponentAverageOverall: 86,
-    livesPenalty: 2,
     opponentTeamName: "NBA Playoffs Round 1",
-  },
-  {
-    id: "training-day-2",
-    floor: 7,
-    act: 2,
-    type: "training",
-    title: "Training Camp: Day 2",
-    description: "Take one more player from your run roster and send them to training. The boost lasts for the rest of the run.",
-    rewardBundleId: "jumbo-wings",
-    rewardChoices: 0,
+    playerPoolMode: "current-season",
+    allowedRewardTiers: ["C"],
+  }),
+  makeAddPositionNode({
+    id: "year-1-new-rotation-test-2",
+    floor: 15,
+    act: 1,
+    title: "New Rotation Test",
+    description: "Add another natural position and improve your lineup flexibility.",
+    rewardBundleId: "balanced-floor",
+    targetLabel: "Choose 1 player and add 1 new natural position",
+  }),
+  makeTrainingNode({
+    id: "year-1-playoff-training",
+    floor: 16,
+    act: 1,
+    title: "Playoff Training Camp",
+    description: "Get one player ready for the next series.",
+    rewardBundleId: "elite-closers",
     targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
-  },
-  {
-    id: "glass-control",
-    floor: 8,
+  }),
+  makeDraftNode({
+    id: "year-1-return-from-injury",
+    floor: 17,
+    act: 1,
+    title: "Return from Injury",
+    description: "Add one C-tier player from any era. If your roster is full, you'll need to drop someone after the pick.",
+    rewardBundleId: "balanced-floor",
+    rewardChoices: 5,
+    targetLabel: "Choose 1 of 5 C-tier players",
+    allowedRewardTiers: ["C"],
+  }),
+  makeBossNode(4, {
+    id: "year-1-conference-semifinals",
+    floor: 18,
+    act: 1,
+    title: "NBA Playoffs: Conference Semifinals",
+    description: "Beat your Conference Semifinal opponent and keep the run alive.",
+    rewardBundleId: "balanced-floor",
+    rewardChoices: 3,
+    targetLabel: "Beat your Conference Semifinal Opponent",
+    battleMode: "starting-five-faceoff",
+    eliminationOnLoss: true,
+    opponentAverageOverall: 85,
+    opponentTeamName: "Conference Semifinal Opponent",
+    allowedRewardTiers: ["C"],
+  }),
+  makeTrainingNode({
+    id: "year-1-playoff-training-2",
+    floor: 19,
+    act: 1,
+    title: "Playoff Training Camp - 2",
+    description: "Take one more player through playoff prep.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+  }),
+  makeBossNode(5, {
+    id: "year-1-conference-finals",
+    floor: 20,
+    act: 1,
+    title: "NBA Playoffs: Conference Finals",
+    description: "Survive the Conference Finals faceoff.",
+    rewardBundleId: "balanced-floor",
+    rewardChoices: 3,
+    targetLabel: "Beat your Conference Finals Opponent",
+    battleMode: "starting-five-faceoff",
+    eliminationOnLoss: true,
+    opponentAverageOverall: 84,
+    opponentTeamName: "Conference Finals Opponent",
+    allowedRewardTiers: ["C"],
+  }),
+  makeTrainingNode({
+    id: "year-1-playoff-training-3",
+    floor: 21,
+    act: 1,
+    title: "Playoff Training Camp - 3",
+    description: "One last year-one playoff tune-up.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+  }),
+  makeBossNode(6, {
+    id: "year-1-finals",
+    floor: 22,
+    act: 1,
+    title: "NBA Playoffs: Finals",
+    description: "Finish Year 1 with a title-round faceoff.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 5,
+    targetLabel: "Beat your Finals Opponent",
+    battleMode: "starting-five-faceoff",
+    eliminationOnLoss: true,
+    opponentAverageOverall: 86,
+    opponentTeamName: "Finals Opponent",
+    allowedRewardTiers: ["B"],
+  }),
+  makeDraftNode({
+    id: "year-2-free-agency",
+    floor: 23,
     act: 2,
-    type: "challenge",
+    title: "Free Agency",
+    description: "Open Year 2 by signing one B-tier player from any era.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 5,
+    targetLabel: "Choose 1 of 5 B-tier players",
+    allowedRewardTiers: ["B"],
+  }),
+  makeTrainingNode({
+    id: "year-2-offseason-training",
+    floor: 24,
+    act: 2,
+    title: "Off-Season Training Camp",
+    description: "Put one player through an off-season jump.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+  }),
+  makeTradeNode({
+    id: "year-2-offseason-trade",
+    floor: 25,
+    act: 2,
+    title: "Off-Season Trade",
+    description: "Optionally trade one player and replace them from a B-tier board.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 5,
+    targetLabel: "Optionally trade 1 player, then draft 1 B-tier replacement",
+    allowedRewardTiers: ["B"],
+  }),
+  makeRosterCutNode({
+    id: "year-2-offseason-roster-cut",
+    floor: 26,
+    act: 2,
+    title: "Off-Season Roster Cut",
+    description: "Trim two players before the next season begins.",
+    rewardBundleId: "balanced-floor",
+    targetLabel: "Select 2 players to cut from your roster",
+  }),
+  makeBossNode(7, {
+    id: "year-2-opening-night",
+    floor: 27,
+    act: 2,
+    title: "Opening Night",
+    description: "Beat the Boston Celtics to kick off Year 2.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 5,
+    targetLabel: "Beat the Boston Celtics starting five",
+    battleMode: "starting-five-faceoff",
+    eliminationOnLoss: true,
+    opponentAverageOverall: 88,
+    opponentTeamName: "Boston Celtics",
+    allowedRewardTiers: ["B"],
+    unlocksBench: true,
+  }),
+  makeTrainingNode({
+    id: "year-2-in-season-training",
+    floor: 28,
+    act: 2,
+    title: "In-Season Training Camp",
+    description: "Keep one player climbing.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+  }),
+  makeChallengeNode({
+    id: "year-2-own-the-glass",
+    floor: 29,
+    act: 2,
     title: "Challenge 2: Own The Glass",
-    description: "Set your strongest rebounding lineup and prove this run can control possessions on the boards.",
-    rewardBundleId: "spacing-punch",
-    rewardChoices: 5,
-    targetLabel: "Reach 69 Rebounding with your starting five",
-    livesPenalty: 1,
-    checks: [{ metric: "rebounding", target: 69 }],
-  },
-  {
-    id: "trade-deadline-2",
-    floor: 9,
+    description: "Set your strongest rebounding starting five and control the boards.",
+    rewardBundleId: "frontcourt-pressure",
+    rewardChoices: 3,
+    targetLabel: "Reach 81 Rebounding with your starting five",
+    checks: [{ metric: "rebounding", target: 81 }],
+    allowedRewardTiers: ["B"],
+    clearRewardsOverride: { tokenReward: 30, prestigeXpAward: 5 },
+  }),
+  makeTradeNode({
+    id: "year-2-early-season-trade",
+    floor: 30,
     act: 2,
-    type: "trade",
-    title: "Trade Deadline 2",
-    description: "The market is moving again. Flip one player if you want a better fit, or stay disciplined and keep your current build together.",
-    rewardBundleId: "jumbo-wings",
+    title: "Early Season Trade",
+    description: "Optionally trade one player and replace them from a B-tier board.",
+    rewardBundleId: "elite-closers",
     rewardChoices: 5,
-    targetLabel: "Optionally trade 1 player, then draft 1 replacement from 5 options",
-  },
-  {
-    id: "scouting-burst",
-    floor: 10,
+    targetLabel: "Optionally trade 1 player, then draft 1 B-tier replacement",
+    allowedRewardTiers: ["B"],
+  }),
+  makeAddPositionNode({
+    id: "year-2-new-rotation-test",
+    floor: 31,
     act: 2,
-    type: "draft",
-    title: "Free Agency 1",
-    description: "A fresh scouting wave is in. Add one more player from a five-card board and keep shaping your rotation before the next boss.",
-    rewardBundleId: "spacing-punch",
+    title: "New Rotation Test",
+    description: "Add another natural position to one player.",
+    rewardBundleId: "balanced-floor",
+    targetLabel: "Choose 1 player and add 1 new natural position",
+  }),
+  makeAllStarNode({
+    id: "year-2-all-star-saturday",
+    floor: 32,
+    act: 2,
+    title: "All-Star Saturday",
+    description: "Send three players into the skills events for permanent Rogue boosts.",
+    rewardBundleId: "balanced-floor",
+    targetLabel: "Assign 1 player to each event and run All-Star Saturday",
+  }),
+  makeTrainingNode({
+    id: "year-2-in-season-training-2",
+    floor: 33,
+    act: 2,
+    title: "In-Season Training Camp",
+    description: "One more in-season improvement before the playoffs.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+  }),
+  makeBossNode(8, {
+    id: "year-2-playoffs-round-1",
+    floor: 34,
+    act: 2,
+    title: "NBA Playoffs Round 1",
+    description: "Beat your first-round opponent in Year 2.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 3,
+    targetLabel: "Beat your First Round Opponent",
+    battleMode: "starting-five-faceoff",
+    eliminationOnLoss: true,
+    opponentAverageOverall: 88,
+    opponentTeamName: "NBA Playoffs Round 1",
+    allowedRewardTiers: ["A"],
+  }),
+  makeTrainingNode({
+    id: "year-2-playoff-training",
+    floor: 35,
+    act: 2,
+    title: "Playoff Training Camp",
+    description: "Tune up one player for the next round.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+  }),
+  makeDraftNode({
+    id: "year-2-return-from-injury",
+    floor: 36,
+    act: 2,
+    title: "Return from Injury",
+    description: "Add one B-tier player from any era. If your roster is full, you'll need to drop someone after the pick.",
+    rewardBundleId: "elite-closers",
     rewardChoices: 5,
-  },
-  {
-    id: "act-two-boss",
-    floor: 11,
+    targetLabel: "Choose 1 of 5 B-tier players",
+    allowedRewardTiers: ["B"],
+  }),
+  makeBossNode(9, {
+    id: "year-2-conference-semifinals",
+    floor: 37,
     act: 2,
-    type: "boss",
-    title: "NBA Playoffs Round 2",
-    description: "Act II ends with a deeper, sharper boss team. Your starters need to be organized cleanly or this round will punish every weak matchup.",
-    rewardBundleId: "jumbo-wings",
-    rewardChoices: 0,
-    draftShuffleReward: 1,
-    targetLabel: "Beat the NBA Playoffs Round 2 starting five",
+    title: "NBA Playoffs: Conference Semifinals",
+    description: "Survive the Conference Semifinals faceoff in Year 2.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 3,
+    targetLabel: "Beat your Conference Semifinal Opponent",
     battleMode: "starting-five-faceoff",
     eliminationOnLoss: true,
     opponentAverageOverall: 89,
-    livesPenalty: 2,
-    opponentTeamName: "NBA Playoffs Round 2",
-  },
-  {
-    id: "training-day-3",
-    floor: 12,
-    act: 3,
-    type: "training",
-    title: "Training Camp: Day 3",
-    description: "Another player can be sharpened before the semifinal climb. Pick one member of your run roster to gain +1 OVR for the rest of the run.",
+    opponentTeamName: "Conference Semifinal Opponent",
+    allowedRewardTiers: ["A"],
+  }),
+  makeTrainingNode({
+    id: "year-2-playoff-training-2",
+    floor: 38,
+    act: 2,
+    title: "Playoff Training Camp - 2",
+    description: "Keep stacking improvements before the conference finals.",
     rewardBundleId: "elite-closers",
-    rewardChoices: 0,
     targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
-  },
-  {
-    id: "defense-travels",
-    floor: 13,
-    act: 3,
-    type: "challenge",
-    title: "Challenge 3: Defense Wins Championships",
-    description: "Set your best five-man defensive lineup and prove this run can survive a slower, more physical stage of the climb.",
-    rewardBundleId: "jumbo-wings",
-    rewardChoices: 5,
-    targetLabel: "Reach 80 Defense with your starting five",
-    livesPenalty: 1,
-    checks: [{ metric: "defense", target: 80 }],
-  },
-  {
-    id: "trade-deadline-3",
-    floor: 14,
-    act: 3,
-    type: "trade",
-    title: "Trade Deadline 3",
-    description: "You are close enough to the endgame that one calculated move can swing the whole run. Trade one player if you want another shot at fit.",
-    rewardBundleId: "spacing-punch",
-    rewardChoices: 5,
-    targetLabel: "Optionally trade 1 player, then draft 1 replacement from 5 options",
-  },
-  {
-    id: "evolution-chamber-1",
-    floor: 15,
-    act: 3,
-    type: "evolution",
-    title: "Evolution Chamber",
-    description: "If you drafted a lower-version player earlier in the run, you can now evolve one eligible player into their stronger version.",
+  }),
+  makeBossNode(10, {
+    id: "year-2-conference-finals",
+    floor: 39,
+    act: 2,
+    title: "NBA Playoffs: Conference Finals",
+    description: "Beat your Conference Finals opponent in Year 2.",
     rewardBundleId: "elite-closers",
-    rewardChoices: 0,
-    targetLabel: "Choose 1 eligible version player to evolve",
-  },
-  {
-    id: "draft-lab",
-    floor: 16,
-    act: 3,
-    type: "draft",
-    title: "Free Agency 2",
-    description: "A high-end free-agency window opens before the conference-finals fight. Choose 1 of 5 A-tier players or skip the pick entirely if your current roster already feels right.",
+    rewardChoices: 3,
+    targetLabel: "Beat your Conference Finals Opponent",
+    battleMode: "starting-five-faceoff",
+    eliminationOnLoss: true,
+    opponentAverageOverall: 90,
+    opponentTeamName: "Conference Finals Opponent",
+    allowedRewardTiers: ["A"],
+  }),
+  makeTrainingNode({
+    id: "year-2-playoff-training-3",
+    floor: 40,
+    act: 2,
+    title: "Playoff Training Camp - 3",
+    description: "Give one player a final Year 2 playoff lift.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+  }),
+  makeBossNode(11, {
+    id: "year-2-finals",
+    floor: 41,
+    act: 2,
+    title: "NBA Playoffs: Finals",
+    description: "Finish Year 2 by beating the Finals opponent.",
     rewardBundleId: "elite-closers",
     rewardChoices: 5,
-    targetLabel: "Choose 1 of 5 A-tier players, or skip the pick. If you add one, cut 1 player to make room.",
-  },
-  {
-    id: "act-three-boss",
-    floor: 17,
+    targetLabel: "Beat your Finals Opponent",
+    battleMode: "starting-five-faceoff",
+    eliminationOnLoss: true,
+    opponentAverageOverall: 86,
+    opponentTeamName: "Finals Opponent",
+    allowedRewardTiers: ["A"],
+  }),
+  makeDraftNode({
+    id: "year-3-free-agency",
+    floor: 42,
     act: 3,
-    type: "boss",
-    title: "NBA Conference Finals",
-    description: "This boss lineup is almost championship-level. Matchups matter more than ever, and sloppy slotting will cost you immediately.",
+    title: "Free Agency",
+    description: "Start Year 3 by adding one A-tier player from any era.",
     rewardBundleId: "elite-closers",
-    rewardChoices: 0,
-    draftShuffleReward: 2,
-    targetLabel: "Beat the NBA Playoffs Round 3 starting five",
+    rewardChoices: 5,
+    targetLabel: "Choose 1 of 5 A-tier players",
+    allowedRewardTiers: ["A"],
+  }),
+  makeTrainingNode({
+    id: "year-3-offseason-training",
+    floor: 43,
+    act: 3,
+    title: "Off-Season Training Camp",
+    description: "Put one player through a Year 3 offseason jump.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+  }),
+  makeTradeNode({
+    id: "year-3-offseason-trade",
+    floor: 44,
+    act: 3,
+    title: "Off-Season Trade",
+    description: "Optionally trade one player and replace them from an A-tier board.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 5,
+    targetLabel: "Optionally trade 1 player, then draft 1 A-tier replacement",
+    allowedRewardTiers: ["A"],
+  }),
+  makeRosterCutNode({
+    id: "year-3-offseason-roster-cut",
+    floor: 45,
+    act: 3,
+    title: "Off-Season Roster Cut",
+    description: "Cut two players before the final season opens.",
+    rewardBundleId: "balanced-floor",
+    targetLabel: "Select 2 players to cut from your roster",
+  }),
+  makeBossNode(12, {
+    id: "year-3-opening-night",
+    floor: 46,
+    act: 3,
+    title: "Opening Night",
+    description: "Beat the Boston Celtics to launch the final season.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 5,
+    targetLabel: "Beat the Boston Celtics starting five",
     battleMode: "starting-five-faceoff",
     eliminationOnLoss: true,
     opponentAverageOverall: 92,
-    livesPenalty: 2,
-    opponentTeamName: "NBA Playoffs Round 3",
-  },
-  {
-    id: "training-day-4",
-    floor: 18,
-    act: 4,
-    type: "training",
-    title: "Training Camp: Day 4",
-    description: "This is the last camp before the finals gauntlet. Choose one player to gain +1 OVR for the remainder of the run.",
+    opponentTeamName: "Boston Celtics",
+    allowedRewardTiers: ["A"],
+    unlocksBench: true,
+  }),
+  makeTrainingNode({
+    id: "year-3-in-season-training",
+    floor: 47,
+    act: 3,
+    title: "In-Season Training Camp",
+    description: "Train one player during the final season.",
     rewardBundleId: "elite-closers",
-    rewardChoices: 0,
     targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
-  },
-  {
-    id: "burn-the-nets",
-    floor: 19,
-    act: 4,
-    type: "challenge",
-    title: "Challenge 4: Burn The Nets",
-    description: "Your team should score like a contender now. Arrange the best offensive starting five you can and clear one last threshold before the title rounds.",
-    rewardBundleId: "synergy-hunters",
-    rewardChoices: 5,
-    targetLabel: "Reach 91 Offense with your starting five",
-    livesPenalty: 1,
-    checks: [{ metric: "offense", target: 91 }],
-  },
-  {
-    id: "trade-deadline-4",
-    floor: 20,
-    act: 4,
-    type: "trade",
-    title: "Trade Deadline 4",
-    description: "One final chance to reshape the roster before the title rounds. Cash in a player only if the replacement upside is worth the risk.",
-    rewardBundleId: "elite-closers",
-    rewardChoices: 5,
-    targetLabel: "Optionally trade 1 player, then draft 1 replacement from 5 options",
-  },
-  {
-    id: "evolution-chamber-2",
-    floor: 21,
-    act: 4,
-    type: "evolution",
-    title: "Evolution Chamber 2",
-    description: "A second evolution station opens. Upgrade one eligible version player into their stronger form before the final rounds.",
-    rewardBundleId: "elite-closers",
-    rewardChoices: 0,
-    targetLabel: "Choose 1 eligible version player to evolve",
-  },
-  {
-    id: "win-or-lose-as-team",
-    floor: 22,
-    act: 4,
-    type: "challenge",
-    title: "Challenge 5: Win or Lose as a Team",
-    description: "This late run check is all about cohesion. Set a starting five with enough chemistry to prove the roster can function like a real contender under pressure.",
+  }),
+  makeChallengeNode({
+    id: "year-3-chemistry-is-key",
+    floor: 48,
+    act: 3,
+    title: "Challenge 3: Chemistry is Key",
+    description: "Set your best chemistry lineup and prove this roster can function like a champion.",
     rewardBundleId: "elite-closers",
     rewardChoices: 5,
     targetLabel: "Reach 85 Chemistry with your starting five",
-    livesPenalty: 1,
     checks: [{ metric: "chemistry", target: 85 }],
-  },
-  {
-    id: "film-room",
-    floor: 23,
-    act: 4,
-    type: "draft",
-    title: "Free Agency 3",
-    description: "A final scouting board appears with polished veterans and playoff fits. Add one more card if your roster still has room to improve.",
+    allowedRewardTiers: ["A"],
+    clearRewardsOverride: { tokenReward: 60, prestigeXpAward: 7 },
+  }),
+  makeTradeNode({
+    id: "year-3-early-season-trade",
+    floor: 49,
+    act: 3,
+    title: "Early Season Trade",
+    description: "Optionally trade one player and replace them from an A-tier board.",
     rewardBundleId: "elite-closers",
     rewardChoices: 5,
-  },
-  {
-    id: "act-four-boss",
-    floor: 24,
-    act: 4,
-    type: "boss",
-    title: "NBA Finals",
-    description: "One last randomly generated title-round boss stands in front of the true final battle. Beat them to reach the all-time closing lineup.",
+    targetLabel: "Optionally trade 1 player, then draft 1 A-tier replacement",
+    allowedRewardTiers: ["A"],
+  }),
+  makeAddPositionNode({
+    id: "year-3-new-rotation-test",
+    floor: 50,
+    act: 3,
+    title: "New Rotation Test",
+    description: "Add one last natural position to stretch your lineup options.",
+    rewardBundleId: "balanced-floor",
+    targetLabel: "Choose 1 player and add 1 new natural position",
+  }),
+  makeAllStarNode({
+    id: "year-3-all-star-saturday",
+    floor: 51,
+    act: 3,
+    title: "All-Star Saturday",
+    description: "Send three players into the skills events for final Rogue stat boosts.",
+    rewardBundleId: "balanced-floor",
+    targetLabel: "Assign 1 player to each event and run All-Star Saturday",
+  }),
+  makeTrainingNode({
+    id: "year-3-in-season-training-2",
+    floor: 52,
+    act: 3,
+    title: "In-Season Training Camp",
+    description: "One more in-season boost before the final playoffs.",
     rewardBundleId: "elite-closers",
-    rewardChoices: 0,
-    draftShuffleReward: 2,
-    targetLabel: "Beat the NBA Finals starting five",
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+  }),
+  makeBossNode(13, {
+    id: "year-3-playoffs-round-1",
+    floor: 53,
+    act: 3,
+    title: "NBA Playoffs Round 1",
+    description: "Beat your first-round opponent in the final season.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 3,
+    targetLabel: "Beat your First Round Opponent",
+    battleMode: "starting-five-faceoff",
+    eliminationOnLoss: true,
+    opponentAverageOverall: 93,
+    opponentTeamName: "NBA Playoffs Round 1",
+    allowedRewardTiers: ["S"],
+  }),
+  makeTrainingNode({
+    id: "year-3-playoff-training",
+    floor: 54,
+    act: 3,
+    title: "Playoff Training Camp",
+    description: "Keep one player climbing through the last postseason.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+  }),
+  makeDraftNode({
+    id: "year-3-return-from-injury",
+    floor: 55,
+    act: 3,
+    title: "Return from Injury",
+    description: "Add one A-tier player from any era. If your roster is full, you'll need to drop someone after the pick.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 5,
+    targetLabel: "Choose 1 of 5 A-tier players",
+    allowedRewardTiers: ["A"],
+  }),
+  makeBossNode(14, {
+    id: "year-3-conference-semifinals",
+    floor: 56,
+    act: 3,
+    title: "NBA Playoffs: Conference Semifinals",
+    description: "Beat your Conference Semifinal opponent in the final season.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 3,
+    targetLabel: "Beat your Conference Semifinal Opponent",
+    battleMode: "starting-five-faceoff",
+    eliminationOnLoss: true,
+    opponentAverageOverall: 94,
+    opponentTeamName: "Conference Semifinal Opponent",
+    allowedRewardTiers: ["S"],
+  }),
+  makeTrainingNode({
+    id: "year-3-playoff-training-2",
+    floor: 57,
+    act: 3,
+    title: "Playoff Training Camp - 2",
+    description: "Take one player through one more playoff jump.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+  }),
+  makeBossNode(15, {
+    id: "year-3-conference-finals",
+    floor: 58,
+    act: 3,
+    title: "NBA Playoffs: Conference Finals",
+    description: "Win the last Conference Finals faceoff of the run.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 3,
+    targetLabel: "Beat your Conference Finals Opponent",
     battleMode: "starting-five-faceoff",
     eliminationOnLoss: true,
     opponentAverageOverall: 95,
-    livesPenalty: 2,
-    opponentTeamName: "NBA Finals",
-  },
-  {
-    id: "hall-of-fame-finals",
-    floor: 25,
-    act: 4,
-    type: "boss",
-    title: "Hall of Fame Finals",
-    description: "The final challenge is a legendary closing five. This is the last node in the run, and only a fully built team should survive it.",
+    opponentTeamName: "Conference Finals Opponent",
+    allowedRewardTiers: ["S"],
+  }),
+  makeTrainingNode({
+    id: "year-3-playoff-training-3",
+    floor: 59,
+    act: 3,
+    title: "Playoff Training Camp - 3",
+    description: "One last playoff tune-up before the championship fight.",
     rewardBundleId: "elite-closers",
-    rewardChoices: 0,
-    targetLabel: "Beat the Hall of Fame Finals starting five",
+    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+  }),
+  makeBossNode(16, {
+    id: "year-3-finals",
+    floor: 60,
+    act: 3,
+    title: "NBA Playoffs: Finals",
+    description: "Beat your Finals opponent and earn the final pre-GOAT reward board.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 5,
+    targetLabel: "Beat your Finals Opponent",
     battleMode: "starting-five-faceoff",
     eliminationOnLoss: true,
-    livesPenalty: 3,
-    opponentTeamName: "Hall of Fame Finals",
+    opponentAverageOverall: 86,
+    opponentTeamName: "Finals Opponent",
+    allowedRewardTiers: ["S"],
+  }),
+  {
+    id: "the-goats",
+    floor: 61,
+    act: 3,
+    type: "boss",
+    title: "The G.O.A.T.s",
+    description: "Beat the GOATs to finish the full three-year Rogue run.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 0,
+    targetLabel: "Beat the GOATs starting five",
+    battleMode: "starting-five-faceoff",
+    eliminationOnLoss: true,
+    opponentAverageOverall: 98,
+    opponentTeamName: "The G.O.A.T.s",
     opponentStarterPlayerIds: [
       "lebron-james-14-18",
       "michael-jordan",
@@ -532,6 +998,10 @@ export const roguelikeNodes: RoguelikeNode[] = [
       "tim-duncan",
       "kareem-abdul-jabbar-bucks",
     ],
+    clearRewardsOverride: {
+      tokenReward: 500,
+      prestigeXpAward: 100,
+    },
   },
 ];
 
@@ -556,7 +1026,7 @@ export const getRoguelikeEvolutionRewardPool = () => {
       const lowestVersion = sortedVersions[0];
       const highestOverall = sortedVersions[sortedVersions.length - 1]?.overall ?? lowestVersion.overall;
       if (lowestVersion.overall >= highestOverall) return [];
-      return lowestVersion.hallOfFameTier === "B" ? [lowestVersion] : [];
+      return getPlayerTier(lowestVersion) === "B" ? [lowestVersion] : [];
     })
     .sort((a, b) => b.overall - a.overall || a.name.localeCompare(b.name));
 };
@@ -612,20 +1082,20 @@ const uniqueByIdentity = (players: Player[]) => {
 const starterPackageCandidates: Record<RoguelikeStarterPackageId, Player[]> = {
   "balanced-foundation": uniqueByIdentity(
     rankPlayers((player) => {
-      if (player.hallOfFameTier === "S") return -1;
+      if (getPlayerTier(player) === "S") return -1;
       return player.overall * 0.75 + player.offense * 0.12 + player.defense * 0.13;
     }, 30),
   ),
   "defense-lab": uniqueByIdentity(
     rankPlayers((player) => {
-      if (player.hallOfFameTier === "S") return -1;
+      if (getPlayerTier(player) === "S") return -1;
       if (player.defense < 82) return -1;
       return player.defense * 1.45 + player.rebounding * 0.3 + player.overall * 0.45;
     }, 30),
   ),
   "creator-camp": uniqueByIdentity(
     rankPlayers((player) => {
-      if (player.hallOfFameTier === "S") return -1;
+      if (getPlayerTier(player) === "S") return -1;
       if (player.playmaking < 80) return -1;
       return player.playmaking * 1.45 + player.offense * 0.5 + player.shooting * 0.25;
     }, 30),
@@ -635,7 +1105,7 @@ const starterPackageCandidates: Record<RoguelikeStarterPackageId, Player[]> = {
 const bundleCandidates: Record<RoguelikeBundleId, Player[]> = {
   "balanced-floor": uniqueByIdentity(
     rankPlayers((player) => {
-      if (player.hallOfFameTier === "S") return -1;
+      if (getPlayerTier(player) === "S") return -1;
       return player.overall * 0.8 + player.defense * 0.15 + player.offense * 0.15;
     }, 24),
   ),
@@ -666,12 +1136,58 @@ const bundleCandidates: Record<RoguelikeBundleId, Player[]> = {
   ),
 };
 
-export const buildStarterPool = (packageId: RoguelikeStarterPackageId) =>
-  [...starterPackageCandidates[packageId]];
+const getStarterPoolCandidates = (
+  packageId: RoguelikeStarterPackageId,
+  sourcePlayers: Player[],
+) => {
+  const rankCurrentPool = (scorer: (player: Player) => number, limit: number) =>
+    uniqueByIdentity(
+      [...sourcePlayers]
+        .map((player) => ({ player, score: scorer(player) }))
+        .filter((entry) => Number.isFinite(entry.score) && entry.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit)
+        .map((entry) => entry.player),
+    );
+
+  if (packageId === "balanced-foundation") {
+    return rankCurrentPool((player) => {
+      if (getPlayerTier(player) === "S") return -1;
+      return player.overall * 0.75 + player.offense * 0.12 + player.defense * 0.13;
+    }, 30);
+  }
+
+  if (packageId === "defense-lab") {
+    return rankCurrentPool((player) => {
+      if (getPlayerTier(player) === "S") return -1;
+      if (player.defense < 82) return -1;
+      return player.defense * 1.45 + player.rebounding * 0.3 + player.overall * 0.45;
+    }, 30);
+  }
+
+  return rankCurrentPool((player) => {
+    if (getPlayerTier(player) === "S") return -1;
+    if (player.playmaking < 80) return -1;
+    return player.playmaking * 1.45 + player.offense * 0.5 + player.shooting * 0.25;
+  }, 30);
+};
+
+export const buildStarterPool = (
+  packageId: RoguelikeStarterPackageId,
+  sourcePlayers: Player[] = allPlayers,
+) =>
+  sourcePlayers === allPlayers
+    ? [...starterPackageCandidates[packageId]]
+    : getStarterPoolCandidates(packageId, sourcePlayers);
 
 export const buildOpeningDraftPool = () =>
   uniqueByIdentity(
-    allPlayers.filter((player) => player.hallOfFameTier === "B" || player.hallOfFameTier === "C"),
+    allPlayers.filter(
+      (player) => {
+        const tier = getPlayerTier(player);
+        return tier === "D" || tier === "C" || tier === "B";
+      },
+    ),
   );
 
 const starterRevealSlots = [
@@ -705,56 +1221,74 @@ const canFillStarterRevealSlot = (player: Player, slotPositions: readonly string
 export const drawRoguelikeStarterRevealPlayers = (
   packageId: RoguelikeStarterPackageId,
   seed: number,
-  targetAverageOverall = 83,
+  targetAverageOverall = 80,
+  candidatePool: Player[] = allPlayers,
 ) => {
   const rng = mulberry32(seed);
-  const minimumOverall = Math.max(80, targetAverageOverall - 1);
-  const maximumOverall = Math.min(99, targetAverageOverall + 1);
+  const minimumOverall = Math.max(60, targetAverageOverall - 5);
+  const maximumOverall = Math.min(99, targetAverageOverall + 5);
   const targetTotalOverall = targetAverageOverall * starterRevealSlots.length;
   const eligible = uniqueByIdentity(
-    allPlayers.filter((player) => player.hallOfFameTier === "B" || player.hallOfFameTier === "C"),
+    candidatePool.filter((player) => {
+      const tier = getPlayerTier(player);
+      return tier === "C" || tier === "D";
+    }),
   );
   const selectedIds = new Set<string>();
-  const slotCandidatePools = starterRevealSlots.map((slotPositions) =>
-    eligible
-      .filter((player) => canFillStarterRevealSlot(player, slotPositions))
-      .filter((player) => player.overall >= minimumOverall && player.overall <= maximumOverall)
-      .sort((a, b) => scoreStarterRevealPlayer(b, packageId) - scoreStarterRevealPlayer(a, packageId))
-      .slice(0, 24),
-  );
-  const validSelections: Player[][] = [];
-  const currentSelection: Player[] = [];
+  const buildSlotCandidatePools = (maxCandidatesPerSlot?: number) =>
+    starterRevealSlots.map((slotPositions) => {
+      const pool = eligible
+        .filter((player) => canFillStarterRevealSlot(player, slotPositions))
+        .filter((player) => player.overall >= minimumOverall && player.overall <= maximumOverall)
+        .sort((a, b) => scoreStarterRevealPlayer(b, packageId) - scoreStarterRevealPlayer(a, packageId));
 
-  const search = (slotIndex: number, totalOverall: number) => {
-    if (slotIndex === slotCandidatePools.length) {
-      if (totalOverall === targetTotalOverall) {
-        validSelections.push([...currentSelection]);
-      }
-      return;
-    }
+      return typeof maxCandidatesPerSlot === "number" ? pool.slice(0, maxCandidatesPerSlot) : pool;
+    });
 
-    const remainingSlots = slotCandidatePools.length - slotIndex - 1;
-    const candidates = slotCandidatePools[slotIndex] ?? [];
+  const findValidSelections = (slotCandidatePools: Player[][]) => {
+    const validSelections: Player[][] = [];
+    const currentSelection: Player[] = [];
+    selectedIds.clear();
 
-    for (const candidate of candidates) {
-      if (selectedIds.has(candidate.id)) continue;
-
-      const nextTotal = totalOverall + candidate.overall;
-      const minPossible = nextTotal + remainingSlots * minimumOverall;
-      const maxPossible = nextTotal + remainingSlots * maximumOverall;
-      if (minPossible > targetTotalOverall || maxPossible < targetTotalOverall) {
-        continue;
+    const search = (slotIndex: number, totalOverall: number) => {
+      if (slotIndex === slotCandidatePools.length) {
+        if (totalOverall === targetTotalOverall) {
+          validSelections.push([...currentSelection]);
+        }
+        return;
       }
 
-      currentSelection.push(candidate);
-      selectedIds.add(candidate.id);
-      search(slotIndex + 1, nextTotal);
-      currentSelection.pop();
-      selectedIds.delete(candidate.id);
-    }
+      const remainingSlots = slotCandidatePools.length - slotIndex - 1;
+      const candidates = slotCandidatePools[slotIndex] ?? [];
+
+      for (const candidate of candidates) {
+        if (selectedIds.has(candidate.id)) continue;
+
+        const nextTotal = totalOverall + candidate.overall;
+        const minPossible = nextTotal + remainingSlots * minimumOverall;
+        const maxPossible = nextTotal + remainingSlots * maximumOverall;
+        if (minPossible > targetTotalOverall || maxPossible < targetTotalOverall) {
+          continue;
+        }
+
+        currentSelection.push(candidate);
+        selectedIds.add(candidate.id);
+        search(slotIndex + 1, nextTotal);
+        currentSelection.pop();
+        selectedIds.delete(candidate.id);
+      }
+    };
+
+    search(0, 0);
+    return validSelections;
   };
 
-  search(0, 0);
+  const preferredSlotCandidatePools = buildSlotCandidatePools(24);
+  let validSelections = findValidSelections(preferredSlotCandidatePools);
+
+  if (validSelections.length === 0) {
+    validSelections = findValidSelections(buildSlotCandidatePools());
+  }
 
   if (validSelections.length > 0) {
     const selectedIndex = Math.floor(rng() * validSelections.length);
@@ -763,7 +1297,7 @@ export const drawRoguelikeStarterRevealPlayers = (
 
   const selected: Player[] = [];
   selectedIds.clear();
-  slotCandidatePools.forEach((candidates) => {
+  preferredSlotCandidatePools.forEach((candidates) => {
     const fallback = candidates.find((player) => !selectedIds.has(player.id));
     if (!fallback) return;
     selected.push(fallback);
@@ -799,6 +1333,7 @@ export const drawRoguelikeChoices = (
   seed: number,
   allowedTiers?: PlayerTier[],
   blockedPlayerIds: string[] = [],
+  fallbackPool: Player[] = allPlayers,
 ) => {
   const rng = mulberry32(seed);
   const rosterIdentities = new Set(roster.map(getPlayerIdentityKey));
@@ -810,7 +1345,7 @@ export const drawRoguelikeChoices = (
       if (rosterIdentities.has(identity)) return false;
       if (blockedIds.has(player.id)) return false;
       if (seenIds.has(player.id)) return false;
-      if (enforceTiers && allowedTiers && !allowedTiers.includes(player.hallOfFameTier)) return false;
+      if (enforceTiers && allowedTiers && !allowedTiers.includes(getPlayerTier(player))) return false;
       seenIds.add(player.id);
       return true;
     });
@@ -818,12 +1353,12 @@ export const drawRoguelikeChoices = (
   const candidates = collectCandidates(pool, true);
 
   if (candidates.length < count && allowedTiers) {
-    candidates.push(...collectCandidates(allPlayers, true));
+    candidates.push(...collectCandidates(fallbackPool, true));
   }
 
   if (candidates.length < count && !allowedTiers) {
     candidates.push(...collectCandidates(pool, false));
-    candidates.push(...collectCandidates(allPlayers, false));
+    candidates.push(...collectCandidates(fallbackPool, false));
   }
 
   const shuffled = [...candidates];
@@ -1251,10 +1786,11 @@ const buildExactPositionCandidateMap = (
   blockedIdentities: Set<string>,
   rng: () => number,
   targetAverageOverall = DEFAULT_FACEOFF_TARGET_AVERAGE,
+  candidatePool: Player[] = allPlayers,
 ) =>
   STARTING_FIVE_POSITIONS.reduce((accumulator, position) => {
     const allExactPositionPlayers = uniqueByIdentity(
-      allPlayers.filter((player) => {
+      candidatePool.filter((player) => {
         if (player.primaryPosition !== position) return false;
         return !blockedIdentities.has(getPlayerIdentityKey(player));
       }),
@@ -1277,10 +1813,16 @@ export const generateFaceoffOpponentPlayerIds = (
   roster: Player[],
   seed: number,
   targetAverageOverall = DEFAULT_FACEOFF_TARGET_AVERAGE,
+  candidatePool: Player[] = allPlayers,
 ) => {
   const rng = mulberry32(seed);
   const blockedIdentities = new Set(roster.map(getPlayerIdentityKey));
-  const candidatesByPosition = buildExactPositionCandidateMap(blockedIdentities, rng, targetAverageOverall);
+  const candidatesByPosition = buildExactPositionCandidateMap(
+    blockedIdentities,
+    rng,
+    targetAverageOverall,
+    candidatePool,
+  );
   const selected: Player[] = [];
   const usedIdentities = new Set<string>();
   const targetTotalOverall = targetAverageOverall * STARTING_FIVE_POSITIONS.length;

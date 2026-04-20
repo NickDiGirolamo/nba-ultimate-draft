@@ -12,7 +12,7 @@ export type RosterSlotType =
   | "UTIL"
   | "UTIL";
 
-export type PlayerTier = "S" | "A" | "B" | "C";
+export type PlayerTier = "S" | "A" | "B" | "C" | "D";
 
 export type Screen = "landing" | "briefing" | "draft" | "lineup" | "simulating" | "results";
 export type SimulationMode = "season" | "category-focus";

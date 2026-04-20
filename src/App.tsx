@@ -68,6 +68,7 @@ function App() {
     applyRunPreset,
     beginDraftFromBriefing,
     awardRogueFailureRewards,
+    updateRoguePersonalBests,
     purchaseTrainingCampTicket,
     purchaseTradePhone,
     purchaseSilverStarterPack,
@@ -351,6 +352,7 @@ function App() {
             ownedGoldStarterPacks={state.ownedGoldStarterPacks}
             ownedPlatinumStarterPacks={state.ownedPlatinumStarterPacks}
             onAwardFailureRewards={awardRogueFailureRewards}
+            onUpdatePersonalBests={updateRoguePersonalBests}
             onUseTrainingCampTicket={useTrainingCampTicket}
             onUseTradePhone={useTradePhone}
             onUseSilverStarterPack={useSilverStarterPack}
