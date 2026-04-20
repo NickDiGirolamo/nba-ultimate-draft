@@ -1446,6 +1446,70 @@ export const RoguelikeMode = ({
     const currentNode = roguelikeNodes[run.floorIndex] ?? null;
     if (!currentNode) return;
 
+    if (run.activeNode?.id === currentNode.id) {
+      if (run.pendingRewardPlayer) {
+        setRun({
+          ...run,
+          stage: "reward-replace-select",
+        });
+        return;
+      }
+
+      if (run.choices.length > 0) {
+        setRun({
+          ...run,
+          stage: run.initialPicks === 0 ? "initial-draft" : "reward-draft",
+        });
+        return;
+      }
+
+      if (currentNode.type === "training") {
+        setRun({ ...run, stage: "training-select" });
+        return;
+      }
+
+      if (currentNode.type === "add-position") {
+        setRun({ ...run, stage: "add-position-select" });
+        return;
+      }
+
+      if (currentNode.type === "all-star") {
+        setRun({ ...run, stage: "all-star-select" });
+        return;
+      }
+
+      if (currentNode.type === "roster-cut") {
+        setRun({ ...run, stage: "roster-cut-select" });
+        return;
+      }
+
+      if (currentNode.type === "trade") {
+        setRun({ ...run, stage: "trade-offer" });
+        return;
+      }
+
+      if (currentNode.type === "evolution") {
+        setRun({ ...run, stage: "evolution-select" });
+        return;
+      }
+
+      if (currentNode.type === "challenge") {
+        setRun({ ...run, stage: "challenge-setup" });
+        return;
+      }
+
+      if (currentNode.battleMode === "starting-five-faceoff") {
+        const hydratedRun = getHydratedRun(run);
+        setRun({
+          ...run,
+          roster: hydratedRun.roster,
+          lineup: hydratedRun.lineup,
+          stage: "faceoff-setup",
+        });
+        return;
+      }
+    }
+
     if (currentNode.type === "draft") {
       const bundle = getBundle(currentNode.rewardBundleId);
       const nextRun =
@@ -2909,10 +2973,6 @@ export const RoguelikeMode = ({
     setRun({
       ...run,
       stage: "ladder-overview",
-      activeNode: null,
-      activeOpponentPlayerIds: null,
-      nodeResult: null,
-      pendingRewardPlayer: null,
       selectedCutPlayerIds: [],
       selectedNaturalPositionPlayerId: null,
       selectedNaturalPosition: null,

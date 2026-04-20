@@ -24,7 +24,6 @@ const wikiTitleOverrides: Record<string, string> = {
   "lebron-james-03-10": "LeBron_James",
   "lebron-james-heat": "LeBron_James",
   "lebron-james-14-18": "LeBron_James",
-  "lebron-james-lakers": "LeBron_James",
   "luka-doncic": "Luka_Don%C4%8Di%C4%87",
   "luka-doncic-mavericks": "Luka_Don%C4%8Di%C4%87",
   "pascal-siakam": "Pascal_Siakam",
@@ -62,8 +61,6 @@ const directImageOverrides: Record<string, string> = {
     "https://cdn.forumcomm.com/dims4/default/f093fbe/2147483647/strip/true/crop/4243x2829+0+78/resize/840x560!/quality/90/?url=https%3A%2F%2Ffcc-cue-exports-brightspot.s3.us-west-2.amazonaws.com%2Fduluthnewstribune%2Fbinary%2Fcopy%2F83%2F02%2F1ea484ecdcfcdcf43edcb4841755%2F930825-lebronjames0625-binary-1587828.jpg",
   "lebron-james-14-18":
     "https://videos.usatoday.net/Brightcove2/29906170001/2015/06/29906170001_4282564439001_USATSI-8601943.jpg?pubId=29906170001",
-  "lebron-james-lakers":
-    "https://upload.wikimedia.org/wikipedia/commons/7/7a/LeBron_James_%2851959977144%29_%28cropped2%29.jpg",
   "dwayne-wade-03-10":
     "https://64.media.tumblr.com/f6d35d71ea04dfd298926ad166aa1ec2/tumblr_q65qyn6DxT1uf9qj8o1_1280.jpg",
   "kareem-abdul-jabbar-bucks":
@@ -276,8 +273,6 @@ const directImageOverrides: Record<string, string> = {
     "https://legacymedia.sportsplatform.io/image/upload/v1733625555/ecaf3qwgo1vbermrwtoh.jpg",
   "vince-carter-raptors":
     "https://slamonline.com/wp-content/uploads/2014/07/vince_1.jpg",
-  "victor-wembanyama":
-    "https://media-cldnry.s-nbcnews.com/image/upload/t_fit-760w,f_auto,q_auto:best/rockcms/2024-06/240627-Victor-Wembanyama-se-343p-2b5ced.jpg",
   "vlade-divac":
     "https://www.usatoday.com/gcdn/-mm-/b994c4db0d3ad6e1dd59bd1cbe0b122ac2f1694c/c=50-69-1108-1480/local/-/media/2015/03/03/USATODAY/USATODAY/635609924377957622-XXX-SUNS-KINGS-1316381.JPG?width=660&height=881&fit=crop&format=pjpg&auto=webp",
   "wilt-chamberlain":
@@ -381,7 +376,7 @@ const directImageOverrides: Record<string, string> = {
   "anthony-davis-pelicans":
     "https://www.usatoday.com/gcdn/presto/2019/01/25/USAT/8face4bf-fda9-4585-8fce-19d456e2fe5d-2019-01-24_Anthony_Davis1.jpg?crop=1744,2326,x365,y211",
   "anthony-davis-lakers":
-    "https://www.usatoday.com/gcdn/presto/2019/01/25/USAT/8face4bf-fda9-4585-8fce-19d456e2fe5d-2019-01-24_Anthony_Davis1.jpg?crop=1744,2326,x365,y211",
+    "https://www.ocregister.com/wp-content/uploads/2023/05/imageedit_12_9055589-16x9-1.jpg?w=1800&resize=1800,1800",
   "anthony-edwards":
     "https://cdn.nba.com/teams/uploads/sites/1610612750/2025/01/GettyImages-2155325565.jpg",
   "artis-gilmore":
@@ -428,8 +423,6 @@ const directImageOverrides: Record<string, string> = {
     "https://i.ebayimg.com/images/g/K9IAAOSwH-9emMX0/s-l1200.jpg",
   "sam-cassell":
     "https://cdn3.sbnation.com/imported_assets/590084/51824836.jpg.13789.0_display_image.jpg",
-  "shai-gilgeous-alexander":
-    "https://cdn.prod.website-files.com/64da5279f1559b26fb07550e/6834c822e2ddaf129383c171_Best%20Shai%20Gilgeous-Alexander%20Pick%20for%20Timberwolves%20vs.%20Thunder%20Game%204.jpg",
   "shawn-marion":
     "https://cdn.nba.com/teams/legacy/www.nba.com/suns/sites/suns/files/shawn_marion_retires_35.jpg",
   "scottie-pippen":
