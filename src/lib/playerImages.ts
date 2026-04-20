@@ -174,8 +174,6 @@ const directImageOverrides: Record<string, string> = {
     "https://pbs.twimg.com/media/FBmMlNuWUAMFF-T.jpg",
   "karl-malone":
     "https://i.pinimg.com/736x/73/d9/68/73d968077baa340b28ac64d2e9054b84.jpg",
-  "karl-anthony-towns":
-    "https://library.sportingnews.com/styles/crop_style_16_9_desktop_webp/s3/2025-11/USATSI_27497309.jpg.webp?itok=NN6B__v3",
   "john-stockton":
     "https://static.wikia.nocookie.net/nba/images/9/99/John_Stockton.jpg/revision/latest?cb=20110427165243",
   "john-starks":
