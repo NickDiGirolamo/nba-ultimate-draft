@@ -53,6 +53,9 @@ export const tokenStoreUtilityItems: TokenStoreUtilityItem[] = [
 ];
 
 const roundToNearestThousand = (value: number) => Math.round(value / 1_000) * 1_000;
+const TOKEN_STORE_S_TIER_PRICE_FLOOR = 600_000;
+const TOKEN_STORE_S_TIER_PRICE_CEILING = 950_000;
+const TOKEN_STORE_MICHAEL_JORDAN_PRICE = 1_000_000;
 
 export const getTokenStoreSPlayers = () =>
   allPlayers
@@ -71,23 +74,25 @@ export const getTokenStorePlayerPriceMap = () => {
 
   sTierPlayers.forEach((player, index) => {
     if (player.name === "Michael Jordan") {
-      priceMap.set(player.id, 1_000_000);
+      priceMap.set(player.id, TOKEN_STORE_MICHAEL_JORDAN_PRICE);
       return;
     }
 
     const nonJordanIndex = nonJordanPlayers.findIndex((candidate) => candidate.id === player.id);
     const normalized = 1 - nonJordanIndex / lastIndex;
-    const computedPrice = 100_000 + normalized * 850_000;
+    const computedPrice =
+      TOKEN_STORE_S_TIER_PRICE_FLOOR +
+      normalized * (TOKEN_STORE_S_TIER_PRICE_CEILING - TOKEN_STORE_S_TIER_PRICE_FLOOR);
     priceMap.set(player.id, roundToNearestThousand(computedPrice));
   });
 
   const cheapestPlayer = nonJordanPlayers[nonJordanPlayers.length - 1];
   if (cheapestPlayer) {
-    priceMap.set(cheapestPlayer.id, 100_000);
+    priceMap.set(cheapestPlayer.id, TOKEN_STORE_S_TIER_PRICE_FLOOR);
   }
 
   return priceMap;
 };
 
 export const getTokenStorePlayerPrice = (player: Player, priceMap = getTokenStorePlayerPriceMap()) =>
-  priceMap.get(player.id) ?? 100_000;
+  priceMap.get(player.id) ?? TOKEN_STORE_S_TIER_PRICE_FLOOR;

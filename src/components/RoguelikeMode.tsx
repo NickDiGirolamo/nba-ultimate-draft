@@ -111,6 +111,7 @@ interface RoguelikeRun {
   pendingRewardPlayer?: Player | null;
   pendingTradeState?: {
     outgoingPlayerId: string;
+    outgoingPlayerOverall: number;
     originalRoster: Player[];
     originalLineup: RosterSlot[];
   } | null;
@@ -294,15 +295,15 @@ const LOCKER_ROOM_NEW_POSITION_NODE: RoguelikeNode = {
 };
 
 const LOCKER_ROOM_ITEM_PRICES: Record<LockerRoomItemId, number> = {
-  "advanced-scouting": 12,
-  "draft-shuffle-ticket": 18,
-  "training-camp-ticket": 16,
-  "practice-shooting": 14,
-  "practice-rebounding": 14,
-  "practice-defense": 14,
-  "practice-playmaking": 14,
-  "practice-offense": 14,
-  "new-position-training": 20,
+  "advanced-scouting": 24,
+  "draft-shuffle-ticket": 30,
+  "training-camp-ticket": 42,
+  "practice-shooting": 22,
+  "practice-rebounding": 22,
+  "practice-defense": 22,
+  "practice-playmaking": 22,
+  "practice-offense": 22,
+  "new-position-training": 34,
 };
 
 const LOCKER_ROOM_SELECTION_NODE_IDS = new Set<string>([
@@ -619,12 +620,20 @@ const getNodePlayerPool = (node: RoguelikeNode | null, pool: Player[]) => {
   });
 };
 
-const getSimilarCaliberTradePool = (node: RoguelikeNode | null, pool: Player[], tradedOverall: number) => {
+const getSimilarCaliberTradePool = (
+  node: RoguelikeNode | null,
+  pool: Player[],
+  tradedOverall: number,
+  outgoingPlayerId?: string | null,
+) => {
   const minimumOverall = tradedOverall - 1;
   const maximumOverall = tradedOverall + 1;
 
   return getNodePlayerPool(node, pool).filter(
-    (candidate) => candidate.overall >= minimumOverall && candidate.overall <= maximumOverall,
+    (candidate) =>
+      candidate.id !== outgoingPlayerId &&
+      candidate.overall >= minimumOverall &&
+      candidate.overall <= maximumOverall,
   );
 };
 
@@ -1400,7 +1409,7 @@ const StarterRevealCard = ({
       type="button"
       onClick={onReveal}
       disabled={revealed}
-      className="group relative h-[420px] overflow-hidden rounded-[28px] border border-white/12 bg-[linear-gradient(180deg,rgba(8,12,20,0.94),rgba(16,24,36,0.96))] text-left transition duration-300 hover:-translate-y-1 hover:border-amber-200/24"
+      className="group relative h-[452px] overflow-hidden rounded-[28px] border border-white/12 bg-[linear-gradient(180deg,rgba(8,12,20,0.94),rgba(16,24,36,0.96))] text-left transition duration-300 hover:-translate-y-1 hover:border-amber-200/24"
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_35%)]" />
       <div className="relative flex h-full flex-col justify-between p-6">
@@ -1444,7 +1453,7 @@ const StarterRevealCard = ({
               <div className="relative [backface-visibility:hidden] [transform:rotateY(180deg)]">
                 <div className="relative flex h-full flex-col">
                   <div className="overflow-hidden rounded-[26px] border border-white/12 bg-black/18">
-                    <div className="h-[240px] overflow-hidden rounded-[24px]">
+                    <div className="h-[236px] overflow-hidden rounded-[24px]">
                       {imageUrl ? (
                         <img
                           src={imageUrl}
@@ -1460,12 +1469,16 @@ const StarterRevealCard = ({
                       )}
                     </div>
                   </div>
-                  <div className="mt-5 font-display text-3xl leading-tight text-white">
-                    <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{firstNameLine}</div>
-                    <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{lastNameLine}</div>
-                    {versionLine ? <div className="text-[0.72em] tracking-tight text-slate-200/90">{versionLine}</div> : null}
+                  <div className="mt-4 min-h-[122px] font-display text-[clamp(2.05rem,2.2vw,2.8rem)] leading-[0.92] text-white">
+                    <div className="break-words tracking-tight">{firstNameLine}</div>
+                    <div className="break-words tracking-tight">{lastNameLine}</div>
+                    {versionLine ? (
+                      <div className="mt-2 text-[0.5em] leading-tight tracking-[0.04em] text-slate-200/90">
+                        {versionLine}
+                      </div>
+                    ) : null}
                   </div>
-                  <div className="mt-3 text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                  <div className="mt-2 text-[11px] uppercase tracking-[0.24em] text-slate-400">
                     {getPlayerTierLabel(player)} | {player.overall} OVR | {player.primaryPosition}
                   </div>
                 </div>
@@ -3257,13 +3270,20 @@ export const RoguelikeMode = ({
     if (run.activeNode.id === STORE_TRADE_NODE.id && !onUseTradePhone()) return;
 
     const hydratedRun = getHydratedRun(run);
+    const tradedDisplayPlayer = getRunDisplayPlayer(player, run.trainedPlayerIds ?? []);
+    const tradedOverall = tradedDisplayPlayer.overall;
     const nextRoster = hydratedRun.roster.filter((owned) => owned.id !== player.id);
     const nextLineup = hydratedRun.lineup.map((slot) =>
       slot.player?.id === player.id
-        ? { ...slot, player: null }
-        : { ...slot },
+          ? { ...slot, player: null }
+          : { ...slot },
     );
-    const tradeReplacementPool = getSimilarCaliberTradePool(run.activeNode, run.availablePool, player.overall);
+    const tradeReplacementPool = getSimilarCaliberTradePool(
+      run.activeNode,
+      run.availablePool,
+      tradedOverall,
+      player.id,
+    );
     const allowedTradeTiers = getNodeChoiceTiers(run.activeNode) ? [...getNodeChoiceTiers(run.activeNode)!] : undefined;
     let nextChoices = drawRoguelikeChoices(
       tradeReplacementPool,
@@ -3295,18 +3315,19 @@ export const RoguelikeMode = ({
       lineup: nextLineup,
       seenChoicePlayerIds: Array.from(nextChoiceIds),
       choices: nextChoices,
-      stage: "reward-draft",
-      pendingTradeState: {
-        outgoingPlayerId: player.id,
-        originalRoster: hydratedRun.roster.map((owned) => ({ ...owned })),
-        originalLineup: hydratedRun.lineup.map((slot) => ({ ...slot })),
-      },
-      nodeResult: {
-        title: run.activeNode.title,
-        detail: `${player.name} is on the trade block. Choose 1 of 5 similar-caliber replacement players rated between ${player.overall - 1} and ${player.overall + 1} OVR, or skip this board to keep ${player.name} on your team.`,
-        passed: true,
-      },
-    });
+        stage: "reward-draft",
+        pendingTradeState: {
+          outgoingPlayerId: player.id,
+          outgoingPlayerOverall: tradedOverall,
+          originalRoster: hydratedRun.roster.map((owned) => ({ ...owned })),
+          originalLineup: hydratedRun.lineup.map((slot) => ({ ...slot })),
+        },
+        nodeResult: {
+          title: run.activeNode.title,
+        detail: `${player.name} is on the trade block. Choose 1 of 5 similar-caliber replacement players rated between ${tradedOverall - 1} and ${tradedOverall + 1} OVR, or skip this board to keep ${player.name} on your team.`,
+          passed: true,
+        },
+      });
   };
 
   const replaceRosterPlayerWithReward = (playerToReplace: Player) => {
@@ -3439,14 +3460,24 @@ export const RoguelikeMode = ({
 
     if (run.choices.length > 0 || sourceNode.rewardChoices <= 0) return;
 
+    const repairedPool =
+      sourceNode.type === "trade" && run.pendingTradeState
+        ? getSimilarCaliberTradePool(
+            sourceNode,
+            run.availablePool,
+            run.pendingTradeState.outgoingPlayerOverall,
+            run.pendingTradeState.outgoingPlayerId,
+          )
+        : getRewardDraftPool(run, sourceNode, run.availablePool);
+
     const repairedChoicesState = drawRunChoices(
       run,
-      getRewardDraftPool(run, sourceNode, run.availablePool),
+      repairedPool,
       getRunOwnedPlayers(run),
       sourceNode.rewardChoices,
       nextChoiceSeed(run.seed, 900 + run.floorIndex * 37),
       getNodeChoiceTiers(sourceNode) ? [...getNodeChoiceTiers(sourceNode)!] : undefined,
-      shouldStrictlyUseNodePool(sourceNode),
+      sourceNode.type === "trade" ? true : shouldStrictlyUseNodePool(sourceNode),
     );
 
     if (repairedChoicesState.choices.length === 0) return;

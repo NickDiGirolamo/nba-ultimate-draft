@@ -322,7 +322,7 @@ export const TokenStoreOverlay = ({
             S-Tier Rogue Star Catalog
           </div>
           <div className="mt-3 text-sm leading-7 text-slate-300">
-            Every S-tier player in the game can be purchased here. Michael Jordan sits alone at the top of the market, and the cheapest star in the store starts at 100,000 tokens.
+            Every S-tier player in the game can be purchased here. Michael Jordan sits alone at the top of the market, and the cheapest star in the store now starts at 600,000 tokens.
           </div>
           <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {orderedStarPlayers.map((player) => {

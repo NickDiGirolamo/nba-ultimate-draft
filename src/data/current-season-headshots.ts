@@ -451,6 +451,7 @@ export const currentSeasonHeadshotUrls: Record<string, string> = {
   "n-faly-dante-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1642368.png",
   "pac-me-dadiet-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1642359.png",
   "tyus-jones-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1626145.png",
+  "xavier-tillman-sr-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1630214.png",
   "andre-jackson-jr-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1641748.png",
   "bobi-klintman-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1641752.png",
   "brooks-barnhizer-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1642964.png",

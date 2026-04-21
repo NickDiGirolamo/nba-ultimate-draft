@@ -354,8 +354,6 @@ const directImageOverrides: Record<string, string> = {
     "https://legacymedia.sportsplatform.io/images_root/slides/photos/000/538/714/106958476_original.jpg?1291243979",
   "chris-paul-clippers":
     "https://gsp-image-cdn.wmsports.io/cms/prod/bleacher-report/getty_images/136109782_large_image.jpg",
-  "chet-holmgren":
-    "https://legacymedia.sportsplatform.io/image/upload/x_0,y_216,w_1797,h_1194,c_crop/v1698460257/re2eaatw1j7pcnzfcjwc.jpg",
   "chris-bosh-raptors":
     "https://images2.minutemediacdn.com/image/upload/c_fill,w_1200,ar_16:9,f_auto,q_auto,g_auto/shape/cover/sport/a8bb8cc1a3d67c9f3771e8de4b8205cde8398598f32aa66dae02d52c5d6c7eb8.jpg",
   "chris-bosh-heat":
@@ -374,8 +372,6 @@ const directImageOverrides: Record<string, string> = {
     "https://www.usatoday.com/gcdn/presto/2019/01/25/USAT/8face4bf-fda9-4585-8fce-19d456e2fe5d-2019-01-24_Anthony_Davis1.jpg?crop=1744,2326,x365,y211",
   "anthony-davis-lakers":
     "https://www.ocregister.com/wp-content/uploads/2023/05/imageedit_12_9055589-16x9-1.jpg?w=1800&resize=1800,1800",
-  "anthony-edwards":
-    "https://cdn.nba.com/teams/uploads/sites/1610612750/2025/01/GettyImages-2155325565.jpg",
   "artis-gilmore":
     "https://www.legendsofbasketball.com/wp-content/uploads/2012/02/AG.jpg",
   "baron-davis":
@@ -404,6 +400,8 @@ const directImageOverrides: Record<string, string> = {
     "https://images.imagerenderer.com/images/artworkimages/mediumlarge/3/carmelo-anthony-andrew-d-bernstein.jpg",
   "carmelo-anthony-knicks":
     "https://cdn.bleacherreport.net/images_root/slides/photos/000/748/228/109386852_original.jpg?1298564512",
+  "calvin-murphy":
+    "https://www.mcall.com/wp-content/uploads/migration/2021/04/03/35YNAXLMUVBIPOX2O322NT7S3Y.jpg?w=535",
   "carlos-boozer":
     "https://cdn.nba.com/teams/legacy/www.nba.com/jazz/sites/jazz/files/gettyimages-98852331.jpg",
   "chauncey-billups":
