@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { Shield, Sparkles, Target } from "lucide-react";
+import { PlayerTypeBadges } from "./PlayerTypeBadges";
 import { getPlayerDisplayLines } from "../lib/playerDisplay";
 import { getPlayerTier, playerTierCardStyles } from "../lib/playerTier";
 import { getPlayerVisual } from "../lib/playerVisuals";
@@ -107,7 +108,9 @@ export const PlayerCard = ({
           </div>
         </div>
 
-        <div className="relative mt-5 flex flex-wrap gap-2">
+        <PlayerTypeBadges player={player} className="relative mt-5" />
+
+        <div className="relative mt-3 flex flex-wrap gap-2">
           {player.badges.slice(0, 3).map((badge) => (
             <span key={badge} className="rounded-full border border-white/12 bg-white/10 px-2.5 py-1 text-xs font-medium text-slate-100">
               {badge}

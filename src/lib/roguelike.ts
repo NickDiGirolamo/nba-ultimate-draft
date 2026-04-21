@@ -125,6 +125,24 @@ export interface RoguelikeClearRewards {
 const VERSION_SUFFIX_PATTERN = /\s\([^)]*\)$/;
 const STARTING_FIVE_POSITIONS: Position[] = ["PG", "SG", "SF", "PF", "C"];
 const DEFAULT_FACEOFF_TARGET_AVERAGE = 84;
+const BOSS_AVERAGE_OVERRIDES_BY_FLOOR: Partial<Record<number, number>> = {
+  4: 79,
+  6: 81,
+  14: 85,
+  18: 85.2,
+  20: 86,
+  22: 86,
+  27: 88,
+  34: 89,
+  37: 89,
+  39: 91,
+  41: 92,
+  46: 92,
+  53: 93,
+  56: 94,
+  58: 95,
+  60: 86,
+};
 
 export const getRoguelikeFailureRewards = (floorIndex: number): RoguelikeFailureRewards => {
   const prestigeXpAward = Math.max(2, Math.min(8, floorIndex + 1));
@@ -171,6 +189,35 @@ export const getRoguelikeClearRewards = (
     prestigeXpAward,
     tokenReward: prestigeXpAward * 10,
   };
+};
+
+const getRegularBossNodes = () =>
+  roguelikeNodes.filter((node) => node.type === "boss" && node.floor !== 61);
+
+export const getRoguelikeLockerRoomCashReward = (
+  node: Pick<RoguelikeNode, "id" | "floor" | "act" | "type">,
+) => {
+  if (node.type === "roster-cut") {
+    return 6 + (node.act - 1) * 4;
+  }
+
+  if (node.type === "challenge") {
+    return 8 + (node.act - 1) * 4;
+  }
+
+  if (node.type === "boss") {
+    if (node.floor === 61) {
+      return 40;
+    }
+
+    const bossIndex =
+      getRegularBossNodes().findIndex((bossNode) => bossNode.id === node.id) + 1;
+
+    if (bossIndex <= 0) return 0;
+    return 10 + Math.round(((bossIndex - 1) * 14) / 15);
+  }
+
+  return 0;
 };
 
 export const roguelikeStarterPackages: RoguelikeStarterPackage[] = [
@@ -240,6 +287,9 @@ const getProgressiveBossRewards = (bossIndex: number): RoguelikeClearRewards => 
   prestigeXpAward: 4 + Math.round((26 * (bossIndex - 1)) / (REGULAR_BOSS_COUNT - 1)),
 });
 
+const getBossAverageOverallForFloor = (floor: number, fallback?: number) =>
+  BOSS_AVERAGE_OVERRIDES_BY_FLOOR[floor] ?? fallback ?? DEFAULT_FACEOFF_TARGET_AVERAGE;
+
 const makeDraftNode = (node: Omit<RoguelikeNode, "type">): RoguelikeNode => ({
   ...node,
   type: "draft",
@@ -268,6 +318,7 @@ const makeBossNode = (
   node: Omit<RoguelikeNode, "type" | "clearRewardsOverride">,
 ): RoguelikeNode => ({
   ...node,
+  opponentAverageOverall: getBossAverageOverallForFloor(node.floor, node.opponentAverageOverall),
   type: "boss",
   clearRewardsOverride: getProgressiveBossRewards(bossIndex),
 });
@@ -521,7 +572,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     targetLabel: "Beat your Conference Finals Opponent",
     battleMode: "starting-five-faceoff",
     eliminationOnLoss: true,
-    opponentAverageOverall: 84,
+    opponentAverageOverall: 86,
     opponentTeamName: "Conference Finals Opponent",
     allowedRewardTiers: ["C"],
   }),
@@ -622,8 +673,8 @@ export const roguelikeNodes: RoguelikeNode[] = [
     description: "Set your strongest rebounding starting five and control the boards.",
     rewardBundleId: "frontcourt-pressure",
     rewardChoices: 3,
-    targetLabel: "Reach 81 Rebounding with your starting five",
-    checks: [{ metric: "rebounding", target: 81 }],
+    targetLabel: "Reach 84.5 Rebounding with your starting five",
+    checks: [{ metric: "rebounding", target: 84.5 }],
     allowedRewardTiers: ["B"],
     clearRewardsOverride: { tokenReward: 30, prestigeXpAward: 5 },
   }),

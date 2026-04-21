@@ -86,7 +86,6 @@ export const dynamicDuos: PlayerBadgeDefinition[] = [
   { id: "magic-kareem", title: "Dynamic Duos: Magic + Kareem", type: "dynamic-duo", players: ["magic-johnson", "kareem-abdul-jabbar-lakers"] },
   { id: "cousy-russell", title: "Dynamic Duos: Cousy + Russell", type: "dynamic-duo", players: ["bob-cousy", "bill-russell"] },
   { id: "ad-boogie", title: "Dynamic Duos: Anthony Davis + DeMarcus Cousins", type: "dynamic-duo", players: ["anthony-davis-pelicans", "demarcus-cousins"] },
-  { id: "jokic-murray", title: "Dynamic Duos: Jokic + Murray", type: "dynamic-duo", players: ["nikola-jokic", "jamal-murray"] },
   { id: "hali-siakam", title: "Dynamic Duos: Tyrese Haliburton + Pascal Siakam", type: "dynamic-duo", players: ["tyrese-haliburton", "pascal-siakam-pacers"] },
   { id: "kawhi-siakam-raptors", title: "Dynamic Duos: Kawhi Leonard + Pascal Siakam", type: "dynamic-duo", players: ["kawhi-leonard-raptors", "pascal-siakam-raptors"] },
   { id: "bird-mchale", title: "Dynamic Duos: Larry Bird + Kevin McHale", type: "dynamic-duo", players: ["larry-bird", "kevin-mchale"] },

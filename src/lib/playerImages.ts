@@ -14,7 +14,6 @@ const wikiTitleOverrides: Record<string, string> = {
   "isiah-thomas": "Isiah_Thomas",
   "kevin-garnett-timberwolves": "Kevin_Garnett",
   "kevin-garnett-celtics": "Kevin_Garnett",
-  "nikola-jokic": "Nikola_Joki%C4%87",
   "kareem-abdul-jabbar-bucks": "Kareem_Abdul-Jabbar",
   "kareem-abdul-jabbar-lakers": "Kareem_Abdul-Jabbar",
   "kobe-bryant-8": "Kobe_Bryant",
@@ -269,8 +268,6 @@ const directImageOverrides: Record<string, string> = {
     "https://media.gq.com/photos/55f7333e2de2e54e38605818/1:1/w_1326,h_1326,c_limit/moses-malone-sixers.jpg",
   "muggsy-bogues":
     "https://m.media-amazon.com/images/M/MV5BMWQzY2IzNzAtZWZkNS00YWQ0LTlmZmQtZmUyOWZhYWEwNzEwXkEyXkFqcGc@._V1_.jpg",
-  "nikola-jokic":
-    "https://legacymedia.sportsplatform.io/image/upload/v1733625555/ecaf3qwgo1vbermrwtoh.jpg",
   "vince-carter-raptors":
     "https://slamonline.com/wp-content/uploads/2014/07/vince_1.jpg",
   "vlade-divac":

@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import { DynamicDuoBadge } from "./DynamicDuoBadge";
+import { PlayerTypeBadges } from "./PlayerTypeBadges";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { getPlayerDisplayLines } from "../lib/playerDisplay";
 import { getPlayerTier, getPlayerTierLabel, playerTierCardStyles } from "../lib/playerTier";
@@ -159,10 +160,15 @@ export const DraftPlayerCard = ({
           <div className="mt-1 tracking-tight">{lastNameLine}</div>
           {versionLine ? <div className="mt-1 text-[0.74em] tracking-tight text-slate-200/92">{versionLine}</div> : null}
         </div>
+        <PlayerTypeBadges
+          player={player}
+          compact={compact}
+          className="mt-3"
+        />
         <div
           className={clsx(
-            "mt-2 text-slate-300",
-            compact ? "text-[10px]" : veryLongName ? "text-[10px]" : "text-[11px]",
+            "text-slate-300",
+            compact ? "mt-2 text-[10px]" : veryLongName ? "mt-2 text-[10px]" : "mt-2 text-[11px]",
           )}
         >
           <div className={clsx("uppercase text-slate-300/90", compact ? "tracking-[0.16em]" : "tracking-[0.18em]")}>

@@ -33,6 +33,7 @@ import {
   getActiveDynamicDuos,
   getActiveRolePlayerPairs,
 } from "./dynamicDuos";
+import { getPlayerTypeBalanceSnapshot } from "./playerTypeBadges";
 import { clamp, mulberry32 } from "./random";
 
 const average = (values: number[]) => (values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length);
@@ -90,6 +91,23 @@ const getSlotFitCounts = (roster: RosterSlot[]) => {
   return { natural, secondary, outOfRole };
 };
 
+const getPlayerTypeBalanceBonus = (players: Player[]) => {
+  const typeBalance = getPlayerTypeBalanceSnapshot(players);
+
+  let bonus = 0;
+  if (typeBalance.representedCount >= 2) bonus += 1.5;
+  if (typeBalance.representedCount >= 3) bonus += 1.75;
+  if (typeBalance.representedCount >= 4) bonus += 2;
+  if (typeBalance.representedCount >= 5) bonus += 2.25;
+  if (typeBalance.uniquePrimaryCount >= 3) bonus += 1.5;
+  if (typeBalance.uniquePrimaryCount >= 4) bonus += 1.25;
+  if (typeBalance.uniquePrimaryCount >= 5) bonus += 1.25;
+  if (players.length >= 4 && typeBalance.uniquePrimaryCount <= 2) bonus -= 3.5;
+  if (players.length >= 5 && typeBalance.duplicatePrimaryCount >= 3) bonus -= 2;
+
+  return clamp(bonus, -6, 10);
+};
+
 export const evaluateDraftChemistry = (roster: RosterSlot[]): DraftChemistrySnapshot => {
   const players = getPlayers(roster);
   const draftedCount = players.length;
@@ -125,6 +143,7 @@ export const evaluateDraftChemistry = (roster: RosterSlot[]): DraftChemistrySnap
   const wings = players.filter((player) => ["SG", "SF"].includes(player.primaryPosition)).length;
   const pointGuards = players.filter((player) => player.primaryPosition === "PG").length;
   const centers = players.filter((player) => player.primaryPosition === "C").length;
+  const playerTypeBalanceBonus = getPlayerTypeBalanceBonus(players);
 
   const creatorsTarget = draftedCount >= 6 ? 2 : 1;
   const shootersTarget = draftedCount >= 7 ? 3 : draftedCount >= 4 ? 2 : 1;
@@ -140,6 +159,7 @@ export const evaluateDraftChemistry = (roster: RosterSlot[]): DraftChemistrySnap
   if (draftedCount >= 4 && pointGuards === 0) structuralBase -= 8;
   if (centers >= 4) structuralBase -= 10;
   if (outOfRole > 0) structuralBase -= outOfRole * 4;
+  structuralBase += playerTypeBalanceBonus;
 
   const intangiblesBase = clamp(((averageIntangibles - 68) / 28) * 34, 0, 34);
   const slotFitBase = clamp(slotFitRate * 32, 0, 32);
@@ -1050,6 +1070,8 @@ export const evaluateTeam = (roster: RosterSlot[], rareEvent?: RareEvent) => {
   const rareEventBonus = rareEvent
     ? evaluateRareEventBonus(rareEvent, players)
     : { offense: 0, defense: 0, chemistryStructure: 0, chemistry: 0, summary: "Standard environment." };
+  const chemistryCore = starters.length >= 5 ? starters : players;
+  const playerTypeBalanceBonus = getPlayerTypeBalanceBonus(chemistryCore);
 
   let structuralChemistry = STRUCTURAL_CHEMISTRY_FLOOR;
   let chemistry = weightedAverage(weightedBoostedEntries, (entry) => entry.player.intangibles, (entry) => entry.weight);
@@ -1071,10 +1093,12 @@ export const evaluateTeam = (roster: RosterSlot[], rareEvent?: RareEvent) => {
   if (players.filter((player) => player.primaryPosition === "PG").length === 0) structuralChemistry -= 12;
   if (outOfRoleStars >= 2) structuralChemistry -= 4;
   else if (outOfRoleStars === 1) structuralChemistry -= 2;
+  structuralChemistry += playerTypeBalanceBonus;
 
   chemistry += eliteShooters * 0.9;
   chemistry += ballHandlers.length * 0.75;
   chemistry -= dominantCreators.length > 3 ? 3 : 0;
+  chemistry += playerTypeBalanceBonus * 0.55;
   chemistry += activeDynamicDuos.length * 1.4 + activeBigThrees.length * 2.2;
   chemistry += chemistryScore * 0.7 + rareEventBonus.chemistry;
   structuralChemistry += chemistryScore * 0.55 + activeBigThrees.length * 1.25 + rareEventBonus.chemistryStructure;
@@ -1136,7 +1160,7 @@ const getStrengthsAndWeaknesses = (roster: RosterSlot[], metrics: TeamMetrics, p
   if (metrics.defense >= 89) strengths.push("The defense has enough length and discipline to survive deep into May.");
   if (metrics.shooting >= 87) strengths.push("Spacing travels, and this roster has enough shooting to keep stars comfortable.");
   if (metrics.depth >= 84) strengths.push("Bench quality prevents major drop-off when the stars sit.");
-  if (metrics.chemistry >= 88) strengths.push("Lineup balance and badge synergy gave the roster a real structural advantage.");
+  if (metrics.chemistry >= 88) strengths.push("Lineup balance, player-type coverage, and badge synergy gave the roster a real structural advantage.");
   if (metrics.rimProtection >= 88) strengths.push("Interior defense gives the roster a strong safety net at the rim.");
   if (metrics.wingDefense >= 85) strengths.push("Wing defense versatility lets the team handle most playoff matchups.");
 
@@ -1144,7 +1168,7 @@ const getStrengthsAndWeaknesses = (roster: RosterSlot[], metrics: TeamMetrics, p
   if (metrics.shooting < 80) weaknesses.push("Shooting is inconsistent enough to shrink the floor against elite playoff defenses.");
   if (metrics.rimProtection < 74) weaknesses.push("Lack of interior deterrence leaves the back line vulnerable.");
   if (metrics.depth < 79) weaknesses.push("Bench drop-off creates risk over the course of a long season.");
-  if (metrics.chemistry < 78) weaknesses.push("The talent is real, but positional overlap and weak synergy drag the team down.");
+  if (metrics.chemistry < 78) weaknesses.push("The talent is real, but positional overlap, repetitive player types, and weak synergy drag the team down.");
   if (metrics.variance > 14) weaknesses.push("Durability and role volatility make the season feel less stable than contenders prefer.");
 
   const reason = playoffFinish === "NBA Champion"
@@ -1244,7 +1268,7 @@ export const runSeasonSimulation = (
               : categoryChallenge.metric === "rebounding"
                 ? "Size, physicality, and frontcourt depth dictated the final rebounding result."
                 : categoryChallenge.metric === "chemistry"
-                  ? "Badge synergies, positional coherence, and role balance did the most to raise the chemistry score."
+                  ? "Badge synergies, player-type coverage, positional coherence, and role balance did the most to raise the chemistry score."
                   : "Primary initiators and connective passers did the most to lift the passing score.";
 
     const focusLegacyScore = Math.round(
@@ -1368,7 +1392,7 @@ export const runSeasonSimulation = (
           : `Your ${teamName} battled through a volatile ${wins}-${losses} season and never fully solved its roster questions.`;
 
     const middle = metrics.chemistry >= 88
-      ? "The chemistry stood out, with strong positional balance and badge synergy amplifying the star talent."
+      ? "The chemistry stood out, with strong positional balance, player-type coverage, and badge synergy amplifying the star talent."
       : metrics.shooting < 80
         ? "Top-end talent carried long stretches, but cramped spacing made the half-court offense less reliable against elite opponents."
         : metrics.depth < 79

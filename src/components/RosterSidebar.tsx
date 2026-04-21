@@ -110,7 +110,7 @@ export const RosterSidebar = ({
             </div>
           </div>
           <div className="mt-3 text-xs leading-5 text-slate-300">
-            Chemistry rises as you draft players into sensible roles and activate badge links.
+            Chemistry rises as you draft players into sensible roles, activate badge links, and keep a balanced mix of player types.
           </div>
         </div>
 
