@@ -41,6 +41,7 @@ const currentSeasonPositionOverrides: Record<string, Position[]> = {
   "santi-aldama-2025-26": ["C"],
   "bam-adebayo-2025-26": ["PF"],
   "josh-giddey-2025-26": ["SG", "SF"],
+  "devin-vassell-2025-26": ["SF"],
   "cade-cunningham-2025-26": ["SG", "SF"],
   "jalen-brunson-2025-26": ["SG"],
   "anthony-edwards-2025-26": ["SF"],

@@ -159,6 +159,7 @@ export const currentSeasonHeadshotUrls: Record<string, string> = {
   "gary-payton-ii-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1627780.png",
   "goga-bitadze-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1629048.png",
   "harrison-barnes-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/203084.png",
+  "drew-timme-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1631166.png",
   "isaiah-stewart-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1630191.png",
   "jake-laravia-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1631222.png",
   "javonte-green-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1629750.png",
