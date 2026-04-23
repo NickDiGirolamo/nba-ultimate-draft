@@ -22,7 +22,7 @@ const ROGUELIKE_PARKED_STORAGE_KEY = "legends-draft-roguelike-parked-v1";
 
 const challengeStrategyMap: Record<string, string> = {
   "classic": "Take the best long-term team, not the flashiest individual player.",
-  "no-s-tier-shortcut": "Lean into chemistry, value, and synergy instead of pure ceiling.",
+  "no-s-tier-shortcut": "Lean into chemistry, value, and synergy instead of chasing Galaxy ceiling.",
   "floor-spacers": "Protect spacing with shooters, creators, and at least one stable big.",
   "fortress-build": "Prioritize stoppers, rim protection, and versatile size.",
   "creator-collective": "Stack initiators so every lineup unit has an organizer.",

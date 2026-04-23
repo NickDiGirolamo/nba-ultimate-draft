@@ -100,8 +100,8 @@ export const draftChallenges: DraftChallenge[] = [
   },
   {
     id: "no-s-tier-shortcut",
-    title: "No S-Tiers",
-    description: "Finish the draft without taking any S-tier player.",
+    title: "No Galaxy Cards",
+    description: "Finish the draft without taking any Galaxy player.",
     reward: 18,
   },
   {
@@ -573,7 +573,7 @@ export const evaluateChallengeCompletion = (
   if (result.mode === "category-focus") return false;
   switch (challenge.id) {
     case "no-s-tier-shortcut":
-      return !playerTiers.includes("S");
+      return !playerTiers.includes("Galaxy");
     case "floor-spacers":
       return result.metrics.shooting >= 88 && result.metrics.spacing >= 88;
     case "fortress-build":

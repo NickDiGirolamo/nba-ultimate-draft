@@ -16,7 +16,7 @@ import {
   Zap,
 } from "lucide-react";
 import { DraftPlayerCard } from "./DraftPlayerCard";
-import { usePlayerImage } from "../hooks/usePlayerImage";
+import { RunRosterPlayerCard } from "./RunRosterPlayerCard";
 import { Player, RosterSlot, SimulationResult, TeamMetrics } from "../types";
 
 interface ResultsScreenProps {
@@ -85,59 +85,32 @@ const chartMetrics = (metrics: TeamMetrics, result: SimulationResult) => [
   { label: "Rim Protection", value: metrics.rimProtection, icon: Gauge, note: "Paint security" },
 ];
 
-const CompactRosterCard = ({ slot, isStarter }: { slot: RosterSlot; isStarter: boolean }) => {
-  const imageUrl = slot.player ? usePlayerImage(slot.player) : null;
-
+const CompactRosterCard = ({
+  slot,
+  isStarter,
+  draftedPlayerIds,
+}: {
+  slot: RosterSlot;
+  isStarter: boolean;
+  draftedPlayerIds: string[];
+}) => {
   return (
-    <div className="rounded-[22px] border border-white/10 bg-black/20 p-3">
-      <div className="flex items-center gap-3">
-        <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-white/10 bg-white/6">
-          {slot.player && imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={slot.player.name}
-              className="h-full w-full object-cover object-top"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-700 to-slate-900 font-display text-lg text-white/70">
-              {slot.player?.name.charAt(0) ?? slot.slot.charAt(0)}
-            </div>
-          )}
-          <div className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-center text-[9px] uppercase tracking-[0.24em] text-white/85">
-            {slot.player?.primaryPosition ?? slot.slot}
-          </div>
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="rounded-full border border-white/10 bg-white/8 px-2 py-1 text-[10px] uppercase tracking-[0.24em] text-slate-300">
-              {slot.slot}
-            </span>
-            <span
-              className={`rounded-full px-2 py-1 text-[10px] uppercase tracking-[0.24em] ${
-                isStarter ? "bg-amber-300/16 text-amber-100" : "bg-sky-300/14 text-sky-100"
-              }`}
-            >
-              {isStarter ? "Starter" : "Bench"}
-            </span>
-          </div>
-          <div className="mt-2 truncate font-semibold text-white">{slot.player?.name ?? "Empty slot"}</div>
-          <div className="mt-1 text-xs text-slate-400">{slot.player?.teamLabel ?? "No player assigned"}</div>
-        </div>
-
-        <div className="text-right">
-          <div className="text-[10px] uppercase tracking-[0.24em] text-slate-500">OVR</div>
-          <div className="mt-1 text-2xl font-semibold text-white">{slot.player?.overall ?? "--"}</div>
-        </div>
-      </div>
-    </div>
+    <RunRosterPlayerCard
+      player={slot.player}
+      draftedPlayerIds={draftedPlayerIds}
+      eyebrow={slot.slot}
+      metaPills={[isStarter ? "Starter" : "Bench"]}
+    />
   );
 };
 
-export const ResultsScreen = ({ result, roster, onDraftAgain }: ResultsScreenProps) => (
-  <section className="space-y-8">
+export const ResultsScreen = ({ result, roster, onDraftAgain }: ResultsScreenProps) => {
+  const draftedPlayerIds = roster
+    .map((slot) => slot.player?.id)
+    .filter((playerId): playerId is string => Boolean(playerId));
+
+  return (
+    <section className="space-y-8">
     <div className="glass-panel rounded-[34px] p-8 shadow-card lg:p-10">
       <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
         <div>
@@ -241,22 +214,12 @@ export const ResultsScreen = ({ result, roster, onDraftAgain }: ResultsScreenPro
           <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Final Roster</div>
           <div className="mt-4 space-y-3">
             {roster.map((slot, index) => (
-              <div key={`${slot.label}-${index}`} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">{slot.slot}</div>
-                    <div className="mt-1 font-medium text-white">{slot.player?.name}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm text-slate-300">{slot.player?.primaryPosition}</div>
-                    <div className="mt-1 text-lg font-semibold text-white">{slot.player?.overall}</div>
-                  </div>
-                </div>
-              </div>
+              <CompactRosterCard key={`${slot.label}-${index}`} slot={slot} isStarter={index < 5} draftedPlayerIds={draftedPlayerIds} />
             ))}
           </div>
         </div>
       </div>
     </div>
   </section>
-);
+  );
+};

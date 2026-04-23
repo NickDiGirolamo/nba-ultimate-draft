@@ -24,11 +24,9 @@ const wikiTitleOverrides: Record<string, string> = {
   "lebron-james-heat": "LeBron_James",
   "lebron-james-14-18": "LeBron_James",
   "luka-doncic": "Luka_Don%C4%8Di%C4%87",
-  "luka-doncic-mavericks": "Luka_Don%C4%8Di%C4%87",
   "pascal-siakam": "Pascal_Siakam",
   "pascal-siakam-raptors": "Pascal_Siakam",
   "pascal-siakam-pacers": "Pascal_Siakam",
-  "giannis-antetokounmpo": "Giannis_Antetokounmpo",
   "dikembe-mutombo": "Dikembe_Mutombo",
   "yao-ming": "Yao_Ming",
   "tracy-mcgrady-raptors": "Tracy_McGrady",
@@ -118,8 +116,6 @@ const directImageOverrides: Record<string, string> = {
     "https://imageio.forbes.com/specials-images/dam/imageserve/889147320/960x0.jpg?height=491&width=711&fit=bounds",
   "hedo-turkoglu":
     "https://cdn.nba.com/teams/legacy/www.nba.com/magic/sites/magic/files/legacy/photos/turk7_700_040313.jpg",
-  "devin-booker":
-    "https://substackcdn.com/image/fetch/$s_!7fFL!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F3cd3f21f-93f0-40da-831d-7ca7995a24d9_1172x1410.jpeg",
   "donovan-mitchell":
     "https://heavy.com/wp-content/uploads/2019/01/donovanmitchelljazz-e1548262534388.jpg?quality=65&strip=all",
   "domantas-sabonis":
@@ -132,6 +128,8 @@ const directImageOverrides: Record<string, string> = {
     "https://library.sportingnews.com/styles/twitter_card_120x120/s3/2022-01/tracy-mcgrady-raptors-nbae-gettyimages_1meed57to9r3u1ccn3bzrz2i3n.jpg?itok=ZAmhluC9",
   "tracy-mcgrady-magic":
     "https://minutemedia-ressh.cloudinary.com/image/upload/v1694362739/shape/cover/sport/b8054764aa2a084b84b074543a6962fc573ce351b6839c1a0194511a19e2b2c1.jpg",
+  "tim-duncan":
+    "https://lh4.googleusercontent.com/proxy/9grgcOgfb2fRXziFVmY2OpRZTvxOlD90mJF27Hc-8EM_DXr7hVpFMqY_cKMOBbEssodvCsCxWGNjUVfhMMEWeRrRjAuqTQe5mZ-Xw9rSFHQJhSqr_BwvT67FM0nGS-C2UgfqlC5cwK81jqCPo3ghmvzGkIp1Z4I",
   "dwight-howard":
     "https://cdn.bleacherreport.net/images_root/slides/photos/000/709/700/108926554_original.jpg?1297284921",
   "draymond-green":
@@ -174,8 +172,6 @@ const directImageOverrides: Record<string, string> = {
     "https://static.wikia.nocookie.net/nba/images/9/99/John_Stockton.jpg/revision/latest?cb=20110427165243",
   "john-starks":
     "https://images.imagerenderer.com/images/artworkimages/mediumlarge/3/john-starks-andrew-d-bernstein.jpg",
-  "joel-embiid":
-    "https://legacymedia.sportsplatform.io/image/upload/x_0,y_184,w_1800,h_1200,c_crop/v1714164900/hfsvqpzkbmjjxnmiqlpf.jpg",
   "joe-johnson":
     "https://i.redd.it/tgqn26s5m1tb1.jpg",
   "joe-dumars":
@@ -229,8 +225,6 @@ const directImageOverrides: Record<string, string> = {
   "larry-johnson":
     "https://cdn.nba.com/teams/legacy/www.nba.com/hornets/sites/hornets/files/johnson_24.jpg",
   "luka-doncic":
-    "https://media.about.nike.com/img/c287f478-579c-4c31-a5da-3a92411694e9/luka-doncic-enlarge2-2.jpg?m=eyJlZGl0cyI6eyJqcGVnIjp7InF1YWxpdHkiOjEwMH0sIndlYnAiOnsicXVhbGl0eSI6MTAwfSwiZXh0cmFjdCI6eyJsZWZ0Ijo3OTQsInRvcCI6MTAsIndpZHRoIjoxMjc1LCJoZWlnaHQiOjIxMjN9LCJyZXNpemUiOnsid2lkdGgiOjM4NDB9fX0%3D&s=383fe9bab9113f62527527c9c79a8719d45edbdf7d0213113a9373d21d927848",
-  "luka-doncic-mavericks":
     "https://media.about.nike.com/img/c287f478-579c-4c31-a5da-3a92411694e9/luka-doncic-enlarge2-2.jpg?m=eyJlZGl0cyI6eyJqcGVnIjp7InF1YWxpdHkiOjEwMH0sIndlYnAiOnsicXVhbGl0eSI6MTAwfSwiZXh0cmFjdCI6eyJsZWZ0Ijo3OTQsInRvcCI6MTAsIndpZHRoIjoxMjc1LCJoZWlnaHQiOjIxMjN9LCJyZXNpemUiOnsid2lkdGgiOjM4NDB9fX0%3D&s=383fe9bab9113f62527527c9c79a8719d45edbdf7d0213113a9373d21d927848",
   "luol-deng":
     "https://s.yimg.com/ny/api/res/1.2/GEAryxjoxksW27QRWzM0Zg--/YXBwaWQ9aGlnaGxhbmRlcjt3PTQyMDtoPTEyMTA7Y2Y9d2VicA--/https://s.yimg.com/os/en_US/Sports/USA_Today/20130422_ajl_aw8_068-c6ede438b04fba0c579c583e4f962544",

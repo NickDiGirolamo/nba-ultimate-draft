@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { Player } from "../types";
 import { HoverTooltip } from "./HoverTooltip";
 import { PlayerTypeBadge, getPlayerTypeBadges } from "../lib/playerTypeBadges";
+import type { PlayerTypeBadgeDefinition } from "../lib/playerTypeBadges";
 
 interface PlayerTypeBadgesProps {
   player: Player;
@@ -9,6 +10,8 @@ interface PlayerTypeBadgesProps {
   iconOnly?: boolean;
   align?: "start" | "center";
   className?: string;
+  badgesOverride?: PlayerTypeBadgeDefinition[];
+  limit?: number;
 }
 
 const badgeStyles: Record<PlayerTypeBadge, string> = {
@@ -95,8 +98,10 @@ export const PlayerTypeBadges = ({
   iconOnly = false,
   align = "start",
   className,
+  badgesOverride,
+  limit,
 }: PlayerTypeBadgesProps) => {
-  const badges = getPlayerTypeBadges(player);
+  const badges = (badgesOverride ?? getPlayerTypeBadges(player)).slice(0, limit);
   if (badges.length === 0) return null;
 
   return (

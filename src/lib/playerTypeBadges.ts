@@ -53,12 +53,14 @@ const badgeDefinitions: Record<PlayerTypeBadge, PlayerTypeBadgeDefinition> = {
   },
 };
 
+export const playerTypeBadgeDefinitions = badgeDefinitions;
+
 const badgeCountByTier: Record<PlayerTier, number> = {
-  D: 1,
-  C: 1,
-  B: 2,
-  A: 3,
-  S: 4,
+  Emerald: 1,
+  Sapphire: 1,
+  Ruby: 2,
+  Amethyst: 3,
+  Galaxy: 4,
 };
 
 const getPlayerTypeBadgeScores = (player: Player): PlayerTypeBadgeScore[] => {

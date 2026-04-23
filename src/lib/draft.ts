@@ -19,14 +19,20 @@ export const rosterTemplate = (): RosterSlot[] => [
   { slot: "UTIL", label: "Utility", allowedPositions: ["PG", "SG", "SF", "PF", "C"], player: null },
 ];
 
-const tierWeights: Record<string, number> = { S: 1.2, A: 2.4, B: 3.6, C: 1.9, D: 1.2 };
+const tierWeights: Record<string, number> = {
+  Galaxy: 1.2,
+  Amethyst: 2.4,
+  Ruby: 3.6,
+  Sapphire: 1.9,
+  Emerald: 1.2,
+};
 const choiceTierProfiles = [
-  { weight: 34, slots: { S: 0, A: 1, B: 3, C: 1 } },
-  { weight: 26, slots: { S: 0, A: 1, B: 2, C: 2 } },
-  { weight: 18, slots: { S: 0, A: 2, B: 2, C: 1 } },
-  { weight: 10, slots: { S: 1, A: 1, B: 2, C: 1 } },
-  { weight: 6, slots: { S: 1, A: 2, B: 2, C: 0 } },
-  { weight: 6, slots: { S: 0, A: 0, B: 4, C: 1 } },
+  { weight: 34, slots: { Galaxy: 0, Amethyst: 1, Ruby: 3, Sapphire: 1 } },
+  { weight: 26, slots: { Galaxy: 0, Amethyst: 1, Ruby: 2, Sapphire: 2 } },
+  { weight: 18, slots: { Galaxy: 0, Amethyst: 2, Ruby: 2, Sapphire: 1 } },
+  { weight: 10, slots: { Galaxy: 1, Amethyst: 1, Ruby: 2, Sapphire: 1 } },
+  { weight: 6, slots: { Galaxy: 1, Amethyst: 2, Ruby: 2, Sapphire: 0 } },
+  { weight: 6, slots: { Galaxy: 0, Amethyst: 0, Ruby: 4, Sapphire: 1 } },
 ];
 
 const slotPriority: Record<RosterSlotType, number> = {

@@ -23,6 +23,10 @@
 - Whenever a button, link, or other navigation action moves the user to a new page, screen, section, modal, or major state, reset scroll position to the top so the destination view starts at the top by default.
 - Minimize dead space, clipping, overflow, awkward text wrapping, and inconsistent alignment.
 - On player cards, never solve long names by clipping them or forcing ellipses when the full name should be visible; reduce the name font size as needed so the full player name fits cleanly on the card.
+- Full player cards and run-roster cards are fixed composition templates. Preserve the exact relative proportions, object placement, and player-image crop of the approved design.
+- If a player card or run-roster card needs to appear smaller or larger, scale the entire card uniformly as one object. Do not independently resize internal elements.
+- Do not introduce responsive reflow, compact-mode rearrangements, object repositioning, or alternate crop behavior for player cards or run-roster cards.
+- If cards need to fit a tighter space, change the surrounding page layout, orientation, or number of cards shown rather than altering the internal composition of the card itself.
 - If a user earns or unlocks something, the payoff should feel visible and rewarding.
 
 ## Workflow Rules

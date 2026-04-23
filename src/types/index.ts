@@ -12,7 +12,9 @@ export type RosterSlotType =
   | "UTIL"
   | "UTIL";
 
-export type PlayerTier = "S" | "A" | "B" | "C" | "D";
+export type LegacyPlayerTier = "S" | "A" | "B" | "C" | "D";
+export type PlayerTier = "Galaxy" | "Amethyst" | "Ruby" | "Sapphire" | "Emerald";
+export type StoredPlayerTier = PlayerTier | LegacyPlayerTier;
 
 export type Screen = "landing" | "briefing" | "draft" | "lineup" | "simulating" | "results";
 export type SimulationMode = "season" | "category-focus";
@@ -79,7 +81,7 @@ export interface Player {
   intangibles: number;
   durability: number;
   archetype: string;
-  hallOfFameTier: PlayerTier;
+  hallOfFameTier: StoredPlayerTier;
   shortDescription: string;
   badges: string[];
   ballDominance: number;

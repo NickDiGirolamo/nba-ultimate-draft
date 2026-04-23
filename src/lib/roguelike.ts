@@ -6,6 +6,12 @@ import {
   getActiveRivalBadges,
   getActiveRolePlayerPairs,
 } from "./dynamicDuos";
+import {
+  getPlayerTypeBadges,
+  getPlayerTypeBalanceSnapshot,
+  getPrimaryPlayerTypeBadge,
+  type PlayerTypeBadge,
+} from "./playerTypeBadges";
 import { mulberry32 } from "./random";
 import { evaluateDraftChemistry } from "./simulate";
 import { Player, PlayerTier, Position, RosterSlot, RosterSlotType } from "../types";
@@ -97,6 +103,18 @@ export interface RoguelikeFaceoffMatchup {
   ratingDelta: number;
   userWinProbability: number;
   opponentWinProbability: number;
+  userBreakdown: RoguelikeFaceoffRatingBreakdown;
+  opponentBreakdown: RoguelikeFaceoffRatingBreakdown;
+}
+
+export interface RoguelikeFaceoffRatingBreakdown {
+  baseScore: number;
+  chemistrySupport: number;
+  teamProfileSupport: number;
+  lineupBalanceBonus: number;
+  badgeMatchupBonus: number;
+  headToHeadBonus: number;
+  total: number;
 }
 
 export interface RoguelikeFaceoffResult {
@@ -226,7 +244,7 @@ export const roguelikeStarterPackages: RoguelikeStarterPackage[] = [
     title: "Balanced",
     subtitle: "Safest opener",
     description:
-      "Start with a stable all-around pool of non-S-tier stars and high-end supporting pieces.",
+      "Start with a stable all-around pool of non-Galaxy stars and high-end supporting pieces.",
     focus: "Great if you want the cleanest first run and the most forgiving early chemistry checks.",
   },
   {
@@ -350,21 +368,21 @@ export const roguelikeNodes: RoguelikeNode[] = [
     description: "Add two more current-season rotation pieces from Starter Cache to complete your opening five.",
     rewardBundleId: "balanced-floor",
     rewardChoices: 0,
-    targetLabel: "Choose 2 current-season D-tier players to complete your opening five",
+    targetLabel: "Choose 2 current-season Emerald players to complete your opening five",
     playerPoolMode: "current-season",
-    allowedRewardTiers: ["D"],
+    allowedRewardTiers: ["Emerald"],
   }),
   makeDraftNode({
     id: "year-1-free-agency-1",
     floor: 2,
     act: 1,
     title: "Free Agency 1",
-    description: "Sign your first free agent from a current-season C-tier board.",
+    description: "Sign your first free agent from a current-season Sapphire board.",
     rewardBundleId: "balanced-floor",
     rewardChoices: 5,
-    targetLabel: "Choose 1 of 5 current-season C-tier players",
+    targetLabel: "Choose 1 of 5 current-season Sapphire players",
     playerPoolMode: "current-season",
-    allowedRewardTiers: ["C"],
+    allowedRewardTiers: ["Sapphire"],
   }),
   makeTrainingNode({
     id: "year-1-offseason-training",
@@ -389,7 +407,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     opponentAverageOverall: 79,
     opponentTeamName: "Summer League Champs",
     playerPoolMode: "current-season",
-    allowedRewardTiers: ["C"],
+    allowedRewardTiers: ["Sapphire"],
     unlocksBench: true,
   }),
   makeRosterCutNode({
@@ -415,7 +433,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     opponentAverageOverall: 81,
     opponentTeamName: "Atlanta Hawks",
     playerPoolMode: "current-season",
-    allowedRewardTiers: ["C"],
+    allowedRewardTiers: ["Sapphire"],
     unlocksBench: true,
   }),
   makeTrainingNode({
@@ -438,7 +456,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     targetLabel: "Reach 83 Offense with your starting five",
     checks: [{ metric: "offense", target: 83 }],
     playerPoolMode: "current-season",
-    allowedRewardTiers: ["C"],
+    allowedRewardTiers: ["Sapphire"],
     clearRewardsOverride: { tokenReward: 20, prestigeXpAward: 4 },
   }),
   makeTradeNode({
@@ -446,12 +464,12 @@ export const roguelikeNodes: RoguelikeNode[] = [
     floor: 9,
     act: 1,
     title: "Early Season Trade",
-    description: "Optionally trade one player and replace them from a current-season C-tier board.",
+    description: "Optionally trade one player and replace them from a current-season Sapphire board.",
     rewardBundleId: "balanced-floor",
     rewardChoices: 5,
-    targetLabel: "Optionally trade 1 player, then draft 1 current-season C-tier replacement",
+    targetLabel: "Optionally trade 1 player, then draft 1 current-season Sapphire replacement",
     playerPoolMode: "current-season",
-    allowedRewardTiers: ["C"],
+    allowedRewardTiers: ["Sapphire"],
   }),
   makeAddPositionNode({
     id: "year-1-new-rotation-test",
@@ -476,12 +494,12 @@ export const roguelikeNodes: RoguelikeNode[] = [
     floor: 12,
     act: 1,
     title: "Mid-Season Free Agent Add",
-    description: "Add one more current-season C-tier contributor to the run.",
+    description: "Add one more current-season Sapphire contributor to the run.",
     rewardBundleId: "balanced-floor",
     rewardChoices: 5,
-    targetLabel: "Choose 1 of 5 current-season C-tier players",
+    targetLabel: "Choose 1 of 5 current-season Sapphire players",
     playerPoolMode: "current-season",
-    allowedRewardTiers: ["C"],
+    allowedRewardTiers: ["Sapphire"],
   }),
   makeTrainingNode({
     id: "year-1-in-season-training-2",
@@ -506,7 +524,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     opponentAverageOverall: 85,
     opponentTeamName: "NBA Playoffs Round 1",
     playerPoolMode: "current-season",
-    allowedRewardTiers: ["C"],
+    allowedRewardTiers: ["Sapphire"],
   }),
   makeAddPositionNode({
     id: "year-1-new-rotation-test-2",
@@ -531,11 +549,11 @@ export const roguelikeNodes: RoguelikeNode[] = [
     floor: 17,
     act: 1,
     title: "Return from Injury",
-    description: "Add one C-tier player from any era. If your roster is full, you'll need to drop someone after the pick.",
+    description: "Add one Sapphire player from any era. If your roster is full, you'll need to drop someone after the pick.",
     rewardBundleId: "balanced-floor",
     rewardChoices: 5,
-    targetLabel: "Choose 1 of 5 C-tier players",
-    allowedRewardTiers: ["C"],
+    targetLabel: "Choose 1 of 5 Sapphire players",
+    allowedRewardTiers: ["Sapphire"],
   }),
   makeBossNode(4, {
     id: "year-1-conference-semifinals",
@@ -550,7 +568,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 85.2,
     opponentTeamName: "Conference Semifinal Opponent",
-    allowedRewardTiers: ["C"],
+    allowedRewardTiers: ["Sapphire"],
   }),
   makeTrainingNode({
     id: "year-1-playoff-training-2",
@@ -574,7 +592,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 86,
     opponentTeamName: "Conference Finals Opponent",
-    allowedRewardTiers: ["C"],
+    allowedRewardTiers: ["Sapphire"],
   }),
   makeTrainingNode({
     id: "year-1-playoff-training-3",
@@ -598,18 +616,18 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 86,
     opponentTeamName: "Finals Opponent",
-    allowedRewardTiers: ["B"],
+    allowedRewardTiers: ["Ruby"],
   }),
   makeDraftNode({
     id: "year-2-free-agency",
     floor: 23,
     act: 2,
     title: "Free Agency",
-    description: "Open Year 2 by signing one B-tier player from any era.",
+    description: "Open Year 2 by signing one Ruby player from any era.",
     rewardBundleId: "elite-closers",
     rewardChoices: 5,
-    targetLabel: "Choose 1 of 5 B-tier players",
-    allowedRewardTiers: ["B"],
+    targetLabel: "Choose 1 of 5 Ruby players",
+    allowedRewardTiers: ["Ruby"],
   }),
   makeTrainingNode({
     id: "year-2-offseason-training",
@@ -625,11 +643,11 @@ export const roguelikeNodes: RoguelikeNode[] = [
     floor: 25,
     act: 2,
     title: "Off-Season Trade",
-    description: "Optionally trade one player and replace them from a B-tier board.",
+    description: "Optionally trade one player and replace them from a Ruby board.",
     rewardBundleId: "elite-closers",
     rewardChoices: 5,
-    targetLabel: "Optionally trade 1 player, then draft 1 B-tier replacement",
-    allowedRewardTiers: ["B"],
+    targetLabel: "Optionally trade 1 player, then draft 1 Ruby replacement",
+    allowedRewardTiers: ["Ruby"],
   }),
   makeRosterCutNode({
     id: "year-2-offseason-roster-cut",
@@ -653,7 +671,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 89,
     opponentTeamName: "Boston Celtics",
-    allowedRewardTiers: ["B"],
+    allowedRewardTiers: ["Ruby"],
     unlocksBench: true,
   }),
   makeTrainingNode({
@@ -675,7 +693,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     rewardChoices: 3,
     targetLabel: "Reach 84.5 Rebounding with your starting five",
     checks: [{ metric: "rebounding", target: 84.5 }],
-    allowedRewardTiers: ["B"],
+    allowedRewardTiers: ["Ruby"],
     clearRewardsOverride: { tokenReward: 30, prestigeXpAward: 5 },
   }),
   makeTradeNode({
@@ -683,11 +701,11 @@ export const roguelikeNodes: RoguelikeNode[] = [
     floor: 30,
     act: 2,
     title: "Early Season Trade",
-    description: "Optionally trade one player and replace them from a B-tier board.",
+    description: "Optionally trade one player and replace them from a Ruby board.",
     rewardBundleId: "elite-closers",
     rewardChoices: 5,
-    targetLabel: "Optionally trade 1 player, then draft 1 B-tier replacement",
-    allowedRewardTiers: ["B"],
+    targetLabel: "Optionally trade 1 player, then draft 1 Ruby replacement",
+    allowedRewardTiers: ["Ruby"],
   }),
   makeAddPositionNode({
     id: "year-2-new-rotation-test",
@@ -729,7 +747,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 88,
     opponentTeamName: "NBA Playoffs Round 1",
-    allowedRewardTiers: ["A"],
+    allowedRewardTiers: ["Amethyst"],
   }),
   makeTrainingNode({
     id: "year-2-playoff-training",
@@ -745,11 +763,11 @@ export const roguelikeNodes: RoguelikeNode[] = [
     floor: 36,
     act: 2,
     title: "Return from Injury",
-    description: "Add one B-tier player from any era. If your roster is full, you'll need to drop someone after the pick.",
+    description: "Add one Ruby player from any era. If your roster is full, you'll need to drop someone after the pick.",
     rewardBundleId: "elite-closers",
     rewardChoices: 5,
-    targetLabel: "Choose 1 of 5 B-tier players",
-    allowedRewardTiers: ["B"],
+    targetLabel: "Choose 1 of 5 Ruby players",
+    allowedRewardTiers: ["Ruby"],
   }),
   makeBossNode(9, {
     id: "year-2-conference-semifinals",
@@ -764,7 +782,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 89,
     opponentTeamName: "Conference Semifinal Opponent",
-    allowedRewardTiers: ["A"],
+    allowedRewardTiers: ["Amethyst"],
   }),
   makeTrainingNode({
     id: "year-2-playoff-training-2",
@@ -788,7 +806,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 91,
     opponentTeamName: "Conference Finals Opponent",
-    allowedRewardTiers: ["A"],
+    allowedRewardTiers: ["Amethyst"],
   }),
   makeTrainingNode({
     id: "year-2-playoff-training-3",
@@ -812,18 +830,18 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 86,
     opponentTeamName: "Finals Opponent",
-    allowedRewardTiers: ["A"],
+    allowedRewardTiers: ["Amethyst"],
   }),
   makeDraftNode({
     id: "year-3-free-agency",
     floor: 42,
     act: 3,
     title: "Free Agency",
-    description: "Start Year 3 by adding one A-tier player from any era.",
+    description: "Start Year 3 by adding one Amethyst player from any era.",
     rewardBundleId: "elite-closers",
     rewardChoices: 5,
-    targetLabel: "Choose 1 of 5 A-tier players",
-    allowedRewardTiers: ["A"],
+    targetLabel: "Choose 1 of 5 Amethyst players",
+    allowedRewardTiers: ["Amethyst"],
   }),
   makeTrainingNode({
     id: "year-3-offseason-training",
@@ -839,11 +857,11 @@ export const roguelikeNodes: RoguelikeNode[] = [
     floor: 44,
     act: 3,
     title: "Off-Season Trade",
-    description: "Optionally trade one player and replace them from an A-tier board.",
+    description: "Optionally trade one player and replace them from an Amethyst board.",
     rewardBundleId: "elite-closers",
     rewardChoices: 5,
-    targetLabel: "Optionally trade 1 player, then draft 1 A-tier replacement",
-    allowedRewardTiers: ["A"],
+    targetLabel: "Optionally trade 1 player, then draft 1 Amethyst replacement",
+    allowedRewardTiers: ["Amethyst"],
   }),
   makeRosterCutNode({
     id: "year-3-offseason-roster-cut",
@@ -867,7 +885,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 92,
     opponentTeamName: "Boston Celtics",
-    allowedRewardTiers: ["A"],
+    allowedRewardTiers: ["Amethyst"],
     unlocksBench: true,
   }),
   makeTrainingNode({
@@ -889,7 +907,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     rewardChoices: 5,
     targetLabel: "Reach 85 Chemistry with your starting five",
     checks: [{ metric: "chemistry", target: 85 }],
-    allowedRewardTiers: ["A"],
+    allowedRewardTiers: ["Amethyst"],
     clearRewardsOverride: { tokenReward: 60, prestigeXpAward: 7 },
   }),
   makeTradeNode({
@@ -897,11 +915,11 @@ export const roguelikeNodes: RoguelikeNode[] = [
     floor: 49,
     act: 3,
     title: "Early Season Trade",
-    description: "Optionally trade one player and replace them from an A-tier board.",
+    description: "Optionally trade one player and replace them from an Amethyst board.",
     rewardBundleId: "elite-closers",
     rewardChoices: 5,
-    targetLabel: "Optionally trade 1 player, then draft 1 A-tier replacement",
-    allowedRewardTiers: ["A"],
+    targetLabel: "Optionally trade 1 player, then draft 1 Amethyst replacement",
+    allowedRewardTiers: ["Amethyst"],
   }),
   makeAddPositionNode({
     id: "year-3-new-rotation-test",
@@ -943,7 +961,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 93,
     opponentTeamName: "NBA Playoffs Round 1",
-    allowedRewardTiers: ["S"],
+    allowedRewardTiers: ["Galaxy"],
   }),
   makeTrainingNode({
     id: "year-3-playoff-training",
@@ -959,11 +977,11 @@ export const roguelikeNodes: RoguelikeNode[] = [
     floor: 55,
     act: 3,
     title: "Return from Injury",
-    description: "Add one A-tier player from any era. If your roster is full, you'll need to drop someone after the pick.",
+    description: "Add one Amethyst player from any era. If your roster is full, you'll need to drop someone after the pick.",
     rewardBundleId: "elite-closers",
     rewardChoices: 5,
-    targetLabel: "Choose 1 of 5 A-tier players",
-    allowedRewardTiers: ["A"],
+    targetLabel: "Choose 1 of 5 Amethyst players",
+    allowedRewardTiers: ["Amethyst"],
   }),
   makeBossNode(14, {
     id: "year-3-conference-semifinals",
@@ -978,7 +996,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 94,
     opponentTeamName: "Conference Semifinal Opponent",
-    allowedRewardTiers: ["S"],
+    allowedRewardTiers: ["Galaxy"],
   }),
   makeTrainingNode({
     id: "year-3-playoff-training-2",
@@ -1002,7 +1020,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 95,
     opponentTeamName: "Conference Finals Opponent",
-    allowedRewardTiers: ["S"],
+    allowedRewardTiers: ["Galaxy"],
   }),
   makeTrainingNode({
     id: "year-3-playoff-training-3",
@@ -1024,9 +1042,9 @@ export const roguelikeNodes: RoguelikeNode[] = [
     targetLabel: "Beat your Finals Opponent",
     battleMode: "starting-five-faceoff",
     eliminationOnLoss: true,
-    opponentAverageOverall: 86,
+    opponentAverageOverall: 96,
     opponentTeamName: "Finals Opponent",
-    allowedRewardTiers: ["S"],
+    allowedRewardTiers: ["Galaxy"],
   }),
   {
     id: "the-goats",
@@ -1077,7 +1095,7 @@ export const getRoguelikeEvolutionRewardPool = () => {
       const lowestVersion = sortedVersions[0];
       const highestOverall = sortedVersions[sortedVersions.length - 1]?.overall ?? lowestVersion.overall;
       if (lowestVersion.overall >= highestOverall) return [];
-      return getPlayerTier(lowestVersion) === "B" ? [lowestVersion] : [];
+      return getPlayerTier(lowestVersion) === "Ruby" ? [lowestVersion] : [];
     })
     .sort((a, b) => b.overall - a.overall || a.name.localeCompare(b.name));
 };
@@ -1133,20 +1151,20 @@ const uniqueByIdentity = (players: Player[]) => {
 const starterPackageCandidates: Record<RoguelikeStarterPackageId, Player[]> = {
   "balanced-foundation": uniqueByIdentity(
     rankPlayers((player) => {
-      if (getPlayerTier(player) === "S") return -1;
+  if (getPlayerTier(player) === "Galaxy") return -1;
       return player.overall * 0.75 + player.offense * 0.12 + player.defense * 0.13;
     }, 30),
   ),
   "defense-lab": uniqueByIdentity(
     rankPlayers((player) => {
-      if (getPlayerTier(player) === "S") return -1;
+  if (getPlayerTier(player) === "Galaxy") return -1;
       if (player.defense < 82) return -1;
       return player.defense * 1.45 + player.rebounding * 0.3 + player.overall * 0.45;
     }, 30),
   ),
   "creator-camp": uniqueByIdentity(
     rankPlayers((player) => {
-      if (getPlayerTier(player) === "S") return -1;
+  if (getPlayerTier(player) === "Galaxy") return -1;
       if (player.playmaking < 80) return -1;
       return player.playmaking * 1.45 + player.offense * 0.5 + player.shooting * 0.25;
     }, 30),
@@ -1156,7 +1174,7 @@ const starterPackageCandidates: Record<RoguelikeStarterPackageId, Player[]> = {
 const bundleCandidates: Record<RoguelikeBundleId, Player[]> = {
   "balanced-floor": uniqueByIdentity(
     rankPlayers((player) => {
-      if (getPlayerTier(player) === "S") return -1;
+  if (getPlayerTier(player) === "Galaxy") return -1;
       return player.overall * 0.8 + player.defense * 0.15 + player.offense * 0.15;
     }, 24),
   ),
@@ -1203,21 +1221,21 @@ const getStarterPoolCandidates = (
 
   if (packageId === "balanced-foundation") {
     return rankCurrentPool((player) => {
-      if (getPlayerTier(player) === "S") return -1;
+  if (getPlayerTier(player) === "Galaxy") return -1;
       return player.overall * 0.75 + player.offense * 0.12 + player.defense * 0.13;
     }, 30);
   }
 
   if (packageId === "defense-lab") {
     return rankCurrentPool((player) => {
-      if (getPlayerTier(player) === "S") return -1;
+  if (getPlayerTier(player) === "Galaxy") return -1;
       if (player.defense < 82) return -1;
       return player.defense * 1.45 + player.rebounding * 0.3 + player.overall * 0.45;
     }, 30);
   }
 
   return rankCurrentPool((player) => {
-    if (getPlayerTier(player) === "S") return -1;
+  if (getPlayerTier(player) === "Galaxy") return -1;
     if (player.playmaking < 80) return -1;
     return player.playmaking * 1.45 + player.offense * 0.5 + player.shooting * 0.25;
   }, 30);
@@ -1236,7 +1254,7 @@ export const buildOpeningDraftPool = () =>
     allPlayers.filter(
       (player) => {
         const tier = getPlayerTier(player);
-        return tier === "D" || tier === "C" || tier === "B";
+        return tier === "Emerald" || tier === "Sapphire" || tier === "Ruby";
       },
     ),
   );
@@ -1282,7 +1300,7 @@ export const drawRoguelikeStarterRevealPlayers = (
   const eligible = uniqueByIdentity(
     candidatePool.filter((player) => {
       const tier = getPlayerTier(player);
-      return tier === "C" || tier === "D";
+      return tier === "Sapphire" || tier === "Emerald";
     }),
   );
   const selectedIds = new Set<string>();
@@ -2016,10 +2034,233 @@ export const evaluateRoguelikeLineup = (
 const getFaceoffPlayerRating = (
   player: Player | null,
   slot: RosterSlot,
+  opponentPlayer: Player | null,
   ownedPlayerIds: string[] = [],
+  lineupMetrics: RoguelikeRosterMetrics,
+  lineupBalanceBonus: number,
+  lineupPlayers: Player[],
   trainedPlayerIds: string[] = [],
 ) => {
-  return getRoguelikeAdjustedOverallForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
+  if (!player) {
+    return {
+      baseScore: 0,
+      chemistrySupport: 0,
+      teamProfileSupport: 0,
+      lineupBalanceBonus: 0,
+      badgeMatchupBonus: 0,
+      headToHeadBonus: 0,
+      total: 0,
+    } satisfies RoguelikeFaceoffRatingBreakdown;
+  }
+
+  const adjustedOverall = getRoguelikeAdjustedOverallForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
+  const adjustedOffense = getRoguelikeAdjustedOffenseForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
+  const adjustedDefense = getRoguelikeAdjustedDefenseForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
+  const adjustedPlaymaking = getRoguelikeAdjustedPlaymakingForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
+  const adjustedShooting = getRoguelikeAdjustedShootingForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
+  const adjustedRebounding = getRoguelikeAdjustedReboundingForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
+  const adjustedAthleticism = getRoguelikeAdjustedAthleticismForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
+  const adjustedIntangibles = getRoguelikeAdjustedIntangiblesForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
+  const chemistrySupport = (lineupMetrics.chemistry - 78) * 0.06;
+  const teamProfileSupport =
+    (lineupMetrics.offense - 80) * 0.015 +
+    (lineupMetrics.defense - 80) * 0.015 +
+    (lineupMetrics.rebounding - 80) * 0.012;
+  const badgeMatchupBonus = getBossBattleBadgeMatchupBonus(
+    player,
+    opponentPlayer,
+    slot,
+    lineupMetrics,
+    lineupBalanceBonus,
+    lineupPlayers,
+  );
+  const headToHeadBonus = getBossBattleHeadToHeadBonus(player, opponentPlayer, slot);
+  const slotSimulationScore =
+    adjustedOverall * getBossBattleSlotWeight(slot.slot, "overall") +
+    adjustedOffense * getBossBattleSlotWeight(slot.slot, "offense") +
+    adjustedDefense * getBossBattleSlotWeight(slot.slot, "defense") +
+    adjustedPlaymaking * getBossBattleSlotWeight(slot.slot, "playmaking") +
+    adjustedShooting * getBossBattleSlotWeight(slot.slot, "shooting") +
+    adjustedRebounding * getBossBattleSlotWeight(slot.slot, "rebounding") +
+    adjustedAthleticism * getBossBattleSlotWeight(slot.slot, "athleticism") +
+    adjustedIntangibles * getBossBattleSlotWeight(slot.slot, "intangibles");
+
+  const baseScore = Math.round(slotSimulationScore * 10) / 10;
+  const total =
+    Math.round(
+      (baseScore + chemistrySupport + teamProfileSupport + lineupBalanceBonus + badgeMatchupBonus + headToHeadBonus) * 10,
+    ) / 10;
+
+  return {
+    baseScore,
+    chemistrySupport: Math.round(chemistrySupport * 10) / 10,
+    teamProfileSupport: Math.round(teamProfileSupport * 10) / 10,
+    lineupBalanceBonus: Math.round(lineupBalanceBonus * 10) / 10,
+    badgeMatchupBonus: Math.round(badgeMatchupBonus * 10) / 10,
+    headToHeadBonus: Math.round(headToHeadBonus * 10) / 10,
+    total,
+  } satisfies RoguelikeFaceoffRatingBreakdown;
+};
+
+const BOSS_BATTLE_SLOT_WEIGHTS: Record<
+  RosterSlotType,
+  {
+    overall: number;
+    offense: number;
+    defense: number;
+    playmaking: number;
+    shooting: number;
+    rebounding: number;
+    athleticism: number;
+    intangibles: number;
+  }
+> = {
+  PG: { overall: 0.38, offense: 0.14, defense: 0.1, playmaking: 0.17, shooting: 0.08, rebounding: 0.02, athleticism: 0.06, intangibles: 0.05 },
+  SG: { overall: 0.39, offense: 0.17, defense: 0.11, playmaking: 0.09, shooting: 0.12, rebounding: 0.03, athleticism: 0.05, intangibles: 0.04 },
+  SF: { overall: 0.38, offense: 0.14, defense: 0.14, playmaking: 0.07, shooting: 0.09, rebounding: 0.06, athleticism: 0.07, intangibles: 0.05 },
+  PF: { overall: 0.37, offense: 0.12, defense: 0.15, playmaking: 0.05, shooting: 0.06, rebounding: 0.13, athleticism: 0.06, intangibles: 0.06 },
+  C: { overall: 0.36, offense: 0.1, defense: 0.17, playmaking: 0.04, shooting: 0.03, rebounding: 0.17, athleticism: 0.06, intangibles: 0.07 },
+  G: { overall: 0.4, offense: 0.14, defense: 0.13, playmaking: 0.08, shooting: 0.08, rebounding: 0.06, athleticism: 0.06, intangibles: 0.05 },
+  "G/F": { overall: 0.4, offense: 0.14, defense: 0.13, playmaking: 0.08, shooting: 0.08, rebounding: 0.06, athleticism: 0.06, intangibles: 0.05 },
+  "F/C": { overall: 0.4, offense: 0.14, defense: 0.13, playmaking: 0.08, shooting: 0.08, rebounding: 0.06, athleticism: 0.06, intangibles: 0.05 },
+  UTIL: { overall: 0.4, offense: 0.14, defense: 0.13, playmaking: 0.08, shooting: 0.08, rebounding: 0.06, athleticism: 0.06, intangibles: 0.05 },
+};
+
+const getBossBattleSlotWeight = (
+  slotType: RosterSlotType,
+  metric: keyof (typeof BOSS_BATTLE_SLOT_WEIGHTS)[RosterSlotType],
+) => BOSS_BATTLE_SLOT_WEIGHTS[slotType]?.[metric] ?? BOSS_BATTLE_SLOT_WEIGHTS.UTIL[metric];
+
+const getBossBattleLineupBalanceBonus = (players: Player[], chemistry: number) => {
+  const snapshot = getPlayerTypeBalanceSnapshot(players);
+  let bonus = 0;
+
+  if (snapshot.representedCount >= 3) bonus += 0.8;
+  if (snapshot.representedCount >= 4) bonus += 1.1;
+  if (snapshot.representedCount >= 5) bonus += 1.3;
+  if (snapshot.uniquePrimaryCount >= 4) bonus += 0.8;
+  if (snapshot.uniquePrimaryCount >= 5) bonus += 0.8;
+  if (snapshot.duplicatePrimaryCount >= 2) bonus -= 1.1;
+  if (snapshot.duplicatePrimaryCount >= 3) bonus -= 1.4;
+  bonus += (chemistry - 80) * 0.035;
+
+  return Math.max(-3.5, Math.min(4.8, Math.round(bonus * 10) / 10));
+};
+
+const getBossBattleBadgeMatchupBonus = (
+  player: Player,
+  opponentPlayer: Player | null,
+  slot: RosterSlot,
+  lineupMetrics: RoguelikeRosterMetrics,
+  lineupBalanceBonus: number,
+  lineupPlayers: Player[],
+) => {
+  const playerBadges = getPlayerTypeBadges(player);
+  const opponentBadges = opponentPlayer ? getPlayerTypeBadges(opponentPlayer) : [];
+  const primaryBadge = getPrimaryPlayerTypeBadge(player)?.type ?? null;
+  const opponentPrimaryBadge = opponentPlayer ? getPrimaryPlayerTypeBadge(opponentPlayer)?.type ?? null : null;
+  const representedTypes = getPlayerTypeBalanceSnapshot(lineupPlayers).representedTypes;
+  const opponentHasBadge = (badgeType: PlayerTypeBadge) => opponentBadges.some((badge) => badge.type === badgeType);
+
+  let bonus = 0;
+
+  if (playerBadges.some((badge) => badge.type === "slasher")) {
+    let slasherBonus = 0;
+    if (!opponentHasBadge("lockdown")) slasherBonus += 1.15;
+    if ((opponentPlayer?.defense ?? 0) <= player.offense - 2) slasherBonus += 0.8;
+    if (slot.slot === "PG" || slot.slot === "SG" || slot.slot === "SF") slasherBonus += 0.45;
+    if (representedTypes.includes("sniper")) slasherBonus += 0.35;
+    bonus += Math.min(2.5, slasherBonus);
+  }
+
+  if (playerBadges.some((badge) => badge.type === "sniper")) {
+    let sniperBonus = 0;
+    if (!opponentHasBadge("lockdown")) sniperBonus += 1.1;
+    if ((opponentPlayer?.perimeterDefense ?? 0) <= player.shooting - 3) sniperBonus += 0.85;
+    if (representedTypes.includes("playmaker")) sniperBonus += 0.4;
+    if (lineupMetrics.offense >= 86) sniperBonus += 0.25;
+    bonus += Math.min(2.5, sniperBonus);
+  }
+
+  if (playerBadges.some((badge) => badge.type === "playmaker")) {
+    let playmakerBonus = 0;
+    if (representedTypes.length >= 4) playmakerBonus += 1.05;
+    if (lineupBalanceBonus >= 1.8) playmakerBonus += 0.7;
+    if (lineupMetrics.chemistry >= 86) playmakerBonus += 0.55;
+    if (opponentPrimaryBadge && opponentPrimaryBadge === primaryBadge) playmakerBonus += 0.2;
+    bonus += Math.min(2.5, playmakerBonus);
+  }
+
+  if (playerBadges.some((badge) => badge.type === "board-man")) {
+    let boardManBonus = 0;
+    if (slot.slot === "PF" || slot.slot === "C") boardManBonus += 0.95;
+    if ((opponentPlayer?.rebounding ?? 0) <= player.rebounding - 3) boardManBonus += 0.95;
+    if (!opponentHasBadge("board-man")) boardManBonus += 0.45;
+    if (lineupMetrics.rebounding >= 85) boardManBonus += 0.25;
+    bonus += Math.min(2.5, boardManBonus);
+  }
+
+  if (playerBadges.some((badge) => badge.type === "lockdown")) {
+    let lockdownBonus = 0;
+    if (opponentHasBadge("slasher") || opponentHasBadge("sniper") || opponentHasBadge("playmaker")) lockdownBonus += 1.15;
+    if ((opponentPlayer?.offense ?? 0) >= 88) lockdownBonus += 0.6;
+    if ((player.defense + player.perimeterDefense + player.interiorDefense) / 3 >= (opponentPlayer?.offense ?? 0)) lockdownBonus += 0.5;
+    if (lineupMetrics.defense >= 86) lockdownBonus += 0.25;
+    bonus += Math.min(2.5, lockdownBonus);
+  }
+
+  return Math.round(bonus * 10) / 10;
+};
+
+const getBossBattleHeadToHeadBonus = (
+  player: Player,
+  opponentPlayer: Player | null,
+  slot: RosterSlot,
+) => {
+  if (!opponentPlayer) return 0;
+
+  const overallGap = player.overall - opponentPlayer.overall;
+
+  let bonus = 0;
+
+  if (slot.slot === "PG") {
+    bonus =
+      overallGap * 0.28 +
+      (player.playmaking - opponentPlayer.playmaking) * 0.06 +
+      (player.shooting - opponentPlayer.shooting) * 0.03 +
+      (player.perimeterDefense - opponentPlayer.perimeterDefense) * 0.03;
+  } else if (slot.slot === "SG") {
+    bonus =
+      overallGap * 0.3 +
+      (player.offense - opponentPlayer.offense) * 0.05 +
+      (player.shooting - opponentPlayer.shooting) * 0.05 +
+      (player.perimeterDefense - opponentPlayer.perimeterDefense) * 0.03;
+  } else if (slot.slot === "SF") {
+    bonus =
+      overallGap * 0.32 +
+      (player.offense - opponentPlayer.offense) * 0.04 +
+      (player.defense - opponentPlayer.defense) * 0.04 +
+      (player.rebounding - opponentPlayer.rebounding) * 0.02;
+  } else if (slot.slot === "PF") {
+    bonus =
+      overallGap * 0.35 +
+      (player.defense - opponentPlayer.defense) * 0.05 +
+      (player.rebounding - opponentPlayer.rebounding) * 0.04 +
+      (player.interiorDefense - opponentPlayer.interiorDefense) * 0.04;
+  } else if (slot.slot === "C") {
+    bonus =
+      overallGap * 0.42 +
+      (player.defense - opponentPlayer.defense) * 0.05 +
+      (player.rebounding - opponentPlayer.rebounding) * 0.04 +
+      (player.interiorDefense - opponentPlayer.interiorDefense) * 0.05;
+  } else {
+    bonus =
+      overallGap * 0.3 +
+      (player.offense - opponentPlayer.offense) * 0.03 +
+      (player.defense - opponentPlayer.defense) * 0.03;
+  }
+
+  return Math.max(-3.5, Math.min(3.5, Math.round(bonus * 10) / 10));
 };
 
 const getHeadToHeadWinProbability = (ratingDelta: number) => {
@@ -2037,6 +2278,8 @@ export const resolveRoguelikeFaceoff = (
 ): RoguelikeFaceoffResult => {
   const userLineup = lineup.map((slot) => ({ ...slot })).slice(0, 5);
   const opponentLineup = buildRoguelikeOpponentLineup(node).slice(0, 5);
+  const userPlayers = userLineup.map((slot) => slot.player).filter((player): player is Player => Boolean(player));
+  const opponentPlayers = opponentLineup.map((slot) => slot.player).filter((player): player is Player => Boolean(player));
   const resolvedUserPlayerIds =
     ownedPlayerIds.length > 0
       ? Array.from(new Set([...ownedPlayerIds, ...userLineup.map((slot) => slot.player?.id).filter((id): id is string => Boolean(id))]))
@@ -2047,19 +2290,38 @@ export const resolveRoguelikeFaceoff = (
           new Set([...opponentOwnedPlayerIds, ...opponentLineup.map((slot) => slot.player?.id).filter((id): id is string => Boolean(id))]),
         )
       : opponentLineup.map((slot) => slot.player?.id).filter((id): id is string => Boolean(id));
+  const userLineupMetrics = evaluateRoguelikeLineup(userLineup, resolvedUserPlayerIds, trainedPlayerIds);
+  const opponentLineupMetrics = evaluateRoguelikeLineup(opponentLineup, resolvedOpponentPlayerIds, opponentTrainedPlayerIds);
+  const userLineupBalanceBonus = getBossBattleLineupBalanceBonus(userPlayers, userLineupMetrics.chemistry);
+  const opponentLineupBalanceBonus = getBossBattleLineupBalanceBonus(opponentPlayers, opponentLineupMetrics.chemistry);
 
   const matchups = userLineup.map((userSlot, index) => {
     const opponentSlot = opponentLineup[index] ?? userSlot;
     const userPlayer = userSlot.player;
     const opponentPlayer = opponentSlot?.player ?? null;
-    const userRating = getFaceoffPlayerRating(userPlayer, userSlot, resolvedUserPlayerIds, trainedPlayerIds);
-    const opponentRating = getFaceoffPlayerRating(
+    const userBreakdown = getFaceoffPlayerRating(
+      userPlayer,
+      userSlot,
+      opponentPlayer,
+      resolvedUserPlayerIds,
+      userLineupMetrics,
+      userLineupBalanceBonus,
+      userPlayers,
+      trainedPlayerIds,
+    );
+    const opponentBreakdown = getFaceoffPlayerRating(
       opponentPlayer,
       opponentSlot ?? userSlot,
+      userPlayer,
       resolvedOpponentPlayerIds,
+      opponentLineupMetrics,
+      opponentLineupBalanceBonus,
+      opponentPlayers,
       opponentTrainedPlayerIds,
     );
-    const ratingDelta = userRating - opponentRating;
+    const userRating = userBreakdown.total;
+    const opponentRating = opponentBreakdown.total;
+    const ratingDelta = Math.round((userRating - opponentRating) * 10) / 10;
     const userWinProbability = getHeadToHeadWinProbability(ratingDelta);
     const opponentWinProbability = 1 - userWinProbability;
 
@@ -2072,6 +2334,8 @@ export const resolveRoguelikeFaceoff = (
       ratingDelta,
       userWinProbability: Math.round(userWinProbability * 1000) / 10,
       opponentWinProbability: Math.round(opponentWinProbability * 1000) / 10,
+      userBreakdown,
+      opponentBreakdown,
     } satisfies RoguelikeFaceoffMatchup;
   });
 

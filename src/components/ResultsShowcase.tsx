@@ -22,6 +22,7 @@ import {
   Info,
 } from "lucide-react";
 import { usePlayerImage } from "../hooks/usePlayerImage";
+import { RunRosterPlayerCard } from "./RunRosterPlayerCard";
 import {
   BracketMatchup,
   ConferenceBracket,
@@ -295,68 +296,23 @@ const CompactRosterCard = ({
   isStarter: boolean;
   categoryChallenge?: SimulationResult["categoryChallenge"];
 }) => {
-  const imageUrl = slot.player ? usePlayerImage(slot.player) : null;
   const categoryLabel = categoryChallenge ? categoryMetricAbbreviation(categoryChallenge) : null;
   const categoryValue =
     slot.player && categoryChallenge ? playerCategoryMetricValue(slot.player, categoryChallenge) : null;
+  const rosterIds = slot.player ? [slot.player.id] : [];
+  const metricChips =
+    categoryLabel && categoryValue !== null
+      ? [{ label: categoryLabel, value: categoryValue, toneClassName: "border-amber-200/20 bg-amber-300/12 text-amber-100" }]
+      : [];
 
   return (
-    <div className="rounded-[22px] border border-white/10 bg-black/20 p-3">
-      <div className="flex items-center gap-3">
-        <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-white/10 bg-white/6">
-          {slot.player && imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={slot.player.name}
-              className="h-full w-full object-cover object-top"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-700 to-slate-900 font-display text-lg text-white/70">
-              {slot.player?.name.charAt(0) ?? slot.slot.charAt(0)}
-            </div>
-          )}
-          <div className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-center text-[9px] uppercase tracking-[0.24em] text-white/85">
-            {slot.player?.primaryPosition ?? slot.slot}
-          </div>
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="rounded-full border border-white/10 bg-white/8 px-2 py-1 text-[10px] uppercase tracking-[0.24em] text-slate-300">
-              {slot.slot}
-            </span>
-            <span
-              className={`rounded-full px-2 py-1 text-[10px] uppercase tracking-[0.24em] ${
-                isStarter ? "bg-amber-300/16 text-amber-100" : "bg-sky-300/14 text-sky-100"
-              }`}
-            >
-              {isStarter ? "Starter" : "Bench"}
-            </span>
-          </div>
-          <div className="mt-2 truncate font-semibold text-white">
-            {slot.player?.name ?? "Empty slot"}
-          </div>
-          <div className="mt-1 text-xs text-slate-400">
-            {slot.player?.teamLabel ?? "No player assigned"}
-          </div>
-        </div>
-
-          <div className="text-right">
-            <div className="flex items-center justify-end gap-3 text-[10px] uppercase tracking-[0.24em] text-slate-500">
-              <span>OVR</span>
-              {categoryLabel ? <span>{categoryLabel}</span> : null}
-            </div>
-            <div className="mt-1 flex items-center justify-end gap-3">
-              <div className="text-2xl font-semibold text-white">{slot.player?.overall ?? "--"}</div>
-              {categoryLabel ? (
-                <div className="text-2xl font-semibold text-amber-100">{categoryValue ?? "--"}</div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-    </div>
+    <RunRosterPlayerCard
+      player={slot.player}
+      draftedPlayerIds={rosterIds}
+      eyebrow={slot.slot}
+      metaPills={[isStarter ? "Starter" : "Bench"]}
+      metricChips={metricChips}
+    />
   );
 };
 

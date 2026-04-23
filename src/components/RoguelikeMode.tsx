@@ -17,11 +17,13 @@ import {
   Target,
   Trophy,
   Zap,
+  type LucideIcon,
 } from "lucide-react";
 import { DraftPlayerCard } from "./DraftPlayerCard";
 import { DynamicDuoBadge } from "./DynamicDuoBadge";
 import { PlayerTypeBadges } from "./PlayerTypeBadges";
 import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
+import { RunRosterPlayerCard } from "./RunRosterPlayerCard";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { allPlayers } from "../data/players";
 import { assignPlayerToRoster } from "../lib/draft";
@@ -101,6 +103,7 @@ type LockerRoomItemId =
 interface RoguelikeRun {
   seed: number;
   packageId: RoguelikeStarterPackageId;
+  starterRevealTargetAverage?: number;
   roster: Player[];
   lineup: RosterSlot[];
   availablePool: Player[];
@@ -336,10 +339,96 @@ const injectActiveRogueStarIntoReveal = (starterRevealPlayers: Player[], activeR
 };
 
 const getStarterPackAverageForUpgrade = (upgrade: "standard" | "silver" | "gold" | "platinum") => {
-  if (upgrade === "silver") return 84;
-  if (upgrade === "gold") return 85;
-  if (upgrade === "platinum") return 86;
+  if (upgrade === "silver") return 81;
+  if (upgrade === "gold") return 82;
+  if (upgrade === "platinum") return 83;
   return 80;
+};
+
+const buildStarterRevealRunRepair = (
+  run: Pick<RoguelikeRun, "packageId" | "seed" | "starterRevealPlayers" | "starterRevealTargetAverage">,
+  activeRogueStarId: string | null,
+) => {
+  const activeRogueStar = getPlayerById(activeRogueStarId);
+  const currentSeasonStarterSource = allPlayers.filter((player) => player.era === "2025-26");
+  const starterRevealSource = currentSeasonStarterSource.filter((player) => player.id !== activeRogueStar?.id);
+  const starterRevealPlayers = ensureVisibleStarterRevealPlayers(
+    run.packageId,
+    run.seed,
+    run.starterRevealTargetAverage ?? 80,
+    activeRogueStar,
+    starterRevealSource,
+  );
+
+  return starterRevealPlayers.length >= 3
+    ? starterRevealPlayers
+    : fillStarterRevealFallbackPlayers(
+        starterRevealPlayers,
+        [...starterRevealSource, ...allPlayers.filter((player) => player.era !== "2025-26")],
+      );
+};
+
+const normalizeStoredRun = (parsed: Partial<RoguelikeRun>, activeRogueStarId: string | null): RoguelikeRun | null => {
+  if (!parsed.packageId || typeof parsed.seed !== "number") {
+    return null;
+  }
+
+  const starterRevealTargetAverage = parsed.starterRevealTargetAverage ?? 80;
+  const starterRevealPlayers =
+    parsed.stage === "starter-reveal"
+      ? buildStarterRevealRunRepair(
+          {
+            packageId: parsed.packageId,
+            seed: parsed.seed,
+            starterRevealPlayers: parsed.starterRevealPlayers ?? [],
+            starterRevealTargetAverage,
+          },
+          activeRogueStarId,
+        )
+      : parsed.starterRevealPlayers ?? [];
+
+  return {
+    seed: parsed.seed,
+    packageId: parsed.packageId,
+    starterRevealTargetAverage,
+    roster: parsed.roster ?? [],
+    lineup: parsed.lineup ?? buildRoguelikeStarterLineup([]),
+    availablePool: parsed.availablePool ?? [],
+    seenChoicePlayerIds: parsed.seenChoicePlayerIds ?? [],
+    choices: parsed.choices ?? [],
+    starterRevealPlayers,
+    revealedStarterIds: parsed.revealedStarterIds ?? [],
+    pendingRewardPlayer: parsed.pendingRewardPlayer ?? null,
+    pendingTradeState: parsed.pendingTradeState ?? null,
+    lives: parsed.lives ?? 3,
+    floorIndex: parsed.floorIndex ?? 0,
+    initialPicks: parsed.initialPicks ?? 0,
+    draftShuffleTickets: parsed.draftShuffleTickets ?? 0,
+    lockerRoomCash: parsed.lockerRoomCash ?? 0,
+    unlockedBundleIds: parsed.unlockedBundleIds ?? [],
+    scoutedBossNodeIds: parsed.scoutedBossNodeIds ?? [],
+    trainedPlayerIds: parsed.trainedPlayerIds ?? [],
+    selectedCutPlayerIds: parsed.selectedCutPlayerIds ?? [],
+    selectedNaturalPositionPlayerId: parsed.selectedNaturalPositionPlayerId ?? null,
+    selectedNaturalPosition: parsed.selectedNaturalPosition ?? null,
+    allStarAssignments: parsed.allStarAssignments ?? {
+      dunkContest: null,
+      threePointContest: null,
+      skillsChallenge: null,
+    },
+    utilityReturnState: parsed.utilityReturnState ?? null,
+    failureReviewStage: parsed.failureReviewStage ?? null,
+    stage: parsed.stage ?? "package-select",
+    activeNode: parsed.activeNode ?? null,
+    activeOpponentPlayerIds: parsed.activeOpponentPlayerIds ?? null,
+    lockerRoomNotice: parsed.lockerRoomNotice ?? null,
+    nodeResult: parsed.nodeResult
+      ? {
+          ...parsed.nodeResult,
+          failureRewards: parsed.nodeResult.failureRewards ?? null,
+        }
+      : null,
+  };
 };
 
 const getRevealedStarterPlayers = (run: RoguelikeRun) => {
@@ -347,6 +436,58 @@ const getRevealedStarterPlayers = (run: RoguelikeRun) => {
     run.revealedStarterIds.includes(player.id),
   );
   return revealedPlayers.length > 0 ? revealedPlayers : run.starterRevealPlayers;
+};
+
+const fillStarterRevealFallbackPlayers = (players: Player[], fallbackPool: Player[]) => {
+  const seenIds = new Set(players.map((player) => player.id));
+  const fallbackCandidates = fallbackPool.filter((player) => {
+    if (seenIds.has(player.id)) return false;
+    const tier = getPlayerTier(player);
+    return tier === "Sapphire" || tier === "Emerald";
+  });
+
+  return [...players, ...fallbackCandidates.slice(0, Math.max(0, 3 - players.length))].slice(0, 3);
+};
+
+const ensureVisibleStarterRevealPlayers = (
+  packageId: RoguelikeStarterPackageId,
+  seed: number,
+  targetAverageOverall: number,
+  activeRogueStar: Player | null,
+  currentSeasonPool: Player[],
+) => {
+
+  const currentSeasonResult = injectActiveRogueStarIntoReveal(
+    drawRoguelikeStarterRevealPlayers(
+      packageId,
+      nextChoiceSeed(seed, 1),
+      targetAverageOverall,
+      currentSeasonPool.filter((player) => player.id !== activeRogueStar?.id),
+    ),
+    activeRogueStar,
+  );
+
+  if (currentSeasonResult.length === 3) return currentSeasonResult;
+
+  const broaderFallback = injectActiveRogueStarIntoReveal(
+    drawRoguelikeStarterRevealPlayers(
+      packageId,
+      nextChoiceSeed(seed, 11),
+      targetAverageOverall,
+      allPlayers.filter((player) => player.id !== activeRogueStar?.id),
+    ),
+    activeRogueStar,
+  );
+
+  if (broaderFallback.length === 3) return broaderFallback;
+
+  const bestEffortResult =
+    currentSeasonResult.length >= broaderFallback.length ? currentSeasonResult : broaderFallback;
+
+  return fillStarterRevealFallbackPlayers(
+    bestEffortResult,
+    [...currentSeasonPool, ...allPlayers.filter((player) => player.era !== "2025-26")],
+  );
 };
 
 const buildRevealedStarterRosterState = (run: RoguelikeRun, revealedStarterIds: string[]) => {
@@ -641,10 +782,10 @@ const shouldStrictlyUseNodePool = (node: RoguelikeNode | null) =>
   node?.playerPoolMode === "current-season";
 
 const getActHeading = (act: number) => {
-  if (act === 1) return "Act 1 Climb";
-  if (act === 2) return "Act 2 Push";
-  if (act === 3) return "Act 3 Pressure";
-  return "Act 4 Finals";
+  if (act === 1) return "Year 1 Climb";
+  if (act === 2) return "Year 2 Push";
+  if (act === 3) return "Year 3 Pressure";
+  return "Year 4 Finals";
 };
 
 const getActDescription = (act: number) => {
@@ -699,6 +840,114 @@ const getActLadderTheme = (act: number) => {
     target: "border-emerald-200/22 bg-[linear-gradient(135deg,rgba(52,211,153,0.16),rgba(15,23,42,0.84),rgba(6,78,59,0.14))] text-emerald-50",
     reward: "border-emerald-200/14 bg-emerald-300/8 text-emerald-50/92",
   };
+};
+
+const getRoguelikeNodeTypeTheme = (type: RoguelikeNode["type"]) => {
+  const typeThemes: Record<
+    RoguelikeNode["type"],
+    {
+      label: string;
+      Icon: LucideIcon;
+      chip: string;
+      iconWrap: string;
+      iconColor: string;
+      accentLine: string;
+      summary: string;
+    }
+  > = {
+    draft: {
+      label: "Draft",
+      Icon: Package2,
+      chip: "border-indigo-200/18 bg-indigo-300/10 text-indigo-100",
+      iconWrap: "border-indigo-200/22 bg-indigo-300/12",
+      iconColor: "text-indigo-100",
+      accentLine: "from-indigo-300/90 via-indigo-300/30 to-transparent",
+      summary:
+        "border-indigo-200/22 bg-[linear-gradient(135deg,rgba(129,140,248,0.16),rgba(15,23,42,0.86),rgba(49,46,129,0.16))] text-indigo-50",
+    },
+    training: {
+      label: "Training Camp",
+      Icon: Zap,
+      chip: "border-emerald-200/18 bg-emerald-300/10 text-emerald-100",
+      iconWrap: "border-emerald-200/22 bg-emerald-300/12",
+      iconColor: "text-emerald-100",
+      accentLine: "from-emerald-300/90 via-emerald-300/30 to-transparent",
+      summary:
+        "border-emerald-200/22 bg-[linear-gradient(135deg,rgba(52,211,153,0.18),rgba(15,23,42,0.86),rgba(6,78,59,0.16))] text-emerald-50",
+    },
+    challenge: {
+      label: "Challenge",
+      Icon: Target,
+      chip: "border-sky-200/18 bg-sky-300/10 text-sky-100",
+      iconWrap: "border-sky-200/22 bg-sky-300/12",
+      iconColor: "text-sky-100",
+      accentLine: "from-sky-300/90 via-sky-300/30 to-transparent",
+      summary:
+        "border-sky-200/22 bg-[linear-gradient(135deg,rgba(56,189,248,0.18),rgba(15,23,42,0.86),rgba(12,74,110,0.16))] text-sky-50",
+    },
+    boss: {
+      label: "Boss Battle",
+      Icon: Trophy,
+      chip: "border-rose-200/18 bg-rose-300/10 text-rose-100",
+      iconWrap: "border-rose-200/22 bg-rose-300/12",
+      iconColor: "text-rose-100",
+      accentLine: "from-rose-300/90 via-orange-300/35 to-transparent",
+      summary:
+        "border-rose-200/22 bg-[linear-gradient(135deg,rgba(251,113,133,0.18),rgba(15,23,42,0.86),rgba(154,52,18,0.16))] text-rose-50",
+    },
+    trade: {
+      label: "Trade",
+      Icon: RefreshCcw,
+      chip: "border-amber-200/18 bg-amber-300/10 text-amber-100",
+      iconWrap: "border-amber-200/22 bg-amber-300/12",
+      iconColor: "text-amber-100",
+      accentLine: "from-amber-300/90 via-amber-300/30 to-transparent",
+      summary:
+        "border-amber-200/22 bg-[linear-gradient(135deg,rgba(245,158,11,0.18),rgba(15,23,42,0.86),rgba(146,64,14,0.16))] text-amber-50",
+    },
+    evolution: {
+      label: "Evolution",
+      Icon: Sparkles,
+      chip: "border-fuchsia-200/18 bg-fuchsia-300/10 text-fuchsia-100",
+      iconWrap: "border-fuchsia-200/22 bg-fuchsia-300/12",
+      iconColor: "text-fuchsia-100",
+      accentLine: "from-fuchsia-300/90 via-fuchsia-300/30 to-transparent",
+      summary:
+        "border-fuchsia-200/22 bg-[linear-gradient(135deg,rgba(232,121,249,0.18),rgba(15,23,42,0.86),rgba(112,26,117,0.16))] text-fuchsia-50",
+    },
+    "roster-cut": {
+      label: "Roster Cut",
+      Icon: Shield,
+      chip: "border-slate-200/18 bg-slate-300/10 text-slate-100",
+      iconWrap: "border-slate-200/22 bg-slate-300/10",
+      iconColor: "text-slate-100",
+      accentLine: "from-slate-300/80 via-slate-300/26 to-transparent",
+      summary:
+        "border-slate-200/22 bg-[linear-gradient(135deg,rgba(148,163,184,0.18),rgba(15,23,42,0.86),rgba(51,65,85,0.16))] text-slate-50",
+    },
+    "add-position": {
+      label: "Position Training",
+      Icon: ArrowUpRight,
+      chip: "border-cyan-200/18 bg-cyan-300/10 text-cyan-100",
+      iconWrap: "border-cyan-200/22 bg-cyan-300/12",
+      iconColor: "text-cyan-100",
+      accentLine: "from-cyan-300/90 via-cyan-300/30 to-transparent",
+      summary:
+        "border-cyan-200/22 bg-[linear-gradient(135deg,rgba(34,211,238,0.18),rgba(15,23,42,0.86),rgba(8,145,178,0.16))] text-cyan-50",
+    },
+    "all-star": {
+      label: "All-Star Saturday",
+      Icon: Crown,
+      chip: "border-violet-200/18 bg-violet-300/10 text-violet-100",
+      iconWrap: "border-violet-200/22 bg-violet-300/12",
+      iconColor: "text-violet-100",
+      accentLine: "from-violet-300/90 via-violet-300/30 to-transparent",
+      summary:
+        "border-violet-200/22 bg-[linear-gradient(135deg,rgba(167,139,250,0.18),rgba(15,23,42,0.86),rgba(91,33,182,0.16))] text-violet-50",
+    },
+  };
+
+  return typeThemes[type];
 };
 
 const drawRunChoices = (
@@ -769,7 +1018,7 @@ const getRewardDraftPool = (run: RoguelikeRun, node: RoguelikeNode, expandedPool
   if (node.id === "act-one-boss" || node.id === "act-one-boss-current") {
     return getRoguelikeEvolutionRewardPool().filter(
       (player) =>
-        getPlayerTier(player) === "B" &&
+        getPlayerTier(player) === "Ruby" &&
         (node.playerPoolMode !== "current-season" || player.era === "2025-26"),
     );
   }
@@ -783,7 +1032,7 @@ const getNodeCompletionRewardCopy = (node: RoguelikeNode) => {
     nodeChoiceTiers?.length === 2
       ? `${nodeChoiceTiers[0]} or ${nodeChoiceTiers[1]} tier`
       : nodeChoiceTiers?.length === 1
-        ? `${nodeChoiceTiers[0]}-tier`
+        ? nodeChoiceTiers[0]
         : "reward";
 
   if (node.type === "training") {
@@ -819,7 +1068,7 @@ const getNodeCompletionRewardCopy = (node: RoguelikeNode) => {
     return {
       title: "Bench unlock + reward draft",
       description:
-        "Open the Bench 1 slot, add Synergy Hunters to your run pool, and choose 1 of 5 B-tier players for your run roster.",
+        "Open the Bench 1 slot, add Synergy Hunters to your run pool, and choose 1 of 5 Ruby players for your run roster.",
     };
   }
 
@@ -827,7 +1076,7 @@ const getNodeCompletionRewardCopy = (node: RoguelikeNode) => {
     return {
       title: "Version player reward",
       description:
-        "Choose 1 of 3 B-tier version players, each being the lower version of a player that can evolve into a stronger version later in the run.",
+        "Choose 1 of 3 Ruby version players, each being the lower version of a player that can evolve into a stronger version later in the run.",
     };
   }
 
@@ -1093,7 +1342,6 @@ const RogueRosterSlotCard = ({
 }) => {
   const player = slot.player;
   const displayPlayer = player ? getRunDisplayPlayer(player, trainedPlayerIds) : null;
-  const imageUrl = player ? usePlayerImage(player) : null;
   const naturalPositions = displayPlayer
     ? [displayPlayer.primaryPosition, ...displayPlayer.secondaryPositions].join(" / ")
     : "Open";
@@ -1123,120 +1371,22 @@ const RogueRosterSlotCard = ({
     : [];
 
   return (
-    <div
-      className={clsx(
-        "rounded-[20px] border border-white/10 bg-white/5 px-3 py-2 transition",
-        dragged && "scale-[0.98] opacity-55",
-      )}
-    >
-      <div className="flex items-center gap-3">
-        <div className="h-[52px] w-[52px] flex-none overflow-hidden rounded-[14px] border border-white/10 bg-black/20">
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={player?.name ?? getRogueSlotLabel(slot, index)}
-              className="h-full w-full object-cover object-top"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-lg text-white/70">
-              {player?.name.charAt(0) ?? "?"}
-            </div>
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className={clsx(
-                "text-[10px] uppercase tracking-[0.18em]",
-                outOfPosition ? "text-rose-300" : "text-slate-400",
-              )}>
-              {getRogueSlotLabel(slot, index)}
-              </div>
-              <div className="mt-0.5 flex items-center gap-2">
-                <div
-                  className={clsx(
-                    "break-words font-semibold text-white",
-                    playerNameLength >= 24
-                      ? "text-[0.82rem] leading-4"
-                      : playerNameLength >= 18
-                        ? "text-[0.9rem] leading-5"
-                        : "text-[0.98rem] leading-5",
-                  )}
-                >
-                  {displayPlayer?.name ?? "Open Slot"}
-                </div>
-                {player ? (
-                  <div className="flex flex-none flex-wrap items-center gap-1">
-                    <PlayerTypeBadges
-                      player={displayPlayer ?? player}
-                      compact
-                      iconOnly
-                      align="start"
-                      className="gap-1"
-                    />
-                    <DynamicDuoBadge
-                      playerId={player.id}
-                      draftedPlayerIds={ownedPlayerIds}
-                      compact
-                      dense
-                      previewEligible={false}
-                    />
-                    <PlayerSynergyBadges
-                      playerId={player.id}
-                      draftedPlayerIds={ownedPlayerIds}
-                      compact
-                      dense
-                      align="start"
-                      className="gap-1"
-                      excludeTypes={["dynamic-duo"]}
-                      previewEligible={false}
-                    />
-                  </div>
-                ) : null}
-              </div>
-              <div className={clsx(
-                "mt-0.5 truncate text-[10px] uppercase tracking-[0.16em]",
-                outOfPosition ? "text-rose-300" : "text-slate-400",
-              )}>
-                {displayPlayer ? naturalPositions : "Draft or earn a player to fill this slot"}
-              </div>
-            </div>
-            <div className="flex items-center gap-2 pl-2 self-start">
-              {metricChips.length > 0 ? (
-                <div className="flex flex-wrap items-center justify-end gap-1">
-                  {metricChips.map((chip) => (
-                    <div
-                      key={chip.metric}
-                      className="rounded-full border border-sky-200/14 bg-sky-300/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-100"
-                    >
-                      {chip.value} {chip.label}
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-              {player ? (
-                <div className={clsx(
-                  "whitespace-nowrap text-xs font-semibold",
-                  overallDelta < 0 ? "text-rose-300" : boosted ? "text-lime-300" : "text-amber-100",
-                )}>
-                  {overallDelta < 0 ? <ChevronDown size={12} className="mr-1 inline-block align-[-1px]" /> : null}
-                  {boosted ? <ArrowUpRight size={12} className="mr-1 inline-block align-[-1px] text-lime-300" /> : null}
-                  {adjustedOverall}{" "}
-                  <span className={clsx(
-                    "text-[9px] uppercase tracking-[0.14em]",
-                    overallDelta < 0 ? "text-rose-300/80" : boosted ? "text-lime-300/80" : "text-amber-100/75",
-                  )}>
-                    OVR
-                  </span>
-                </div>
-              ) : null}
-              <GripHorizontal size={14} className="text-slate-500" />
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className={clsx("transition", dragged && "scale-[0.98] opacity-55")}>
+      <RunRosterPlayerCard
+        player={player}
+        displayPlayer={displayPlayer}
+        draftedPlayerIds={ownedPlayerIds}
+        overallOverride={adjustedOverall || undefined}
+        eyebrow={getRogueSlotLabel(slot, index)}
+        eyebrowToneClassName={outOfPosition ? "text-rose-300" : undefined}
+        metricChips={metricChips.map((chip) => ({
+          label: chip.label,
+          value: chip.value,
+          toneClassName: "border-sky-200/14 bg-sky-300/10 text-sky-100",
+        }))}
+        showHandle
+        scale={0.72}
+      />
     </div>
   );
 };
@@ -1258,19 +1408,27 @@ const FaceoffStarterCard = ({
 }) => {
   const displayPlayer = player ? getRunDisplayPlayer(player, trainedPlayerIds) : null;
   const imageUrl = player ? usePlayerImage(player) : null;
+  const { firstNameLine, lastNameLine, versionLine } = displayPlayer
+    ? getPlayerDisplayLines(displayPlayer)
+    : { firstNameLine: "", lastNameLine: "", versionLine: "" };
   const slotPenalty = player ? getRoguelikeSlotPenalty(player, slot) : 0;
   const adjustedOverall = player
     ? getRoguelikeAdjustedOverallForSlot(player, slot, ownedPlayerIds, trainedPlayerIds)
     : 0;
   const outOfPosition = slotPenalty > 0;
-  const playerNameLength = displayPlayer?.name.length ?? 0;
+  const displayName = displayPlayer ? displayPlayer.name.replace(/\s*\([^)]*\)\s*$/, "").trim() : "Open Slot";
 
   return (
-    <div className="rounded-[20px] border border-white/10 bg-white/5 px-3 py-2.5">
+    <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3">
       <div className={clsx("text-[10px] uppercase tracking-[0.18em] text-slate-400", align === "right" && "text-right")}>
         {slotLabel}
       </div>
-      <div className="mt-2 flex items-center gap-3">
+      <div
+        className={clsx(
+          "mt-2 grid items-center gap-3",
+          player ? "grid-cols-[56px_minmax(0,1fr)_92px]" : "grid-cols-[56px_minmax(0,1fr)]",
+        )}
+      >
         <div className="h-[52px] w-[52px] flex-none overflow-hidden rounded-[15px] border border-white/10 bg-black/20">
           {imageUrl ? (
             <img
@@ -1286,31 +1444,35 @@ const FaceoffStarterCard = ({
             </div>
           )}
         </div>
-        <div className="min-w-0 flex-1">
-          <div
-            className={clsx(
-              "break-words font-semibold text-white",
-              playerNameLength >= 24
-                ? "text-[0.84rem] leading-4"
-                : playerNameLength >= 18
-                  ? "text-[0.92rem] leading-5"
-                  : "text-[0.98rem] leading-5",
+        <div className={clsx("min-w-0", align === "right" && "text-right")}>
+          <div className="font-semibold leading-[1.02] text-white">
+            {displayPlayer ? (
+              <>
+                <div className="truncate text-[1.02rem]">{displayName}</div>
+                {versionLine ? (
+                  <div className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-300/88">
+                    {versionLine}
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <div className="text-[0.98rem]">Open Slot</div>
             )}
-          >
-            {displayPlayer?.name ?? "Open Slot"}
           </div>
-          <div className="mt-0.5 text-[11px] uppercase tracking-[0.16em] text-slate-400">
-            {displayPlayer ? `${displayPlayer.primaryPosition} / ${displayPlayer.secondaryPositions.join(" / ")}` : "Missing starter"}
+          <div className="mt-1.5 truncate text-[11px] uppercase tracking-[0.16em] text-slate-400">
+            {displayPlayer
+              ? [displayPlayer.primaryPosition, ...displayPlayer.secondaryPositions].join(" / ")
+              : "Missing starter"}
           </div>
         </div>
         {player ? (
-          <div className="flex min-w-[72px] flex-col items-end gap-1.5 self-stretch justify-center">
+          <div className={clsx("flex min-w-0 flex-col gap-1.5 self-stretch justify-center", align === "right" ? "items-start" : "items-end")}>
             <PlayerTypeBadges
               player={displayPlayer ?? player}
               compact
               iconOnly
               align="start"
-              className="justify-end gap-1 self-end"
+              className={clsx("gap-1", align === "right" ? "justify-start self-start" : "justify-end self-end")}
             />
             <div className={clsx("text-xs font-semibold whitespace-nowrap", outOfPosition ? "text-rose-300" : "text-amber-100")}>
               {outOfPosition ? <ChevronDown size={12} className="mr-1 inline-block align-[-1px]" /> : null}
@@ -1318,13 +1480,13 @@ const FaceoffStarterCard = ({
             </div>
           </div>
         ) : (
-          <div className="text-right text-[11px] uppercase tracking-[0.16em] text-slate-500">
+          <div className={clsx("text-[11px] uppercase tracking-[0.16em] text-slate-500", align === "right" ? "text-left" : "text-right")}>
             Missing starter
           </div>
         )}
       </div>
       {!player ? (
-        <div className="mt-1 pl-[64px] text-[11px] uppercase tracking-[0.16em] text-slate-500">
+        <div className="mt-1 pl-[68px] text-[11px] uppercase tracking-[0.16em] text-slate-500">
           Set a player in this slot
         </div>
       ) : null}
@@ -1336,59 +1498,95 @@ const FaceoffMatchupRow = ({
   matchup,
 }: {
   matchup: RoguelikeFaceoffMatchup;
-}) => (
-  <div className="rounded-[26px] border border-white/10 bg-black/18 p-4">
-    <div className="grid gap-4 xl:grid-cols-[1fr_auto_1fr] xl:items-center">
-      <FaceoffStarterCard
-        player={matchup.opponentPlayer}
-        slot={{
-          slot: matchup.slot,
-          label: matchup.slot,
-          allowedPositions: [matchup.slot as Player["primaryPosition"]],
-          player: matchup.opponentPlayer,
-        }}
-        slotLabel={`Boss ${matchup.slot}`}
-        align="right"
-      />
-      <div className="rounded-[22px] border border-fuchsia-200/16 bg-fuchsia-300/8 px-4 py-4 text-center">
-        <div className="text-[10px] uppercase tracking-[0.2em] text-fuchsia-100/80">
-          {matchup.slot} Matchup
+}) => {
+  const bossSupport =
+    matchup.opponentBreakdown.chemistrySupport +
+    matchup.opponentBreakdown.teamProfileSupport +
+    matchup.opponentBreakdown.lineupBalanceBonus;
+  const userSupport =
+    matchup.userBreakdown.chemistrySupport +
+    matchup.userBreakdown.teamProfileSupport +
+    matchup.userBreakdown.lineupBalanceBonus;
+
+  return (
+    <div className="rounded-[26px] border border-white/10 bg-black/18 p-4">
+      <div className="grid gap-4 xl:grid-cols-[1fr_auto_1fr] xl:items-center">
+        <FaceoffStarterCard
+          player={matchup.opponentPlayer}
+          slot={{
+            slot: matchup.slot,
+            label: matchup.slot,
+            allowedPositions: [matchup.slot as Player["primaryPosition"]],
+            player: matchup.opponentPlayer,
+          }}
+          slotLabel={`Boss ${matchup.slot}`}
+          align="right"
+        />
+        <div className="rounded-[22px] border border-fuchsia-200/16 bg-fuchsia-300/8 px-4 py-4 text-center">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-fuchsia-100/80">
+            {matchup.slot} Matchup
+          </div>
+          <div className="mt-3 text-2xl font-semibold text-white">
+            {matchup.userWinProbability}%
+          </div>
+          <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400">
+            Your win chance
+          </div>
+          <div className="mt-3 flex items-center justify-center gap-3 text-xs">
+            <span className="rounded-full border border-rose-200/18 bg-rose-300/10 px-3 py-1 text-rose-100">
+              Boss {matchup.opponentRating}
+            </span>
+            <span className="text-slate-500">vs</span>
+            <span className="rounded-full border border-emerald-200/18 bg-emerald-300/10 px-3 py-1 text-emerald-100">
+              You {matchup.userRating}
+            </span>
+          </div>
+          <div
+            className={clsx(
+              "mt-3 text-sm",
+              matchup.ratingDelta >= 0 ? "text-emerald-100" : "text-rose-100",
+            )}
+          >
+            {matchup.ratingDelta >= 0 ? "+" : ""}
+            {matchup.ratingDelta} matchup edge
+          </div>
+          <div className="mt-4 grid gap-2 rounded-[18px] border border-white/8 bg-black/16 px-3 py-3 text-left text-[11px] text-slate-200">
+            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
+              <span className="uppercase tracking-[0.16em] text-slate-400">Base</span>
+              <span className="h-px bg-white/8" />
+              <span>{matchup.opponentBreakdown.baseScore} vs {matchup.userBreakdown.baseScore}</span>
+            </div>
+            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
+              <span className="uppercase tracking-[0.16em] text-slate-400">Lineup</span>
+              <span className="h-px bg-white/8" />
+              <span>{bossSupport >= 0 ? "+" : ""}{bossSupport} vs {userSupport >= 0 ? "+" : ""}{userSupport}</span>
+            </div>
+            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
+              <span className="uppercase tracking-[0.16em] text-slate-400">Badges</span>
+              <span className="h-px bg-white/8" />
+              <span>{matchup.opponentBreakdown.badgeMatchupBonus >= 0 ? "+" : ""}{matchup.opponentBreakdown.badgeMatchupBonus} vs {matchup.userBreakdown.badgeMatchupBonus >= 0 ? "+" : ""}{matchup.userBreakdown.badgeMatchupBonus}</span>
+            </div>
+            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
+              <span className="uppercase tracking-[0.16em] text-slate-400">Head To Head</span>
+              <span className="h-px bg-white/8" />
+              <span>{matchup.opponentBreakdown.headToHeadBonus >= 0 ? "+" : ""}{matchup.opponentBreakdown.headToHeadBonus} vs {matchup.userBreakdown.headToHeadBonus >= 0 ? "+" : ""}{matchup.userBreakdown.headToHeadBonus}</span>
+            </div>
+          </div>
         </div>
-        <div className="mt-3 text-2xl font-semibold text-white">
-          {matchup.userWinProbability}%
-        </div>
-        <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400">
-          Your win chance
-        </div>
-        <div className="mt-3 flex items-center justify-center gap-3 text-xs">
-          <span className="rounded-full border border-rose-200/18 bg-rose-300/10 px-3 py-1 text-rose-100">
-            Boss {matchup.opponentRating}
-          </span>
-          <span className="text-slate-500">vs</span>
-          <span className="rounded-full border border-emerald-200/18 bg-emerald-300/10 px-3 py-1 text-emerald-100">
-            You {matchup.userRating}
-          </span>
-        </div>
-        <div className={clsx(
-          "mt-3 text-sm",
-          matchup.ratingDelta >= 0 ? "text-emerald-100" : "text-rose-100",
-        )}>
-          {matchup.ratingDelta >= 0 ? "+" : ""}{matchup.ratingDelta} matchup edge
-        </div>
+        <FaceoffStarterCard
+          player={matchup.userPlayer}
+          slot={{
+            slot: matchup.slot,
+            label: matchup.slot,
+            allowedPositions: [matchup.slot as Player["primaryPosition"]],
+            player: matchup.userPlayer,
+          }}
+          slotLabel={`Your ${matchup.slot}`}
+        />
       </div>
-      <FaceoffStarterCard
-        player={matchup.userPlayer}
-        slot={{
-          slot: matchup.slot,
-          label: matchup.slot,
-          allowedPositions: [matchup.slot as Player["primaryPosition"]],
-          player: matchup.userPlayer,
-        }}
-        slotLabel={`Your ${matchup.slot}`}
-      />
     </div>
-  </div>
-);
+  );
+};
 
 const StarterRevealCard = ({
   player,
@@ -1409,88 +1607,296 @@ const StarterRevealCard = ({
       type="button"
       onClick={onReveal}
       disabled={revealed}
-      className="group relative h-[452px] overflow-hidden rounded-[28px] border border-white/12 bg-[linear-gradient(180deg,rgba(8,12,20,0.94),rgba(16,24,36,0.96))] text-left transition duration-300 hover:-translate-y-1 hover:border-amber-200/24"
+      className={clsx(
+        "group relative h-[452px] overflow-hidden rounded-[28px] border text-left transition duration-300",
+        revealed
+          ? "border-emerald-200/18 bg-[linear-gradient(180deg,rgba(8,12,20,0.94),rgba(16,24,36,0.96))]"
+          : "border-white/12 bg-[linear-gradient(180deg,rgba(54,34,20,0.96),rgba(33,20,12,0.98))] hover:-translate-y-1 hover:border-amber-200/24",
+      )}
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_35%)]" />
+      <div className={clsx(
+        "absolute inset-0",
+        revealed
+          ? "bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_35%)]"
+          : "bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.09),transparent_35%)]",
+      )} />
       <div className="relative flex h-full flex-col justify-between p-6">
         <div className={revealed ? "text-[11px] uppercase tracking-[0.28em] text-emerald-100/80" : "text-[11px] uppercase tracking-[0.28em] text-slate-400"}>
           {revealed ? "Revealed" : `Starter Card ${index + 1}`}
         </div>
-        <div className="flex flex-1 flex-col items-center justify-center">
-          {!revealed ? (
-            <div className="mb-3 text-[11px] uppercase tracking-[0.32em] text-amber-100/84">
+        {revealed ? (
+          <div className="flex flex-1 flex-col justify-center">
+            <div className="overflow-hidden rounded-[26px] border border-white/12 bg-black/18">
+              <div className="h-[236px] overflow-hidden rounded-[24px]">
+                {imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt={player.name}
+                    className="h-full w-full object-cover object-top"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-slate-900 text-6xl text-white/70">
+                    {player.name.charAt(0)}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="mt-4 min-h-[122px] font-display text-[clamp(2.05rem,2.2vw,2.8rem)] leading-[0.92] text-white">
+              <div className="break-words tracking-tight">{firstNameLine}</div>
+              <div className="break-words tracking-tight">{lastNameLine}</div>
+              {versionLine ? (
+                <div className="mt-2 text-[0.5em] leading-tight tracking-[0.04em] text-slate-200/90">
+                  {versionLine}
+                </div>
+              ) : null}
+            </div>
+            <div className="mt-2 text-[11px] uppercase tracking-[0.24em] text-slate-400">
+              {getPlayerTierLabel(player)} | {player.overall} OVR | {player.primaryPosition}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-1 flex-col justify-center">
+            <div className="mb-4 text-center text-[11px] uppercase tracking-[0.32em] text-amber-100/84">
               Click To Reveal
             </div>
-          ) : (
-            <div className="mb-3 text-[11px] uppercase tracking-[0.32em] text-transparent">
-              Revealed
-            </div>
-          )}
-          <div className="w-full [perspective:1400px]">
-            <div
-              className={clsx(
-                "relative w-full transition-transform duration-700 [transform-style:preserve-3d]",
-                revealed ? "[transform:rotateY(180deg)]" : "",
-              )}
-            >
-              <div className="absolute inset-0 [backface-visibility:hidden]">
-                <div className="w-full rounded-[26px] border border-white/12 bg-[linear-gradient(145deg,rgba(37,45,60,0.96),rgba(12,18,28,0.98))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                  <div className="relative flex min-h-[220px] flex-col justify-between overflow-hidden rounded-[20px] border border-white/10 bg-[linear-gradient(160deg,rgba(61,52,35,0.22),rgba(23,29,41,0.96),rgba(14,18,28,0.98))] px-6 py-5">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_32%)]" />
-                    <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-amber-200/8 blur-3xl" />
-                    <div className="relative flex-1 overflow-hidden rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(33,39,52,0.92),rgba(11,15,24,0.98))]">
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.14),transparent_26%)]" />
-                      <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_0%,transparent_38%,rgba(255,255,255,0.08)_50%,transparent_62%,transparent_100%)] opacity-80" />
-                      <div className="absolute left-1/2 top-1/2 h-[180px] w-[180px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-[radial-gradient(circle,rgba(255,255,255,0.08),rgba(255,255,255,0.01)_58%,transparent_72%)]" />
-                      <div className="absolute left-1/2 top-1/2 h-[108px] w-[108px] -translate-x-1/2 -translate-y-1/2 rounded-[28px] border border-amber-100/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))] shadow-[0_0_40px_rgba(245,158,11,0.12)]" />
-                      <div className="absolute inset-5 rounded-[18px] border border-dashed border-white/12" />
-                      <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-slate-950/85 to-transparent" />
-                    </div>
+            <div className="w-full rounded-[26px] border border-amber-100/12 bg-[linear-gradient(145deg,rgba(74,46,22,0.96),rgba(34,20,12,0.98))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+              <div className="relative flex min-h-[290px] flex-col justify-between rounded-[22px] border border-white/10 bg-[linear-gradient(160deg,rgba(95,58,28,0.82),rgba(63,36,17,0.92),rgba(30,18,10,0.98))] px-6 py-6">
+                <div className="text-center">
+                  <div className="text-[11px] uppercase tracking-[0.28em] text-white/72">Rogue Starter Pack</div>
+                  <div className="mt-5 text-[4.5rem] leading-none text-amber-50/90">?</div>
+                  <div className="mt-5 font-display text-[2.1rem] leading-none tracking-[0.18em] text-amber-50/92">
+                    UNOPENED
                   </div>
                 </div>
-              </div>
-
-              <div className="relative [backface-visibility:hidden] [transform:rotateY(180deg)]">
-                <div className="relative flex h-full flex-col">
-                  <div className="overflow-hidden rounded-[26px] border border-white/12 bg-black/18">
-                    <div className="h-[236px] overflow-hidden rounded-[24px]">
-                      {imageUrl ? (
-                        <img
-                          src={imageUrl}
-                          alt={player.name}
-                          className="h-full w-full object-cover object-top"
-                          loading="lazy"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-slate-900 text-6xl text-white/70">
-                          {player.name.charAt(0)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="mt-4 min-h-[122px] font-display text-[clamp(2.05rem,2.2vw,2.8rem)] leading-[0.92] text-white">
-                    <div className="break-words tracking-tight">{firstNameLine}</div>
-                    <div className="break-words tracking-tight">{lastNameLine}</div>
-                    {versionLine ? (
-                      <div className="mt-2 text-[0.5em] leading-tight tracking-[0.04em] text-slate-200/90">
-                        {versionLine}
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="mt-2 text-[11px] uppercase tracking-[0.24em] text-slate-400">
-                    {getPlayerTierLabel(player)} | {player.overall} OVR | {player.primaryPosition}
+                <div className="rounded-[20px] border border-white/10 bg-black/18 px-4 py-5 text-center">
+                  <div className="text-[10px] uppercase tracking-[0.24em] text-white/58">Starter Reveal</div>
+                  <div className="mt-2 text-sm leading-6 text-slate-200/88">
+                    Reveal this card to uncover one of the three players that will start your Rogue run.
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
         <div className="text-sm text-slate-300 transition group-hover:text-white">
           Reveal this starter to see who is joining your opening arsenal.
         </div>
       </div>
     </button>
+  );
+};
+
+const AllStarPlayerOptionCard = ({
+  player,
+  selected,
+  disabled,
+  onSelect,
+}: {
+  player: Player;
+  selected: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+}) => {
+  const imageUrl = usePlayerImage(player);
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      disabled={disabled}
+      className={clsx(
+        "w-full rounded-[20px] border px-4 py-3 text-left transition",
+        selected
+          ? "border-amber-300/40 bg-amber-300/12"
+          : disabled
+            ? "cursor-not-allowed border-white/10 bg-white/5 text-slate-500"
+            : "border-white/10 bg-white/6 hover:bg-white/10",
+      )}
+    >
+      <div className="flex items-center gap-3">
+        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[16px] border border-white/10 bg-black/20">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={player.name}
+              className="h-full w-full object-cover object-top"
+              loading="lazy"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-slate-900 text-lg font-semibold text-white/70">
+              {player.name.charAt(0)}
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-base font-semibold leading-6 text-white">{player.name}</div>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-amber-200/20 bg-amber-300/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-100">
+              {player.overall} OVR
+            </span>
+            <span className="text-xs text-slate-300">
+              {[player.primaryPosition, ...player.secondaryPositions].join(" / ")}
+            </span>
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+};
+
+const RogueSelectionPlayerCard = ({
+  player,
+  selected,
+  selectedLabel,
+  idleLabel,
+  selectedTone,
+  idleTone,
+  onSelect,
+}: {
+  player: Player;
+  selected: boolean;
+  selectedLabel: string;
+  idleLabel: string;
+  selectedTone: string;
+  idleTone: string;
+  onSelect: () => void;
+}) => {
+  const imageUrl = usePlayerImage(player);
+  const { firstNameLine, lastNameLine } = getPlayerDisplayLines(player);
+  const displayName = [firstNameLine, lastNameLine].filter(Boolean).join(" ");
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={clsx(
+        "rounded-[22px] border px-4 py-3 text-left transition",
+        selected ? selectedTone : idleTone,
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-3">
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[16px] border border-white/10 bg-black/20">
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={player.name}
+                  className="h-full w-full object-cover object-top"
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-slate-900 text-lg font-semibold text-white/70">
+                  {player.name.charAt(0)}
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
+                {player.primaryPosition}
+              </div>
+              <div className="mt-1 text-lg font-semibold leading-6 text-white">{displayName}</div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-amber-200/20 bg-amber-300/12 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-amber-100">
+                  {player.overall} OVR
+                </span>
+                <span className="text-sm text-slate-300">
+                  {[player.primaryPosition, ...player.secondaryPositions].join(" / ")}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          className={clsx(
+            "rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em]",
+            selected
+              ? "border-rose-200/30 bg-rose-300/16 text-rose-50"
+              : "border-white/10 bg-white/6 text-slate-300",
+          )}
+        >
+          {selected ? selectedLabel : idleLabel}
+        </div>
+      </div>
+    </button>
+  );
+};
+
+const FinalVictoryStatCard = ({
+  label,
+  value,
+  accentClassName,
+  sublabel,
+}: {
+  label: string;
+  value: string;
+  accentClassName: string;
+  sublabel?: string;
+}) => (
+  <div className={clsx("rounded-[18px] border p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]", accentClassName)}>
+    <div className="text-[10px] uppercase tracking-[0.24em] text-white/70">{label}</div>
+    <div className="mt-2 text-[clamp(1.45rem,2.2vw,2rem)] font-semibold leading-none text-white">{value}</div>
+    {sublabel ? <div className="mt-1 text-[10px] uppercase tracking-[0.14em] text-white/56">{sublabel}</div> : null}
+  </div>
+);
+
+const FinalVictoryStarterCard = ({
+  slot,
+  player,
+  ownedPlayerIds,
+  trainedPlayerIds,
+}: {
+  slot: RosterSlot;
+  player: Player;
+  ownedPlayerIds: string[];
+  trainedPlayerIds: string[];
+}) => {
+  const imageUrl = usePlayerImage(player);
+  const displayPlayer = getRunDisplayPlayer(player, trainedPlayerIds);
+  const adjustedOverall = Math.round(
+    getRoguelikeAdjustedOverallForSlot(player, slot, ownedPlayerIds, trainedPlayerIds) * 10,
+  ) / 10;
+
+  return (
+    <div className="overflow-hidden rounded-[18px] border border-white/12 bg-[linear-gradient(180deg,rgba(6,10,19,0.88),rgba(15,20,34,0.96))] shadow-[0_18px_44px_rgba(0,0,0,0.24)]">
+      <div className="relative h-24 overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_48%),linear-gradient(180deg,rgba(18,25,40,0.96),rgba(5,8,16,0.98))]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(251,191,36,0.16),transparent_42%)]" />
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={displayPlayer.name}
+            className="h-full w-full object-cover object-top"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-4xl font-semibold text-white/70">
+            {displayPlayer.name.charAt(0)}
+          </div>
+        )}
+        <div className="absolute left-3 top-3 rounded-full border border-white/16 bg-black/38 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-white/80">
+          {slot.slot}
+        </div>
+        <div className="absolute right-3 top-3 rounded-full border border-amber-200/24 bg-amber-300/14 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-50">
+          {adjustedOverall} OVR
+        </div>
+      </div>
+      <div className="space-y-2 p-2.5">
+        <div>
+          <div className="text-[0.88rem] font-semibold leading-4 text-white">{displayPlayer.name}</div>
+          <div className="mt-0.5 text-[9px] uppercase tracking-[0.14em] text-slate-300">
+            {[displayPlayer.primaryPosition, ...displayPlayer.secondaryPositions].join(" / ")}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-0.5">
+          <PlayerTypeBadges player={displayPlayer} compact iconOnly />
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -1518,34 +1924,7 @@ export const RoguelikeMode = ({
       const raw = window.localStorage.getItem(ROGUELIKE_STORAGE_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw) as Partial<RoguelikeRun>;
-      return {
-        ...parsed,
-        seenChoicePlayerIds: parsed.seenChoicePlayerIds ?? [],
-        revealedStarterIds: parsed.revealedStarterIds ?? [],
-        draftShuffleTickets: parsed.draftShuffleTickets ?? 0,
-        lockerRoomCash: parsed.lockerRoomCash ?? 0,
-        unlockedBundleIds: parsed.unlockedBundleIds ?? [],
-        scoutedBossNodeIds: parsed.scoutedBossNodeIds ?? [],
-        trainedPlayerIds: parsed.trainedPlayerIds ?? [],
-        selectedCutPlayerIds: parsed.selectedCutPlayerIds ?? [],
-        selectedNaturalPositionPlayerId: parsed.selectedNaturalPositionPlayerId ?? null,
-        selectedNaturalPosition: parsed.selectedNaturalPosition ?? null,
-        allStarAssignments: parsed.allStarAssignments ?? {
-          dunkContest: null,
-          threePointContest: null,
-          skillsChallenge: null,
-        },
-        utilityReturnState: parsed.utilityReturnState ?? null,
-        pendingTradeState: parsed.pendingTradeState ?? null,
-        failureReviewStage: parsed.failureReviewStage ?? null,
-        lockerRoomNotice: parsed.lockerRoomNotice ?? null,
-        nodeResult: parsed.nodeResult
-          ? {
-              ...parsed.nodeResult,
-              failureRewards: parsed.nodeResult.failureRewards ?? null,
-            }
-          : null,
-      } as RoguelikeRun;
+      return normalizeStoredRun(parsed, activeRogueStarId);
     } catch {
       return null;
     }
@@ -1588,6 +1967,48 @@ export const RoguelikeMode = ({
       run.trainedPlayerIds ?? [],
     );
   }, [run]);
+
+  useEffect(() => {
+    if (!run || run.stage !== "starter-reveal") return;
+    if (run.starterRevealPlayers.length >= 3) return;
+
+    const repairedStarterRevealPlayers = buildStarterRevealRunRepair(run, activeRogueStarId);
+    if (repairedStarterRevealPlayers.length === 0) return;
+
+    setRun({
+      ...run,
+      starterRevealPlayers: repairedStarterRevealPlayers,
+    });
+  }, [activeRogueStarId, run]);
+
+  useEffect(() => {
+    if (!run || showPackSelectionHub) return;
+    if (run.activeNode || run.roster.length > 0 || run.floorIndex > 0) return;
+    if (run.stage === "starter-reveal" && run.starterRevealPlayers.length >= 3) return;
+
+    const repairedStarterRevealPlayers =
+      run.starterRevealPlayers.length >= 3
+        ? run.starterRevealPlayers
+        : buildStarterRevealRunRepair(run, activeRogueStarId);
+
+    if (repairedStarterRevealPlayers.length < 3) return;
+
+    setRun({
+      ...run,
+      stage: "starter-reveal",
+      starterRevealPlayers: repairedStarterRevealPlayers,
+      revealedStarterIds: run.revealedStarterIds.filter((playerId) =>
+        repairedStarterRevealPlayers.some((player) => player.id === playerId),
+      ),
+      activeNode: null,
+      activeOpponentPlayerIds: null,
+      nodeResult: null,
+    });
+
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, [activeRogueStarId, run, showPackSelectionHub]);
 
   useEffect(() => {
     if (!run) return;
@@ -1639,19 +2060,25 @@ export const RoguelikeMode = ({
     const starterPool = buildStarterPool(packageId, currentSeasonStarterSource).filter(
       (player) => player.id !== activeRogueStar?.id,
     );
-    const starterRevealPlayers = injectActiveRogueStarIntoReveal(
-      drawRoguelikeStarterRevealPlayers(
-        packageId,
-        nextChoiceSeed(seed, 1),
-        getStarterPackAverageForUpgrade(selectedStarterPackUpgrade),
-        starterRevealSource,
-      ),
+    const starterRevealPlayers = ensureVisibleStarterRevealPlayers(
+      packageId,
+      seed,
+      getStarterPackAverageForUpgrade(selectedStarterPackUpgrade),
       activeRogueStar,
+      starterRevealSource,
     );
     const lineup = buildRoguelikeStarterLineup([]);
     setSelectedStarterPackUpgrade("standard");
     setShowPackSelectionHub(false);
+    setShowOutcomeOverlay(false);
+    setShowChallengeBreakdown(false);
+    setDraggingIndex(null);
+    setDropTargetIndex(null);
+    setDragPointer(null);
     setParkedRunState(false);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
 
     setRun({
       seed,
@@ -1929,7 +2356,7 @@ export const RoguelikeMode = ({
           title: bundle.title,
           detail:
             currentNode.floor === 1
-              ? "Starter Cache is open. Choose 1 of 5 current-season D-tier players to add to your run roster."
+              ? "Starter Cache is open. Choose 1 of 5 current-season Emerald players to add to your run roster."
                 : bundle.description,
             passed: true,
           },
@@ -2544,7 +2971,7 @@ export const RoguelikeMode = ({
         activeOpponentPlayerIds: null,
         nodeResult: {
           title: "Run cleared",
-          detail: "You survived the final gauntlet. This is the exact kind of run-based climb we can now build outward from.",
+          detail: "You beat The G.O.A.T.s and completed the full three-year Rogue run.",
           passed: true,
         },
       });
@@ -2585,11 +3012,11 @@ export const RoguelikeMode = ({
           title: `${node.title} cleared`,
           detail:
             node.id === "act-one-faceoff" || node.id === "act-one-faceoff-current"
-              ? `You beat ${node.opponentTeamName ?? "the challenge team"}. Bench 1 is now open, ${bundle.title} is added to your run pool, and you can choose 1 of 5 B-tier players for your run roster.`
+              ? `You beat ${node.opponentTeamName ?? "the challenge team"}. Bench 1 is now open, ${bundle.title} is added to your run pool, and you can choose 1 of 5 Ruby players for your run roster.`
               : node.id === "act-one-boss" || node.id === "act-one-boss-current"
-                ? `You beat ${node.opponentTeamName ?? "the challenge team"}. Choose 1 of 3 B-tier version players now, each being the lowest version of a player who has a stronger version available later in the run.`
+                ? `You beat ${node.opponentTeamName ?? "the challenge team"}. Choose 1 of 3 Ruby version players now, each being the lowest version of a player who has a stronger version available later in the run.`
                 : node.id === "frontcourt-wave" || node.id === "frontcourt-wave-current"
-                  ? `Your selected starting five reached ${resolution.metrics.offense} Offense. ${bundle.title} is now added to your run pool, and you can choose 1 of 5 B-tier players for your run roster.`
+                  ? `Your selected starting five reached ${resolution.metrics.offense} Offense. ${bundle.title} is now added to your run pool, and you can choose 1 of 5 Ruby players for your run roster.`
                 : resolution.opponentPlayers.length > 0
                   ? `You beat ${node.opponentTeamName ?? "the challenge team"}. ${bundle.title} is now added to your run pool, and you earn one reward pick.`
                   : resolution.failedChecks.length === 0
@@ -2845,7 +3272,7 @@ export const RoguelikeMode = ({
         activeOpponentPlayerIds: null,
         nodeResult: {
           title: "Run cleared",
-          detail: "You beat the final Hall of Fame lineup and completed the full four-act Rogue climb.",
+          detail: "You beat The G.O.A.T.s and completed the full three-year Rogue run.",
           passed: true,
           faceoffResult: run.nodeResult.faceoffResult ?? null,
         },
@@ -2908,9 +3335,9 @@ export const RoguelikeMode = ({
           title: `${node.title} cleared`,
           detail:
             node.id === "act-one-faceoff" || node.id === "act-one-faceoff-current"
-              ? `You beat ${node.opponentTeamName ?? "the boss team"}. Bench 1 is now open, ${bundle.title} is added to your run pool, and you can choose 1 of 5 B-tier players for your run roster.`
+              ? `You beat ${node.opponentTeamName ?? "the boss team"}. Bench 1 is now open, ${bundle.title} is added to your run pool, and you can choose 1 of 5 Ruby players for your run roster.`
               : node.id === "act-one-boss" || node.id === "act-one-boss-current"
-                ? `You beat ${node.opponentTeamName ?? "the boss team"}. Choose 1 of 3 B-tier version players now, then look for a future evolution node to upgrade that player into a higher-rated version.`
+                ? `You beat ${node.opponentTeamName ?? "the boss team"}. Choose 1 of 3 Ruby version players now, then look for a future evolution node to upgrade that player into a higher-rated version.`
               : `You beat ${node.opponentTeamName ?? "the boss team"}. ${bundle.title} is now added to your run pool, and you earn one reward pick.`,
           passed: true,
         },
@@ -3636,35 +4063,35 @@ export const RoguelikeMode = ({
 
   if (!run || showPackSelectionHub) {
     return (
-      <section className="space-y-8">
-        <div className="glass-panel rounded-[34px] p-8 shadow-card lg:p-10">
+      <section className="space-y-6">
+        <div className="glass-panel rounded-[34px] p-6 shadow-card lg:p-8">
           <div className="inline-flex rounded-full border border-fuchsia-200/18 bg-fuchsia-300/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-fuchsia-100">
             Roguelike Mode
           </div>
-          <h1 className="mt-5 max-w-4xl font-display text-5xl text-white lg:text-7xl">
+          <h1 className="mt-4 max-w-4xl font-display text-4xl leading-[0.95] text-white lg:text-6xl">
             Start with Nothing. Build a Dynasty.
           </h1>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-200/85">
+          <p className="mt-4 max-w-3xl text-base leading-7 text-slate-200/85 lg:text-[1.05rem]">
             This new mode is run-based. You start with a small player pool, draft just a few cards, then survive a ladder of draft nodes, chemistry checks, and boss gates while unlocking stronger bundles into your run.
           </p>
 
           {run ? (
-            <div className="mt-6 rounded-[24px] border border-emerald-200/18 bg-[linear-gradient(135deg,rgba(10,49,41,0.96),rgba(14,80,65,0.9),rgba(10,25,44,0.94))] p-5">
+            <div className="mt-5 rounded-[24px] border border-emerald-200/18 bg-[linear-gradient(135deg,rgba(10,49,41,0.96),rgba(14,80,65,0.9),rgba(10,25,44,0.94))] p-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <div className="text-[10px] uppercase tracking-[0.22em] text-emerald-100/78">Saved Run</div>
-                  <div className="mt-2 text-2xl font-semibold text-white">Resume Rogue Run</div>
-                  <div className="mt-2 max-w-3xl text-sm leading-7 text-emerald-50/82">
+                  <div className="mt-1.5 text-xl font-semibold text-white">Resume Rogue Run</div>
+                  <div className="mt-1.5 max-w-3xl text-sm leading-6 text-emerald-50/82">
                     Your unfinished climb is still parked and ready. Jump back in where you left off, or start fresh with a new starter pack below.
                   </div>
-                  <div className="mt-4 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em] text-emerald-100/78">
-                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-2">
-                      Act {Math.min(run.activeNode?.act ?? roguelikeNodes[Math.min(run.floorIndex, roguelikeNodes.length - 1)]?.act ?? 1, 4)}
+                  <div className="mt-3 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em] text-emerald-100/78">
+                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1.5">
+                      Year {Math.min(run.activeNode?.act ?? roguelikeNodes[Math.min(run.floorIndex, roguelikeNodes.length - 1)]?.act ?? 1, 4)}
                     </span>
-                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-2">
+                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1.5">
                       Floor {Math.min(run.floorIndex + 1, roguelikeNodes.length)}
                     </span>
-                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-2">
+                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1.5">
                       {getRunOwnedPlayers(run).length} Players Owned
                     </span>
                   </div>
@@ -3682,73 +4109,22 @@ export const RoguelikeMode = ({
           ) : null}
 
           {activeRogueStar ? (
-            <div className="mt-6 inline-flex max-w-3xl flex-wrap items-center gap-3 rounded-[22px] border border-amber-200/18 bg-amber-300/10 px-5 py-4 text-sm text-amber-50">
+            <div className="mt-4 inline-flex max-w-3xl flex-wrap items-center gap-3 rounded-[22px] border border-amber-200/18 bg-amber-300/10 px-4 py-3 text-sm text-amber-50">
               <div className="text-[10px] uppercase tracking-[0.22em] text-amber-100/78">Active Rogue Star</div>
               <div className="font-semibold text-white">{activeRogueStar.name}</div>
               <div className="text-amber-100/76">{activeRogueStar.overall} OVR will replace one starter-pack card in this run.</div>
             </div>
           ) : null}
 
-          <div className="mt-6 rounded-[24px] border border-white/10 bg-black/20 p-5">
-            <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Starter Pack Power-Up</div>
-            <div className="mt-2 text-xl font-semibold text-white">Choose which starter pack quality to open this run</div>
-            <div className="mt-3 text-sm leading-7 text-slate-300">
-              Standard packs average 80 OVR. Token Store upgrades can be spent here to raise your 3-card starter pack quality before you choose Balanced, Defense, or Offense.
-            </div>
-            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {[
-                { id: "standard", title: "Standard", detail: "80 avg", owned: null },
-                { id: "silver", title: "Silver", detail: "84 avg", owned: ownedSilverStarterPacks },
-                { id: "gold", title: "Gold", detail: "85 avg", owned: ownedGoldStarterPacks },
-                { id: "platinum", title: "Platinum", detail: "86 avg", owned: ownedPlatinumStarterPacks },
-              ].map((option) => {
-                const selected = selectedStarterPackUpgrade === option.id;
-                const available = option.owned === null || option.owned > 0;
-
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => available && setSelectedStarterPackUpgrade(option.id as "standard" | "silver" | "gold" | "platinum")}
-                    disabled={!available}
-                    className={clsx(
-                      "rounded-[20px] border px-4 py-4 text-left transition",
-                      selected
-                        ? "border-amber-200/32 bg-amber-300/12"
-                        : "border-white/10 bg-white/5 hover:bg-white/8",
-                      !available && "cursor-not-allowed opacity-45 hover:bg-white/5",
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">{option.title} Starter Pack</div>
-                        <div className="mt-2 text-lg font-semibold text-white">{option.detail}</div>
-                      </div>
-                      {option.owned !== null ? (
-                        <div className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-200">
-                          {option.owned} owned
-                        </div>
-                      ) : (
-                        <div className="rounded-full border border-emerald-200/16 bg-emerald-300/10 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-emerald-100">
-                          Default
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
             {[
               ["Small opening pool", "Runs begin constrained, so every early card matters much more than it does in the standard mode."],
               ["Unlock bundles mid-run", "Success expands your arsenal with themed packs like Synergy Hunters, Jumbo Wings, and Elite Closers."],
               ["Failure ends the climb", "Lose all your lives and the run is over. The tension should come from trying to snowball without breaking your structure."],
             ].map(([title, description]) => (
-              <div key={title} className="rounded-[24px] border border-white/10 bg-black/20 p-5">
-                <div className="font-semibold text-white">{title}</div>
-                <div className="mt-2 text-sm leading-6 text-slate-300">{description}</div>
+              <div key={title} className="rounded-[22px] border border-white/10 bg-black/20 px-4 py-3.5">
+                <div className="text-sm font-semibold text-white">{title}</div>
+                <div className="mt-1.5 text-xs leading-5 text-slate-300">{description}</div>
               </div>
             ))}
           </div>
@@ -3777,7 +4153,7 @@ export const RoguelikeMode = ({
             </button>
           </div>
 
-          <div className="mt-8 grid gap-5 xl:grid-cols-3">
+          <div className="mt-6 grid gap-5 xl:grid-cols-3">
             {roguelikeStarterPackages.map((item, index) => {
               const accentClasses = [
                 "from-[#d9b84f]/70 via-[#9b7a22]/55 to-[#e8cf73]/75 border-amber-200/24 shadow-[0_22px_50px_rgba(251,191,36,0.16)]",
@@ -3834,8 +4210,70 @@ export const RoguelikeMode = ({
     );
   }
 
+  if (run.stage === "starter-reveal") {
+    const allStarterCardsRevealed = run.revealedStarterIds.length === run.starterRevealPlayers.length;
+
+    return (
+      <section className="space-y-5">
+        <div className="rounded-[30px] border border-white/14 bg-[linear-gradient(180deg,rgba(9,13,21,0.98),rgba(12,18,28,0.99))] p-6 shadow-card">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="text-xs uppercase tracking-[0.24em] text-fuchsia-100/80">Roguelike Run</div>
+              <h1 className="mt-2 font-display text-4xl text-white">Starter Reveal</h1>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
+                Open the three starter cards from your selected pack to reveal the foundation of this Rogue run.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleBackToHome}
+              className="rounded-full border border-white/12 bg-white/6 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+            >
+              Back to Home
+            </button>
+          </div>
+        </div>
+
+        <div className="rounded-[30px] border border-white/14 bg-[linear-gradient(180deg,rgba(10,14,20,0.98),rgba(16,22,32,0.99))] p-6 shadow-card">
+          <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Starter Reveal</div>
+          <h2 className="mt-2 font-display text-3xl text-white">Open your first 3 cards</h2>
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
+            Reveal all three to see which players are starting this run before you move on to the Run Ladder.
+          </p>
+          <div className="mt-8 grid gap-6 md:grid-cols-3">
+            {run.starterRevealPlayers.map((player, index) => {
+              const revealed = run.revealedStarterIds.includes(player.id);
+
+              return (
+                <StarterRevealCard
+                  key={player.id}
+                  player={player}
+                  index={index}
+                  revealed={revealed}
+                  onReveal={() => revealStarterCard(player.id)}
+                />
+              );
+            })}
+          </div>
+
+          {allStarterCardsRevealed ? (
+            <div className="mt-8 flex justify-center">
+              <button
+                type="button"
+                onClick={proceedToRunLadder}
+                className="inline-flex items-center gap-3 rounded-full bg-white px-7 py-4 text-sm font-semibold text-slate-900 transition hover:scale-[1.02]"
+              >
+                Proceed to Run Ladder
+                <ArrowRight size={16} />
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </section>
+    );
+  }
+
   const activeNode = run.activeNode;
-  const allStarterCardsRevealed = run.revealedStarterIds.length === run.starterRevealPlayers.length;
   const displayedRun = getHydratedRun(run);
   const runOwnedPlayers = getRunOwnedPlayers(displayedRun);
   const runOwnedDisplayPlayers = runOwnedPlayers.map((player) => getRunDisplayPlayer(player, run.trainedPlayerIds ?? []));
@@ -3847,15 +4285,15 @@ export const RoguelikeMode = ({
   const scoutedBossLineup = nextBossScouted ? getScoutedBossLineup(run, nextBossNode) : [];
   const currentAct = activeNode?.act ?? currentLadderNode?.act ?? 1;
   const headerNode =
-    run.stage === "ladder-overview" || run.stage === "starter-reveal"
+    run.stage === "ladder-overview"
       ? currentLadderNode
       : activeNode ?? currentLadderNode;
   const headerTitle =
-    headerNode && run.stage !== "ladder-overview" && run.stage !== "starter-reveal"
-      ? `Act ${headerNode.act} | Floor ${headerNode.floor} | ${headerNode.title}`
+    headerNode && run.stage !== "ladder-overview"
+      ? `Year ${headerNode.act} | Floor ${headerNode.floor} | ${headerNode.title}`
       : getActHeading(currentAct);
   const headerDescription =
-    headerNode && run.stage !== "ladder-overview" && run.stage !== "starter-reveal"
+    headerNode && run.stage !== "ladder-overview"
       ? headerNode.description
       : getActDescription(currentAct);
   const startingFive = displayedRun.lineup.slice(0, 5);
@@ -3921,11 +4359,34 @@ export const RoguelikeMode = ({
     Math.max(5, runOwnedPlayers.length, furthestOccupiedSlotIndex + 1),
   );
   const visibleRunLineup = displayedRun.lineup.slice(0, visibleRosterSlotCount);
+  const finalVictoryRewards = roguelikeNodes.reduce(
+    (totals, node) => {
+      const rewards = getRoguelikeClearRewards(node);
+      return {
+        tokens: totals.tokens + (rewards?.tokenReward ?? 0),
+        prestigeXp: totals.prestigeXp + (rewards?.prestigeXpAward ?? 0),
+        lockerRoomCash: totals.lockerRoomCash + getRoguelikeLockerRoomCashReward(node),
+      };
+    },
+    { tokens: 0, prestigeXp: 0, lockerRoomCash: 0 },
+  );
+  const finalStartingFivePlayers = startingFive
+    .filter((slot): slot is RosterSlot & { player: Player } => Boolean(slot.player))
+    .map((slot) => ({
+      ...slot,
+      player: slot.player as Player,
+    }));
+  const totalTrainingSessionsUsed = run.trainedPlayerIds.length;
+  const finalVictoryFaceoffScore = run.nodeResult?.faceoffResult
+    ? getFaceoffFinalScore(run.nodeResult.faceoffResult)
+    : null;
+  const formatVictoryMetric = (value: number) =>
+    Number.isInteger(value) ? `${value}` : value.toFixed(1);
   const canOpenLockerRoom =
     run.utilityReturnState === null &&
-    !["starter-reveal", "initial-draft", "faceoff-game", "node-result", "run-over", "run-cleared"].includes(run.stage);
+    !["initial-draft", "faceoff-game", "node-result", "run-over", "run-cleared"].includes(run.stage);
   const canUseStoreUtilities =
-    !["starter-reveal", "initial-draft", "reward-draft", "training-select", "trade-offer", "trade-select", "evolution-select", "faceoff-game", "node-result", "run-over", "run-cleared"].includes(run.stage);
+    !["initial-draft", "reward-draft", "training-select", "trade-offer", "trade-select", "evolution-select", "faceoff-game", "node-result", "run-over", "run-cleared"].includes(run.stage);
   const utilityBackLabel =
     activeNode && isLockerRoomSelectionNode(activeNode) && run.utilityReturnState
       ? "Back to Locker Room"
@@ -4005,6 +4466,8 @@ export const RoguelikeMode = ({
   const challengeReviewMetric = run.nodeResult?.challengeResult?.metric ?? activeNode?.checks?.[0]?.metric ?? "offense";
   const challengeReviewFocusMetrics =
     reviewingChallengeResults ? [challengeReviewMetric] : [];
+  const useNarrowRightRail = run.stage === "all-star-select";
+  const showCompactLadderRewards = false;
   const shouldRenderOutcomeOverlay =
     showOutcomeOverlay &&
     run.stage === "faceoff-game" ||
@@ -4166,20 +4629,6 @@ export const RoguelikeMode = ({
                 </div>
               </button>
             ) : null}
-            {[
-              { label: "OVR", value: metrics.overall || "--", icon: Crown, tone: "text-amber-100 bg-amber-300/10 border-amber-200/16" },
-              { label: "OFF", value: metrics.offense || "--", icon: Zap, tone: "text-orange-100 bg-orange-300/10 border-orange-200/16" },
-              { label: "DEF", value: metrics.defense || "--", icon: Shield, tone: "text-sky-100 bg-sky-300/10 border-sky-200/16" },
-              { label: "CHEM", value: metrics.chemistry || "--", icon: Sparkles, tone: "text-lime-100 bg-lime-300/10 border-lime-200/16" },
-            ].map((stat) => (
-              <div key={stat.label} className={`rounded-[22px] border px-4 py-3 ${stat.tone}`}>
-                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em]">
-                  <stat.icon size={13} />
-                  {stat.label}
-                </div>
-                <div className="mt-2 text-2xl font-semibold text-white">{stat.value}</div>
-              </div>
-            ))}
           </div>
         </div>
       </div>
@@ -4187,50 +4636,14 @@ export const RoguelikeMode = ({
       <div
         className={clsx(
           "grid gap-6",
-          run.stage === "starter-reveal" || run.stage === "ladder-overview" || hideRightRail
+          run.stage === "ladder-overview" || hideRightRail
             ? "grid-cols-1"
-            : "xl:grid-cols-[1.15fr_0.85fr]",
+            : useNarrowRightRail
+              ? "xl:grid-cols-[minmax(0,1.7fr)_minmax(380px,0.5fr)]"
+              : "xl:grid-cols-[minmax(0,1.58fr)_minmax(420px,0.62fr)]",
         )}
       >
         <div className="space-y-6">
-          {run.stage === "starter-reveal" && (
-            <div className="glass-panel rounded-[30px] p-6 shadow-card">
-              <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Starter Reveal</div>
-              <h2 className="mt-2 font-display text-3xl text-white">Open your first 3 cards</h2>
-              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
-                Every run begins with three face-down starter cards. Reveal all three to see the kind of foundation this pack is giving you before you move onto the Run Ladder.
-              </p>
-              <div className="mt-8 grid gap-6 md:grid-cols-3">
-                {run.starterRevealPlayers.map((player, index) => {
-                  const revealed = run.revealedStarterIds.includes(player.id);
-
-                  return (
-                    <StarterRevealCard
-                      key={player.id}
-                      player={player}
-                      index={index}
-                      revealed={revealed}
-                      onReveal={() => revealStarterCard(player.id)}
-                    />
-                  );
-                })}
-              </div>
-
-              {allStarterCardsRevealed ? (
-                <div className="mt-8 flex justify-center">
-                  <button
-                    type="button"
-                    onClick={proceedToRunLadder}
-                    className="inline-flex items-center gap-3 rounded-full bg-white px-7 py-4 text-sm font-semibold text-slate-900 transition hover:scale-[1.02]"
-                  >
-                    Proceed to Run Ladder
-                    <ArrowRight size={16} />
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          )}
-
           {run.stage === "ladder-overview" && (
             <div className="glass-panel rounded-[30px] p-6 shadow-card">
               <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Run Ladder</div>
@@ -4254,11 +4667,19 @@ export const RoguelikeMode = ({
                     (doesRoguelikeNodeAwardClearRewards(node) || lockerRoomCashReward > 0) &&
                     hasEarnedNodeReward(run, index, run.nodeResult);
                   const actTheme = getActLadderTheme(node.act);
+                  const nodeTheme = getRoguelikeNodeTypeTheme(node.type);
                   const summary = node.targetLabel
                     ? { label: "Target", value: node.targetLabel }
                     : node.rewardBundleId
                       ? { label: "Reward", value: getBundle(node.rewardBundleId).title }
                       : { label: "Reward", value: "Training boost" };
+                  const clearedRewardSummary = [
+                    rewards.tokenReward > 0 ? `+${rewards.tokenReward} tokens` : null,
+                    rewards.prestigeXpAward > 0 ? `+${rewards.prestigeXpAward} XP` : null,
+                    lockerRoomCashReward > 0 ? `+${lockerRoomCashReward} cash` : null,
+                  ]
+                    .filter((value): value is string => Boolean(value))
+                    .join(" • ");
 
                   return (
                     <div key={node.id} className="relative grid gap-4 pl-4 xl:grid-cols-[minmax(0,1fr)_220px] xl:items-stretch">
@@ -4271,7 +4692,7 @@ export const RoguelikeMode = ({
                       <div
                         ref={isCurrent ? currentLadderNodeRef : null}
                         className={clsx(
-                          "rounded-[24px] border px-5 py-5 transition",
+                          "relative overflow-hidden rounded-[24px] border px-5 py-5 transition",
                           isCurrent
                             ? actTheme.current
                             : isCleared
@@ -4279,48 +4700,88 @@ export const RoguelikeMode = ({
                               : actTheme.shell,
                         )}
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <div className={clsx("text-[10px] uppercase tracking-[0.2em]", isCleared ? "text-emerald-100/90" : actTheme.eyebrow)}>
-                              Act {node.act} | Floor {node.floor}
+                        {isCleared ? (
+                          <div className="flex items-center justify-between gap-4 py-0.5">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-emerald-200/24 bg-emerald-300/12 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                                <CheckCircle2 size={16} />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-[10px] uppercase tracking-[0.2em] text-emerald-100/90">
+                                  Year {node.act} | Floor {node.floor}
+                                </div>
+                                <div className="mt-1 truncate text-sm font-semibold text-white">
+                                  {clearedRewardSummary || "Cleared"}
+                                </div>
+                              </div>
                             </div>
-                            <div className="mt-2 font-semibold text-white">{node.title}</div>
+                            <div className="shrink-0 rounded-full border border-emerald-200/30 bg-emerald-300/12 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-emerald-50">
+                              Cleared
+                            </div>
                           </div>
-                          {isCurrent ? (
-                            <button
-                              type="button"
-                              onClick={startOpeningDraft}
-                              className="rounded-full bg-white px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-900 transition hover:scale-[1.02]"
+                        ) : (
+                          <>
+                            <div className={clsx("absolute inset-y-5 left-0 w-[3px] rounded-full bg-gradient-to-b", nodeTheme.accentLine)} />
+                            <div className="pointer-events-none absolute right-4 top-4 h-16 w-16 rounded-full bg-white/[0.03] blur-2xl" />
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-start gap-4">
+                                <div
+                                  className={clsx(
+                                    "mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+                                    nodeTheme.iconWrap,
+                                  )}
+                                >
+                                  <nodeTheme.Icon size={18} className={nodeTheme.iconColor} />
+                                </div>
+                                <div>
+                                  <div className={clsx("text-[10px] uppercase tracking-[0.2em]", actTheme.eyebrow)}>
+                                    Year {node.act} | Floor {node.floor}
+                                  </div>
+                                  <div className="mt-2 font-semibold text-white">{node.title}</div>
+                                  <div className="mt-3">
+                                    <span className={clsx("rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em]", nodeTheme.chip)}>
+                                      {nodeTheme.label}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              {isCurrent ? (
+                                <button
+                                  type="button"
+                                  onClick={startOpeningDraft}
+                                  className="rounded-full bg-white px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-900 transition hover:scale-[1.02]"
+                                >
+                                  {node.battleMode === "starting-five-faceoff" ? "Set Lineup" : "Go"}
+                                </button>
+                              ) : (
+                                <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-300">
+                                  {isLocked ? "Locked" : nodeTheme.label}
+                                </div>
+                              )}
+                            </div>
+                            <div className="mt-3 text-sm leading-6 text-slate-300">{node.description}</div>
+                            <div
+                              className={clsx(
+                                "mt-4 rounded-[18px] border px-4 py-3.5",
+                                node.targetLabel ? nodeTheme.summary : actTheme.reward,
+                              )}
                             >
-                              {node.battleMode === "starting-five-faceoff" ? "Set Lineup" : "Go"}
-                            </button>
-                          ) : (
-                            <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-300">
-                              {isCleared ? "Cleared" : isLocked ? "Locked" : node.type}
-                            </div>
-                          )}
-                        </div>
-                        <div className="mt-3 text-sm leading-6 text-slate-300">{node.description}</div>
-                        <div
-                          className={clsx(
-                            "mt-4 rounded-[18px] border px-4 py-3.5",
-                            isCleared ? "border-emerald-200/22 bg-emerald-300/10 text-emerald-50/94" : node.targetLabel ? actTheme.target : actTheme.reward,
-                          )}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/6 text-white">
-                              <Target size={14} />
-                            </div>
-                            <div>
-                              <div className="text-[10px] uppercase tracking-[0.22em] text-white/62">
-                                {summary.label}
-                              </div>
-                              <div className="mt-1 text-sm font-semibold leading-6 text-current">
-                                {summary.value}
+                              <div className="flex items-start gap-3">
+                                <div className={clsx("mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-white", nodeTheme.iconWrap)}>
+                                  <nodeTheme.Icon size={14} className={nodeTheme.iconColor} />
+                                </div>
+                                <div>
+                                  <div className="text-[10px] uppercase tracking-[0.22em] text-white/62">
+                                    {summary.label}
+                                  </div>
+                                  <div className="mt-1 text-sm font-semibold leading-6 text-current">
+                                    {summary.value}
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </div>
+                          </>
+                        )}
                       </div>
                       <div className="xl:pt-1">
                         <RogueNodeRewardsRail rewards={rewards} lockerRoomCash={lockerRoomCashReward} earned={rewardsEarned} />
@@ -4611,15 +5072,16 @@ export const RoguelikeMode = ({
               <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Opening Draft</div>
               <h2 className="mt-2 font-display text-3xl text-white">Complete your starting five</h2>
               <p className="mt-3 text-sm leading-7 text-slate-300">
-                Starter Cache is open. Make two picks from current-season D-tier boards to turn your three-card starter pack into a full opening lineup.
+                Starter Cache is open. Make two picks from current-season Emerald boards to turn your three-card starter pack into a full opening lineup.
               </p>
-              <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+              <div className="mt-6 flex flex-wrap justify-center gap-3 overflow-hidden">
                 {run.choices.map((player) => (
                   <DraftPlayerCard
                     key={player.id}
                     player={player}
                     onSelect={draftChoice}
                     compact
+                    compactScale={0.47}
                     draftedPlayerIds={runOwnedPlayerIds}
                   />
                 ))}
@@ -4786,6 +5248,7 @@ export const RoguelikeMode = ({
                     player={player}
                     onSelect={sendPlayerToTraining}
                     compact
+                    compactScale={0.56}
                     draftedPlayerIds={runOwnedPlayerIds}
                     actionLabel={lockerRoomTrainingSelectionCopy.actionLabel}
                   />
@@ -4810,42 +5273,16 @@ export const RoguelikeMode = ({
                   const selected = run.selectedCutPlayerIds.includes(player.id);
 
                   return (
-                    <button
+                    <RogueSelectionPlayerCard
                       key={player.id}
-                      type="button"
-                      onClick={() => toggleRosterCutPlayer(player)}
-                      className={clsx(
-                        "rounded-[24px] border px-5 py-4 text-left transition",
-                        selected
-                          ? "border-rose-300/50 bg-[linear-gradient(135deg,rgba(127,29,29,0.32),rgba(153,27,27,0.18),rgba(69,10,10,0.32))] shadow-[0_0_0_1px_rgba(252,165,165,0.14)]"
-                          : "border-white/10 bg-black/18 hover:border-white/18 hover:bg-white/6",
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
-                            {player.primaryPosition}
-                          </div>
-                          <div className="mt-2 text-xl font-semibold text-white">{player.name}</div>
-                          <div className="mt-2 text-sm text-slate-300">
-                            {player.overall} OVR
-                            {player.secondaryPositions.length > 0
-                              ? ` | ${[player.primaryPosition, ...player.secondaryPositions].join(" / ")}`
-                              : ""}
-                          </div>
-                        </div>
-                        <div
-                          className={clsx(
-                            "rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em]",
-                            selected
-                              ? "border-rose-200/30 bg-rose-300/16 text-rose-50"
-                              : "border-white/10 bg-white/6 text-slate-300",
-                          )}
-                        >
-                          {selected ? "Cutting" : "Keep"}
-                        </div>
-                      </div>
-                    </button>
+                      player={player}
+                      selected={selected}
+                      selectedLabel="Cutting"
+                      idleLabel="Keep"
+                      selectedTone="border-rose-300/50 bg-[linear-gradient(135deg,rgba(127,29,29,0.32),rgba(153,27,27,0.18),rgba(69,10,10,0.32))] shadow-[0_0_0_1px_rgba(252,165,165,0.14)]"
+                      idleTone="border-white/10 bg-black/18 hover:border-white/18 hover:bg-white/6"
+                      onSelect={() => toggleRosterCutPlayer(player)}
+                    />
                   );
                 })}
               </div>
@@ -4996,25 +5433,13 @@ export const RoguelikeMode = ({
                         );
 
                         return (
-                          <button
+                          <AllStarPlayerOptionCard
                             key={`${eventCard.key}-${player.id}`}
-                            type="button"
-                            onClick={() => assignAllStarPlayer(eventCard.key, player)}
+                            player={player}
+                            selected={selected}
                             disabled={alreadyUsedInAnotherEvent}
-                            className={clsx(
-                              "w-full rounded-[18px] border px-4 py-3 text-left transition",
-                              selected
-                                ? "border-amber-300/40 bg-amber-300/12"
-                                : alreadyUsedInAnotherEvent
-                                  ? "cursor-not-allowed border-white/10 bg-white/5 text-slate-500"
-                                  : "border-white/10 bg-white/6 hover:bg-white/10",
-                            )}
-                          >
-                            <div className="text-sm font-semibold text-white">{player.name}</div>
-                            <div className="mt-1 text-xs text-slate-300">
-                              {player.overall} OVR | {[player.primaryPosition, ...player.secondaryPositions].join(" / ")}
-                            </div>
-                          </button>
+                            onSelect={() => assignAllStarPlayer(eventCard.key, player)}
+                          />
                         );
                       })}
                     </div>
@@ -5075,6 +5500,7 @@ export const RoguelikeMode = ({
                     player={player}
                     onSelect={replaceRosterPlayerWithReward}
                     compact
+                    compactScale={0.56}
                     draftedPlayerIds={runOwnedPlayerIds}
                     actionLabel="Replace this player"
                   />
@@ -5140,6 +5566,7 @@ export const RoguelikeMode = ({
                     player={player}
                     onSelect={tradePlayerForReplacement}
                     compact
+                    compactScale={0.56}
                     draftedPlayerIds={runOwnedPlayerIds}
                     actionLabel="Trade this player"
                   />
@@ -5166,6 +5593,7 @@ export const RoguelikeMode = ({
                     player={runOwnedDisplayPlayerById.get(option.currentPlayer.id) ?? option.currentPlayer}
                     onSelect={evolveRunPlayer}
                     compact
+                    compactScale={0.56}
                     draftedPlayerIds={runOwnedPlayerIds}
                     actionLabel={`Evolve to ${option.nextPlayer.overall} OVR`}
                   />
@@ -5229,10 +5657,10 @@ export const RoguelikeMode = ({
               <p className="mt-3 text-sm leading-7 text-slate-300">{run.nodeResult?.detail}</p>
               <div
                 className={clsx(
-                  "mt-6 grid gap-5",
+                  "mt-6 flex flex-wrap justify-center gap-3 overflow-hidden",
                   run.choices.length === 3
-                    ? "mx-auto max-w-5xl md:grid-cols-2 xl:grid-cols-3"
-                    : "md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5",
+                    ? "mx-auto max-w-5xl"
+                    : "",
                 )}
               >
                 {run.choices.map((player) => (
@@ -5241,6 +5669,7 @@ export const RoguelikeMode = ({
                     player={player}
                     onSelect={draftChoice}
                     compact
+                    compactScale={run.choices.length >= 5 ? 0.47 : 0.62}
                     draftedPlayerIds={runOwnedPlayerIds}
                   />
                 ))}
@@ -5357,16 +5786,21 @@ export const RoguelikeMode = ({
           )}
         </div>
 
-        <div className={clsx("space-y-6", (run.stage === "starter-reveal" || run.stage === "ladder-overview" || hideRightRail) && "hidden")}>
+        <div className={clsx("space-y-6", (run.stage === "ladder-overview" || hideRightRail) && "hidden")}>
           {showDraftRosterRail ? (
             runRosterPanel
           ) : (
             <>
               <div className="glass-panel rounded-[30px] p-6 shadow-card">
                 <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Run Ladder</div>
-                <div className="mt-4 hidden grid-cols-[minmax(0,1fr)_200px] items-end gap-3 pl-6 pr-1 text-[10px] uppercase tracking-[0.22em] text-slate-400 xl:grid">
+                <div
+                  className={clsx(
+                    "mt-4 hidden items-end gap-3 pl-6 pr-1 text-[10px] uppercase tracking-[0.22em] text-slate-400 xl:grid",
+                    showCompactLadderRewards ? "grid-cols-[minmax(0,1fr)_200px]" : "grid-cols-1",
+                  )}
+                >
                   <div>Nodes</div>
-                  <div className="text-right">Rewards</div>
+                  {showCompactLadderRewards ? <div className="text-right">Rewards</div> : null}
                 </div>
                 <div className="relative mt-5 space-y-3 pl-6 before:absolute before:bottom-4 before:left-2.5 before:top-3 before:w-px before:bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.06),rgba(255,255,255,0))]">
                   {roguelikeNodes.map((node, index) => {
@@ -5385,11 +5819,18 @@ export const RoguelikeMode = ({
                       (doesRoguelikeNodeAwardClearRewards(node) || lockerRoomCashReward > 0) &&
                       hasEarnedNodeReward(run, index, run.nodeResult);
                     const actTheme = getActLadderTheme(node.act);
+                    const nodeTheme = getRoguelikeNodeTypeTheme(node.type);
                     const summary = node.targetLabel
                       ? { label: "Target", value: node.targetLabel }
                       : { label: "Reward", value: getBundle(node.rewardBundleId).title };
                     return (
-                      <div key={node.id} className="relative grid gap-3 pl-4 xl:grid-cols-[minmax(0,1fr)_200px] xl:items-stretch">
+                      <div
+                        key={node.id}
+                        className={clsx(
+                          "relative grid gap-3 pl-4",
+                          showCompactLadderRewards ? "xl:grid-cols-[minmax(0,1fr)_200px] xl:items-stretch" : "grid-cols-1",
+                        )}
+                      >
                         <div
                           className={clsx(
                             "absolute left-[-1px] top-6 h-3.5 w-3.5 rounded-full border-4 border-[#090b12]",
@@ -5398,7 +5839,7 @@ export const RoguelikeMode = ({
                         />
                         <div
                           className={clsx(
-                            "rounded-[22px] border px-4 py-4 transition",
+                            "relative overflow-hidden rounded-[22px] border px-4 py-4 transition",
                             isCurrent
                               ? actTheme.current
                               : isCleared
@@ -5406,15 +5847,36 @@ export const RoguelikeMode = ({
                                 : actTheme.shell,
                           )}
                         >
+                          {!isCleared ? (
+                            <>
+                              <div className={clsx("absolute inset-y-4 left-0 w-[3px] rounded-full bg-gradient-to-b", nodeTheme.accentLine)} />
+                              <div className="pointer-events-none absolute right-4 top-4 h-14 w-14 rounded-full bg-white/[0.03] blur-2xl" />
+                            </>
+                          ) : null}
                           <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <div className={clsx(
-                                "text-[10px] uppercase tracking-[0.2em]",
-                                isCleared ? "text-emerald-100/90" : actTheme.eyebrow,
-                              )}>
-                                Act {node.act} | Floor {node.floor}
+                            <div className="flex items-start gap-3">
+                              <div
+                                className={clsx(
+                                  "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+                                  isCleared ? "border-emerald-200/24 bg-emerald-300/12 text-emerald-50" : nodeTheme.iconWrap,
+                                )}
+                              >
+                                <nodeTheme.Icon size={16} className={clsx(isCleared ? "text-emerald-50" : nodeTheme.iconColor)} />
                               </div>
-                              <div className="mt-1 font-semibold text-white">{node.title}</div>
+                              <div>
+                                <div className={clsx(
+                                  "text-[10px] uppercase tracking-[0.2em]",
+                                  isCleared ? "text-emerald-100/90" : actTheme.eyebrow,
+                                )}>
+                                  Year {node.act} | Floor {node.floor}
+                                </div>
+                                <div className="mt-1 font-semibold text-white">{node.title}</div>
+                                <div className="mt-2">
+                                  <span className={clsx("rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em]", isCleared ? "border-emerald-200/30 bg-emerald-300/12 text-emerald-50" : nodeTheme.chip)}>
+                                    {nodeTheme.label}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
                             <div
                               className={clsx(
@@ -5430,19 +5892,19 @@ export const RoguelikeMode = ({
                                   Cleared
                                 </span>
                               ) : (
-                                node.type
+                                nodeTheme.label
                               )}
                             </div>
                           </div>
                           <div
                             className={clsx(
                               "mt-3 rounded-[18px] border px-4 py-3",
-                              isCleared ? "border-emerald-200/22 bg-emerald-300/10 text-emerald-50/94" : node.targetLabel ? actTheme.target : actTheme.reward,
+                              isCleared ? "border-emerald-200/22 bg-emerald-300/10 text-emerald-50/94" : node.targetLabel ? nodeTheme.summary : actTheme.reward,
                             )}
                           >
                             <div className="flex items-start gap-3">
-                              <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/6 text-white">
-                                <Target size={13} />
+                              <div className={clsx("mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-white", isCleared ? "border-emerald-200/18 bg-emerald-300/12" : nodeTheme.iconWrap)}>
+                                <nodeTheme.Icon size={13} className={clsx(isCleared ? "text-emerald-50" : nodeTheme.iconColor)} />
                               </div>
                               <div>
                                 <div className="text-[10px] uppercase tracking-[0.22em] text-white/62">
@@ -5455,7 +5917,9 @@ export const RoguelikeMode = ({
                             </div>
                           </div>
                         </div>
-                        <RogueNodeRewardsRail rewards={rewards} lockerRoomCash={lockerRoomCashReward} earned={rewardsEarned} />
+                        {showCompactLadderRewards ? (
+                          <RogueNodeRewardsRail rewards={rewards} lockerRoomCash={lockerRoomCashReward} earned={rewardsEarned} />
+                        ) : null}
                       </div>
                     );
                   })}
@@ -5511,7 +5975,8 @@ export const RoguelikeMode = ({
         <div className="fixed inset-0 z-[130] flex items-center justify-center bg-[rgba(3,6,14,0.84)] px-4 py-8 backdrop-blur-md">
           <div
             className={clsx(
-              "relative w-full max-w-5xl overflow-hidden rounded-[36px] border p-8 shadow-[0_28px_80px_rgba(0,0,0,0.46)] lg:p-10",
+              "relative w-full overflow-hidden rounded-[36px] border shadow-[0_28px_80px_rgba(0,0,0,0.46)]",
+              run.stage === "run-cleared" ? "max-w-[1560px] p-5 lg:p-6" : "max-w-5xl p-8 lg:p-10",
               outcomeTone === "failure"
                 ? "border-rose-200/28 bg-[linear-gradient(135deg,rgba(95,14,30,0.99),rgba(150,24,41,0.97),rgba(63,8,24,0.99))]"
                 : "border-emerald-200/24 bg-[linear-gradient(135deg,rgba(7,54,40,0.98),rgba(11,94,69,0.96),rgba(10,35,62,0.97))]",
@@ -5526,22 +5991,189 @@ export const RoguelikeMode = ({
               )}
             />
             <div className="relative">
+              {run.stage === "run-cleared" ? (
+                <>
+                  <div className="absolute -right-10 -top-12 h-40 w-40 rounded-full bg-amber-300/14 blur-3xl" />
+                  <div className="absolute -left-8 bottom-10 h-44 w-44 rounded-full bg-sky-400/10 blur-3xl" />
+                  <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="max-w-3xl">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-amber-200/24 bg-amber-300/10 px-3.5 py-1.5 text-[10px] uppercase tracking-[0.24em] text-amber-50/86">
+                        <Crown size={15} />
+                        Rogue Run Complete
+                      </div>
+                      <h2 className="mt-3 font-display text-[clamp(2.2rem,4vw,4rem)] leading-[0.94] text-white">
+                        The G.O.A.T.s Are Down
+                      </h2>
+                      <p className="mt-2 max-w-3xl text-[13px] leading-6 text-white/82 lg:text-sm">
+                        Year 3 Floor 61 is down. Your championship run is complete.
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <div className="rounded-full border border-white/14 bg-white/8 px-3.5 py-1.5 text-[10px] uppercase tracking-[0.22em] text-white/78">
+                          Year 3 | Floor 61
+                        </div>
+                        <div className="rounded-full border border-emerald-200/16 bg-emerald-300/10 px-3.5 py-1.5 text-[10px] uppercase tracking-[0.22em] text-emerald-50/84">
+                          Final Boss Cleared
+                        </div>
+                        <div className="rounded-full border border-amber-200/18 bg-amber-300/10 px-3.5 py-1.5 text-[10px] uppercase tracking-[0.22em] text-amber-50/84">
+                          {finalStartingFivePlayers.length}/5 Starters Standing
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid w-full max-w-[520px] gap-2 sm:grid-cols-2">
+                      <FinalVictoryStatCard
+                        label="Team Overall"
+                        value={formatVictoryMetric(metrics.overall)}
+                        sublabel="Final starting five"
+                        accentClassName="border-amber-200/18 bg-amber-300/10"
+                      />
+                      <FinalVictoryStatCard
+                        label="Chemistry"
+                        value={formatVictoryMetric(metrics.chemistry)}
+                        sublabel="Closing synergy score"
+                        accentClassName="border-emerald-200/18 bg-emerald-300/10"
+                      />
+                      <FinalVictoryStatCard
+                        label="Team Offense"
+                        value={formatVictoryMetric(metrics.offense)}
+                        sublabel="Scoring pressure"
+                        accentClassName="border-rose-200/18 bg-rose-300/10"
+                      />
+                      <FinalVictoryStatCard
+                        label="Team Defense"
+                        value={formatVictoryMetric(metrics.defense)}
+                        sublabel="Stops and resistance"
+                        accentClassName="border-sky-200/18 bg-sky-300/10"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-2.5 xl:grid-cols-[1.08fr_0.92fr]">
+                    <div className="rounded-[24px] border border-white/14 bg-[linear-gradient(135deg,rgba(7,13,26,0.8),rgba(16,24,44,0.74),rgba(12,36,31,0.7))] p-3.5 shadow-[0_24px_64px_rgba(0,0,0,0.28)]">
+                      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-white/72">
+                        <Trophy size={15} />
+                        Championship Snapshot
+                      </div>
+                      <div className="mt-1 text-[12px] leading-5 text-white/66">
+                        Your closing five finished with {formatVictoryMetric(shotCreationScore)} shot creation pressure and enough balance to bring the run home.
+                      </div>
+                      {finalVictoryFaceoffScore ? (
+                        <div className="mt-2.5 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
+                          <div className="rounded-[18px] border border-white/12 bg-black/18 px-3 py-3 text-center">
+                            <div className="text-[10px] uppercase tracking-[0.2em] text-white/56">The G.O.A.T.s</div>
+                            <div className="mt-2 text-[2rem] font-semibold leading-none text-white">
+                              {finalVictoryFaceoffScore.opponentScore}
+                            </div>
+                          </div>
+                          <div className="text-center text-sm font-semibold uppercase tracking-[0.28em] text-white/50">
+                            vs
+                          </div>
+                          <div className="rounded-[18px] border border-emerald-200/18 bg-emerald-300/10 px-3 py-3 text-center">
+                            <div className="text-[10px] uppercase tracking-[0.2em] text-emerald-50/72">Your Team</div>
+                            <div className="mt-2 text-[2rem] font-semibold leading-none text-white">
+                              {finalVictoryFaceoffScore.userScore}
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+                      <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
+                        <FinalVictoryStatCard
+                          label="Training Camps Used"
+                          value={`${totalTrainingSessionsUsed}`}
+                          sublabel="All camp boosts applied"
+                          accentClassName="border-indigo-200/18 bg-indigo-300/10"
+                        />
+                        <FinalVictoryStatCard
+                          label="Rebounding"
+                          value={formatVictoryMetric(reboundingChallengeScore)}
+                          sublabel="Current starting five"
+                          accentClassName="border-fuchsia-200/18 bg-fuchsia-300/10"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-amber-200/16 bg-[linear-gradient(135deg,rgba(46,28,8,0.5),rgba(15,18,28,0.72),rgba(6,26,23,0.62))] p-3.5 shadow-[0_24px_64px_rgba(0,0,0,0.26)]">
+                      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-amber-50/82">
+                        <Sparkles size={15} />
+                        Total Run Rewards
+                      </div>
+                      <div className="mt-2.5 space-y-2">
+                        <div className="rounded-[18px] border border-amber-200/16 bg-amber-300/10 p-3">
+                          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-amber-50/72">
+                            <Coins size={14} />
+                            Tokens Earned
+                          </div>
+                          <div className="mt-1.5 text-[2rem] font-semibold leading-none text-white">+{finalVictoryRewards.tokens}</div>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <FinalVictoryStatCard
+                            label="Prestige XP"
+                            value={`+${finalVictoryRewards.prestigeXp}`}
+                            sublabel="Across the full run"
+                            accentClassName="border-sky-200/18 bg-sky-300/10"
+                          />
+                          <FinalVictoryStatCard
+                            label="Locker Room Cash"
+                            value={`+${finalVictoryRewards.lockerRoomCash}`}
+                            sublabel="Store cash earned"
+                            accentClassName="border-emerald-200/18 bg-emerald-300/10"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-[24px] border border-white/14 bg-[linear-gradient(180deg,rgba(8,12,22,0.74),rgba(12,18,30,0.9))] p-3.5 shadow-[0_22px_56px_rgba(0,0,0,0.24)]">
+                    <div className="flex flex-col gap-1.5 lg:flex-row lg:items-end lg:justify-between">
+                      <div>
+                        <div className="text-[11px] uppercase tracking-[0.24em] text-white/68">Final Starting Five</div>
+                        <div className="mt-1 text-[1.45rem] font-semibold text-white">The lineup that finished the climb</div>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid gap-2.5 md:grid-cols-2 xl:grid-cols-5">
+                      {finalStartingFivePlayers.map((slot) => (
+                        <FinalVictoryStarterCard
+                          key={`${slot.slot}-${slot.player.id}`}
+                          slot={slot}
+                          player={slot.player}
+                          ownedPlayerIds={runOwnedPlayerIds}
+                          trainedPlayerIds={run.trainedPlayerIds ?? []}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => startRun(run.packageId)}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.02]"
+                    >
+                      Run It Back
+                      <ArrowRight size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleBackToHome}
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-white/18 bg-white/8 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/12"
+                    >
+                      Back to Home
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
               <div className="flex items-center gap-3 text-xs uppercase tracking-[0.28em] text-white/78">
                 {outcomeTone === "failure" ? <Swords size={16} /> : <Trophy size={16} />}
                 {run.stage === "run-over"
                   ? "Rogue Run Failed"
-                  : run.stage === "run-cleared"
-                    ? "Rogue Run Cleared"
-                    : outcomeTone === "failure"
-                      ? "Node Failed"
-                      : "Node Cleared"}
+                  : outcomeTone === "failure"
+                    ? "Node Failed"
+                    : "Node Cleared"}
               </div>
               <h2 className="mt-4 font-display text-[clamp(2.5rem,5vw,4.6rem)] leading-none text-white">
                 {run.stage === "run-over"
                   ? "Run Failed"
-                  : run.stage === "run-cleared"
-                    ? "Run Cleared"
-                    : run.nodeResult?.title}
+                  : run.nodeResult?.title}
               </h2>
               {!(run.stage === "faceoff-game" && run.nodeResult?.faceoffResult) ? (
                 <p className="mt-5 max-w-4xl text-base leading-8 text-white/88 lg:text-lg">
@@ -5627,7 +6259,7 @@ export const RoguelikeMode = ({
                           </div>
                           <div className="mt-2 text-sm leading-7 text-white/76">
                             {activeNode?.id === "act-one-boss"
-                              ? "Choose 1 of 3 B-tier version players and set up a future evolution upgrade."
+                              ? "Choose 1 of 3 Ruby version players and set up a future evolution upgrade."
                               : "Choose 1 reward player and strengthen your roster before the next node."}
                           </div>
                         </div>
@@ -5881,24 +6513,6 @@ export const RoguelikeMode = ({
                       Back to Home
                     </button>
                   </>
-                ) : run.stage === "run-cleared" ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => startRun(run.packageId)}
-                      className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-semibold text-slate-950 transition hover:scale-[1.02]"
-                    >
-                      Run It Back
-                      <ArrowRight size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleBackToHome}
-                      className="inline-flex items-center justify-center gap-2 rounded-full border border-white/18 bg-white/8 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-white/12"
-                    >
-                      Back to Home
-                    </button>
-                  </>
                 ) : run.stage === "faceoff-game" ? (
                   run.nodeResult?.passed ? (
                     <>
@@ -5994,6 +6608,8 @@ export const RoguelikeMode = ({
                   </button>
                 )}
               </div>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -1,12 +1,60 @@
 import clsx from "clsx";
-import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
+import { Shield } from "lucide-react";
 import { DynamicDuoBadge } from "./DynamicDuoBadge";
+import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import { PlayerTypeBadges } from "./PlayerTypeBadges";
 import { usePlayerImage } from "../hooks/usePlayerImage";
-import { getPlayerDisplayLines } from "../lib/playerDisplay";
-import { getPlayerTier, getPlayerTierLabel, playerTierCardStyles } from "../lib/playerTier";
-import { getPlayerVisual } from "../lib/playerVisuals";
-import { Player } from "../types";
+import { getNbaTeamByName } from "../data/nbaTeams";
+import {
+  getPlayerTier,
+  getPlayerTierLabelFromTier,
+  normalizePlayerTier,
+  playerTierCardStyles,
+  playerTierSurfaceStyles,
+} from "../lib/playerTier";
+import { LegacyPlayerTier, Player, PlayerTier } from "../types";
+import type { PlayerTypeBadgeDefinition } from "../lib/playerTypeBadges";
+
+type CustomLabRarity =
+  | "Pink Smoke"
+  | "Neon Paint"
+  | "Black/Gold Marble";
+
+type LabRarity = PlayerTier | LegacyPlayerTier | CustomLabRarity;
+
+const customLabShellStyles: Record<CustomLabRarity, string> = {
+  "Pink Smoke": "border-pink-200/35 shadow-[0_22px_50px_rgba(244,114,182,0.24)]",
+  "Neon Paint": "border-cyan-200/35 shadow-[0_22px_50px_rgba(34,211,238,0.28)]",
+  "Black/Gold Marble": "border-amber-200/38 shadow-[0_22px_50px_rgba(251,191,36,0.26)]",
+};
+
+const customLabSurfaceStyles: Record<CustomLabRarity, string> = {
+  "Pink Smoke":
+    "before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(24,4,22,0.16),rgba(24,4,22,0.64)),url('https://california-wallpaper.com/cdn/shop/products/il_fullxfull.3329965225_tq31.jpg?v=1657242849&width=1080')] before:bg-cover before:bg-center",
+  "Neon Paint":
+    "before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(4,10,24,0.12),rgba(4,10,24,0.62)),url('https://4kwallpapers.com/images/wallpapers/abstract-art-3840x2160-23159.jpg')] before:bg-cover before:bg-center",
+  "Black/Gold Marble":
+    "before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(8,6,2,0.12),rgba(8,6,2,0.66)),url('https://images.rawpixel.com/image_800/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDI1LTA3L3Jhd3BpeGVsb2ZmaWNlOF9ibGFja19tYXJibGVfdGV4dHVyZV93YWxscGFwZXJfZGFya192ZWluZWRfc3Rvbl83ODVlZTg4NC02MDQ4LTQ5NDYtYWY0My1mODljZGU2YmYwZTlfMS5qcGc.jpg')] before:bg-cover before:bg-center",
+};
+
+const isCustomLabRarity = (rarity: LabRarity): rarity is CustomLabRarity =>
+  rarity === "Pink Smoke" || rarity === "Neon Paint" || rarity === "Black/Gold Marble";
+
+const getRarityShellClass = (rarity: LabRarity) =>
+  isCustomLabRarity(rarity)
+    ? customLabShellStyles[rarity]
+    : playerTierCardStyles[normalizePlayerTier(rarity)];
+
+const getRaritySurfaceClass = (rarity: LabRarity) =>
+  isCustomLabRarity(rarity)
+    ? customLabSurfaceStyles[rarity]
+    : playerTierSurfaceStyles[normalizePlayerTier(rarity)];
+
+const getRarityLabel = (rarity: LabRarity) =>
+  isCustomLabRarity(rarity) ? rarity : getPlayerTierLabelFromTier(rarity);
+
+const BASE_CARD_WIDTH = 380;
+const BASE_CARD_HEIGHT = 920;
 
 interface DraftPlayerCardProps {
   player: Player;
@@ -14,29 +62,44 @@ interface DraftPlayerCardProps {
   selected?: boolean;
   disabled?: boolean;
   compact?: boolean;
+  compactScale?: number;
   draftedPlayerIds?: string[];
   actionLabel?: string;
+  upgraded?: boolean;
+  rarityOverride?: LabRarity;
+  playerTypeBadgesOverride?: PlayerTypeBadgeDefinition[];
+  playerTypeBadgeCountOverride?: number;
 }
 
 export const DraftPlayerCard = ({
   player,
   onSelect,
-  selected,
-  disabled,
+  selected = false,
+  disabled = false,
   compact = false,
+  compactScale = 0.78,
   draftedPlayerIds = [],
-  actionLabel = "Tap to draft",
+  rarityOverride,
+  playerTypeBadgesOverride,
+  playerTypeBadgeCountOverride,
 }: DraftPlayerCardProps) => {
-  const visual = getPlayerVisual(player);
-  const tier = getPlayerTier(player);
   const imageUrl = usePlayerImage(player);
-  const currentSeasonCard = player.era === "2025-26";
+  const team = getNbaTeamByName(player.teamLabel);
+  const rarity = rarityOverride ?? getPlayerTier(player);
   const naturalPositions = [player.primaryPosition, ...player.secondaryPositions].join(" / ");
-  const { firstNameLine, lastNameLine, versionLine } = getPlayerDisplayLines(player);
-  const longestPrimaryNameLine = Math.max(firstNameLine.length, lastNameLine.length);
-  const longName = longestPrimaryNameLine >= 8;
-  const veryLongName = longestPrimaryNameLine >= 10;
-  const extremeName = longestPrimaryNameLine >= 12;
+  const fullName = player.name.replace(/\s*\([^)]*\)\s*$/, "").trim();
+  const fullNameLength = fullName.length;
+  const cardScale = compact ? compactScale : 1;
+  const shellWidth = Math.round(BASE_CARD_WIDTH * cardScale);
+  const shellHeight = Math.round(BASE_CARD_HEIGHT * cardScale);
+  const nameClassName =
+    fullNameLength >= 24
+      ? "text-[1rem]"
+      : fullNameLength >= 20
+        ? "text-[1.16rem]"
+        : fullNameLength >= 16
+          ? "text-[1.36rem]"
+          : "text-[1.7rem]";
 
   return (
     <button
@@ -44,164 +107,123 @@ export const DraftPlayerCard = ({
       onClick={() => onSelect?.(player)}
       disabled={disabled}
       className={clsx(
-        "tier-shine group relative z-0 flex h-full w-full flex-col overflow-visible rounded-[26px] border bg-gradient-to-br text-left transition duration-300",
-        compact ? "min-h-[420px] p-4" : "min-h-[1040px] p-5",
-        playerTierCardStyles[tier],
-        currentSeasonCard &&
-          "before:absolute before:inset-[1px] before:z-0 before:rounded-[24px] before:border before:border-emerald-200/12 before:bg-[linear-gradient(155deg,rgba(8,145,178,0.08),transparent_34%,rgba(16,185,129,0.08)_72%,rgba(255,255,255,0.02))]",
-        disabled ? "cursor-default opacity-70" : "hover:z-20 hover:-translate-y-2 hover:scale-[1.01]",
-        selected && "scale-[1.02] ring-2 ring-glow",
+        "group relative block text-left transition",
+        compact ? "w-auto shrink-0" : "w-full",
+        disabled ? "cursor-default opacity-70" : "hover:-translate-y-1 hover:scale-[1.01]",
       )}
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_30%)]" />
-
       <div
-        className={clsx(
-          "relative mb-4 rounded-[22px] border border-white/12 bg-black/20 text-center",
-          currentSeasonCard && "overflow-hidden border-emerald-200/20 bg-[linear-gradient(180deg,rgba(5,20,24,0.88),rgba(2,6,23,0.7))]",
-          compact ? "px-4 py-3" : "px-4 py-3",
-        )}
+        className="relative mx-auto overflow-hidden"
+        style={{
+          width: `${shellWidth}px`,
+          height: `${shellHeight}px`,
+        }}
       >
-        {currentSeasonCard ? <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-200/50 to-transparent" /> : null}
-        <div className={clsx("font-display font-semibold leading-none text-white", compact ? "text-[2.3rem]" : "text-[2.6rem]")}>
-          {player.overall}
-        </div>
-        <div className={clsx("font-medium uppercase tracking-[0.2em] text-white/90", compact ? "mt-1.5 text-[10px]" : "mt-2 text-[11px]")}>
-          {getPlayerTierLabel(player)}
-        </div>
-      </div>
+        <div
+          className={clsx(
+            "relative min-h-[920px] overflow-hidden rounded-[30px] border bg-[linear-gradient(180deg,rgba(17,24,39,0.98),rgba(3,7,18,0.98))] p-5 text-white shadow-[0_24px_56px_rgba(0,0,0,0.34)]",
+            getRarityShellClass(rarity),
+            getRaritySurfaceClass(rarity),
+            selected && "ring-2 ring-sky-300/80",
+            "origin-top-left",
+          )}
+          style={{
+            width: `${BASE_CARD_WIDTH}px`,
+            minHeight: `${BASE_CARD_HEIGHT}px`,
+            transform: `scale(${cardScale})`,
+          }}
+        >
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_28%),linear-gradient(180deg,transparent,rgba(2,6,23,0.48)_60%,rgba(2,6,23,0.92))]" />
+          <div className="absolute inset-[1px] rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),transparent_22%,rgba(255,255,255,0.02)_76%,rgba(2,6,23,0.3))]" />
 
-      <div
-        className={clsx(
-          "relative mb-4 w-full flex-none overflow-hidden rounded-[24px]",
-          currentSeasonCard && "border border-emerald-200/18 shadow-[0_18px_34px_rgba(15,23,42,0.34)]",
-          imageUrl ? "bg-black" : visual.bg,
-          compact ? "h-[180px] min-h-[180px] max-h-[180px]" : "h-[303px] min-h-[303px] max-h-[303px]",
-        )}
-      >
-        {imageUrl ? (
-          <>
-            <img
-              src={imageUrl}
-              alt={player.name}
-              className={clsx(
-                "absolute inset-0 h-full w-full",
-                compact ? "object-cover object-top scale-[1.02]" : "object-cover object-top",
-              )}
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
-          </>
-        ) : (
-          <>
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_32%)]" />
-            <div
-              className={clsx(
-                "absolute -right-6 -top-6 h-24 w-24 rounded-full blur-2xl",
-                visual.orb,
-              )}
-            />
-            <div className="absolute inset-x-3 bottom-3 top-3 overflow-hidden rounded-[18px] border border-white/8 bg-black/10">
-              <div className="absolute -left-6 top-2 font-display text-[92px] leading-none text-white/7">
-                {visual.initials}
-              </div>
-              <div className="absolute bottom-3 left-3">
-                <div
-                  className={clsx(
-                    "bg-gradient-to-r bg-clip-text font-display text-3xl font-semibold text-transparent",
-                    visual.accent,
-                  )}
-                >
-                  {visual.surname}
+          <div className="relative flex h-full flex-col">
+            <div className="grid grid-cols-[auto_1fr_auto] items-start gap-3">
+              <div className="rounded-[24px] border border-white/12 bg-slate-950/82 px-4 py-3 shadow-[0_12px_28px_rgba(2,6,23,0.32)]">
+                <div className="text-center font-display text-[3rem] font-semibold leading-none text-white">{player.overall}</div>
+                <div className="mt-2 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-300">
+                  {naturalPositions}
                 </div>
-                <div className="mt-1 text-[10px] uppercase tracking-[0.28em] text-slate-200/70">
-                  Loading image
+              </div>
+
+              <div className="flex justify-center pt-1">
+                {team?.logo ? (
+                  <div className="flex h-24 w-24 items-center justify-center rounded-[22px] border border-white/12 bg-black/45 p-4 shadow-[0_12px_28px_rgba(0,0,0,0.16)]">
+                    <img
+                      src={team.logo}
+                      alt={`${team.name} logo`}
+                      className="h-full w-full object-contain"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="flex flex-col items-end gap-2">
+                <div className="rounded-full border border-white/12 bg-black/45 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-200 whitespace-nowrap">
+                  {getRarityLabel(rarity)}
+                </div>
+                {selected ? (
+                  <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-200/28 bg-sky-300/14 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-100">
+                    <Shield size={12} />
+                    Selected
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="relative mt-4 h-[360px] overflow-hidden rounded-[30px] border border-white/12 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_26%),linear-gradient(180deg,rgba(15,23,42,0.55),rgba(2,6,23,0.88))]">
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={player.name}
+                  className="absolute inset-0 h-full w-full origin-top object-cover object-top scale-[1.03]"
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                />
+              ) : null}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.1),transparent_24%),linear-gradient(180deg,rgba(2,6,23,0.08),transparent_38%,rgba(2,6,23,0.56)_84%)]" />
+              <div className="absolute inset-x-0 bottom-0 z-10 px-4 pb-4 text-center">
+                <div className="inline-flex justify-center">
+                  <div className="relative inline-flex items-center justify-center px-5 py-2.5">
+                    <div className="pointer-events-none absolute left-[-16px] right-[-16px] top-[-24px] bottom-[-12px] rounded-[28px] bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.18)_24%,rgba(0,0,0,0.5)_56%,rgba(0,0,0,0.82)_100%)]" />
+                    <div
+                      className={clsx(
+                        "relative font-display font-semibold leading-none tracking-tight text-white whitespace-nowrap drop-shadow-[0_10px_22px_rgba(0,0,0,0.92)]",
+                        nameClassName,
+                      )}
+                    >
+                      {fullName}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </>
-        )}
 
-        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
-        {currentSeasonCard ? (
-          <>
-            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(8,145,178,0.14),transparent_30%,transparent_65%,rgba(16,185,129,0.16))] mix-blend-screen" />
-            <div className="absolute inset-x-3 bottom-3 z-10 rounded-full border border-emerald-300/25 bg-slate-950/72 px-3 py-1.5 backdrop-blur-sm">
-              <div className="text-[9px] font-semibold uppercase tracking-[0.28em] text-emerald-200/90">
-                Current Season
+            <div className="mt-4 px-2 py-2">
+              <PlayerTypeBadges
+                player={player}
+                compact
+                iconOnly
+                className="justify-center"
+                align="center"
+                badgesOverride={playerTypeBadgesOverride}
+                limit={playerTypeBadgeCountOverride}
+              />
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                <DynamicDuoBadge playerId={player.id} draftedPlayerIds={draftedPlayerIds} compact dense />
+                <PlayerSynergyBadges
+                  playerId={player.id}
+                  draftedPlayerIds={draftedPlayerIds}
+                  compact
+                  dense
+                  align="center"
+                  excludeTypes={["dynamic-duo"]}
+                />
               </div>
             </div>
-          </>
-        ) : null}
-      </div>
-
-      <div className="relative">
-        <div
-          className={clsx(
-            "font-display font-semibold leading-none text-white",
-            compact
-              ? extremeName
-                ? "text-[0.98rem]"
-                : veryLongName
-                  ? "text-[1.08rem]"
-                  : longName
-                    ? "text-[1.2rem]"
-                    : "text-[1.38rem]"
-              : extremeName
-              ? "text-[0.78rem]"
-              : veryLongName
-                ? "text-[0.9rem]"
-                : longName
-                  ? "text-[1.04rem]"
-                  : "text-[1.32rem]",
-          )}
-        >
-          <div className="tracking-tight">{firstNameLine}</div>
-          <div className="mt-1 tracking-tight">{lastNameLine}</div>
-          {versionLine ? <div className="mt-1 text-[0.74em] tracking-tight text-slate-200/92">{versionLine}</div> : null}
-        </div>
-        <PlayerTypeBadges
-          player={player}
-          compact={compact}
-          className="mt-3"
-        />
-        <div
-          className={clsx(
-            "text-slate-300",
-            compact ? "mt-2 text-[10px]" : veryLongName ? "mt-2 text-[10px]" : "mt-2 text-[11px]",
-          )}
-        >
-          <div className={clsx("uppercase text-slate-300/90", compact ? "tracking-[0.16em]" : "tracking-[0.18em]")}>
-            Natural Position:
-          </div>
-          <div className={clsx("mt-1 leading-5 text-white/92", compact ? "line-clamp-2 text-[11px]" : "text-[11px]")}>
-            {naturalPositions}
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-          <DynamicDuoBadge
-            playerId={player.id}
-            draftedPlayerIds={draftedPlayerIds}
-            dense={compact}
-          />
-          <PlayerSynergyBadges
-            playerId={player.id}
-            draftedPlayerIds={draftedPlayerIds}
-            dense={compact}
-            excludeTypes={["dynamic-duo"]}
-          />
-        </div>
-      </div>
-
-      <div className="relative mt-auto flex flex-col justify-end pt-3">
-        <div
-          className={clsx(
-            "rounded-2xl border border-white/10 bg-white/5 px-3 text-center uppercase text-slate-300",
-            compact ? "py-2 text-[9px] tracking-[0.12em]" : "py-2 text-[10px] tracking-[0.16em]",
-          )}
-        >
-            {actionLabel}
-          </div>
       </div>
     </button>
   );
