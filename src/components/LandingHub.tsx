@@ -1,8 +1,5 @@
-import { ChevronRight, Crown, Medal, Radar, Sparkles, Trophy } from "lucide-react";
-import {
-  MetaProgress,
-  RunHistoryEntry,
-} from "../types";
+import { ChevronRight, Crown, Medal, Radar, Shield, Sparkles, Swords, Trophy } from "lucide-react";
+import { MetaProgress, RunHistoryEntry } from "../types";
 
 interface LandingHubProps {
   onOpenPrestige: () => void;
@@ -21,207 +18,77 @@ export const LandingHub = ({
   history,
   meta,
 }: LandingHubProps) => {
+  const latestRun = history[0] ?? null;
+
   return (
-  <section className="space-y-8">
-    <div className="glass-panel rounded-[34px] bg-hero-mesh p-8 shadow-card lg:p-12">
-        <div className="inline-flex rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-sky-100">
-          All-Time NBA Draft Simulator
-        </div>
-        <h1 className="mt-6 max-w-4xl font-display text-5xl font-semibold leading-[1.04] text-white lg:text-7xl">
-          Can you draft the best all-time NBA team?
-        </h1>
-        <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-200/85">
-          Draft a 10-man all-time NBA roster, balance star power with chemistry, and simulate an 82-game season plus the entire playoff run.
-        </p>
-
-        <div className="mt-10 flex flex-wrap justify-center gap-3">
-          <button
-            type="button"
-            onClick={onOpenChallenges}
-            className="inline-flex items-center gap-2 rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-slate-900 transition hover:scale-[1.02]"
-          >
-            Start Draft Challenges
-            <ChevronRight size={18} />
-          </button>
-          <button
-            type="button"
-            onClick={onOpenRoguelike}
-            className="inline-flex items-center gap-2 rounded-full border border-fuchsia-200/18 bg-fuchsia-300/10 px-8 py-3.5 text-sm font-semibold text-fuchsia-100 transition hover:scale-[1.02] hover:bg-fuchsia-300/14"
-          >
-            Try Roguelike Mode
-            <ChevronRight size={18} />
-          </button>
-        </div>
-
-        <p className="mt-4 text-center text-sm leading-7 text-slate-300">
-          Take on challenge routes, chase prestige rewards, and prove you can build elite rosters in every draft environment.
-        </p>
-
-        <div className="mt-6 grid gap-3 md:grid-cols-3">
-          {[
-            ["1. Start with Challenge 1", "The first category-focus routes are the cleanest way to learn the draft loop."],
-            ["2. Watch Chemistry", "Chemistry now shows both lineup sense and badge synergy, so it explains why a pick helps or hurts."],
-            ["3. Chase Prestige", "Challenge clears are the main way to level up, unlock rewards, and open deeper systems."],
-          ].map(([title, description]) => (
-            <div key={title} className="rounded-[22px] border border-white/10 bg-black/20 p-4 text-left">
-              <div className="font-semibold text-white">{title}</div>
-              <div className="mt-2 text-sm leading-6 text-slate-300">{description}</div>
-            </div>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={onOpenPrestige}
-          className="mt-8 block w-full rounded-[28px] border border-amber-200/12 bg-black/20 p-5 text-left transition hover:border-amber-200/25 hover:bg-black/25"
-        >
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-slate-400">
-                <Crown size={14} className="text-amber-200" />
-                Prestige Profile
-              </div>
-              <h2 className="mt-2 font-display text-3xl text-white">
-                Level {meta.prestige.level} | {meta.prestige.title}
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
-                Prestige tracks your long-term all-time GM legacy across completed runs, titles, challenge clears, and collection growth.
-              </p>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[390px]">
-              <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Prestige</div>
-                <div className="mt-2 break-words text-[clamp(1.7rem,2.1vw,2.2rem)] font-semibold leading-none text-white">{meta.prestige.score}</div>
-              </div>
-              <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Next Level</div>
-                <div className="mt-2 break-words text-[clamp(1.7rem,2.1vw,2.2rem)] font-semibold leading-none text-white">{meta.prestige.nextLevelScore}</div>
-              </div>
-              <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Progress</div>
-                <div className="mt-2 text-2xl font-semibold text-white">
-                  {Math.round(meta.prestige.progressToNextLevel * 100)}%
-                </div>
-              </div>
-            </div>
+    <section className="space-y-8">
+      <div className="grid gap-6 xl:grid-cols-[1.4fr_0.6fr]">
+        <div className="glass-panel overflow-hidden rounded-[36px] border border-fuchsia-200/16 bg-[linear-gradient(140deg,rgba(28,11,45,0.98),rgba(11,18,34,0.96),rgba(7,11,18,0.98))] p-8 shadow-card lg:p-12">
+          <div className="inline-flex rounded-full border border-fuchsia-200/20 bg-fuchsia-300/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-fuchsia-100">
+            Primary Mode
           </div>
-
-          <div className="mt-5 h-3 overflow-hidden rounded-full bg-white/8">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-amber-300 via-yellow-200 to-orange-300"
-              style={{ width: `${Math.max(6, Math.round(meta.prestige.progressToNextLevel * 100))}%` }}
-            />
+          <div className="mt-6 flex flex-wrap items-center gap-3 text-[11px] uppercase tracking-[0.18em] text-slate-300">
+            <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1.5">NBA Rogue Mode</span>
+            <span className="rounded-full border border-emerald-200/14 bg-emerald-300/10 px-3 py-1.5 text-emerald-100">
+              Runs persist
+            </span>
+            <span className="rounded-full border border-sky-200/14 bg-sky-300/10 px-3 py-1.5 text-sky-100">
+              Progression-focused
+            </span>
           </div>
-          <div className="mt-2 flex items-center justify-between gap-3 text-xs uppercase tracking-[0.18em] text-slate-500">
-            <span>{meta.prestige.currentLevelFloor}</span>
-            <span>{meta.prestige.nextLevelScore}</span>
-          </div>
-        </button>
+          <h1 className="mt-6 max-w-4xl font-display text-5xl font-semibold leading-[1.02] text-white lg:text-7xl">
+            Build a run, survive the ladder, and chase the deepest NBA Rogue Mode climb.
+          </h1>
+          <p className="mt-6 max-w-3xl text-lg leading-8 text-slate-200/86">
+            Draft your opening core, train key players, trade for cleaner fits, evolve cards, and survive boss faceoffs floor by floor.
+            NBA Rogue Mode is now the main way to play, improve, and build your long-term profile.
+          </p>
 
-        <div className="mt-12 grid gap-4 md:grid-cols-3">
-          {[
-            ["10 picks", "Every round matters and every pick is permanent."],
-            ["Meta progression", "Personal bests, trophies, streaks, and collection goals persist across runs."],
-            ["Dynamic runs", "Draft challenges, rare events, and chemistry bonuses change the feel of each attempt."],
-          ].map(([title, description]) => (
-            <div key={title} className="rounded-[24px] border border-white/10 bg-black/20 p-5">
-              <div className="font-display text-xl text-white">{title}</div>
-              <div className="mt-2 text-sm leading-6 text-slate-300">{description}</div>
-            </div>
-          ))}
-        </div>
-    </div>
-
-    <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr_0.95fr]">
-      <div className="glass-panel rounded-[30px] p-6 shadow-card">
-        <div className="flex items-center gap-3">
-          <div className="rounded-2xl bg-emerald-300/14 p-3 text-emerald-200">
-            <Radar size={20} />
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Category Leaderboards</p>
-            <h2 className="mt-1 font-display text-2xl text-white">Best Ever Builds</h2>
-          </div>
-        </div>
-
-        <div className="mt-6 space-y-3">
-          {meta.leaderboards.map((entry) => (
-            <div key={entry.label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-medium text-white">{entry.label}</div>
-                  <div className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-400">{entry.teamName}</div>
-                </div>
-                <div className="text-2xl font-semibold text-white">{entry.value}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <button
-        type="button"
-        onClick={onOpenCollection}
-        className="glass-panel rounded-[30px] p-6 text-left shadow-card transition hover:border-amber-200/24 hover:bg-white/7"
-      >
-        <div className="flex items-center gap-3">
-          <div className="rounded-2xl bg-amber-300/14 p-3 text-amber-200">
-            <Medal size={20} />
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Trophy Case</p>
-            <h2 className="mt-1 font-display text-2xl text-white">Meta Progress</h2>
-          </div>
-        </div>
-
-        <div className="mt-6 space-y-3">
-          {meta.trophies.map((trophy) => (
-            <div
-              key={trophy.id}
-              className={`rounded-2xl border p-4 ${
-                trophy.unlocked
-                  ? "border-amber-300/25 bg-amber-300/10"
-                  : "border-white/10 bg-white/5"
-              }`}
+          <div className="mt-10 flex flex-wrap gap-4">
+            <button
+              type="button"
+              onClick={onOpenRoguelike}
+              className="inline-flex items-center gap-2 rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-slate-900 transition hover:scale-[1.02]"
             >
-              <div className="font-medium text-white">{trophy.title}</div>
-              <div className="mt-1 text-sm text-slate-300">{trophy.description}</div>
-            </div>
-          ))}
-        </div>
-      </button>
-
-      <div className="glass-panel rounded-[30px] p-6 shadow-card">
-        <div className="flex items-center gap-3">
-          <div className="rounded-2xl bg-amber-300/14 p-3 text-amber-200">
-            <Crown size={20} />
+              Enter NBA Rogue Mode
+              <ChevronRight size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={onOpenPrestige}
+              className="inline-flex items-center gap-2 rounded-full border border-fuchsia-200/18 bg-fuchsia-300/10 px-8 py-3.5 text-sm font-semibold text-fuchsia-100 transition hover:scale-[1.02] hover:bg-fuchsia-300/14"
+            >
+              View Meta Progress
+              <ChevronRight size={18} />
+            </button>
           </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Personal Bests</p>
-            <h2 className="mt-1 font-display text-2xl text-white">Chase Your Peak</h2>
+
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
+            {[
+              ["Draft live choices", "Open with a real starter reveal, then make 1-of-5 decisions that permanently shape the run."],
+              ["Manage the climb", "Training, trade nodes, lineup tuning, and reward drafts all matter before each boss gate."],
+              ["Build long-term power", "Your best rogue stats, prestige progress, tokens, and collection goals keep improving across runs."],
+            ].map(([title, description]) => (
+              <div key={title} className="rounded-[24px] border border-white/10 bg-black/24 p-5">
+                <div className="font-display text-xl text-white">{title}</div>
+                <div className="mt-2 text-sm leading-6 text-slate-300">{description}</div>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          {[
-            ["Wins", meta.personalBests.wins],
-            ["Overall", meta.personalBests.overall],
-            ["Offense", meta.personalBests.offense],
-            ["Defense", meta.personalBests.defense],
-            ["Chemistry", meta.personalBests.chemistry],
-            ["Legacy", meta.personalBests.legacyScore],
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{label}</div>
-              <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
+        <div className="glass-panel rounded-[36px] border border-emerald-200/12 p-6 shadow-card">
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl bg-emerald-300/14 p-3 text-emerald-200">
+              <Shield size={20} />
             </div>
-          ))}
-        </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Rogue Profile</p>
+              <h2 className="mt-1 font-display text-2xl text-white">Current Chase</h2>
+            </div>
+          </div>
 
-        <div className="mt-6 border-t border-white/10 pt-6">
-          <div className="text-xs uppercase tracking-[0.22em] text-fuchsia-100/78">Rogue Run Bests</div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
             {[
               ["Furthest Floor", meta.roguePersonalBests.furthestFloor],
               ["Best OVR", meta.roguePersonalBests.overall],
@@ -229,111 +96,293 @@ export const LandingHub = ({
               ["Best DEF", meta.roguePersonalBests.defense],
               ["Best CHEM", meta.roguePersonalBests.chemistry],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-2xl border border-fuchsia-200/12 bg-fuchsia-300/6 p-4">
+              <div key={label} className="rounded-2xl border border-emerald-200/12 bg-emerald-300/6 p-4">
                 <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{label}</div>
                 <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
               </div>
             ))}
           </div>
+
+          <button
+            type="button"
+            onClick={onOpenRoguelike}
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/12 bg-white/6 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+          >
+            Continue the Climb
+            <ChevronRight size={16} />
+          </button>
         </div>
       </div>
 
-      <div className="glass-panel rounded-[30px] p-6 shadow-card">
-        <div className="flex items-center gap-3">
-          <div className="rounded-2xl bg-amber-300/14 p-3 text-amber-200">
-            <Trophy size={22} />
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="glass-panel rounded-[32px] p-6 shadow-card">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-2xl bg-fuchsia-300/14 p-3 text-fuchsia-200">
+                <Swords size={20} />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Mode Focus</p>
+                <h2 className="mt-1 font-display text-2xl text-white">Why Rogue Mode Matters</h2>
+              </div>
+            </div>
+            <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-300">
+              Main Experience
+            </span>
           </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Run History</p>
-            <h2 className="mt-1 font-display text-2xl text-white">Recent Franchises</h2>
-          </div>
-        </div>
 
-        <div className="mt-6 space-y-3">
-          {history.length > 0 ? (
-            history.map((item) => (
-              <div key={item.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="font-medium text-white">{item.teamName}</div>
-                    <div className="mt-1 text-sm text-slate-300">
-                      {item.mode === "category-focus"
-                        ? `${item.categoryFocusTitle ?? "Category Focus"} | ${item.focusScore ?? "--"}`
-                        : `${item.record} | ${item.playoffFinish}`}
-                    </div>
-                    <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
-                      {item.mode === "category-focus"
-                        ? `${item.categoryFocusTitle ?? "Category Focus"} mode | ${item.rareEventTitle}`
-                        : `${item.challengeTitle} | ${item.rareEventTitle}`}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-semibold text-white">{item.grade}</div>
-                    <div className="text-sm text-amber-100">{item.legacyScore} legacy</div>
-                    <div className="text-xs text-slate-400">{item.createdAt}</div>
-                  </div>
+          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+            {[
+              {
+                title: "Meaningful roster building",
+                description:
+                  "Every floor asks for a different kind of discipline: drafting pure talent, protecting chemistry, and deciding when to invest in upgrades.",
+                icon: Sparkles,
+                tone: "border-fuchsia-200/16 bg-fuchsia-300/8 text-fuchsia-100",
+              },
+              {
+                title: "Boss battles with readable stakes",
+                description:
+                  "You can scout the matchup, study your starting five, and understand how each slot duel shapes the boss faceoff result.",
+                icon: Trophy,
+                tone: "border-amber-200/16 bg-amber-300/8 text-amber-100",
+              },
+              {
+                title: "Persistent progression",
+                description:
+                  "Tokens, prestige, rogue bests, and unlock-driven choices make each run matter even when the ladder ends early.",
+                icon: Crown,
+                tone: "border-sky-200/16 bg-sky-300/8 text-sky-100",
+              },
+              {
+                title: "Cleaner replay value",
+                description:
+                  "Starter packs, bundle rewards, training camps, trades, and evolving lineups create very different run shapes from one attempt to the next.",
+                icon: Radar,
+                tone: "border-emerald-200/16 bg-emerald-300/8 text-emerald-100",
+              },
+            ].map((item) => (
+              <div key={item.title} className="rounded-[24px] border border-white/10 bg-black/20 p-5">
+                <div className={`inline-flex rounded-2xl border px-3 py-3 ${item.tone}`}>
+                  <item.icon size={18} />
                 </div>
-              </div>
-            ))
-          ) : (
-            <div className="rounded-2xl border border-dashed border-white/10 bg-black/15 p-6 text-sm leading-7 text-slate-300">
-              Your recent runs will appear here once you finish a draft and simulate the season.
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="glass-panel rounded-[30px] p-6 shadow-card">
-        <div className="flex items-center gap-3">
-          <div className="rounded-2xl bg-fuchsia-300/14 p-3 text-fuchsia-200">
-            <Sparkles size={20} />
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Streaks + Collection</p>
-            <h2 className="mt-1 font-display text-2xl text-white">Long-Term Chase</h2>
-          </div>
-        </div>
-
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
-          {[
-            ["Playoff Streak", meta.streaks.playoff],
-            ["Title Streak", meta.streaks.titles],
-            ["50-Win Streak", meta.streaks.fiftyWin],
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{label}</div>
-              <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Collection Progress</div>
-              <div className="mt-2 text-2xl font-semibold text-white">
-                {meta.collection.draftedPlayers} / {meta.collection.totalPlayers}
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-semibold text-white">{meta.collection.percentage}%</div>
-              <div className="text-xs text-slate-400">of player pool drafted</div>
-            </div>
-          </div>
-
-          <div className="mt-4 space-y-2">
-            {meta.collection.milestones.map((milestone) => (
-              <div key={milestone.label} className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-slate-300">{milestone.label}</span>
-                <span className={milestone.reached ? "text-emerald-200" : "text-slate-500"}>
-                  {milestone.reached ? "Complete" : "Locked"}
-                </span>
+                <div className="mt-4 font-display text-xl text-white">{item.title}</div>
+                <div className="mt-2 text-sm leading-6 text-slate-300">{item.description}</div>
               </div>
             ))}
           </div>
         </div>
+
+        <div className="space-y-6">
+          <button
+            type="button"
+            onClick={onOpenPrestige}
+            className="glass-panel block w-full rounded-[32px] border border-amber-200/12 bg-black/20 p-6 text-left shadow-card transition hover:border-amber-200/25 hover:bg-black/25"
+          >
+            <div className="flex flex-col gap-5">
+              <div>
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-slate-400">
+                  <Crown size={14} className="text-amber-200" />
+                  Prestige Profile
+                </div>
+                <h2 className="mt-2 font-display text-3xl text-white">
+                  Level {meta.prestige.level} | {meta.prestige.title}
+                </h2>
+                <p className="mt-2 text-sm leading-7 text-slate-300">
+                  Rogue runs now drive the home page, but your long-term prestige still tracks the whole account.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Prestige</div>
+                  <div className="mt-2 text-[clamp(1.7rem,2.1vw,2.2rem)] font-semibold leading-none text-white">{meta.prestige.score}</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Next Level</div>
+                  <div className="mt-2 text-[clamp(1.7rem,2.1vw,2.2rem)] font-semibold leading-none text-white">{meta.prestige.nextLevelScore}</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Progress</div>
+                  <div className="mt-2 text-2xl font-semibold text-white">
+                    {Math.round(meta.prestige.progressToNextLevel * 100)}%
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 h-3 overflow-hidden rounded-full bg-white/8">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-amber-300 via-yellow-200 to-orange-300"
+                style={{ width: `${Math.max(6, Math.round(meta.prestige.progressToNextLevel * 100))}%` }}
+              />
+            </div>
+          </button>
+
+          <div className="glass-panel rounded-[32px] border border-white/10 p-6 shadow-card">
+            <div className="flex items-center gap-3">
+              <div className="rounded-2xl bg-amber-300/14 p-3 text-amber-200">
+                <Trophy size={20} />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Latest Run</p>
+                <h2 className="mt-1 font-display text-2xl text-white">Recent Result</h2>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              {latestRun ? (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="font-medium text-white">{latestRun.teamName}</div>
+                      <div className="mt-2 text-sm text-slate-300">
+                        {latestRun.mode === "category-focus"
+                          ? `${latestRun.categoryFocusTitle ?? "Category Focus"} | ${latestRun.focusScore ?? "--"}`
+                          : `${latestRun.record} | ${latestRun.playoffFinish}`}
+                      </div>
+                      <div className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">
+                        {latestRun.mode === "category-focus"
+                          ? `${latestRun.categoryFocusTitle ?? "Category Focus"} mode`
+                          : latestRun.challengeTitle}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-semibold text-white">{latestRun.grade}</div>
+                      <div className="mt-1 text-sm text-amber-100">{latestRun.legacyScore} legacy</div>
+                      <div className="mt-1 text-xs text-slate-400">{latestRun.createdAt}</div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-white/10 bg-black/15 p-6 text-sm leading-7 text-slate-300">
+                  Your rogue climbs, challenge runs, and recent finishes will show up here once you log a completed run.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </section>
-);
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_1fr_0.8fr]">
+        <div className="glass-panel rounded-[30px] p-6 shadow-card">
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl bg-emerald-300/14 p-3 text-emerald-200">
+              <Radar size={20} />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Best Ever Builds</p>
+              <h2 className="mt-1 font-display text-2xl text-white">Leaderboards</h2>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-3">
+            {meta.leaderboards.map((entry) => (
+              <div key={entry.label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium text-white">{entry.label}</div>
+                    <div className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-400">{entry.teamName}</div>
+                  </div>
+                  <div className="text-2xl font-semibold text-white">{entry.value}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onOpenCollection}
+          className="glass-panel rounded-[30px] p-6 text-left shadow-card transition hover:border-amber-200/24 hover:bg-white/7"
+        >
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl bg-amber-300/14 p-3 text-amber-200">
+              <Medal size={20} />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Collection + Trophies</p>
+              <h2 className="mt-1 font-display text-2xl text-white">Long-Term Chase</h2>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Collection Progress</div>
+                <div className="mt-2 text-2xl font-semibold text-white">
+                  {meta.collection.draftedPlayers} / {meta.collection.totalPlayers}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-semibold text-white">{meta.collection.percentage}%</div>
+                <div className="text-xs text-slate-400">of player pool drafted</div>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              {meta.collection.milestones.map((milestone) => (
+                <div key={milestone.label} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-slate-300">{milestone.label}</span>
+                  <span className={milestone.reached ? "text-emerald-200" : "text-slate-500"}>
+                    {milestone.reached ? "Complete" : "Locked"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            {[
+              ["Playoff Streak", meta.streaks.playoff],
+              ["Title Streak", meta.streaks.titles],
+              ["50-Win Streak", meta.streaks.fiftyWin],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{label}</div>
+                <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
+              </div>
+            ))}
+          </div>
+        </button>
+
+        <div className="glass-panel rounded-[30px] border border-sky-200/12 p-6 shadow-card">
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl bg-sky-300/14 p-3 text-sky-200">
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Side Mode</p>
+              <h2 className="mt-1 font-display text-2xl text-white">Draft Challenges</h2>
+            </div>
+          </div>
+
+          <p className="mt-6 text-sm leading-7 text-slate-300">
+            Draft Challenges are still available, but they now sit beside NBA Rogue Mode as a lighter side feature for focused roster experiments.
+          </p>
+
+          <div className="mt-6 space-y-3">
+            {[
+              "Category-focus routes",
+              "Classic 10-pick draft flow",
+              "Prestige and collection support",
+            ].map((item) => (
+              <div key={item} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
+                {item}
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={onOpenChallenges}
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full border border-sky-200/18 bg-sky-300/10 px-5 py-3 text-sm font-semibold text-sky-100 transition hover:bg-sky-300/14"
+          >
+            Open Draft Challenges
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      </div>
+    </section>
+  );
 };

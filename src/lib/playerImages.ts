@@ -87,7 +87,7 @@ const directImageOverrides: Record<string, string> = {
   "kevin-willis":
     "https://cdn.nba.com/teams/legacy/www.nba.com/hawks/sites/hawks/files/legacy/photos/HWK_Classic_Willis_11.jpg",
   "kenyon-martin":
-    "https://preview.redd.it/where-does-kenyon-martin-rank-all-time-as-a-net-v0-uo0fesegkoce1.jpeg?auto=webp&s=1c217d0c345f1329a43dda0efc6495605a427cc8",
+    "https://netswire.usatoday.com/gcdn/authoring/images/smg/2024/12/27/SNET/77269200007-9-9488.jpeg?width=660&height=479&fit=crop&format=pjpg&auto=webp",
   "ray-allen-sonics":
     "https://www.sportsnet.ca/wp-content/uploads/2013/07/allen_ray640.jpg",
   "ray-allen-celtics":
@@ -160,8 +160,6 @@ const directImageOverrides: Record<string, string> = {
     "https://fieldlevelmedia.com/wp-content/uploads/2025/12/27725863-1024x768.jpg",
   "jason-kidd":
     "https://www.si.com/.image/t_share/MTY4MjU5ODQ5Nzc5MjI2NDk3/image-placeholder-title.jpg",
-  "jrue-holiday":
-    "https://s7d2.scene7.com/is/image/TWCNews/ap-jrue-holiday-bucks_02032023",
   "jimmy-butler":
     "https://hips.hearstapps.com/hmg-prod/images/jimmy-butler-of-the-miami-heat-reacts-during-the-fourth-news-photo-1682620143.jpg?crop=0.670xw:1.00xh;0.185xw,0&resize=1200:*",
   "kareem-abdul-jabbar":
@@ -206,7 +204,7 @@ const directImageOverrides: Record<string, string> = {
     "https://upload.wikimedia.org/wikipedia/commons/8/81/Kevin_Love_2.jpg",
   "kevin-love-cavs":
     "https://legacymedia.sportsplatform.io/img/images/photos/003/376/297/hi-res-81a724c20c6dde3f6617649ef591bd46_crop_north.jpg?1430177991&w=630&h=420",
-  "khris-middleton":
+  "khris-middleton-bucks":
     "https://legacymedia.sportsplatform.io/image/upload/x_0,y_162,w_1800,h_1195,c_crop/v1733413087/gz9weasipxfilgyr6uke.jpg",
   "kyrie-irving":
     "https://www.usatoday.com/gcdn/-mm-/daafdabb5e49ae55569e2dbfe59cf6ee99818eef/c=87-0-2373-3048/local/-/media/2017/05/24/USATODAY/USATODAY/636311815863708051-USP-NBA-PLAYOFFS-BOSTON-CELTICS-AT-CLEVELAND-CAVA-91150919-1-.JPG?width=660&height=881&fit=crop&format=pjpg&auto=webp",
@@ -295,7 +293,7 @@ const directImageOverrides: Record<string, string> = {
   "rick-barry":
     "https://sportscollectorsdigest.com/uploads/MjA0MzY2ODE4MTU0OTE0ODkz/barry-free-throws-getty.jpg?format=auto&optimize=high&width=1440",
   "rik-smits":
-    "https://cdn.nba.com/teams/legacy/www.nba.com/pacers/sites/pacers/files/97-97_smits_vs._golden_state_1_11.1.97.jpg",
+    "https://cdn.nba.com/teams/legacy/www.nba.com/pacers/sites/pacers/files/gettyimages-457989006_master.jpg",
   "rip-hamilton":
     "https://www.vintagedetroit.com/wp-content/uploads/2011/02/Rip-Hamilton.jpg",
   "pete-maravich":
@@ -382,7 +380,7 @@ const directImageOverrides: Record<string, string> = {
     "https://images.imagerenderer.com/images/artworkimages/mediumlarge/2/denver-nuggets-alex-english-andrew-d-bernstein.jpg",
   "allan-houston":
     "https://www.backsportspage.com/wp-content/uploads/2017/06/allan_houston.jpg",
-  "al-horford":
+  "al-horford-hawks":
     "https://cdn.nba.com/teams/legacy/www.nba.com/hawks/sites/hawks/files/horford-easternconference.jpg",
   "allen-iverson":
     "https://cdn.nba.com/manage/2022/03/ai3-scaled.jpg",

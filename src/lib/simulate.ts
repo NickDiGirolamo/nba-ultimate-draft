@@ -68,27 +68,21 @@ const getPlayerIdentityKey = (player: Player) =>
 
 const getSlotFitCounts = (roster: RosterSlot[]) => {
   let natural = 0;
-  let secondary = 0;
   let outOfRole = 0;
 
   roster.forEach((slot) => {
     const player = slot.player;
     if (!player) return;
 
-    if (slot.allowedPositions.includes(player.primaryPosition)) {
+    if ([player.primaryPosition, ...player.secondaryPositions].some((position) => slot.allowedPositions.includes(position))) {
       natural += 1;
-      return;
-    }
-
-    if (player.secondaryPositions.some((position) => slot.allowedPositions.includes(position))) {
-      secondary += 1;
       return;
     }
 
     outOfRole += 1;
   });
 
-  return { natural, secondary, outOfRole };
+  return { natural, outOfRole };
 };
 
 const getPlayerTypeBalanceBonus = (players: Player[]) => {
@@ -124,8 +118,8 @@ export const evaluateDraftChemistry = (roster: RosterSlot[]): DraftChemistrySnap
   }
 
   const fillRatio = draftedCount / roster.length;
-  const { natural, secondary, outOfRole } = getSlotFitCounts(roster);
-  const slotFitRate = (natural + secondary * 0.72) / draftedCount;
+  const { natural, outOfRole } = getSlotFitCounts(roster);
+  const slotFitRate = natural / draftedCount;
   const averageIntangibles = average(players.map((player) => player.intangibles));
   const chemistryBonuses = getChemistryBonuses(players.map((player) => player.id));
   const activeDynamicDuos = getActiveDynamicDuos(players.map((player) => player.id));

@@ -1,5 +1,6 @@
 import { Player, Position, StoredPlayerTier } from "../types";
 import { getTierFromOverall } from "../lib/playerTier";
+import { normalizePlayerSeedRatings } from "../lib/playerRatings";
 
 interface PlayerSeed {
   name: string;
@@ -177,13 +178,22 @@ const inferCurrentSeasonSecondaryPositions = (seed: PlayerSeed): Position[] => {
   return dedupePositions(positions.filter((position) => position !== seed.primaryPosition));
 };
 
-const makePlayer = (seed: PlayerSeed): Player => ({
-  id: toPlayerId(seed.name),
-  ...seed,
-  hallOfFameTier: getTierFromOverall(seed.overall),
-  secondaryPositions:
-    seed.secondaryPositions.length > 0 ? dedupePositions(seed.secondaryPositions) : inferCurrentSeasonSecondaryPositions(seed),
-});
+const makePlayer = (seed: PlayerSeed): Player => {
+  const secondaryPositions =
+    seed.secondaryPositions.length > 0 ? dedupePositions(seed.secondaryPositions) : inferCurrentSeasonSecondaryPositions(seed);
+  const normalizedRatings = normalizePlayerSeedRatings({
+    ...seed,
+    secondaryPositions,
+  });
+
+  return {
+    id: toPlayerId(seed.name),
+    ...seed,
+    ...normalizedRatings,
+    hallOfFameTier: getTierFromOverall(seed.overall),
+    secondaryPositions,
+  };
+};
 
 export const currentSeason2026Players: Player[] = [
   makePlayer({ name: "Nikola Jokic (2025-26)", era: "2025-26", teamLabel: "Nuggets", primaryPosition: "C", secondaryPositions: [], overall: 96, offense: 96, defense: 94, playmaking: 94, shooting: 92, rebounding: 97, athleticism: 94, intangibles: 94, durability: 91, archetype: "2025-26 Interior Anchor", hallOfFameTier: "A", shortDescription: "Nikola Jokic's 2025-26 regular season card reflects how Nuggets's center impacted the paint, the glass, and the interior structure of a game.", badges: ["Elite Shooter", "Floor General", "Glass Cleaner"], ballDominance: 95, interiorDefense: 94, perimeterDefense: 90 }),
@@ -664,7 +674,7 @@ export const currentSeason2026Players: Player[] = [
   makePlayer({ name: "Chaz Lanier (2025-26)", era: "2025-26", teamLabel: "Pistons", primaryPosition: "SG", secondaryPositions: [], overall: 76, offense: 78, defense: 78, playmaking: 79, shooting: 81, rebounding: 77, athleticism: 78, intangibles: 81, durability: 77, archetype: "2025-26 Rotation Piece", hallOfFameTier: "C", shortDescription: "Chaz Lanier's 2025-26 regular season card is built from full-season production, efficiency, and impact for Pistons.", badges: [], ballDominance: 47, interiorDefense: 70, perimeterDefense: 78 }),
   makePlayer({ name: "Dario Šaric (2025-26)", era: "2025-26", teamLabel: "Kings", primaryPosition: "C", secondaryPositions: [], overall: 76, offense: 78, defense: 78, playmaking: 77, shooting: 81, rebounding: 79, athleticism: 79, intangibles: 79, durability: 70, archetype: "2025-26 Rotation Piece", hallOfFameTier: "C", shortDescription: "Dario Šaric's 2025-26 regular season card reflects how Kings's center impacted the paint, the glass, and the interior structure of a game.", badges: [], ballDominance: 43, interiorDefense: 78, perimeterDefense: 73 }),
   makePlayer({ name: "Kyle Lowry (2025-26)", era: "2025-26", teamLabel: "76ers", primaryPosition: "PG", secondaryPositions: [], overall: 76, offense: 77, defense: 78, playmaking: 80, shooting: 80, rebounding: 76, athleticism: 79, intangibles: 79, durability: 73, archetype: "2025-26 Rotation Piece", hallOfFameTier: "C", shortDescription: "Kyle Lowry's 2025-26 regular season card captures how 76ers's lead guard created offense, managed possessions, and bent defenses every night.", badges: [], ballDominance: 46, interiorDefense: 70, perimeterDefense: 78 }),
-  makePlayer({ name: "Markelle Fultz (2025-26)", era: "2025-26", teamLabel: "Raptors", primaryPosition: "PG", secondaryPositions: [], overall: 75, offense: 78, defense: 78, playmaking: 81, shooting: 79, rebounding: 77, athleticism: 78, intangibles: 79, durability: 70, archetype: "2025-26 Rotation Piece", hallOfFameTier: "C", shortDescription: "Markelle Fultz's 2025-26 regular season card captures how Raptors's lead guard created offense, managed possessions, and bent defenses every night.", badges: [], ballDominance: 55, interiorDefense: 70, perimeterDefense: 78 }),
+  makePlayer({ name: "Markelle Fultz (2025-26)", era: "2025-26", teamLabel: "Orlando Magic", primaryPosition: "PG", secondaryPositions: [], overall: 75, offense: 78, defense: 78, playmaking: 81, shooting: 79, rebounding: 77, athleticism: 78, intangibles: 79, durability: 70, archetype: "2025-26 Rotation Piece", hallOfFameTier: "C", shortDescription: "Markelle Fultz's 2025-26 regular season card captures how Orlando Magic's lead guard created offense, managed possessions, and bent defenses every night.", badges: [], ballDominance: 55, interiorDefense: 70, perimeterDefense: 78 }),
   makePlayer({ name: "Nigel Hayes-Davis (2025-26)", era: "2025-26", teamLabel: "Suns", primaryPosition: "SF", secondaryPositions: [], overall: 75, offense: 77, defense: 80, playmaking: 77, shooting: 78, rebounding: 80, athleticism: 79, intangibles: 79, durability: 76, archetype: "2025-26 Rotation Piece", hallOfFameTier: "C", shortDescription: "Nigel Hayes-Davis's 2025-26 regular season card is built from full-season production, efficiency, and impact for Suns.", badges: [], ballDominance: 42, interiorDefense: 73, perimeterDefense: 76 }),
   makePlayer({ name: "Noa Essengue (2025-26)", era: "2025-26", teamLabel: "Bulls", primaryPosition: "PF", secondaryPositions: [], overall: 76, offense: 79, defense: 79, playmaking: 78, shooting: 79, rebounding: 77, athleticism: 79, intangibles: 81, durability: 68, archetype: "2025-26 Rotation Piece", hallOfFameTier: "C", shortDescription: "Noa Essengue's 2025-26 regular season card is built from full-season production, efficiency, and impact for Bulls.", badges: [], ballDominance: 50, interiorDefense: 71, perimeterDefense: 77 }),
 ];

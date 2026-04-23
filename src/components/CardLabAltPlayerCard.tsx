@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { Shield } from "lucide-react";
+import { getPlayerBadgeStates } from "../lib/dynamicDuos";
 import { DynamicDuoBadge } from "./DynamicDuoBadge";
 import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import { PlayerTypeBadges } from "./PlayerTypeBadges";
@@ -85,6 +86,7 @@ export const CardLabAltPlayerCardV3 = ({
   const naturalPositions = [player.primaryPosition, ...player.secondaryPositions].join(" / ");
   const fullName = player.name.replace(/\s*\([^)]*\)\s*$/, "").trim();
   const fullNameLength = fullName.length;
+  const hasChemistryBadges = getPlayerBadgeStates(player.id, draftedPlayerIds).length > 0;
   const nameClassName = compact
     ? fullNameLength >= 24
       ? "text-[0.78rem]"
@@ -210,17 +212,39 @@ export const CardLabAltPlayerCardV3 = ({
             badgesOverride={playerTypeBadgesOverride}
             limit={playerTypeBadgeCountOverride}
           />
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-            <DynamicDuoBadge playerId={player.id} draftedPlayerIds={draftedPlayerIds} compact dense />
-            <PlayerSynergyBadges
-              playerId={player.id}
-              draftedPlayerIds={draftedPlayerIds}
-              compact
-              dense
-              align="center"
-              excludeTypes={["dynamic-duo"]}
-            />
-          </div>
+          {hasChemistryBadges ? (
+            compact ? (
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                <DynamicDuoBadge playerId={player.id} draftedPlayerIds={draftedPlayerIds} compact dense />
+                <PlayerSynergyBadges
+                  playerId={player.id}
+                  draftedPlayerIds={draftedPlayerIds}
+                  compact
+                  dense
+                  align="center"
+                  excludeTypes={["dynamic-duo"]}
+                />
+              </div>
+            ) : (
+              <div className="mt-4 flex justify-center">
+                <div className="w-full rounded-[24px] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.72),rgba(4,8,18,0.9))] px-4 py-4 shadow-[0_16px_32px_rgba(0,0,0,0.28)] backdrop-blur-[5px]">
+                  <div className="text-center text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">
+                    Chemistry
+                  </div>
+                  <div className="mt-3 flex min-h-[74px] flex-wrap items-center justify-center gap-3">
+                    <DynamicDuoBadge playerId={player.id} draftedPlayerIds={draftedPlayerIds} featured />
+                    <PlayerSynergyBadges
+                      playerId={player.id}
+                      draftedPlayerIds={draftedPlayerIds}
+                      featured
+                      align="center"
+                      excludeTypes={["dynamic-duo"]}
+                    />
+                  </div>
+                </div>
+              </div>
+            )
+          ) : null}
         </div>
       </div>
     </div>

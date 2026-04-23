@@ -8,6 +8,7 @@ interface PlayerSynergyBadgesProps {
   draftedPlayerIds: string[];
   compact?: boolean;
   dense?: boolean;
+  featured?: boolean;
   align?: "start" | "center";
   className?: string;
   excludeTypes?: PlayerBadgeType[];
@@ -151,6 +152,7 @@ export const PlayerSynergyBadges = ({
   draftedPlayerIds,
   compact = false,
   dense = false,
+  featured = false,
   align = "center",
   className,
   excludeTypes = [],
@@ -178,7 +180,13 @@ export const PlayerSynergyBadges = ({
           <div
             className={clsx(
               "inline-flex cursor-help items-center gap-1.5 rounded-full border px-2.5 transition-all duration-300",
-              compact ? "h-7 text-[10px]" : dense ? "h-7 text-[9px]" : "h-8 text-[11px]",
+              compact
+                ? "h-7 text-[10px]"
+                : featured
+                  ? "min-h-10 px-3.5 text-[12px]"
+                  : dense
+                    ? "h-7 text-[9px]"
+                    : "h-8 text-[11px]",
               active || (previewEligible && previewActive)
                 ? "border-lime-300/70 bg-lime-300/18 text-lime-200 shadow-[0_0_18px_rgba(163,230,53,0.45)]"
                 : "border-white/12 bg-black/30 text-slate-500",
@@ -186,7 +194,16 @@ export const PlayerSynergyBadges = ({
           >
             {badgeContent(definition.type, compact)}
             {!compact ? (
-              <span className={clsx("uppercase", dense ? "tracking-[0.1em]" : "tracking-[0.16em]")}>
+              <span
+                className={clsx(
+                  "uppercase",
+                  featured
+                    ? "font-semibold tracking-[0.12em]"
+                    : dense
+                      ? "tracking-[0.1em]"
+                      : "tracking-[0.16em]",
+                )}
+              >
                 {badgeLabel(definition.type)}
               </span>
             ) : null}

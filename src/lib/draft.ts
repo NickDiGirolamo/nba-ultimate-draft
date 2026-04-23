@@ -59,19 +59,18 @@ const getPlayerIdentityKey = (player: Player) =>
 
 const scorePlayerForSlot = (player: Player, slot: RosterSlot) => {
   const positions = getPlayerPositions(player);
-  const isNatural = slot.allowedPositions.includes(player.primaryPosition);
   const hasFit = positions.some((position) => slot.allowedPositions.includes(position));
   if (!hasFit) return -Infinity;
 
   let score = slotPriority[slot.slot];
-  if (isNatural) score += 18;
+  score += 18;
   score += clamp(player.overall - 80, 0, 25);
   score += clamp((player.playmaking - 70) / 3, 0, 7);
   score += clamp((player.defense - 70) / 4, 0, 6);
-  if (slot.slot === "PG" && player.primaryPosition === "PG") score += 10;
-  if (slot.slot === "C" && player.primaryPosition === "C") score += 10;
-  if (slot.slot === "G" && ["PG", "SG"].includes(player.primaryPosition)) score += 4;
-  if (slot.slot === "F/C" && ["PF", "C"].includes(player.primaryPosition)) score += 4;
+  if (slot.slot === "PG" && positions.includes("PG")) score += 10;
+  if (slot.slot === "C" && positions.includes("C")) score += 10;
+  if (slot.slot === "G" && positions.some((position) => ["PG", "SG"].includes(position))) score += 4;
+  if (slot.slot === "F/C" && positions.some((position) => ["PF", "C"].includes(position))) score += 4;
   return score;
 };
 

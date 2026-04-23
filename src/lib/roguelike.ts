@@ -146,10 +146,10 @@ const DEFAULT_FACEOFF_TARGET_AVERAGE = 84;
 const BOSS_AVERAGE_OVERRIDES_BY_FLOOR: Partial<Record<number, number>> = {
   4: 79,
   6: 81,
-  14: 85,
-  18: 85.2,
-  20: 86,
-  22: 86,
+  14: 84,
+  18: 84.5,
+  20: 84.75,
+  22: 84.75,
   27: 88,
   34: 89,
   37: 89,
@@ -365,11 +365,10 @@ export const roguelikeNodes: RoguelikeNode[] = [
     floor: 1,
     act: 1,
     title: "Draft Your Starting 5",
-    description: "Add two more current-season rotation pieces from Starter Cache to complete your opening five.",
+    description: "Add two more rotation pieces from Starter Cache to complete your opening five.",
     rewardBundleId: "balanced-floor",
     rewardChoices: 0,
-    targetLabel: "Choose 2 current-season Emerald players to complete your opening five",
-    playerPoolMode: "current-season",
+    targetLabel: "Choose 2 Emerald players to complete your opening five",
     allowedRewardTiers: ["Emerald"],
   }),
   makeDraftNode({
@@ -377,11 +376,10 @@ export const roguelikeNodes: RoguelikeNode[] = [
     floor: 2,
     act: 1,
     title: "Free Agency 1",
-    description: "Sign your first free agent from a current-season Sapphire board.",
+    description: "Sign your first free agent from a Sapphire board.",
     rewardBundleId: "balanced-floor",
     rewardChoices: 5,
-    targetLabel: "Choose 1 of 5 current-season Sapphire players",
-    playerPoolMode: "current-season",
+    targetLabel: "Choose 1 of 5 Sapphire players",
     allowedRewardTiers: ["Sapphire"],
   }),
   makeTrainingNode({
@@ -406,7 +404,6 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 79,
     opponentTeamName: "Summer League Champs",
-    playerPoolMode: "current-season",
     allowedRewardTiers: ["Sapphire"],
     unlocksBench: true,
   }),
@@ -432,7 +429,6 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 81,
     opponentTeamName: "Atlanta Hawks",
-    playerPoolMode: "current-season",
     allowedRewardTiers: ["Sapphire"],
     unlocksBench: true,
   }),
@@ -455,7 +451,6 @@ export const roguelikeNodes: RoguelikeNode[] = [
     rewardChoices: 5,
     targetLabel: "Reach 83 Offense with your starting five",
     checks: [{ metric: "offense", target: 83 }],
-    playerPoolMode: "current-season",
     allowedRewardTiers: ["Sapphire"],
     clearRewardsOverride: { tokenReward: 20, prestigeXpAward: 4 },
   }),
@@ -464,11 +459,10 @@ export const roguelikeNodes: RoguelikeNode[] = [
     floor: 9,
     act: 1,
     title: "Early Season Trade",
-    description: "Optionally trade one player and replace them from a current-season Sapphire board.",
+    description: "Optionally trade one player and replace them from a Sapphire board.",
     rewardBundleId: "balanced-floor",
     rewardChoices: 5,
-    targetLabel: "Optionally trade 1 player, then draft 1 current-season Sapphire replacement",
-    playerPoolMode: "current-season",
+    targetLabel: "Optionally trade 1 player, then draft 1 Sapphire replacement",
     allowedRewardTiers: ["Sapphire"],
   }),
   makeAddPositionNode({
@@ -494,11 +488,10 @@ export const roguelikeNodes: RoguelikeNode[] = [
     floor: 12,
     act: 1,
     title: "Mid-Season Free Agent Add",
-    description: "Add one more current-season Sapphire contributor to the run.",
+    description: "Add one more Sapphire contributor to the run.",
     rewardBundleId: "balanced-floor",
     rewardChoices: 5,
-    targetLabel: "Choose 1 of 5 current-season Sapphire players",
-    playerPoolMode: "current-season",
+    targetLabel: "Choose 1 of 5 Sapphire players",
     allowedRewardTiers: ["Sapphire"],
   }),
   makeTrainingNode({
@@ -523,17 +516,18 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 85,
     opponentTeamName: "NBA Playoffs Round 1",
-    playerPoolMode: "current-season",
     allowedRewardTiers: ["Sapphire"],
   }),
-  makeAddPositionNode({
+  makeTradeNode({
     id: "year-1-new-rotation-test-2",
     floor: 15,
     act: 1,
-    title: "New Rotation Test",
-    description: "Add another natural position and improve your lineup flexibility.",
+    title: "Trade Opportunity",
+    description: "Optionally trade one player and replace them from a similar-caliber board.",
     rewardBundleId: "balanced-floor",
-    targetLabel: "Choose 1 player and add 1 new natural position",
+    rewardChoices: 5,
+    targetLabel: "Optionally trade 1 player, then draft 1 similar-caliber replacement",
+    allowedRewardTiers: ["Sapphire"],
   }),
   makeTrainingNode({
     id: "year-1-playoff-training",
@@ -1470,12 +1464,8 @@ export const buildPreviewRoster = (players: Player[]) => {
 };
 
 const scorePlayerForStarterSlot = (player: Player, slot: RosterSlot) => {
-  if (slot.allowedPositions.includes(player.primaryPosition)) {
+  if ([player.primaryPosition, ...player.secondaryPositions].some((position) => slot.allowedPositions.includes(position))) {
     return 200 + player.overall;
-  }
-
-  if (player.secondaryPositions.some((position) => slot.allowedPositions.includes(position))) {
-    return 140 + player.overall;
   }
 
   return player.overall;
@@ -2061,11 +2051,11 @@ const getFaceoffPlayerRating = (
   const adjustedRebounding = getRoguelikeAdjustedReboundingForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
   const adjustedAthleticism = getRoguelikeAdjustedAthleticismForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
   const adjustedIntangibles = getRoguelikeAdjustedIntangiblesForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
-  const chemistrySupport = (lineupMetrics.chemistry - 78) * 0.06;
+  const chemistrySupport = (lineupMetrics.chemistry - 78) * 0.025;
   const teamProfileSupport =
-    (lineupMetrics.offense - 80) * 0.015 +
-    (lineupMetrics.defense - 80) * 0.015 +
-    (lineupMetrics.rebounding - 80) * 0.012;
+    (lineupMetrics.offense - 80) * 0.006 +
+    (lineupMetrics.defense - 80) * 0.006 +
+    (lineupMetrics.rebounding - 80) * 0.005;
   const badgeMatchupBonus = getBossBattleBadgeMatchupBonus(
     player,
     opponentPlayer,
@@ -2115,15 +2105,15 @@ const BOSS_BATTLE_SLOT_WEIGHTS: Record<
     intangibles: number;
   }
 > = {
-  PG: { overall: 0.38, offense: 0.14, defense: 0.1, playmaking: 0.17, shooting: 0.08, rebounding: 0.02, athleticism: 0.06, intangibles: 0.05 },
-  SG: { overall: 0.39, offense: 0.17, defense: 0.11, playmaking: 0.09, shooting: 0.12, rebounding: 0.03, athleticism: 0.05, intangibles: 0.04 },
-  SF: { overall: 0.38, offense: 0.14, defense: 0.14, playmaking: 0.07, shooting: 0.09, rebounding: 0.06, athleticism: 0.07, intangibles: 0.05 },
-  PF: { overall: 0.37, offense: 0.12, defense: 0.15, playmaking: 0.05, shooting: 0.06, rebounding: 0.13, athleticism: 0.06, intangibles: 0.06 },
-  C: { overall: 0.36, offense: 0.1, defense: 0.17, playmaking: 0.04, shooting: 0.03, rebounding: 0.17, athleticism: 0.06, intangibles: 0.07 },
-  G: { overall: 0.4, offense: 0.14, defense: 0.13, playmaking: 0.08, shooting: 0.08, rebounding: 0.06, athleticism: 0.06, intangibles: 0.05 },
-  "G/F": { overall: 0.4, offense: 0.14, defense: 0.13, playmaking: 0.08, shooting: 0.08, rebounding: 0.06, athleticism: 0.06, intangibles: 0.05 },
-  "F/C": { overall: 0.4, offense: 0.14, defense: 0.13, playmaking: 0.08, shooting: 0.08, rebounding: 0.06, athleticism: 0.06, intangibles: 0.05 },
-  UTIL: { overall: 0.4, offense: 0.14, defense: 0.13, playmaking: 0.08, shooting: 0.08, rebounding: 0.06, athleticism: 0.06, intangibles: 0.05 },
+  PG: { overall: 0.5, offense: 0.11, defense: 0.08, playmaking: 0.13, shooting: 0.07, rebounding: 0.02, athleticism: 0.05, intangibles: 0.04 },
+  SG: { overall: 0.52, offense: 0.13, defense: 0.08, playmaking: 0.07, shooting: 0.1, rebounding: 0.03, athleticism: 0.04, intangibles: 0.03 },
+  SF: { overall: 0.5, offense: 0.12, defense: 0.11, playmaking: 0.05, shooting: 0.07, rebounding: 0.06, athleticism: 0.05, intangibles: 0.04 },
+  PF: { overall: 0.5, offense: 0.1, defense: 0.12, playmaking: 0.04, shooting: 0.05, rebounding: 0.1, athleticism: 0.04, intangibles: 0.05 },
+  C: { overall: 0.5, offense: 0.08, defense: 0.14, playmaking: 0.03, shooting: 0.02, rebounding: 0.14, athleticism: 0.04, intangibles: 0.05 },
+  G: { overall: 0.52, offense: 0.11, defense: 0.1, playmaking: 0.07, shooting: 0.07, rebounding: 0.05, athleticism: 0.04, intangibles: 0.04 },
+  "G/F": { overall: 0.52, offense: 0.11, defense: 0.1, playmaking: 0.07, shooting: 0.07, rebounding: 0.05, athleticism: 0.04, intangibles: 0.04 },
+  "F/C": { overall: 0.52, offense: 0.11, defense: 0.1, playmaking: 0.07, shooting: 0.07, rebounding: 0.05, athleticism: 0.04, intangibles: 0.04 },
+  UTIL: { overall: 0.52, offense: 0.11, defense: 0.1, playmaking: 0.07, shooting: 0.07, rebounding: 0.05, athleticism: 0.04, intangibles: 0.04 },
 };
 
 const getBossBattleSlotWeight = (
@@ -2135,16 +2125,16 @@ const getBossBattleLineupBalanceBonus = (players: Player[], chemistry: number) =
   const snapshot = getPlayerTypeBalanceSnapshot(players);
   let bonus = 0;
 
-  if (snapshot.representedCount >= 3) bonus += 0.8;
-  if (snapshot.representedCount >= 4) bonus += 1.1;
-  if (snapshot.representedCount >= 5) bonus += 1.3;
-  if (snapshot.uniquePrimaryCount >= 4) bonus += 0.8;
-  if (snapshot.uniquePrimaryCount >= 5) bonus += 0.8;
-  if (snapshot.duplicatePrimaryCount >= 2) bonus -= 1.1;
-  if (snapshot.duplicatePrimaryCount >= 3) bonus -= 1.4;
-  bonus += (chemistry - 80) * 0.035;
+  if (snapshot.representedCount >= 3) bonus += 0.3;
+  if (snapshot.representedCount >= 4) bonus += 0.45;
+  if (snapshot.representedCount >= 5) bonus += 0.55;
+  if (snapshot.uniquePrimaryCount >= 4) bonus += 0.25;
+  if (snapshot.uniquePrimaryCount >= 5) bonus += 0.25;
+  if (snapshot.duplicatePrimaryCount >= 2) bonus -= 0.45;
+  if (snapshot.duplicatePrimaryCount >= 3) bonus -= 0.65;
+  bonus += (chemistry - 80) * 0.012;
 
-  return Math.max(-3.5, Math.min(4.8, Math.round(bonus * 10) / 10));
+  return Math.max(-1.4, Math.min(1.8, Math.round(bonus * 10) / 10));
 };
 
 const getBossBattleBadgeMatchupBonus = (
@@ -2166,47 +2156,47 @@ const getBossBattleBadgeMatchupBonus = (
 
   if (playerBadges.some((badge) => badge.type === "slasher")) {
     let slasherBonus = 0;
-    if (!opponentHasBadge("lockdown")) slasherBonus += 1.15;
-    if ((opponentPlayer?.defense ?? 0) <= player.offense - 2) slasherBonus += 0.8;
-    if (slot.slot === "PG" || slot.slot === "SG" || slot.slot === "SF") slasherBonus += 0.45;
-    if (representedTypes.includes("sniper")) slasherBonus += 0.35;
-    bonus += Math.min(2.5, slasherBonus);
+    if (!opponentHasBadge("lockdown")) slasherBonus += 0.45;
+    if ((opponentPlayer?.defense ?? 0) <= player.offense - 2) slasherBonus += 0.3;
+    if (slot.slot === "PG" || slot.slot === "SG" || slot.slot === "SF") slasherBonus += 0.15;
+    if (representedTypes.includes("sniper")) slasherBonus += 0.15;
+    bonus += Math.min(1.1, slasherBonus);
   }
 
   if (playerBadges.some((badge) => badge.type === "sniper")) {
     let sniperBonus = 0;
-    if (!opponentHasBadge("lockdown")) sniperBonus += 1.1;
-    if ((opponentPlayer?.perimeterDefense ?? 0) <= player.shooting - 3) sniperBonus += 0.85;
-    if (representedTypes.includes("playmaker")) sniperBonus += 0.4;
-    if (lineupMetrics.offense >= 86) sniperBonus += 0.25;
-    bonus += Math.min(2.5, sniperBonus);
+    if (!opponentHasBadge("lockdown")) sniperBonus += 0.45;
+    if ((opponentPlayer?.perimeterDefense ?? 0) <= player.shooting - 3) sniperBonus += 0.35;
+    if (representedTypes.includes("playmaker")) sniperBonus += 0.15;
+    if (lineupMetrics.offense >= 86) sniperBonus += 0.1;
+    bonus += Math.min(1.1, sniperBonus);
   }
 
   if (playerBadges.some((badge) => badge.type === "playmaker")) {
     let playmakerBonus = 0;
-    if (representedTypes.length >= 4) playmakerBonus += 1.05;
-    if (lineupBalanceBonus >= 1.8) playmakerBonus += 0.7;
-    if (lineupMetrics.chemistry >= 86) playmakerBonus += 0.55;
-    if (opponentPrimaryBadge && opponentPrimaryBadge === primaryBadge) playmakerBonus += 0.2;
-    bonus += Math.min(2.5, playmakerBonus);
+    if (representedTypes.length >= 4) playmakerBonus += 0.4;
+    if (lineupBalanceBonus >= 1.2) playmakerBonus += 0.25;
+    if (lineupMetrics.chemistry >= 86) playmakerBonus += 0.2;
+    if (opponentPrimaryBadge && opponentPrimaryBadge === primaryBadge) playmakerBonus += 0.1;
+    bonus += Math.min(1, playmakerBonus);
   }
 
   if (playerBadges.some((badge) => badge.type === "board-man")) {
     let boardManBonus = 0;
-    if (slot.slot === "PF" || slot.slot === "C") boardManBonus += 0.95;
-    if ((opponentPlayer?.rebounding ?? 0) <= player.rebounding - 3) boardManBonus += 0.95;
-    if (!opponentHasBadge("board-man")) boardManBonus += 0.45;
-    if (lineupMetrics.rebounding >= 85) boardManBonus += 0.25;
-    bonus += Math.min(2.5, boardManBonus);
+    if (slot.slot === "PF" || slot.slot === "C") boardManBonus += 0.35;
+    if ((opponentPlayer?.rebounding ?? 0) <= player.rebounding - 3) boardManBonus += 0.35;
+    if (!opponentHasBadge("board-man")) boardManBonus += 0.15;
+    if (lineupMetrics.rebounding >= 85) boardManBonus += 0.1;
+    bonus += Math.min(1, boardManBonus);
   }
 
   if (playerBadges.some((badge) => badge.type === "lockdown")) {
     let lockdownBonus = 0;
-    if (opponentHasBadge("slasher") || opponentHasBadge("sniper") || opponentHasBadge("playmaker")) lockdownBonus += 1.15;
-    if ((opponentPlayer?.offense ?? 0) >= 88) lockdownBonus += 0.6;
-    if ((player.defense + player.perimeterDefense + player.interiorDefense) / 3 >= (opponentPlayer?.offense ?? 0)) lockdownBonus += 0.5;
-    if (lineupMetrics.defense >= 86) lockdownBonus += 0.25;
-    bonus += Math.min(2.5, lockdownBonus);
+    if (opponentHasBadge("slasher") || opponentHasBadge("sniper") || opponentHasBadge("playmaker")) lockdownBonus += 0.55;
+    if ((opponentPlayer?.offense ?? 0) >= 88) lockdownBonus += 0.2;
+    if ((player.defense + player.perimeterDefense + player.interiorDefense) / 3 >= (opponentPlayer?.offense ?? 0)) lockdownBonus += 0.2;
+    if (lineupMetrics.defense >= 86) lockdownBonus += 0.1;
+    bonus += Math.min(1.1, lockdownBonus);
   }
 
   return Math.round(bonus * 10) / 10;
