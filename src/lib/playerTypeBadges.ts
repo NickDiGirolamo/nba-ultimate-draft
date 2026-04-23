@@ -74,6 +74,7 @@ const manualPrimaryBadgeOverrides: Partial<Record<string, PlayerTypeBadge>> = {
 const manualBadgeOrderOverrides: Partial<Record<string, PlayerTypeBadge[]>> = {
   "santi-aldama-2025-26": ["slasher", "sniper"],
   "isaiah-hartenstein-2025-26": ["board-man", "playmaker"],
+  "collin-gillespie-2025-26": ["sniper", "playmaker"],
   "tobias-harris-2025-26": ["sniper", "slasher"],
 };
 

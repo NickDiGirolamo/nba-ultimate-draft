@@ -91,7 +91,7 @@ const directImageOverrides: Record<string, string> = {
   "ray-allen-sonics":
     "https://www.sportsnet.ca/wp-content/uploads/2013/07/allen_ray640.jpg",
   "ray-allen-celtics":
-    "https://www.telegram.com/gcdn/authoring/2012/07/07/NTEG/ghows-WT-a43ed083-7b8a-4e5f-85b5-85f31a6db240-71e16e40.jpeg?width=660&height=1018&fit=crop&format=pjpg&auto=webp",
+    "https://nbcsports.brightspotcdn.com/dims4/default/94a0041/2147483647/strip/true/crop/2949x1659+1+0/resize/1440x810!/quality/90/?url=https%3A%2F%2Fnbc-sports-production-nbc-sports.s3.us-east-1.amazonaws.com%2Fbrightspot%2F76%2F2d%2F9fe6d4ea810c7ee52fa76fce3282%2F145777952-e1470530876489.jpg",
   "dennis-rodman-pistons":
     "https://res.cloudinary.com/ybmedia/image/upload/c_crop,h_2000,w_1358,x_0,y_0/c_scale,f_auto,q_auto,w_700/v1/m/f/4/f467f1fe94bb4e70abf58cfe4132f4035fd188ca/drafted-detroit-pistons.jpg",
   "dennis-rodman-bulls":

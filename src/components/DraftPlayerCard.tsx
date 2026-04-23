@@ -6,6 +6,7 @@ import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import { PlayerTypeBadges } from "./PlayerTypeBadges";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { getNbaTeamByName } from "../data/nbaTeams";
+import { isSameTeamChemistryPreviewActiveForPlayer } from "../lib/teamChemistry";
 import {
   getPlayerTier,
   getPlayerTierLabelFromTier,
@@ -56,6 +57,8 @@ const getRarityLabel = (rarity: LabRarity) =>
 
 const BASE_CARD_WIDTH = 380;
 const BASE_CARD_HEIGHT = 920;
+const activeTeamChemLogoClassName =
+  "border-emerald-200/90 bg-[radial-gradient(circle_at_top,rgba(74,222,128,0.4),rgba(16,185,129,0.26)_52%,rgba(6,78,59,0.9)_100%)] shadow-[0_0_0_1px_rgba(74,222,128,0.55),0_0_22px_rgba(52,211,153,0.46),0_0_44px_rgba(16,185,129,0.28)]";
 
 interface DraftPlayerCardProps {
   player: Player;
@@ -70,6 +73,7 @@ interface DraftPlayerCardProps {
   rarityOverride?: LabRarity;
   playerTypeBadgesOverride?: PlayerTypeBadgeDefinition[];
   playerTypeBadgeCountOverride?: number;
+  enableTeamChemistryPreview?: boolean;
 }
 
 export const DraftPlayerCard = ({
@@ -83,6 +87,7 @@ export const DraftPlayerCard = ({
   rarityOverride,
   playerTypeBadgesOverride,
   playerTypeBadgeCountOverride,
+  enableTeamChemistryPreview = false,
 }: DraftPlayerCardProps) => {
   const imageUrl = usePlayerImage(player);
   const team = getNbaTeamByName(player.teamLabel);
@@ -94,6 +99,12 @@ export const DraftPlayerCard = ({
   const shellWidth = Math.round(BASE_CARD_WIDTH * cardScale);
   const shellHeight = Math.round(BASE_CARD_HEIGHT * cardScale);
   const hasChemistryBadges = getPlayerBadgeStates(player.id, draftedPlayerIds).length > 0;
+  const sameTeamChemistryActive =
+    enableTeamChemistryPreview &&
+    isSameTeamChemistryPreviewActiveForPlayer(player, draftedPlayerIds);
+  const previewTeamChemistryBonus =
+    sameTeamChemistryActive && !draftedPlayerIds.includes(player.id) ? 1 : 0;
+  const displayOverall = player.overall + previewTeamChemistryBonus;
   const nameClassName =
     fullNameLength >= 24
       ? "text-[1rem]"
@@ -140,16 +151,23 @@ export const DraftPlayerCard = ({
 
           <div className="relative flex h-full flex-col">
             <div className="grid grid-cols-[auto_1fr_auto] items-start gap-3">
-              <div className="rounded-[22px] border border-white/12 bg-black/45 px-4 py-3 shadow-[0_12px_28px_rgba(0,0,0,0.16)] backdrop-blur-[2px]">
-                <div className="text-center font-display text-[3rem] font-semibold leading-none text-white">{player.overall}</div>
-                <div className="mt-2 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-100">
+              <div className="rounded-[24px] border border-white/12 bg-black/45 px-5 py-3.5 shadow-[0_12px_28px_rgba(0,0,0,0.16)] backdrop-blur-[2px]">
+                <div className="text-center font-display text-[3rem] font-semibold leading-none text-white">{displayOverall}</div>
+                <div className="mt-2.5 text-center text-[13px] font-semibold uppercase leading-tight tracking-[0.18em] text-slate-50">
                   {naturalPositions}
                 </div>
               </div>
 
               <div className="flex justify-center pt-1">
                 {team?.logo ? (
-                  <div className="flex h-24 w-24 items-center justify-center rounded-[22px] border border-white/12 bg-black/45 p-4 shadow-[0_12px_28px_rgba(0,0,0,0.16)]">
+                  <div
+                    className={clsx(
+                      "flex h-24 w-24 items-center justify-center rounded-[22px] border p-4 shadow-[0_12px_28px_rgba(0,0,0,0.16)] transition",
+                      sameTeamChemistryActive
+                        ? activeTeamChemLogoClassName
+                        : "border-white/12 bg-black/45",
+                    )}
+                  >
                     <img
                       src={team.logo}
                       alt={`${team.name} logo`}

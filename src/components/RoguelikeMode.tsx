@@ -30,6 +30,7 @@ import { assignPlayerToRoster } from "../lib/draft";
 import { getPlayerDisplayLines } from "../lib/playerDisplay";
 import { getPlayerTier, getPlayerTierLabel } from "../lib/playerTier";
 import { mulberry32 } from "../lib/random";
+import { getSameTeamChemistryBonusForPlayer } from "../lib/teamChemistry";
 import {
   buildRoguelikeOpponentLineup,
   buildOpeningDraftPool,
@@ -505,13 +506,18 @@ const getRunOwnedPlayers = (run: RoguelikeRun) => {
 const getTrainingCountForPlayer = (playerId: string, trainedPlayerIds: string[] = []) =>
   trainedPlayerIds.filter((trainedPlayerId) => trainedPlayerId === playerId).length;
 
-const getRunDisplayPlayer = (player: Player, trainedPlayerIds: string[] = []) => {
+const getRunDisplayPlayer = (
+  player: Player,
+  ownedPlayerIds: string[] = [],
+  trainedPlayerIds: string[] = [],
+) => {
   const trainingCount = getTrainingCountForPlayer(player.id, trainedPlayerIds);
-  if (trainingCount === 0) return player;
+  const sameTeamChemistryBonus = getSameTeamChemistryBonusForPlayer(player, ownedPlayerIds);
+  if (trainingCount === 0 && sameTeamChemistryBonus === 0) return player;
 
   return {
     ...player,
-    overall: player.overall + trainingCount,
+    overall: player.overall + trainingCount + sameTeamChemistryBonus,
     offense: player.offense + trainingCount,
     defense: player.defense + trainingCount,
     playmaking: player.playmaking + trainingCount,
@@ -1392,7 +1398,7 @@ const RogueRosterSlotCard = ({
   dragged: boolean;
 }) => {
   const player = slot.player;
-  const displayPlayer = player ? getRunDisplayPlayer(player, trainedPlayerIds) : null;
+  const displayPlayer = player ? getRunDisplayPlayer(player, ownedPlayerIds, trainedPlayerIds) : null;
   const naturalPositions = displayPlayer
     ? [displayPlayer.primaryPosition, ...displayPlayer.secondaryPositions].join(" / ")
     : "Open";
@@ -1436,7 +1442,8 @@ const RogueRosterSlotCard = ({
           toneClassName: "border-sky-200/14 bg-sky-300/10 text-sky-100",
         }))}
         showHandle
-        scale={0.72}
+        scale={0.8}
+        enableTeamChemistry
       />
     </div>
   );
@@ -1457,7 +1464,7 @@ const FaceoffStarterCard = ({
   trainedPlayerIds?: string[];
   align?: "left" | "right";
 }) => {
-  const displayPlayer = player ? getRunDisplayPlayer(player, trainedPlayerIds) : null;
+  const displayPlayer = player ? getRunDisplayPlayer(player, ownedPlayerIds, trainedPlayerIds) : null;
   const imageUrl = player ? usePlayerImage(player) : null;
   const { firstNameLine, lastNameLine, versionLine } = displayPlayer
     ? getPlayerDisplayLines(displayPlayer)
@@ -1907,7 +1914,7 @@ const FinalVictoryStarterCard = ({
   trainedPlayerIds: string[];
 }) => {
   const imageUrl = usePlayerImage(player);
-  const displayPlayer = getRunDisplayPlayer(player, trainedPlayerIds);
+  const displayPlayer = getRunDisplayPlayer(player, ownedPlayerIds, trainedPlayerIds);
   const adjustedOverall = Math.round(
     getRoguelikeAdjustedOverallForSlot(player, slot, ownedPlayerIds, trainedPlayerIds) * 10,
   ) / 10;
@@ -3745,7 +3752,11 @@ export const RoguelikeMode = ({
     if (run.activeNode.id === STORE_TRADE_NODE.id && !onUseTradePhone()) return;
 
     const hydratedRun = getHydratedRun(run);
-    const tradedDisplayPlayer = getRunDisplayPlayer(player, run.trainedPlayerIds ?? []);
+    const tradedDisplayPlayer = getRunDisplayPlayer(
+      player,
+      getRunOwnedPlayers(run).map((entry) => entry.id),
+      run.trainedPlayerIds ?? [],
+    );
     const tradedOverall = tradedDisplayPlayer.overall;
     const nextRoster = hydratedRun.roster.filter((owned) => owned.id !== player.id);
     const nextLineup = hydratedRun.lineup.map((slot) =>
@@ -4342,9 +4353,11 @@ export const RoguelikeMode = ({
   const activeNode = run.activeNode;
   const displayedRun = getHydratedRun(run);
   const runOwnedPlayers = getRunOwnedPlayers(displayedRun);
-  const runOwnedDisplayPlayers = runOwnedPlayers.map((player) => getRunDisplayPlayer(player, run.trainedPlayerIds ?? []));
-  const runOwnedDisplayPlayerById = new Map(runOwnedDisplayPlayers.map((player) => [player.id, player]));
   const runOwnedPlayerIds = runOwnedPlayers.map((player) => player.id);
+  const runOwnedDisplayPlayers = runOwnedPlayers.map((player) =>
+    getRunDisplayPlayer(player, runOwnedPlayerIds, run.trainedPlayerIds ?? []),
+  );
+  const runOwnedDisplayPlayerById = new Map(runOwnedDisplayPlayers.map((player) => [player.id, player]));
   const currentLadderNode = roguelikeNodes[Math.min(run.floorIndex, roguelikeNodes.length - 1)] ?? null;
   const nextBossNode = getUpcomingBossNodeForLockerRoom(run);
   const nextBossScouted = Boolean(nextBossNode && run.scoutedBossNodeIds.includes(nextBossNode.id));
@@ -4705,8 +4718,8 @@ export const RoguelikeMode = ({
           run.stage === "ladder-overview" || hideRightRail
             ? "grid-cols-1"
             : useNarrowRightRail
-              ? "xl:grid-cols-[minmax(0,1.82fr)_minmax(400px,0.58fr)]"
-              : "xl:grid-cols-[minmax(0,1.72fr)_minmax(450px,0.7fr)]",
+              ? "xl:grid-cols-[minmax(0,1.66fr)_minmax(500px,0.84fr)]"
+              : "xl:grid-cols-[minmax(0,1.58fr)_minmax(540px,0.92fr)]",
         )}
       >
         <div className="space-y-6">
@@ -5140,15 +5153,16 @@ export const RoguelikeMode = ({
               <p className="mt-3 text-sm leading-7 text-slate-300">
                 Starter Cache is open. Make two picks from Emerald boards to turn your three-card starter pack into a full opening lineup.
               </p>
-              <div className="mt-6 flex flex-wrap justify-center gap-3 overflow-hidden">
+                <div className="mt-6 flex flex-wrap justify-center gap-3 overflow-visible px-1 pt-2 pb-3">
                 {run.choices.map((player) => (
                   <DraftPlayerCard
                     key={player.id}
                     player={player}
                     onSelect={draftChoice}
                     compact
-                    compactScale={0.44}
+                    compactScale={0.46}
                     draftedPlayerIds={runOwnedPlayerIds}
+                    enableTeamChemistryPreview
                   />
                 ))}
               </div>
@@ -5316,6 +5330,7 @@ export const RoguelikeMode = ({
                     compact
                     compactScale={0.52}
                     draftedPlayerIds={runOwnedPlayerIds}
+                    enableTeamChemistryPreview
                     actionLabel={lockerRoomTrainingSelectionCopy.actionLabel}
                   />
                 ))}
@@ -5568,6 +5583,7 @@ export const RoguelikeMode = ({
                     compact
                     compactScale={0.52}
                     draftedPlayerIds={runOwnedPlayerIds}
+                    enableTeamChemistryPreview
                     actionLabel="Replace this player"
                   />
                 ))}
@@ -5634,6 +5650,7 @@ export const RoguelikeMode = ({
                     compact
                     compactScale={0.52}
                     draftedPlayerIds={runOwnedPlayerIds}
+                    enableTeamChemistryPreview
                     actionLabel="Trade this player"
                   />
                 ))}
@@ -5661,6 +5678,7 @@ export const RoguelikeMode = ({
                     compact
                     compactScale={0.52}
                     draftedPlayerIds={runOwnedPlayerIds}
+                    enableTeamChemistryPreview
                     actionLabel={`Evolve to ${option.nextPlayer.overall} OVR`}
                   />
                 ))}
@@ -5724,7 +5742,7 @@ export const RoguelikeMode = ({
               <p className="mt-3 text-sm leading-7 text-slate-300">{run.nodeResult?.detail}</p>
               <div
                 className={clsx(
-                  "mt-6 flex flex-wrap justify-center gap-3 overflow-hidden",
+                  "mt-6 flex flex-wrap justify-center gap-3 overflow-visible px-1 pt-2 pb-3",
                   run.choices.length === 3
                     ? "mx-auto max-w-5xl"
                     : "",
@@ -5736,8 +5754,9 @@ export const RoguelikeMode = ({
                     player={player}
                     onSelect={draftChoice}
                     compact
-                    compactScale={run.choices.length >= 5 ? 0.44 : 0.57}
+                    compactScale={run.choices.length >= 5 ? 0.46 : 0.59}
                     draftedPlayerIds={runOwnedPlayerIds}
+                    enableTeamChemistryPreview
                   />
                 ))}
               </div>

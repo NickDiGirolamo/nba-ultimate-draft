@@ -240,7 +240,7 @@ function App() {
 
   return (
     <div className="arena-shell text-white">
-      <div className="mx-auto max-w-[1520px] px-4 py-6 md:px-6 lg:px-8 lg:py-8">
+      <div className="mx-auto max-w-[1720px] px-3 py-5 md:px-4 lg:px-5 lg:py-6">
         <div className="mb-5 flex items-center justify-between gap-4">
           <button
             type="button"

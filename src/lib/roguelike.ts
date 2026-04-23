@@ -14,6 +14,7 @@ import {
 } from "./playerTypeBadges";
 import { mulberry32 } from "./random";
 import { evaluateDraftChemistry } from "./simulate";
+import { getSameTeamChemistryBonusForPlayer } from "./teamChemistry";
 import { Player, PlayerTier, Position, RosterSlot, RosterSlotType } from "../types";
 import { getPlayerTier } from "./playerTier";
 
@@ -1720,6 +1721,7 @@ export const getRoguelikeAdjustedOverallForSlot = (
   return Math.max(
     0,
     player.overall +
+      getSameTeamChemistryBonusForPlayer(player, playerIds) +
       getRoguelikeDynamicDuoBoost(player, playerIds, "overall") +
       getRoguelikeRolePairBoost(player, playerIds, "overall") +
       getRoguelikeBigThreeBoost(player, playerIds, "overall") +
@@ -1782,6 +1784,40 @@ export const getRoguelikeAdjustedIntangiblesForSlot = (
   trainedPlayerIds: string[] = [],
 ) =>
   getRoguelikeAdjustedRatingForSlot(player, slot, playerIds, trainedPlayerIds, (target) => target.intangibles, "intangibles", 0.54, 1.25);
+
+const getRoguelikeAdjustedInteriorDefenseForSlot = (
+  player: Player | null,
+  slot: RosterSlot,
+  playerIds: string[] = [],
+  trainedPlayerIds: string[] = [],
+) =>
+  getRoguelikeAdjustedRatingForSlot(
+    player,
+    slot,
+    playerIds,
+    trainedPlayerIds,
+    (target) => target.interiorDefense,
+    "interiorDefense",
+    0.66,
+    1.55,
+  );
+
+const getRoguelikeAdjustedPerimeterDefenseForSlot = (
+  player: Player | null,
+  slot: RosterSlot,
+  playerIds: string[] = [],
+  trainedPlayerIds: string[] = [],
+) =>
+  getRoguelikeAdjustedRatingForSlot(
+    player,
+    slot,
+    playerIds,
+    trainedPlayerIds,
+    (target) => target.perimeterDefense,
+    "perimeterDefense",
+    0.66,
+    1.55,
+  );
 
 export const buildRoguelikeOpponentLineup = (node: RoguelikeNode) => {
   const lineup = rosterTemplate();
@@ -1955,9 +1991,14 @@ export const evaluateRoguelikeRoster = (players: Player[], trainedPlayerIds: str
     Math.round((players.reduce((sum, player) => sum + selector(player), 0) / players.length) * 10) / 10;
 
   const chemistry = evaluateDraftChemistry(buildPreviewRoster(players)).score;
+  const ownedPlayerIds = players.map((player) => player.id);
 
   return {
-    overall: average((player) => player.overall + getRoguelikeTrainingBoost(player, trainedPlayerIds, "overall")),
+    overall: average((player) =>
+      player.overall +
+      getSameTeamChemistryBonusForPlayer(player, ownedPlayerIds) +
+      getRoguelikeTrainingBoost(player, trainedPlayerIds, "overall"),
+    ),
     offense: average((player) => player.offense + getRoguelikeTrainingBoost(player, trainedPlayerIds, "offense")),
     defense: average((player) => player.defense + getRoguelikeTrainingBoost(player, trainedPlayerIds, "defense")),
     chemistry: Math.round(chemistry * 10) / 10,
@@ -2026,10 +2067,12 @@ const getFaceoffPlayerRating = (
   slot: RosterSlot,
   opponentPlayer: Player | null,
   ownedPlayerIds: string[] = [],
+  opponentOwnedPlayerIds: string[] = [],
   lineupMetrics: RoguelikeRosterMetrics,
   lineupBalanceBonus: number,
   lineupPlayers: Player[],
   trainedPlayerIds: string[] = [],
+  opponentTrainedPlayerIds: string[] = [],
 ) => {
   if (!player) {
     return {
@@ -2051,6 +2094,16 @@ const getFaceoffPlayerRating = (
   const adjustedRebounding = getRoguelikeAdjustedReboundingForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
   const adjustedAthleticism = getRoguelikeAdjustedAthleticismForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
   const adjustedIntangibles = getRoguelikeAdjustedIntangiblesForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
+  const adjustedInteriorDefense = getRoguelikeAdjustedInteriorDefenseForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
+  const adjustedPerimeterDefense = getRoguelikeAdjustedPerimeterDefenseForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
+  const adjustedOpponentOverall = getRoguelikeAdjustedOverallForSlot(opponentPlayer, slot, opponentOwnedPlayerIds, opponentTrainedPlayerIds);
+  const adjustedOpponentOffense = getRoguelikeAdjustedOffenseForSlot(opponentPlayer, slot, opponentOwnedPlayerIds, opponentTrainedPlayerIds);
+  const adjustedOpponentDefense = getRoguelikeAdjustedDefenseForSlot(opponentPlayer, slot, opponentOwnedPlayerIds, opponentTrainedPlayerIds);
+  const adjustedOpponentPlaymaking = getRoguelikeAdjustedPlaymakingForSlot(opponentPlayer, slot, opponentOwnedPlayerIds, opponentTrainedPlayerIds);
+  const adjustedOpponentShooting = getRoguelikeAdjustedShootingForSlot(opponentPlayer, slot, opponentOwnedPlayerIds, opponentTrainedPlayerIds);
+  const adjustedOpponentRebounding = getRoguelikeAdjustedReboundingForSlot(opponentPlayer, slot, opponentOwnedPlayerIds, opponentTrainedPlayerIds);
+  const adjustedOpponentInteriorDefense = getRoguelikeAdjustedInteriorDefenseForSlot(opponentPlayer, slot, opponentOwnedPlayerIds, opponentTrainedPlayerIds);
+  const adjustedOpponentPerimeterDefense = getRoguelikeAdjustedPerimeterDefenseForSlot(opponentPlayer, slot, opponentOwnedPlayerIds, opponentTrainedPlayerIds);
   const chemistrySupport = (lineupMetrics.chemistry - 78) * 0.025;
   const teamProfileSupport =
     (lineupMetrics.offense - 80) * 0.006 +
@@ -2064,7 +2117,31 @@ const getFaceoffPlayerRating = (
     lineupBalanceBonus,
     lineupPlayers,
   );
-  const headToHeadBonus = getBossBattleHeadToHeadBonus(player, opponentPlayer, slot);
+  const headToHeadBonus = getBossBattleHeadToHeadBonus(
+    {
+      overall: adjustedOverall,
+      offense: adjustedOffense,
+      defense: adjustedDefense,
+      playmaking: adjustedPlaymaking,
+      shooting: adjustedShooting,
+      rebounding: adjustedRebounding,
+      perimeterDefense: adjustedPerimeterDefense,
+      interiorDefense: adjustedInteriorDefense,
+    },
+    opponentPlayer
+      ? {
+          overall: adjustedOpponentOverall,
+          offense: adjustedOpponentOffense,
+          defense: adjustedOpponentDefense,
+          playmaking: adjustedOpponentPlaymaking,
+          shooting: adjustedOpponentShooting,
+          rebounding: adjustedOpponentRebounding,
+          perimeterDefense: adjustedOpponentPerimeterDefense,
+          interiorDefense: adjustedOpponentInteriorDefense,
+        }
+      : null,
+    slot,
+  );
   const slotSimulationScore =
     adjustedOverall * getBossBattleSlotWeight(slot.slot, "overall") +
     adjustedOffense * getBossBattleSlotWeight(slot.slot, "offense") +
@@ -2203,51 +2280,69 @@ const getBossBattleBadgeMatchupBonus = (
 };
 
 const getBossBattleHeadToHeadBonus = (
-  player: Player,
-  opponentPlayer: Player | null,
+  playerRatings: {
+    overall: number;
+    offense: number;
+    defense: number;
+    playmaking: number;
+    shooting: number;
+    rebounding: number;
+    perimeterDefense: number;
+    interiorDefense: number;
+  },
+  opponentRatings: {
+    overall: number;
+    offense: number;
+    defense: number;
+    playmaking: number;
+    shooting: number;
+    rebounding: number;
+    perimeterDefense: number;
+    interiorDefense: number;
+  } | null,
   slot: RosterSlot,
 ) => {
-  if (!opponentPlayer) return 0;
+  if (!opponentRatings) return 0;
 
-  const overallGap = player.overall - opponentPlayer.overall;
+  const overallGap = playerRatings.overall - opponentRatings.overall;
 
   let bonus = 0;
 
   if (slot.slot === "PG") {
     bonus =
       overallGap * 0.28 +
-      (player.playmaking - opponentPlayer.playmaking) * 0.06 +
-      (player.shooting - opponentPlayer.shooting) * 0.03 +
-      (player.perimeterDefense - opponentPlayer.perimeterDefense) * 0.03;
+      (playerRatings.playmaking - opponentRatings.playmaking) * 0.06 +
+      (playerRatings.shooting - opponentRatings.shooting) * 0.03 +
+      (playerRatings.perimeterDefense - opponentRatings.perimeterDefense) * 0.03;
   } else if (slot.slot === "SG") {
     bonus =
       overallGap * 0.3 +
-      (player.offense - opponentPlayer.offense) * 0.05 +
-      (player.shooting - opponentPlayer.shooting) * 0.05 +
-      (player.perimeterDefense - opponentPlayer.perimeterDefense) * 0.03;
+      (playerRatings.offense - opponentRatings.offense) * 0.05 +
+      (playerRatings.shooting - opponentRatings.shooting) * 0.05 +
+      (playerRatings.perimeterDefense - opponentRatings.perimeterDefense) * 0.03;
   } else if (slot.slot === "SF") {
     bonus =
       overallGap * 0.32 +
-      (player.offense - opponentPlayer.offense) * 0.04 +
-      (player.defense - opponentPlayer.defense) * 0.04 +
-      (player.rebounding - opponentPlayer.rebounding) * 0.02;
+      (playerRatings.offense - opponentRatings.offense) * 0.04 +
+      (playerRatings.defense - opponentRatings.defense) * 0.04 +
+      (playerRatings.rebounding - opponentRatings.rebounding) * 0.02;
   } else if (slot.slot === "PF") {
     bonus =
       overallGap * 0.35 +
-      (player.defense - opponentPlayer.defense) * 0.05 +
-      (player.rebounding - opponentPlayer.rebounding) * 0.04 +
-      (player.interiorDefense - opponentPlayer.interiorDefense) * 0.04;
+      (playerRatings.defense - opponentRatings.defense) * 0.05 +
+      (playerRatings.rebounding - opponentRatings.rebounding) * 0.04 +
+      (playerRatings.interiorDefense - opponentRatings.interiorDefense) * 0.04;
   } else if (slot.slot === "C") {
     bonus =
       overallGap * 0.42 +
-      (player.defense - opponentPlayer.defense) * 0.05 +
-      (player.rebounding - opponentPlayer.rebounding) * 0.04 +
-      (player.interiorDefense - opponentPlayer.interiorDefense) * 0.05;
+      (playerRatings.defense - opponentRatings.defense) * 0.05 +
+      (playerRatings.rebounding - opponentRatings.rebounding) * 0.04 +
+      (playerRatings.interiorDefense - opponentRatings.interiorDefense) * 0.05;
   } else {
     bonus =
       overallGap * 0.3 +
-      (player.offense - opponentPlayer.offense) * 0.03 +
-      (player.defense - opponentPlayer.defense) * 0.03;
+      (playerRatings.offense - opponentRatings.offense) * 0.03 +
+      (playerRatings.defense - opponentRatings.defense) * 0.03;
   }
 
   return Math.max(-3.5, Math.min(3.5, Math.round(bonus * 10) / 10));
@@ -2294,20 +2389,24 @@ export const resolveRoguelikeFaceoff = (
       userSlot,
       opponentPlayer,
       resolvedUserPlayerIds,
+      resolvedOpponentPlayerIds,
       userLineupMetrics,
       userLineupBalanceBonus,
       userPlayers,
       trainedPlayerIds,
+      opponentTrainedPlayerIds,
     );
     const opponentBreakdown = getFaceoffPlayerRating(
       opponentPlayer,
       opponentSlot ?? userSlot,
       userPlayer,
       resolvedOpponentPlayerIds,
+      resolvedUserPlayerIds,
       opponentLineupMetrics,
       opponentLineupBalanceBonus,
       opponentPlayers,
       opponentTrainedPlayerIds,
+      trainedPlayerIds,
     );
     const userRating = userBreakdown.total;
     const opponentRating = opponentBreakdown.total;

@@ -1,9 +1,11 @@
 import type { CSSProperties } from "react";
 import clsx from "clsx";
 import { GripHorizontal } from "lucide-react";
+import { getNbaTeamByName } from "../data/nbaTeams";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { getPlayerDisplayLines } from "../lib/playerDisplay";
 import { getPlayerTier, playerTierRunRosterSurfaceStyles } from "../lib/playerTier";
+import { isSameTeamChemistryActiveForPlayer } from "../lib/teamChemistry";
 import { Player } from "../types";
 import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import { PlayerTypeBadges } from "./PlayerTypeBadges";
@@ -11,6 +13,8 @@ import { PlayerTypeBadges } from "./PlayerTypeBadges";
 const runRosterScaleVar = "--run-roster-scale";
 const emptyRunRosterSurfaceStyle =
   "before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(38,42,50,0.92),rgba(18,21,28,0.98))]";
+const activeTeamChemLogoClassName =
+  "border-emerald-200/90 bg-[radial-gradient(circle_at_top,rgba(74,222,128,0.4),rgba(16,185,129,0.26)_52%,rgba(6,78,59,0.9)_100%)] shadow-[0_0_0_1px_rgba(74,222,128,0.55),0_0_20px_rgba(52,211,153,0.45),0_0_40px_rgba(16,185,129,0.28)]";
 
 interface RunRosterMetricChip {
   label: string;
@@ -30,6 +34,7 @@ interface RunRosterPlayerCardProps {
   showHandle?: boolean;
   className?: string;
   scale?: number;
+  enableTeamChemistry?: boolean;
 }
 
 export const RunRosterPlayerCard = ({
@@ -44,9 +49,11 @@ export const RunRosterPlayerCard = ({
   showHandle = false,
   className,
   scale = 1,
+  enableTeamChemistry = false,
 }: RunRosterPlayerCardProps) => {
   const resolvedPlayer = displayPlayer ?? player ?? null;
   const imageUrl = player ? usePlayerImage(player) : null;
+  const team = resolvedPlayer ? getNbaTeamByName(resolvedPlayer.teamLabel) : null;
   const naturalPositions = resolvedPlayer
     ? [resolvedPlayer.primaryPosition, ...resolvedPlayer.secondaryPositions].join(" / ")
     : "";
@@ -56,6 +63,10 @@ export const RunRosterPlayerCard = ({
     : { firstNameLine: "", lastNameLine: "" };
   const name = resolvedPlayer ? [firstNameLine, lastNameLine].filter(Boolean).join(" ") : "Open Slot";
   const overallValue = overallOverride ?? resolvedPlayer?.overall ?? "--";
+  const sameTeamChemistryActive =
+    enableTeamChemistry && resolvedPlayer
+      ? isSameTeamChemistryActiveForPlayer(resolvedPlayer, draftedPlayerIds)
+      : false;
   const nameClassName =
     name.length >= 30
       ? "text-[calc(10px*var(--run-roster-scale))]"
@@ -138,15 +149,33 @@ export const RunRosterPlayerCard = ({
           </div>
 
           <div className="flex shrink-0 items-center gap-[calc(10px*var(--run-roster-scale))]">
-            <div className="flex min-w-[calc(126px*var(--run-roster-scale))] max-w-[calc(146px*var(--run-roster-scale))] flex-col items-start justify-center gap-[calc(6px*var(--run-roster-scale))] rounded-[calc(18px*var(--run-roster-scale))] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.66),rgba(4,8,18,0.82))] px-[calc(8px*var(--run-roster-scale))] py-[calc(8px*var(--run-roster-scale))] shadow-[0_12px_26px_rgba(0,0,0,0.26)] backdrop-blur-[4px]">
+            {team?.logo ? (
+              <div
+                className={clsx(
+                  "flex h-[calc(52px*var(--run-roster-scale))] w-[calc(52px*var(--run-roster-scale))] shrink-0 items-center justify-center rounded-[calc(16px*var(--run-roster-scale))] border p-[calc(8px*var(--run-roster-scale))] shadow-[0_12px_26px_rgba(0,0,0,0.24)] backdrop-blur-[4px]",
+                  sameTeamChemistryActive
+                    ? activeTeamChemLogoClassName
+                    : "border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.66),rgba(4,8,18,0.82))]",
+                )}
+              >
+                <img
+                  src={team.logo}
+                  alt={`${team.name} logo`}
+                  className="h-full w-full object-contain"
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            ) : null}
+
+            <div className="flex min-w-[calc(184px*var(--run-roster-scale))] max-w-[calc(244px*var(--run-roster-scale))] flex-col items-start justify-center gap-[calc(6px*var(--run-roster-scale))] rounded-[calc(18px*var(--run-roster-scale))] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.66),rgba(4,8,18,0.82))] px-[calc(8px*var(--run-roster-scale))] py-[calc(8px*var(--run-roster-scale))] shadow-[0_12px_26px_rgba(0,0,0,0.26)] backdrop-blur-[4px]">
               {player ? (
                 <>
-                  <div className="flex flex-wrap items-center gap-[calc(6px*var(--run-roster-scale))]">
+                  <div className="flex max-w-full flex-wrap items-center gap-[calc(6px*var(--run-roster-scale))]">
                     <PlayerTypeBadges
                       player={resolvedPlayer ?? player}
                       compact
                       iconOnly
-                      limit={2}
                       className="justify-start"
                       align="center"
                     />
@@ -157,7 +186,6 @@ export const RunRosterPlayerCard = ({
                       dense
                       align="center"
                       className="justify-start"
-                      excludeTypes={["dynamic-duo"]}
                       previewEligible={false}
                     />
                   </div>
