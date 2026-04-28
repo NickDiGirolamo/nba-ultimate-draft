@@ -71,6 +71,7 @@ const LEGACY_PLAYER_ID_MIGRATIONS: Record<string, string> = {
   "dennis-rodman": "dennis-rodman-bulls",
   "charles-barkley": "charles-barkley-suns",
   "clyde-drexler": "clyde-drexler-blazers",
+  "james-harden": "james-harden-rockets",
   "luka-doncic": "luka-doncic-2025-26",
   "anthony-davis": "anthony-davis-pelicans",
   "kawhi-leonard": "kawhi-leonard-raptors",
@@ -79,6 +80,7 @@ const LEGACY_PLAYER_ID_MIGRATIONS: Record<string, string> = {
   "kyrie-irving": "kyrie-irving-cavs",
   "allen-iverson": "allen-iverson-76ers",
   "amar-e-stoudemire": "amar-e-stoudemire-suns",
+  "sharif-abdur-rahim": "shareef-abdour-rahim",
 };
 
 const LEGACY_PLAYER_NAME_MIGRATIONS: Record<string, string> = {
@@ -86,6 +88,7 @@ const LEGACY_PLAYER_NAME_MIGRATIONS: Record<string, string> = {
   "Dwyane Wade (Big 3)": "Dwayne Wade ('10 - '14)",
   "LeBron James (Young Cavaliers)": "LeBron James ('03 - '10)",
   "LeBron James": "LeBron James ('14 - '18)",
+  "James Harden": "James Harden (Rockets)",
   "LeBron James (2nd Cavaliers)": "LeBron James ('14 - '18)",
   "Shaquille O'Neal": "Shaquille O'Neal (Lakers)",
   "Kobe Bryant": "Kobe Bryant (#24)",
@@ -110,6 +113,7 @@ const LEGACY_PLAYER_NAME_MIGRATIONS: Record<string, string> = {
   "Kyrie Irving": "Kyrie Irving (Cavs)",
   "Allen Iverson": "Allen Iverson (76ers)",
   "Amar'e Stoudemire": "Amar'e Stoudemire (Suns)",
+  "Sharif Abdur-Rahim": "Shareef Abdour-Rahim",
 };
 
 const canonicalPlayersById = new Map(allPlayers.map((player) => [player.id, player]));

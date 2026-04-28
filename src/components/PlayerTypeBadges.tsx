@@ -14,7 +14,7 @@ interface PlayerTypeBadgesProps {
   limit?: number;
 }
 
-const badgeStyles: Record<PlayerTypeBadge, string> = {
+export const playerTypeBadgeStyleClass: Record<PlayerTypeBadge, string> = {
   slasher: "border-rose-300/35 bg-rose-300/10 text-rose-100 shadow-[0_0_0_1px_rgba(251,113,133,0.06)]",
   sniper: "border-sky-300/35 bg-sky-300/10 text-sky-100 shadow-[0_0_0_1px_rgba(56,189,248,0.06)]",
   playmaker: "border-violet-300/35 bg-violet-300/10 text-violet-100 shadow-[0_0_0_1px_rgba(196,181,253,0.06)]",
@@ -22,7 +22,7 @@ const badgeStyles: Record<PlayerTypeBadge, string> = {
   lockdown: "border-emerald-300/35 bg-emerald-300/10 text-emerald-100 shadow-[0_0_0_1px_rgba(110,231,183,0.06)]",
 };
 
-const badgeIcon = (type: PlayerTypeBadge, compact: boolean) => {
+export const renderPlayerTypeBadgeIcon = (type: PlayerTypeBadge, compact: boolean) => {
   const size = compact ? 14 : 16;
   const strokeWidth = compact ? 2.1 : 2.2;
   const commonProps = {
@@ -125,10 +125,10 @@ export const PlayerTypeBadges = ({
                   ? "px-2.5 py-1 text-[9px]"
                   : "px-3 py-1.5 text-[10px]",
               compact ? "tracking-[0.12em]" : "tracking-[0.16em]",
-              badgeStyles[badge.type],
+              playerTypeBadgeStyleClass[badge.type],
             )}
           >
-            {badgeIcon(badge.type, compact)}
+            {renderPlayerTypeBadgeIcon(badge.type, compact)}
             {iconOnly ? null : <span className="font-semibold uppercase leading-none">{badge.label}</span>}
           </div>
         </HoverTooltip>

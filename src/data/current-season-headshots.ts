@@ -449,7 +449,6 @@ export const currentSeasonHeadshotUrls: Record<string, string> = {
   "jeremiah-robinson-earl-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1630526.png",
   "bradley-beal-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/203078.png",
   "bronny-james-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1642355.png",
-  "chris-paul-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/101108.png",
   "drake-powell-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1642962.png",
   "gary-trent-jr-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1629018.png",
   "johni-broome-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1641780.png",

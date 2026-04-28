@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { Users } from "lucide-react";
+import { allPlayers } from "../data/players";
 import {
   getPlayerDynamicDuos,
   isDynamicDuoActiveForPlayer,
@@ -29,26 +30,15 @@ export const DynamicDuoBadge = ({
   const duos = getPlayerDynamicDuos(playerId);
   if (duos.length === 0) return null;
 
+  const playerNameById = new Map(allPlayers.map((player) => [player.id, player.name]));
   const active = isDynamicDuoActiveForPlayer(playerId, draftedPlayerIds);
   const previewActive = isDynamicDuoPreviewActiveForPlayer(playerId, draftedPlayerIds);
   const partnerNames = [...new Set(
     duos.flatMap((duo) => duo.players.filter((memberId) => memberId !== playerId)),
   )]
-    .map((playerId) =>
-      playerId
-        .split("-")
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" "),
-    )
+    .map((partnerId) => playerNameById.get(partnerId) ?? partnerId)
     .join(" or ");
-  const tooltipText =
-    duos.length > 1
-      ? active
-        ? `Dynamic Duo active: ${partnerNames}`
-        : `Dynamic Duo available with: ${partnerNames}`
-      : active
-        ? `${duos[0].title} active`
-        : `${duos[0].title} available`;
+  const tooltipText = `Dynamic Duo: ${partnerNames}`;
   const highlighted = active || (previewEligible && previewActive);
 
   return (

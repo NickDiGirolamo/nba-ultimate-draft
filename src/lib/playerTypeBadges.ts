@@ -74,7 +74,11 @@ const manualPrimaryBadgeOverrides: Partial<Record<string, PlayerTypeBadge>> = {
 const manualBadgeOrderOverrides: Partial<Record<string, PlayerTypeBadge[]>> = {
   "santi-aldama-2025-26": ["slasher", "sniper"],
   "isaiah-hartenstein-2025-26": ["board-man", "playmaker"],
+  "ben-wallace": ["lockdown", "board-man"],
+  "chris-bosh-heat": ["sniper", "board-man"],
   "collin-gillespie-2025-26": ["sniper", "playmaker"],
+  "ryan-rollins-2025-26": ["sniper", "playmaker"],
+  "dikembe-mutombo": ["lockdown", "board-man"],
   "deni-avdija-2025-26": ["playmaker", "slasher", "sniper"],
   "trae-young-2025-26": ["playmaker", "sniper", "slasher"],
   "miles-bridges-2025-26": ["slasher", "sniper"],

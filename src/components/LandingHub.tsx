@@ -19,6 +19,8 @@ export const LandingHub = ({
   meta,
 }: LandingHubProps) => {
   const latestRun = history[0] ?? null;
+  const formatRogueBestValue = (label: string, value: number) =>
+    label === "Furthest Floor" ? `${Math.round(value)}` : value.toFixed(1);
 
   return (
     <section className="space-y-8">
@@ -72,21 +74,23 @@ export const LandingHub = ({
             </div>
             <div>
               <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Rogue Profile</p>
-              <h2 className="mt-1 font-display text-2xl text-white">Current Chase</h2>
+              <h2 className="mt-1 font-display text-2xl text-white">All-Time Bests</h2>
             </div>
           </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            {[
+            {([
               ["Furthest Floor", meta.roguePersonalBests.furthestFloor],
               ["Best OVR", meta.roguePersonalBests.overall],
               ["Best OFF", meta.roguePersonalBests.offense],
               ["Best DEF", meta.roguePersonalBests.defense],
               ["Best CHEM", meta.roguePersonalBests.chemistry],
-            ].map(([label, value]) => (
+            ] as const).map(([label, value]) => (
               <div key={label} className="rounded-2xl border border-emerald-200/12 bg-emerald-300/6 p-4">
                 <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{label}</div>
-                <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
+                <div className="mt-2 text-2xl font-semibold text-white">
+                  {formatRogueBestValue(label, value)}
+                </div>
               </div>
             ))}
           </div>

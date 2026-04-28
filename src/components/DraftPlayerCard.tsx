@@ -251,9 +251,9 @@ export const DraftPlayerCard = ({
               ) : null}
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.1),transparent_24%),linear-gradient(180deg,rgba(2,6,23,0.08),transparent_38%,rgba(2,6,23,0.56)_84%)]" />
               <div className="absolute inset-x-0 bottom-0 z-10 px-4 pb-4 text-center">
+                <div className="pointer-events-none absolute left-4 right-4 top-[-24px] bottom-[-12px] rounded-[28px] bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.18)_24%,rgba(0,0,0,0.5)_56%,rgba(0,0,0,0.82)_100%)]" />
                 <div className="inline-flex justify-center">
                   <div className="relative inline-flex items-center justify-center px-5 py-2.5">
-                    <div className="pointer-events-none absolute left-[-16px] right-[-16px] top-[-24px] bottom-[-12px] rounded-[28px] bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.18)_24%,rgba(0,0,0,0.5)_56%,rgba(0,0,0,0.82)_100%)]" />
                     <div
                       className={clsx(
                         "relative font-display font-semibold leading-none tracking-tight text-white whitespace-nowrap drop-shadow-[0_10px_22px_rgba(0,0,0,0.92)]",

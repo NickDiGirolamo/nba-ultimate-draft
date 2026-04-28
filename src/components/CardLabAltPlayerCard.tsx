@@ -212,16 +212,16 @@ export const CardLabAltPlayerCardV3 = ({
           ) : null}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.1),transparent_24%),linear-gradient(180deg,rgba(2,6,23,0.08),transparent_38%,rgba(2,6,23,0.56)_84%)]" />
           <div className={clsx("absolute inset-x-0 bottom-0 z-10 text-center", compact ? "px-3 pb-3" : "px-4 pb-4")}>
+            <div
+              className={clsx(
+                "pointer-events-none absolute rounded-[28px]",
+                compact
+                  ? "left-3 right-3 top-[-18px] bottom-[-10px] bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.14)_28%,rgba(0,0,0,0.42)_58%,rgba(0,0,0,0.72)_100%)]"
+                  : "left-4 right-4 top-[-24px] bottom-[-12px] bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.18)_24%,rgba(0,0,0,0.5)_56%,rgba(0,0,0,0.82)_100%)]",
+              )}
+            />
             <div className="inline-flex justify-center">
               <div className={clsx("relative inline-flex items-center justify-center", compact ? "px-4 py-2" : "px-5 py-2.5")}>
-                <div
-                  className={clsx(
-                    "pointer-events-none absolute left-[-16px] right-[-16px] rounded-[28px]",
-                    compact
-                      ? "top-[-18px] bottom-[-10px] bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.14)_28%,rgba(0,0,0,0.42)_58%,rgba(0,0,0,0.72)_100%)]"
-                      : "top-[-24px] bottom-[-12px] bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.18)_24%,rgba(0,0,0,0.5)_56%,rgba(0,0,0,0.82)_100%)]",
-                  )}
-                />
                 <div
                   className={clsx(
                     "relative font-display font-semibold leading-none tracking-tight text-white whitespace-nowrap drop-shadow-[0_10px_22px_rgba(0,0,0,0.92)]",

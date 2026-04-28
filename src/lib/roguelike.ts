@@ -38,6 +38,7 @@ export type RoguelikeNodeType =
   | "draft"
   | "challenge"
   | "boss"
+  | "locker-room"
   | "training"
   | "trade"
   | "choice"
@@ -168,20 +169,20 @@ const DEFAULT_FACEOFF_TARGET_AVERAGE = 84;
 const BOSS_AVERAGE_OVERRIDES_BY_FLOOR: Partial<Record<number, number>> = {
   4: 79,
   6: 81,
-  14: 84.75,
-  18: 85,
-  20: 86,
-  22: 86.5,
-  27: 88,
-  34: 90,
-  37: 91,
-  39: 92,
-  41: 92.5,
-  46: 92.75,
-  53: 93,
-  56: 94,
-  58: 95,
-  60: 96,
+  15: 84.75,
+  19: 85,
+  21: 86,
+  23: 86.75,
+  28: 88,
+  36: 89,
+  39: 91,
+  41: 92,
+  43: 92.5,
+  48: 92.75,
+  56: 93,
+  59: 94,
+  61: 95,
+  63: 96,
 };
 
 export const getRoguelikeFailureRewards = (floorIndex: number): RoguelikeFailureRewards => {
@@ -193,47 +194,72 @@ export const getRoguelikeFailureRewards = (floorIndex: number): RoguelikeFailure
   };
 };
 
+export const getRoguelikeDifficultyTokenMultiplier = (
+  difficulty: RoguelikeDifficulty = "normal",
+) => {
+  const multiplierByDifficulty: Record<RoguelikeDifficulty, number> = {
+    normal: 1,
+    "all-star": 1.1,
+    superstar: 1.2,
+    "all-time": 1.3,
+    goat: 1.4,
+  };
+
+  return multiplierByDifficulty[difficulty] ?? 1;
+};
+
 export const doesRoguelikeNodeAwardClearRewards = (
   node: Pick<RoguelikeNode, "type" | "act" | "eliminationOnLoss">,
 ) => node.type === "challenge" || Boolean(node.eliminationOnLoss);
 
 export const getRoguelikeClearRewards = (
   node: Pick<RoguelikeNode, "act" | "type" | "eliminationOnLoss" | "clearRewardsOverride">,
+  settings?: Pick<RoguelikeRunSettings, "difficulty"> | null,
 ): RoguelikeClearRewards => {
-  if (node.clearRewardsOverride) {
-    return node.clearRewardsOverride;
-  }
+  const baseRewards = (() => {
+    if (node.clearRewardsOverride) {
+      return node.clearRewardsOverride;
+    }
 
-  if (!doesRoguelikeNodeAwardClearRewards(node)) {
-    return {
-      prestigeXpAward: 0,
-      tokenReward: 0,
-    };
-  }
+    if (!doesRoguelikeNodeAwardClearRewards(node)) {
+      return {
+        prestigeXpAward: 0,
+        tokenReward: 0,
+      };
+    }
 
-  const baseByType: Record<RoguelikeNodeType, number> = {
+    const baseByType: Record<RoguelikeNodeType, number> = {
     draft: 2,
+    "locker-room": 0,
     training: 3,
     trade: 3,
     choice: 3,
-    evolution: 4,
-    "roster-cut": 0,
-    "add-position": 0,
-    "all-star": 0,
-    challenge: 4,
-    boss: 5,
-  };
+      evolution: 4,
+      "roster-cut": 0,
+      "add-position": 0,
+      "all-star": 0,
+      challenge: 4,
+      boss: 5,
+    };
 
-  const prestigeXpAward = Math.max(2, Math.min(8, baseByType[node.type] + node.act - 1));
+    const prestigeXpAward = Math.max(2, Math.min(8, baseByType[node.type] + node.act - 1));
+
+    return {
+      prestigeXpAward,
+      tokenReward: prestigeXpAward * 10,
+    };
+  })();
+
+  const difficultyMultiplier = getRoguelikeDifficultyTokenMultiplier(settings?.difficulty ?? "normal");
 
   return {
-    prestigeXpAward,
-    tokenReward: prestigeXpAward * 10,
+    prestigeXpAward: baseRewards.prestigeXpAward,
+    tokenReward: Math.round(baseRewards.tokenReward * difficultyMultiplier),
   };
 };
 
 const getRegularBossNodes = () =>
-  roguelikeNodes.filter((node) => node.type === "boss" && node.floor !== 61);
+  roguelikeNodes.filter((node) => node.type === "boss" && node.floor !== 64);
 
 export const getRoguelikeLockerRoomCashReward = (
   node: Pick<RoguelikeNode, "id" | "floor" | "act" | "type">,
@@ -247,7 +273,7 @@ export const getRoguelikeLockerRoomCashReward = (
   }
 
   if (node.type === "boss") {
-    if (node.floor === 61) {
+    if (node.floor === 64) {
       return 40;
     }
 
@@ -422,6 +448,12 @@ const makeAllStarNode = (node: Omit<RoguelikeNode, "type" | "rewardChoices">): R
   rewardChoices: 0,
 });
 
+const makeLockerRoomVisitNode = (node: Omit<RoguelikeNode, "type" | "rewardChoices">): RoguelikeNode => ({
+  ...node,
+  type: "locker-room",
+  rewardChoices: 0,
+});
+
 export const roguelikeNodes: RoguelikeNode[] = [
   makeDraftNode({
     id: "year-1-starting-five",
@@ -566,9 +598,18 @@ export const roguelikeNodes: RoguelikeNode[] = [
     rewardBundleId: "elite-closers",
     targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
   }),
+  makeLockerRoomVisitNode({
+    id: "year-1-locker-room-visit",
+    floor: 14,
+    act: 1,
+    title: "Locker Room Visit",
+    description: "Step into the locker room store and decide whether to spend your saved cash before the playoff push.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Visit the Locker Room store",
+  }),
   makeBossNode(3, {
     id: "year-1-playoffs-round-1",
-    floor: 14,
+    floor: 15,
     act: 1,
     title: "NBA Playoffs Round 1",
     description: "Win your first playoff series faceoff.",
@@ -583,7 +624,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTradeNode({
     id: "year-1-new-rotation-test-2",
-    floor: 15,
+    floor: 16,
     act: 1,
     title: "Trade Opportunity",
     description: "Optionally trade one player and replace them from a similar-caliber board.",
@@ -594,7 +635,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTrainingNode({
     id: "year-1-playoff-training",
-    floor: 16,
+    floor: 17,
     act: 1,
     title: "Playoff Training Camp",
     description: "Get one player ready for the next series.",
@@ -603,7 +644,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeDraftNode({
     id: "year-1-return-from-injury",
-    floor: 17,
+    floor: 18,
     act: 1,
     title: "Return from Injury",
     description: "Add one Sapphire player from any era. If your roster is full, you'll need to drop someone after the pick.",
@@ -614,7 +655,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeBossNode(4, {
     id: "year-1-conference-semifinals",
-    floor: 18,
+    floor: 19,
     act: 1,
     title: "NBA Playoffs: Conference Semifinals",
     description: "Beat your Conference Semifinal opponent and keep the run alive.",
@@ -629,7 +670,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTrainingNode({
     id: "year-1-playoff-training-2",
-    floor: 19,
+    floor: 20,
     act: 1,
     title: "Playoff Training Camp - 2",
     description: "Take one more player through playoff prep.",
@@ -638,7 +679,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeBossNode(5, {
     id: "year-1-conference-finals",
-    floor: 20,
+    floor: 21,
     act: 1,
     title: "NBA Playoffs: Conference Finals",
     description: "Survive the Conference Finals faceoff.",
@@ -653,7 +694,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTrainingNode({
     id: "year-1-playoff-training-3",
-    floor: 21,
+    floor: 22,
     act: 1,
     title: "Playoff Training Camp - 3",
     description: "One last year-one playoff tune-up.",
@@ -662,7 +703,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeBossNode(6, {
     id: "year-1-finals",
-    floor: 22,
+    floor: 23,
     act: 1,
     title: "NBA Playoffs: Finals",
     description: "Finish Year 1 with a title-round faceoff.",
@@ -677,7 +718,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeDraftNode({
     id: "year-2-free-agency",
-    floor: 23,
+    floor: 24,
     act: 2,
     title: "Free Agency",
     description: "Open Year 2 by signing one Ruby player from any era.",
@@ -688,7 +729,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTrainingNode({
     id: "year-2-offseason-training",
-    floor: 24,
+    floor: 25,
     act: 2,
     title: "Off-Season Training Camp",
     description: "Put one player through an off-season jump.",
@@ -697,7 +738,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTradeNode({
     id: "year-2-offseason-trade",
-    floor: 25,
+    floor: 26,
     act: 2,
     title: "Off-Season Trade",
     description: "Optionally trade one player and replace them from a Ruby board.",
@@ -708,7 +749,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeRosterCutNode({
     id: "year-2-offseason-roster-cut",
-    floor: 26,
+    floor: 27,
     act: 2,
     title: "Off-Season Roster Cut",
     description: "Trim two players before the next season begins.",
@@ -717,7 +758,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeBossNode(7, {
     id: "year-2-opening-night",
-    floor: 27,
+    floor: 28,
     act: 2,
     title: "Opening Night",
     description: "Beat the Boston Celtics to kick off Year 2.",
@@ -733,7 +774,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTrainingNode({
     id: "year-2-in-season-training",
-    floor: 28,
+    floor: 29,
     act: 2,
     title: "In-Season Training Camp",
     description: "Keep one player climbing.",
@@ -742,7 +783,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeChallengeNode({
     id: "year-2-own-the-glass",
-    floor: 29,
+    floor: 30,
     act: 2,
     title: "Challenge 2: Own The Glass",
     description: "Set your strongest rebounding starting five and control the boards.",
@@ -755,7 +796,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTradeNode({
     id: "year-2-early-season-trade",
-    floor: 30,
+    floor: 31,
     act: 2,
     title: "Early Season Trade",
     description: "Optionally trade one player and replace them from a Ruby board.",
@@ -766,7 +807,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeAddPositionNode({
     id: "year-2-new-rotation-test",
-    floor: 31,
+    floor: 32,
     act: 2,
     title: "New Rotation Test",
     description: "Add another natural position to one player.",
@@ -775,16 +816,25 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeAllStarNode({
     id: "year-2-all-star-saturday",
-    floor: 32,
+    floor: 33,
     act: 2,
     title: "All-Star Saturday",
     description: "Send three players into the skills events to earn permanent Rogue bonus badges.",
     rewardBundleId: "balanced-floor",
     targetLabel: "Assign 1 player to each event and run All-Star Saturday",
   }),
+  makeLockerRoomVisitNode({
+    id: "year-2-locker-room-visit",
+    floor: 34,
+    act: 2,
+    title: "Locker Room Visit",
+    description: "Open the locker room store and decide how much cash to commit before the next boss gate.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Visit the Locker Room store",
+  }),
   makeTrainingNode({
     id: "year-2-in-season-training-2",
-    floor: 33,
+    floor: 35,
     act: 2,
     title: "In-Season Training Camp",
     description: "One more in-season improvement before the playoffs.",
@@ -793,7 +843,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeBossNode(8, {
     id: "year-2-playoffs-round-1",
-    floor: 34,
+    floor: 36,
     act: 2,
     title: "NBA Playoffs Round 1",
     description: "Beat your first-round opponent in Year 2.",
@@ -804,11 +854,11 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 88,
     opponentTeamName: "NBA Playoffs Round 1",
-    allowedRewardTiers: ["Amethyst"],
+    allowedRewardTiers: ["Ruby"],
   }),
   makeChoiceNode({
     id: "year-2-playoff-training",
-    floor: 35,
+    floor: 37,
     act: 2,
     title: "Training Camp or Trade",
     description: "Choose whether to tune up one player or reshuffle the roster before the next round.",
@@ -818,7 +868,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeDraftNode({
     id: "year-2-return-from-injury",
-    floor: 36,
+    floor: 38,
     act: 2,
     title: "Return from Injury",
     description: "Add one Ruby player from any era. If your roster is full, you'll need to drop someone after the pick.",
@@ -829,7 +879,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeBossNode(9, {
     id: "year-2-conference-semifinals",
-    floor: 37,
+    floor: 39,
     act: 2,
     title: "NBA Playoffs: Conference Semifinals",
     description: "Survive the Conference Semifinals faceoff in Year 2.",
@@ -840,11 +890,11 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 89,
     opponentTeamName: "Conference Semifinal Opponent",
-    allowedRewardTiers: ["Amethyst"],
+    allowedRewardTiers: ["Ruby"],
   }),
   makeTrainingNode({
     id: "year-2-playoff-training-2",
-    floor: 38,
+    floor: 40,
     act: 2,
     title: "Playoff Training Camp - 2",
     description: "Keep stacking improvements before the conference finals.",
@@ -853,7 +903,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeBossNode(10, {
     id: "year-2-conference-finals",
-    floor: 39,
+    floor: 41,
     act: 2,
     title: "NBA Playoffs: Conference Finals",
     description: "Beat your Conference Finals opponent in Year 2.",
@@ -864,11 +914,11 @@ export const roguelikeNodes: RoguelikeNode[] = [
     eliminationOnLoss: true,
     opponentAverageOverall: 91,
     opponentTeamName: "Conference Finals Opponent",
-    allowedRewardTiers: ["Amethyst"],
+    allowedRewardTiers: ["Ruby"],
   }),
   makeTrainingNode({
     id: "year-2-playoff-training-3",
-    floor: 40,
+    floor: 42,
     act: 2,
     title: "Playoff Training Camp - 3",
     description: "Give one player a final Year 2 playoff lift.",
@@ -877,7 +927,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeBossNode(11, {
     id: "year-2-finals",
-    floor: 41,
+    floor: 43,
     act: 2,
     title: "NBA Playoffs: Finals",
     description: "Finish Year 2 by beating the Finals opponent.",
@@ -892,7 +942,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeDraftNode({
     id: "year-3-free-agency",
-    floor: 42,
+    floor: 44,
     act: 3,
     title: "Free Agency",
     description: "Start Year 3 by adding one Amethyst player from any era.",
@@ -903,7 +953,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTrainingNode({
     id: "year-3-offseason-training",
-    floor: 43,
+    floor: 45,
     act: 3,
     title: "Off-Season Training Camp",
     description: "Put one player through a Year 3 offseason jump.",
@@ -912,7 +962,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTradeNode({
     id: "year-3-offseason-trade",
-    floor: 44,
+    floor: 46,
     act: 3,
     title: "Off-Season Trade",
     description: "Optionally trade one player and replace them from an Amethyst board.",
@@ -923,7 +973,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeRosterCutNode({
     id: "year-3-offseason-roster-cut",
-    floor: 45,
+    floor: 47,
     act: 3,
     title: "Off-Season Roster Cut",
     description: "Cut two players before the final season opens.",
@@ -932,7 +982,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeBossNode(12, {
     id: "year-3-opening-night",
-    floor: 46,
+    floor: 48,
     act: 3,
     title: "Opening Night",
     description: "Beat the Boston Celtics to launch the final season.",
@@ -948,7 +998,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTrainingNode({
     id: "year-3-in-season-training",
-    floor: 47,
+    floor: 49,
     act: 3,
     title: "In-Season Training Camp",
     description: "Train one player during the final season.",
@@ -957,7 +1007,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeChallengeNode({
     id: "year-3-chemistry-is-key",
-    floor: 48,
+    floor: 50,
     act: 3,
     title: "Challenge 3: Chemistry is Key",
     description: "Set your best chemistry lineup and prove this roster can function like a champion.",
@@ -970,7 +1020,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTradeNode({
     id: "year-3-early-season-trade",
-    floor: 49,
+    floor: 51,
     act: 3,
     title: "Early Season Trade",
     description: "Optionally trade one player and replace them from an Amethyst board.",
@@ -981,16 +1031,25 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeAddPositionNode({
     id: "year-3-new-rotation-test",
-    floor: 50,
+    floor: 52,
     act: 3,
     title: "New Rotation Test",
     description: "Add one last natural position to stretch your lineup options.",
     rewardBundleId: "balanced-floor",
     targetLabel: "Choose 1 player and add 1 new natural position",
   }),
+  makeLockerRoomVisitNode({
+    id: "year-3-locker-room-visit",
+    floor: 53,
+    act: 3,
+    title: "Locker Room Visit",
+    description: "Make one last locker room stop and spend any remaining cash before the final playoff climb.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Visit the Locker Room store",
+  }),
   makeAllStarNode({
     id: "year-3-all-star-saturday",
-    floor: 51,
+    floor: 54,
     act: 3,
     title: "All-Star Saturday",
     description: "Send three players into the skills events for final Rogue bonus badges.",
@@ -999,7 +1058,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTrainingNode({
     id: "year-3-in-season-training-2",
-    floor: 52,
+    floor: 55,
     act: 3,
     title: "In-Season Training Camp",
     description: "One more in-season boost before the final playoffs.",
@@ -1008,7 +1067,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeBossNode(13, {
     id: "year-3-playoffs-round-1",
-    floor: 53,
+    floor: 56,
     act: 3,
     title: "NBA Playoffs Round 1",
     description: "Beat your first-round opponent in the final season.",
@@ -1023,7 +1082,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTrainingNode({
     id: "year-3-playoff-training",
-    floor: 54,
+    floor: 57,
     act: 3,
     title: "Playoff Training Camp",
     description: "Keep one player climbing through the last postseason.",
@@ -1032,7 +1091,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeDraftNode({
     id: "year-3-return-from-injury",
-    floor: 55,
+    floor: 58,
     act: 3,
     title: "Return from Injury",
     description: "Add one Amethyst player from any era. If your roster is full, you'll need to drop someone after the pick.",
@@ -1043,7 +1102,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeBossNode(14, {
     id: "year-3-conference-semifinals",
-    floor: 56,
+    floor: 59,
     act: 3,
     title: "NBA Playoffs: Conference Semifinals",
     description: "Beat your Conference Semifinal opponent in the final season.",
@@ -1058,7 +1117,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTrainingNode({
     id: "year-3-playoff-training-2",
-    floor: 57,
+    floor: 60,
     act: 3,
     title: "Playoff Training Camp - 2",
     description: "Take one player through one more playoff jump.",
@@ -1067,7 +1126,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeBossNode(15, {
     id: "year-3-conference-finals",
-    floor: 58,
+    floor: 61,
     act: 3,
     title: "NBA Playoffs: Conference Finals",
     description: "Win the last Conference Finals faceoff of the run.",
@@ -1082,7 +1141,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTrainingNode({
     id: "year-3-playoff-training-3",
-    floor: 59,
+    floor: 62,
     act: 3,
     title: "Playoff Training Camp - 3",
     description: "One last playoff tune-up before the championship fight.",
@@ -1091,7 +1150,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeBossNode(16, {
     id: "year-3-finals",
-    floor: 60,
+    floor: 63,
     act: 3,
     title: "NBA Playoffs: Finals",
     description: "Beat your Finals opponent and earn the final pre-GOAT reward board.",
@@ -1106,7 +1165,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   {
     id: "the-goats",
-    floor: 61,
+    floor: 64,
     act: 3,
     type: "boss",
     title: "The G.O.A.T.s",
@@ -2031,6 +2090,28 @@ const buildExactPositionCandidateMap = (
     return accumulator;
   }, {} as Record<Position, Player[]>);
 
+const wouldActivateBossLineupLinkBoost = (
+  candidate: Player,
+  selectedPlayers: Player[],
+) => {
+  if (selectedPlayers.length === 0) return false;
+
+  const proposedPlayers = [...selectedPlayers, candidate];
+  const proposedIds = proposedPlayers.map((player) => player.id);
+
+  if (getSameTeamChemistryBonusForPlayer(candidate, proposedIds) > 0) {
+    return true;
+  }
+
+  return (
+    getActiveDynamicDuos(proposedIds).length > 0 ||
+    getActiveRolePlayerPairs(proposedIds).length > 0 ||
+    getActiveBigThrees(proposedIds).length > 0 ||
+    getActiveRivalBadges(proposedIds).length > 0 ||
+    getActiveTeamChemistryGroups(proposedIds).length > 0
+  );
+};
+
 export const generateFaceoffOpponentPlayerIds = (
   roster: Player[],
   seed: number,
@@ -2076,6 +2157,7 @@ export const generateFaceoffOpponentPlayerIds = (
       for (const candidate of candidates) {
         const identity = getPlayerIdentityKey(candidate);
         if (usedIdentities.has(identity)) continue;
+        if (wouldActivateBossLineupLinkBoost(candidate, selected)) continue;
 
         const nextTotal = totalOverall + candidate.overall;
         const minimumPossible = nextTotal + remainingSlots * minimumRemainingOverall;
@@ -2110,7 +2192,13 @@ export const generateFaceoffOpponentPlayerIds = (
   STARTING_FIVE_POSITIONS.forEach((position) => {
     const candidate = (candidatesByPosition[position] ?? []).find((player) => {
       const identity = getPlayerIdentityKey(player);
-      return !fallbackUsedIdentities.has(identity);
+      if (fallbackUsedIdentities.has(identity)) return false;
+      return !wouldActivateBossLineupLinkBoost(
+        player,
+        fallbackSelected
+          .map((playerId) => allPlayers.find((entry) => entry.id === playerId))
+          .filter((entry): entry is Player => Boolean(entry)),
+      );
     });
 
     if (candidate) {
