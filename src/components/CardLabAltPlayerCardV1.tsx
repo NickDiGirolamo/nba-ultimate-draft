@@ -1,10 +1,12 @@
 import clsx from "clsx";
 import { Shield } from "lucide-react";
+import { CardHoloOverlay, type CardHoloVariant } from "./CardHoloOverlay";
 import { DynamicDuoBadge } from "./DynamicDuoBadge";
 import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import { PlayerTypeBadges } from "./PlayerTypeBadges";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { getNbaTeamByName } from "../data/nbaTeams";
+import { isCurrentSeasonCard } from "../lib/playerCardLine";
 import { getPlayerTierLabelFromTier, normalizePlayerTier, playerTierCardStyles } from "../lib/playerTier";
 import type { PlayerTypeBadgeDefinition } from "../lib/playerTypeBadges";
 import { LegacyPlayerTier, Player, PlayerTier } from "../types";
@@ -68,6 +70,8 @@ interface CardLabAltPlayerCardV1Props {
   draftedPlayerIds?: string[];
   playerTypeBadgesOverride?: PlayerTypeBadgeDefinition[];
   playerTypeBadgeCountOverride?: number;
+  holoOverlay?: boolean;
+  holoVariant?: CardHoloVariant;
 }
 
 export const CardLabAltPlayerCardV1 = ({
@@ -79,12 +83,15 @@ export const CardLabAltPlayerCardV1 = ({
   draftedPlayerIds = [],
   playerTypeBadgesOverride,
   playerTypeBadgeCountOverride,
+  holoOverlay = false,
+  holoVariant = "prism",
 }: CardLabAltPlayerCardV1Props) => {
   const imageUrl = usePlayerImage(player);
   const team = getNbaTeamByName(player.teamLabel);
   const naturalPositions = [player.primaryPosition, ...player.secondaryPositions].join(" / ");
   const fullName = player.name.replace(/\s*\([^)]*\)\s*$/, "").trim();
   const fullNameLength = fullName.length;
+  const currentSeasonCard = isCurrentSeasonCard(player);
   const nameClassName = compact
     ? fullNameLength >= 24
       ? "text-[0.78rem]"
@@ -143,6 +150,11 @@ export const CardLabAltPlayerCardV1 = ({
             <div className="rounded-full border border-white/12 bg-black/45 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-200">
               {getLabRarityLabel(rarityOverride)}
             </div>
+            {currentSeasonCard ? (
+              <div className="rounded-full border border-white/12 bg-black/45 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-200">
+                Current
+              </div>
+            ) : null}
             {selected ? (
               <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-200/28 bg-sky-300/14 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-100">
                 <Shield size={12} />
@@ -208,6 +220,7 @@ export const CardLabAltPlayerCardV1 = ({
           </div>
         </div>
       </div>
+      <CardHoloOverlay enabled={holoOverlay} variant={holoVariant} />
     </div>
   );
 };

@@ -1,6 +1,10 @@
 import clsx from "clsx";
 import { Users } from "lucide-react";
-import { PlayerBadgeType, getPlayerBadgeStates } from "../lib/dynamicDuos";
+import {
+  PlayerBadgeType,
+  getPlayerBadgeStates,
+  getTeamChemistryGroupById,
+} from "../lib/dynamicDuos";
 import { HoverTooltip } from "./HoverTooltip";
 
 interface PlayerSynergyBadgesProps {
@@ -70,6 +74,27 @@ const HexChessIcon = ({
   );
 };
 
+const TeamChemistryIcon = ({ compact = false }: { compact?: boolean }) => (
+  <svg
+    viewBox="0 0 24 24"
+    className={clsx(compact ? "h-4 w-4" : "h-5 w-5")}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.65"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="12" r="9.2" />
+    <path d="M7.2 8.2 12 5.8l4.8 2.4m-9.6 0 4.8 3.4 4.8-3.4M12 11.6v6.1m-4.8-9.5v7.1m9.6-7.1v7.1M7.2 15.3l4.8 2.4 4.8-2.4" />
+    <circle cx="12" cy="5.8" r="1.35" fill="currentColor" stroke="none" />
+    <circle cx="7.2" cy="8.2" r="1.35" fill="currentColor" stroke="none" />
+    <circle cx="16.8" cy="8.2" r="1.35" fill="currentColor" stroke="none" />
+    <circle cx="7.2" cy="15.3" r="1.35" fill="currentColor" stroke="none" />
+    <circle cx="16.8" cy="15.3" r="1.35" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 const badgeContent = (type: PlayerBadgeType, compact: boolean) => {
   switch (type) {
     case "dynamic-duo":
@@ -79,9 +104,11 @@ const badgeContent = (type: PlayerBadgeType, compact: boolean) => {
     case "rival":
       return <RivalIcon compact={compact} />;
     case "role-player":
-      return <HexChessIcon piece="♟" compact={compact} />;
+      return <HexChessIcon piece="P" compact={compact} />;
     case "centerpiece":
-      return <HexChessIcon piece="♚" compact={compact} />;
+      return <HexChessIcon piece="K" compact={compact} />;
+    case "team-chemistry":
+      return <TeamChemistryIcon compact={compact} />;
     default:
       return null;
   }
@@ -99,12 +126,15 @@ const badgeLabel = (type: PlayerBadgeType) => {
       return "Role Player";
     case "centerpiece":
       return "Centerpiece";
+    case "team-chemistry":
+      return "Team Chem";
     default:
       return "Badge";
   }
 };
 
 const badgeTooltip = (
+  badgeId: string,
   type: PlayerBadgeType,
   title: string,
   players: string[],
@@ -117,10 +147,7 @@ const badgeTooltip = (
       .join(" ");
 
   if (type === "big-3") {
-    const playerList = players
-      .map(formatPlayerName)
-      .join(" + ");
-
+    const playerList = players.map(formatPlayerName).join(" + ");
     return active
       ? `${title} active: ${playerList}`
       : `${title} requires: ${playerList}`;
@@ -134,7 +161,7 @@ const badgeTooltip = (
     }
 
     const centerpieceName = players[1] ? formatPlayerName(players[1]) : "Centerpiece";
-      return `Role Player: Linked to ${centerpieceName}`;
+    return `Role Player: Linked to ${centerpieceName}`;
   }
 
   if (type === "dynamic-duo") {
@@ -142,6 +169,19 @@ const badgeTooltip = (
     return active
       ? `Dynamic Duo active: ${playerList}`
       : `Dynamic Duo available with: ${playerList}`;
+  }
+
+  if (type === "team-chemistry") {
+    const group = getTeamChemistryGroupById(badgeId);
+    const playerList = players.map(formatPlayerName).join(" + ");
+
+    if (!group) {
+      return active ? `${title} active` : `${title} available`;
+    }
+
+    return active
+      ? `${group.nickname} active: ${playerList}. All matching group members gain +${group.bonusValue} overall.`
+      : `${group.nickname}: add one more ${group.teamName} (${group.season}) core player to activate +${group.bonusValue} overall for this group.`;
   }
 
   return active ? `${title} active` : `${title} available`;
@@ -174,7 +214,7 @@ export const PlayerSynergyBadges = ({
       {badges.map(({ definition, active, previewActive, tooltipPlayers }) => (
         <HoverTooltip
           key={definition.id}
-          content={badgeTooltip(definition.type, definition.title, tooltipPlayers, active)}
+          content={badgeTooltip(definition.id, definition.type, definition.title, tooltipPlayers, active)}
           className="inline-flex"
         >
           <div

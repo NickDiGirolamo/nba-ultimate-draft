@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { GripHorizontal } from "lucide-react";
 import { usePlayerImage } from "../hooks/usePlayerImage";
+import { CardHoloOverlay, type CardHoloVariant } from "./CardHoloOverlay";
 import { PlayerTypeBadges } from "./PlayerTypeBadges";
 import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import type { PlayerTypeBadgeDefinition } from "../lib/playerTypeBadges";
@@ -38,6 +39,8 @@ interface CardLabRunRosterCardProps {
   draftedPlayerIds?: string[];
   playerTypeBadgesOverride?: PlayerTypeBadgeDefinition[];
   playerTypeBadgeCountOverride?: number;
+  holoOverlay?: boolean;
+  holoVariant?: CardHoloVariant;
 }
 
 export const CardLabRunRosterCard = ({
@@ -46,6 +49,8 @@ export const CardLabRunRosterCard = ({
   draftedPlayerIds = [],
   playerTypeBadgesOverride,
   playerTypeBadgeCountOverride,
+  holoOverlay = false,
+  holoVariant = "prism",
 }: CardLabRunRosterCardProps) => {
   const imageUrl = usePlayerImage(player);
   const naturalPositions = [player.primaryPosition, ...player.secondaryPositions].join(" / ");
@@ -139,6 +144,7 @@ export const CardLabRunRosterCard = ({
             </div>
           </div>
         </div>
+        <CardHoloOverlay enabled={holoOverlay} variant={holoVariant} className="opacity-[0.46]" />
       </div>
     </div>
   );

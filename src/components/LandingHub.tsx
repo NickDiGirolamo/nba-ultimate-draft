@@ -24,20 +24,8 @@ export const LandingHub = ({
     <section className="space-y-8">
       <div className="grid gap-6 xl:grid-cols-[1.4fr_0.6fr]">
         <div className="glass-panel overflow-hidden rounded-[36px] border border-fuchsia-200/16 bg-[linear-gradient(140deg,rgba(28,11,45,0.98),rgba(11,18,34,0.96),rgba(7,11,18,0.98))] p-8 shadow-card lg:p-12">
-          <div className="inline-flex rounded-full border border-fuchsia-200/20 bg-fuchsia-300/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-fuchsia-100">
-            Primary Mode
-          </div>
-          <div className="mt-6 flex flex-wrap items-center gap-3 text-[11px] uppercase tracking-[0.18em] text-slate-300">
-            <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1.5">NBA Rogue Mode</span>
-            <span className="rounded-full border border-emerald-200/14 bg-emerald-300/10 px-3 py-1.5 text-emerald-100">
-              Runs persist
-            </span>
-            <span className="rounded-full border border-sky-200/14 bg-sky-300/10 px-3 py-1.5 text-sky-100">
-              Progression-focused
-            </span>
-          </div>
-          <h1 className="mt-6 max-w-4xl font-display text-5xl font-semibold leading-[1.02] text-white lg:text-7xl">
-            Build a run, survive the ladder, and chase the deepest NBA Rogue Mode climb.
+          <h1 className="max-w-4xl font-display text-5xl font-semibold leading-[1.02] text-white lg:text-7xl">
+            NBA Ultimate Draft
           </h1>
           <p className="mt-6 max-w-3xl text-lg leading-8 text-slate-200/86">
             Draft your opening core, train key players, trade for cleaner fits, evolve cards, and survive boss faceoffs floor by floor.

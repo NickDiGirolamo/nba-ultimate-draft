@@ -1,36 +1,22 @@
 # AGENTS.md
 
-## Project Purpose
+## Product Priorities
 - Build a polished, replayable NBA fantasy draft game with strong progression, clear strategy, and high emotional payoff.
-- Prioritize user excitement, clarity, and momentum over unnecessary complexity.
-- Treat player images, badges, challenge progression, and roster-building feedback as core parts of the experience.
-- Make the game feel rewarding for both new users and returning users.
+- Keep NBA Rogue Mode as the primary experience and homepage focus.
+- Prioritize clarity, momentum, and user excitement over unnecessary complexity.
+- Treat player images, badges, roster feedback, challenge progression, and unlock/reward payoff as core parts of the experience.
 
-## Code Style Preferences
-- Keep code readable, direct, and easy to reason about.
-- Prefer small helper functions over deeply nested logic.
-- Reuse existing patterns and utilities before introducing new abstractions.
-- Keep naming clear and descriptive, especially for gameplay logic.
+## Coding Rules
+- Read the current code and follow existing patterns before changing behavior.
+- Keep solutions direct, readable, and easy to reason about.
+- Prefer small helpers over deeply nested logic.
+- Reuse existing utilities and patterns before introducing new abstractions.
 - Avoid unnecessary refactors when solving a focused problem.
-- Preserve compatibility with existing saved state whenever possible.
+- Preserve saved-state compatibility whenever possible.
 
-## UI/UX Expectations
-- The game should feel premium, readable, and intentional.
-- Player images must always be treated as first-class UI elements and displayed as cleanly as possible.
-- Important actions and outcomes should be obvious at a glance.
-- New users should be guided toward the main intended experience without confusion.
-- Tooltips, badges, roster changes, challenge outcomes, and progression rewards should all clearly explain themselves.
-- Whenever a button, link, or other navigation action moves the user to a new page, screen, section, modal, or major state, reset scroll position to the top so the destination view starts at the top by default.
-- Minimize dead space, clipping, overflow, awkward text wrapping, and inconsistent alignment.
-- On player cards, never solve long names by clipping them or forcing ellipses when the full name should be visible; reduce the name font size as needed so the full player name fits cleanly on the card.
-- Full player cards and run-roster cards are fixed composition templates. Preserve the exact relative proportions, object placement, and player-image crop of the approved design.
-- If a player card or run-roster card needs to appear smaller or larger, scale the entire card uniformly as one object. Do not independently resize internal elements.
-- Do not introduce responsive reflow, compact-mode rearrangements, object repositioning, or alternate crop behavior for player cards or run-roster cards.
-- If cards need to fit a tighter space, change the surrounding page layout, orientation, or number of cards shown rather than altering the internal composition of the card itself.
-- If a user earns or unlocks something, the payoff should feel visible and rewarding.
-
-## Workflow Rules
-- Understand the current code before changing behavior.
+## Gameplay/Data Invariants
+- Do not change existing player overall ratings.
+- Do not add or rename stat categories. Keep: `overall`, `offense`, `defense`, `playmaking`, `shooting`, `rebounding`, `athleticism`, `intangibles`.
 - When editing player data, make sure the change carries through:
   - player data
   - player ID references
@@ -39,19 +25,35 @@
   - visible card/display output
 - When changing challenge logic, also verify related results-screen messaging and reward payout.
 - When changing roster or simulation systems, keep UI feedback aligned with the underlying logic.
-- Prefer implementing complete end-to-end behavior instead of leaving partial UI-only changes.
-- Run a build check after meaningful changes when feasible.
+- Prefer complete end-to-end behavior over partial UI-only changes.
 
-## Deployment Expectations
-- Keep the app in a buildable state whenever possible.
-- Assume local preview and Vercel deployment both matter.
-- Avoid changes that silently break the live gameplay loop, onboarding flow, or results screens.
-- If a feature affects progression, challenges, rewards, or saved history, verify that behavior carefully before considering it done.
+## UI/UX Guardrails
+- The game should feel premium, readable, and intentional.
+- Important actions, outcomes, rewards, and unlocks should be obvious at a glance.
+- New users should be guided clearly toward the main intended experience.
+- Tooltips, badges, roster changes, challenge outcomes, and progression rewards should clearly explain themselves.
+- Minimize dead space, clipping, overflow, awkward wrapping, and inconsistent alignment.
+- Whenever navigation or a major state change moves the user to a new page, section, modal, screen, or major view, reset scroll position to the top.
 
-## Things To Avoid
-- Do not leave UI in a half-finished or misleading state.
-- Do not introduce vague player-facing metrics or labels without clear explanation.
+## Card Layout Rules
+- Player images are first-class UI elements and should be displayed as cleanly as possible.
+- Card Lab designs are the visual source of truth for major player-card layouts.
+- On player cards, never solve long names with clipping or ellipses when the full name should be visible; reduce font size as needed.
+- Full player cards and run-roster cards are fixed composition templates. Preserve their approved relative proportions, object placement, and player-image crop.
+- If a player card or run-roster card needs to appear smaller or larger, scale the entire card uniformly as one object.
+- Do not independently resize internal card elements.
+- Do not introduce responsive reflow, compact rearrangements, object repositioning, or alternate crop behavior inside player cards or run-roster cards.
+- If cards need to fit a tighter space, change the surrounding layout rather than altering internal card composition.
+
+## Quality Bar
+- Do not leave UI in a half-finished, misleading, or inconsistent state.
+- Do not introduce vague player-facing labels or metrics without clear explanation.
 - Do not break saved progress unless absolutely necessary.
-- Do not let cards, panels, badges, or tooltips overflow, clip, or behave inconsistently.
-- Do not weaken the emotional value of rare cards, challenge clears, unlocks, or progression rewards.
-- Do not add complexity that makes the game harder to understand without making it more fun.
+- Do not let cards, panels, badges, or tooltips overflow or clip.
+- Do not weaken the emotional value of rare cards, unlocks, challenge clears, rewards, or progression.
+
+## Verification
+- Keep the app buildable whenever possible.
+- Assume both local preview and Vercel deployment matter.
+- Avoid changes that silently break the gameplay loop, onboarding flow, results screens, progression, rewards, or saved history.
+- Run a build check after meaningful changes when feasible.

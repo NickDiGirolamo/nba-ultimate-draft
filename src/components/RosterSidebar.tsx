@@ -41,13 +41,13 @@ export const RosterSidebar = ({
     }, {});
 
   return (
-    <aside className="glass-panel rounded-[28px] p-5 shadow-card">
-      <div className="flex items-start justify-between gap-3">
+    <aside className="glass-panel rounded-[24px] p-4 shadow-card sm:rounded-[28px] sm:p-5">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Current Roster</p>
           <h3 className="mt-2 font-display text-2xl text-white">Lineup Board</h3>
         </div>
-        <div className="grid min-w-[210px] grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 xl:min-w-[210px]">
           <div className="rounded-2xl border border-white/12 bg-white/6 px-3 py-3 text-right">
             <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Avg OVR</div>
             <div className="mt-1 font-display text-[1.7rem] leading-none text-white">{teamAverage || "--"}</div>
@@ -143,7 +143,7 @@ export const RosterSidebar = ({
           <div className="mt-2 text-sm leading-6 text-slate-300">
             {bonusPickActive
               ? "Select the roster slot you want to replace, then choose one of the 5 bonus players from the extra board."
-              : "Click any drafted player, then click any other slot to move or swap them. You can place any drafted player anywhere before the sim."}
+              : "Tap any drafted player, then tap any other slot to move or swap them. You can place any drafted player anywhere before the sim."}
           </div>
         </div>
       </div>
@@ -173,7 +173,7 @@ const RosterSlotButton = ({
       type="button"
       onClick={() => onSlotClick(index)}
       className={clsx(
-        "w-full rounded-2xl border p-3 text-left transition duration-300",
+        "w-full rounded-2xl border p-3 text-left transition duration-300 sm:p-3.5",
         slot.player
           ? "border-amber-200/16 bg-[linear-gradient(180deg,rgba(104,60,24,0.38),rgba(38,22,13,0.78))]"
           : "border-dashed border-white/12 bg-black/12",
@@ -194,8 +194,8 @@ const RosterSlotButton = ({
             <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
               {slot.slot}
             </div>
-            <div className="mt-1 flex items-center gap-2">
-              <div className="truncate text-sm font-medium text-white">
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <div className="min-w-0 text-sm font-medium leading-5 text-white">
                 {slot.player?.name ?? slot.label}
               </div>
               {slot.player ? (

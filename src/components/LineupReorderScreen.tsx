@@ -92,7 +92,7 @@ const LineupCard = ({
             </div>
           </div>
         </div>
-        <div className={clsx("mt-3", compact ? "min-h-[44px]" : "min-h-[54px]")}>
+            <div className={clsx("mt-3", compact ? "min-h-[44px]" : "min-h-[54px]")}>
           {(() => {
             const playerNameLength = player?.name.length ?? 0;
             return (
@@ -108,9 +108,9 @@ const LineupCard = ({
                   : "text-[0.95rem] leading-5",
             )}
           >
-            <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{firstNameLine}</div>
-            {lastNameLine ? <div className="overflow-hidden text-ellipsis whitespace-nowrap tracking-tight">{lastNameLine}</div> : null}
-            {versionLine ? <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[0.8em] tracking-tight text-slate-300">{versionLine}</div> : null}
+            <div className="tracking-tight">{firstNameLine}</div>
+            {lastNameLine ? <div className="tracking-tight">{lastNameLine}</div> : null}
+            {versionLine ? <div className="text-[0.8em] tracking-tight text-slate-300">{versionLine}</div> : null}
           </div>
             );
           })()}
@@ -270,7 +270,7 @@ export const LineupReorderScreen = ({
         <button
           type="button"
           onClick={onHome}
-          className="glass-panel inline-flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-[28px] p-4 text-center shadow-card transition hover:border-amber-200/40 hover:text-amber-100"
+          className="glass-panel inline-flex min-h-[72px] flex-row items-center justify-center gap-3 rounded-[24px] p-4 text-center shadow-card transition hover:border-amber-200/40 hover:text-amber-100 lg:min-h-[120px] lg:flex-col lg:gap-2 lg:rounded-[28px]"
         >
           <div className="rounded-full border border-white/12 bg-white/8 p-2">
             <Trophy size={16} className="text-amber-200" />
@@ -278,15 +278,15 @@ export const LineupReorderScreen = ({
           <span className="text-[10px] uppercase tracking-[0.22em] text-slate-200">Home</span>
         </button>
 
-        <div className="glass-panel rounded-[28px] p-5 shadow-card">
+        <div className="glass-panel rounded-[24px] p-4 shadow-card sm:p-5 sm:rounded-[28px]">
           <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Lineup Phase</div>
-          <h1 className="mt-2 font-display text-3xl text-white">Set Your Rotation</h1>
+          <h1 className="mt-2 font-display text-[clamp(1.7rem,6vw,2.2rem)] text-white">Set Your Rotation</h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
-            Drag players into the exact slots you want. Starter positions matter most, the three structured bench roles matter next, and the two utility spots matter least.
+            Drag players into the exact slots you want. On phones, the starters are stacked vertically for easier touch reordering. Starter positions matter most, the three structured bench roles matter next, and the two utility spots matter least.
           </p>
         </div>
 
-        <div className="glass-panel rounded-[28px] p-5 shadow-card">
+        <div className="glass-panel rounded-[24px] p-4 shadow-card sm:p-5 sm:rounded-[28px]">
           <div className="flex h-full flex-col justify-between gap-4">
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
@@ -306,7 +306,7 @@ export const LineupReorderScreen = ({
             <button
               type="button"
               onClick={onSimulate}
-              className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900"
+              className="inline-flex min-h-[48px] items-center justify-center gap-2 self-stretch rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900 sm:self-start"
             >
               <RotateCcw size={18} className="rotate-180" />
               Simulate Season
@@ -316,19 +316,23 @@ export const LineupReorderScreen = ({
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="glass-panel rounded-[34px] p-5 shadow-card">
+        <div className="glass-panel rounded-[28px] p-4 shadow-card sm:p-5 sm:rounded-[34px]">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Starting Five</div>
               <h2 className="mt-1 font-display text-2xl text-white">Half-Court Board</h2>
             </div>
-            <div className="rounded-full border border-white/10 bg-white/6 px-4 py-2 text-xs uppercase tracking-[0.18em] text-slate-300">
+            <div className="hidden rounded-full border border-white/10 bg-white/6 px-4 py-2 text-xs uppercase tracking-[0.18em] text-slate-300 lg:block">
               Drag cards to reorder
             </div>
           </div>
 
+          <div className="mb-4 rounded-2xl border border-sky-200/16 bg-sky-300/10 p-4 text-sm leading-6 text-sky-50 lg:hidden">
+            Drag and drop works here too, but the starters are stacked for easier touch control on smaller screens.
+          </div>
+
           <div
-            className="lineup-court relative h-[760px] overflow-hidden rounded-[28px] border border-white/10 bg-[#6d3f22]"
+            className="lineup-court relative hidden h-[760px] overflow-hidden rounded-[28px] border border-white/10 bg-[#6d3f22] lg:block"
             style={{
               backgroundImage:
                 "linear-gradient(180deg, rgba(7,10,14,0.18), rgba(7,10,14,0.42)), url('https://basketballgoalstore.com/wp-content/uploads/half-court.jpg')",
@@ -354,10 +358,31 @@ export const LineupReorderScreen = ({
               );
             })}
           </div>
+
+          <div className="grid gap-3 lg:hidden">
+            {starterSlotLayout.map(({ index }) => {
+              const slot = rosterWithIndex[index];
+              return (
+                <div
+                  key={slot.label}
+                  data-slot-index={index}
+                  className={clsx(
+                    "rounded-[22px] border border-dashed p-2.5 transition",
+                    dropTargetIndex === index ? "border-amber-300/60 bg-amber-300/10" : "border-white/12 bg-black/15",
+                  )}
+                >
+                  <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-slate-400">{slot.slot}</div>
+                  <div onPointerDown={(event) => handlePointerDown(index, false, event)}>
+                    <LineupCard slot={slot} dragged={draggingIndex === index} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <div className="grid gap-6 xl:grid-rows-[1.4fr_0.7fr]">
-          <div className="glass-panel rounded-[30px] p-5 shadow-card">
+          <div className="glass-panel rounded-[24px] p-4 shadow-card sm:p-5 sm:rounded-[30px]">
             <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Bench Roles</div>
             <h3 className="mt-1 font-display text-2xl text-white">Primary Reserve Unit</h3>
 
@@ -383,8 +408,8 @@ export const LineupReorderScreen = ({
             </div>
           </div>
 
-          <div className="glass-panel rounded-[30px] p-5 shadow-card">
-            <div className="flex items-center justify-between">
+          <div className="glass-panel rounded-[24px] p-4 shadow-card sm:p-5 sm:rounded-[30px]">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Utility Slots</div>
                 <h3 className="mt-1 font-display text-2xl text-white">Deep Rotation</h3>

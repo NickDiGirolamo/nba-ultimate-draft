@@ -96,6 +96,9 @@ function App() {
   const [tokenStoreOpen, setTokenStoreOpen] = useState(false);
   const [showPrestigeLevelUp, setShowPrestigeLevelUp] = useState(false);
   const [showExtraPickIntro, setShowExtraPickIntro] = useState(false);
+  const [isNarrowViewport, setIsNarrowViewport] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 640 : false,
+  );
   const [roguelikeOpen, setRoguelikeOpen] = useState(() => {
     if (typeof window === "undefined") return false;
 
@@ -235,13 +238,25 @@ function App() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    const syncViewport = () => setIsNarrowViewport(window.innerWidth < 640);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+
+    return () => {
+      window.removeEventListener("resize", syncViewport);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [state.screen, roguelikeOpen, prestigeOpen, tokenStoreOpen, learnOpen, showPrestigeLevelUp]);
 
   return (
     <div className="arena-shell text-white">
-      <div className="mx-auto max-w-[1720px] px-3 py-5 md:px-4 lg:px-5 lg:py-6">
-        <div className="mb-5 flex items-center justify-between gap-4">
+      <div className="mx-auto max-w-[1720px] px-3 py-4 sm:px-4 sm:py-5 lg:px-5 lg:py-6">
+        <div className="mb-5 grid grid-cols-4 gap-2 lg:flex lg:flex-row lg:items-center lg:justify-between lg:gap-4">
           <button
             type="button"
             onClick={() => {
@@ -251,54 +266,59 @@ function App() {
               setRoguelikeOpen(false);
               resetDraft();
             }}
-            className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-black/18 px-4 py-3 text-left transition hover:border-amber-200/22 hover:bg-black/24"
+            className="group col-span-1 flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border border-white/10 bg-black/18 px-2 py-2 text-center transition hover:border-amber-200/22 hover:bg-black/24 lg:max-w-[360px] lg:flex-row lg:justify-start lg:gap-3 lg:px-4 lg:py-3 lg:text-left"
           >
-            <div className="rounded-2xl border border-amber-200/18 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.24),rgba(249,115,22,0.14),rgba(15,23,42,0.2))] p-2.5 text-amber-200 shadow-[0_10px_24px_rgba(251,191,36,0.16)]">
-              <Trophy size={20} />
+            <div className="rounded-2xl border border-amber-200/18 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.24),rgba(249,115,22,0.14),rgba(15,23,42,0.2))] p-2 text-amber-200 shadow-[0_10px_24px_rgba(251,191,36,0.16)] lg:p-2.5">
+              <Trophy size={16} className="lg:hidden" />
+              <Trophy size={20} className="hidden lg:block" />
             </div>
             <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Home</div>
-              <div className="mt-1 truncate font-display text-[clamp(1.1rem,1.6vw,1.6rem)] text-white">
+              <div className="text-[8px] uppercase tracking-[0.16em] text-slate-400 lg:text-[10px] lg:tracking-[0.24em]">Home</div>
+              <div className="mt-0.5 truncate font-display text-[0.65rem] text-white lg:hidden">Draft</div>
+              <div className="mt-1 hidden truncate font-display text-[clamp(1.1rem,1.6vw,1.6rem)] text-white lg:block">
                 NBA Ultimate Draft
               </div>
             </div>
           </button>
 
-          <div className="flex justify-end gap-3">
+          <div className="col-span-3 grid grid-cols-3 gap-2 lg:flex lg:justify-end lg:gap-3">
             <button
               type="button"
               onClick={() => setLearnOpen(true)}
-              className="glass-panel group h-[94px] min-w-[230px] rounded-2xl border border-sky-200/12 bg-[linear-gradient(135deg,rgba(9,18,34,0.96),rgba(16,26,46,0.92))] px-4 py-3 text-left shadow-[0_16px_32px_rgba(0,0,0,0.24)] transition hover:border-sky-200/28 hover:bg-[linear-gradient(135deg,rgba(12,24,44,0.98),rgba(20,34,58,0.94))] hover:shadow-[0_18px_36px_rgba(56,189,248,0.14)]"
+              className="glass-panel group min-h-[72px] w-full rounded-2xl border border-sky-200/12 bg-[linear-gradient(135deg,rgba(9,18,34,0.96),rgba(16,26,46,0.92))] px-2 py-2 text-left shadow-[0_16px_32px_rgba(0,0,0,0.24)] transition hover:border-sky-200/28 hover:bg-[linear-gradient(135deg,rgba(12,24,44,0.98),rgba(20,34,58,0.94))] hover:shadow-[0_18px_36px_rgba(56,189,248,0.14)] sm:min-w-0 lg:min-h-[94px] lg:min-w-[230px] lg:px-4 lg:py-3"
             >
-	              <div className="flex items-center justify-between gap-3">
-	                <div className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.2em] text-slate-200">
-                  <div className="rounded-full border border-sky-200/18 bg-sky-300/12 p-1.5 text-sky-200 transition group-hover:border-sky-200/28 group-hover:bg-sky-300/18">
-                    <BookOpen size={13} />
+	              <div className="flex items-center justify-center gap-1.5 lg:justify-between lg:gap-3">
+	                <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-200 lg:gap-2 lg:text-[12px] lg:tracking-[0.2em]">
+                  <div className="rounded-full border border-sky-200/18 bg-sky-300/12 p-1 text-sky-200 transition group-hover:border-sky-200/28 group-hover:bg-sky-300/18 lg:p-1.5">
+                    <BookOpen size={11} className="lg:hidden" />
+                    <BookOpen size={13} className="hidden lg:block" />
                   </div>
-                  Learn The Game
+                  <span className="hidden sm:inline lg:inline">Learn</span>
+                  <span className="sm:hidden">Tips</span>
                 </div>
-                <span className="rounded-full border border-white/10 bg-white/6 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-100">
+                <span className="hidden rounded-full border border-white/10 bg-white/6 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-100 lg:inline-flex">
                   Open
                 </span>
               </div>
-	              <div className="mt-3 text-[0.88rem] font-medium leading-5 text-slate-300">
+	              <div className="mt-1 hidden text-[0.88rem] font-medium leading-5 text-slate-300 lg:mt-3 lg:block">
 	                Learn categories, badges, and draft tips
 	              </div>
             </button>
             <button
               type="button"
               onClick={() => setTokenStoreOpen(true)}
-              className="glass-panel h-[94px] min-w-[200px] rounded-2xl px-4 py-3 text-left transition hover:border-amber-200/24 hover:bg-white/10"
+              className="glass-panel min-h-[72px] w-full rounded-2xl px-2 py-2 text-left transition hover:border-amber-200/24 hover:bg-white/10 sm:min-w-0 lg:min-h-[94px] lg:min-w-[200px] lg:px-4 lg:py-3"
             >
-              <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                <Coins size={13} className="text-amber-200" />
+              <div className="flex items-center justify-center gap-1 text-[9px] uppercase tracking-[0.12em] text-slate-400 lg:justify-start lg:gap-1.5 lg:text-[11px] lg:tracking-[0.18em]">
+                <Coins size={11} className="text-amber-200 lg:hidden" />
+                <Coins size={13} className="hidden text-amber-200 lg:block" />
                 Tokens
               </div>
-              <div className="mt-2 flex items-end justify-between gap-3">
-                <div className="text-[2rem] font-semibold leading-none text-white">
+              <div className="mt-1 flex flex-col items-center gap-0.5 lg:mt-2 lg:flex-row lg:items-end lg:justify-between lg:gap-3">
+                <div className="text-[1rem] font-semibold leading-none text-white lg:text-[2rem]">
                   {metaProgress.tokens.balance}
                 </div>
-                <div className="pb-1 text-right text-[10px] uppercase tracking-[0.12em] text-slate-400">
+                <div className="pb-0 text-center text-[8px] uppercase tracking-[0.1em] text-slate-400 lg:pb-1 lg:text-right lg:text-[10px] lg:tracking-[0.12em]">
                   Spendable
                 </div>
               </div>
@@ -310,24 +330,25 @@ function App() {
                 setPrestigeInitialView("overview");
                 setPrestigeOpen(true);
               }}
-              className="glass-panel h-[94px] min-w-[230px] rounded-2xl px-4 py-3 text-left transition hover:border-amber-200/24 hover:bg-white/10"
+              className="glass-panel min-h-[72px] w-full rounded-2xl px-2 py-2 text-left transition hover:border-amber-200/24 hover:bg-white/10 sm:min-w-0 lg:min-h-[94px] lg:min-w-[230px] lg:px-4 lg:py-3"
             >
-              <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                <Crown size={13} className="text-amber-200" />
+              <div className="flex items-center justify-center gap-1 text-[9px] uppercase tracking-[0.12em] text-slate-400 lg:justify-start lg:gap-1.5 lg:text-[11px] lg:tracking-[0.18em]">
+                <Crown size={11} className="text-amber-200 lg:hidden" />
+                <Crown size={13} className="hidden text-amber-200 lg:block" />
                 Prestige
               </div>
-              <div className="mt-2 flex items-end justify-between gap-3">
-                <div className="flex items-end gap-2">
-                  <span className="pb-1 text-[10px] uppercase tracking-[0.14em] text-amber-100/80">Lvl</span>
-                  <span className="text-[2rem] font-semibold leading-none text-white">
+              <div className="mt-1 flex flex-col items-center gap-0.5 lg:mt-2 lg:flex-row lg:items-end lg:justify-between lg:gap-3">
+                <div className="flex items-end gap-1 lg:gap-2">
+                  <span className="pb-0 text-[8px] uppercase tracking-[0.1em] text-amber-100/80 lg:pb-1 lg:text-[10px] lg:tracking-[0.14em]">Lvl</span>
+                  <span className="text-[1rem] font-semibold leading-none text-white lg:text-[2rem]">
                     {metaProgress.prestige.level}
                   </span>
                 </div>
-                <div className="pb-1 text-right text-[10px] uppercase tracking-[0.12em] text-slate-400">
+                <div className="pb-0 text-center text-[8px] uppercase tracking-[0.1em] text-slate-400 lg:pb-1 lg:text-right lg:text-[10px] lg:tracking-[0.12em]">
                   {metaProgress.prestige.score}/{metaProgress.prestige.nextLevelScore}
                 </div>
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full border border-white/10 bg-slate-700/70">
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full border border-white/10 bg-slate-700/70 lg:mt-2 lg:h-2">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-amber-300 via-yellow-200 to-orange-300"
                   style={{
@@ -405,19 +426,11 @@ function App() {
 
         {!roguelikeOpen && state.screen === "draft" && (
           <section className="space-y-6">
-            <div
-              style={{
-                display: "grid",
-                width: "100%",
-                gridTemplateColumns: "minmax(0,10fr) minmax(0,45fr) minmax(0,45fr)",
-                alignItems: "stretch",
-                columnGap: "12px",
-              }}
-            >
+            <div className="grid w-full gap-3 lg:grid-cols-[minmax(88px,0.1fr)_minmax(0,0.45fr)_minmax(0,0.45fr)] lg:items-stretch">
               <button
                 type="button"
                 onClick={resetDraft}
-                className="glass-panel inline-flex h-full min-w-0 flex-col items-center justify-center gap-2 rounded-[28px] p-3 text-center shadow-card transition hover:border-amber-200/40 hover:text-amber-100"
+                className="glass-panel inline-flex min-h-[72px] min-w-0 flex-row items-center justify-center gap-3 rounded-[24px] px-4 py-3 text-center shadow-card transition hover:border-amber-200/40 hover:text-amber-100 lg:h-full lg:flex-col lg:gap-2 lg:rounded-[28px] lg:p-3"
               >
                 <div className="rounded-full border border-white/12 bg-white/8 p-2">
                   <Trophy size={14} className="text-amber-200" />
@@ -429,9 +442,7 @@ function App() {
                 <ProgressHeader pickNumber={state.pickNumber} bonusPickActive={state.bonusPickActive} />
               </div>
 
-              <div
-                className="glass-panel min-w-0 rounded-[28px] p-4 shadow-card"
-              >
+              <div className="glass-panel min-w-0 rounded-[24px] p-4 shadow-card lg:rounded-[28px]">
                 <div className="flex h-full min-w-0 flex-col justify-between gap-3">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -440,7 +451,7 @@ function App() {
                       </span>
                       <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Pick Window</span>
                       </div>
-                    <h2 className="mt-2 font-display text-[clamp(1.35rem,2vw,2.3rem)] leading-none text-white">
+                    <h2 className="mt-2 font-display text-[clamp(1.2rem,5vw,2.3rem)] leading-tight text-white">
                       {state.bonusPickActive ? "Choose 1 bonus player" : "Choose 1 of 5"}
                     </h2>
                     <div className="mt-3 flex flex-wrap gap-1.5 text-[9px] uppercase tracking-[0.12em] text-slate-300">
@@ -463,7 +474,7 @@ function App() {
                         </span>
                       ) : null}
                     </div>
-                    <p className="mt-3 text-xs leading-5 text-slate-300">
+                    <p className="mt-3 text-sm leading-6 text-slate-300 sm:text-xs sm:leading-5">
                       {state.bonusPickActive
                         ? state.selectedSlotIndex === null
                           ? "Select one current roster slot from the lineup board, then choose a bonus player to replace it."
@@ -475,7 +486,7 @@ function App() {
                     type="button"
                     onClick={state.bonusPickActive ? skipBonusPick : beginSimulation}
                     disabled={state.bonusPickActive ? false : !completedRoster}
-                    className="self-start rounded-full bg-white px-4 py-2 text-xs font-semibold text-slate-900 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-slate-400"
+                    className="self-stretch rounded-full bg-white px-4 py-3 text-sm font-semibold text-slate-900 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-slate-400 sm:self-start sm:px-4 sm:py-2 sm:text-xs"
                   >
                     {state.bonusPickActive ? "Skip Extra Pick" : "Simulate Season"}
                   </button>
@@ -485,6 +496,52 @@ function App() {
 
             <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
               <div className="space-y-5">
+                {isNarrowViewport ? (
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {state.currentChoices.map((player, index) => {
+                      const revealed = index < visibleChoiceCount;
+
+                      return (
+                        <div
+                          key={player.id}
+                          className="choice-slot"
+                          style={{ animationDelay: `${index * 220}ms` }}
+                        >
+                          <div className={`choice-flip-card ${revealed ? "is-revealed" : ""}`}>
+                            <div className="choice-face choice-face-back">
+                              <div className="choice-card-back h-full rounded-[18px] border border-white/10">
+                                <div className="choice-card-back__inner">
+                                  <div className="choice-card-back__badge">Legends Draft</div>
+                                  <div className="choice-card-back__crest">
+                                    <div className="choice-card-back__crest-ring" />
+                                    <div className="choice-card-back__crest-core">NBA</div>
+                                  </div>
+                                  <div className="choice-card-back__pattern" />
+                                  <div className="choice-card-back__footer">
+                                    <span>All-Time</span>
+                                    <span>Reveal</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="choice-face choice-face-front">
+                              <DraftPlayerCard
+                                player={player}
+                                onSelect={draftPlayer}
+                                disabled={Boolean(state.selectedPlayerId) || (state.bonusPickActive && state.selectedSlotIndex === null)}
+                                selected={state.selectedPlayerId === player.id}
+                                draftedPlayerIds={state.draftedPlayerIds}
+                                compact
+                                compactScale={0.42}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
 
                 <div className="glass-panel rounded-[20px] p-3 shadow-card">
                   <div className="mb-2 flex items-center justify-between gap-3">
@@ -519,7 +576,7 @@ function App() {
                   </p>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                <div className={`grid gap-1.5 sm:gap-3 ${isNarrowViewport ? "hidden" : "grid-cols-1 md:grid-cols-2 xl:grid-cols-5"}`}>
                   {state.currentChoices.map((player, index) => {
                     const revealed = index < visibleChoiceCount;
 
@@ -554,6 +611,8 @@ function App() {
                               disabled={Boolean(state.selectedPlayerId) || (state.bonusPickActive && state.selectedSlotIndex === null)}
                               selected={state.selectedPlayerId === player.id}
                               draftedPlayerIds={state.draftedPlayerIds}
+                              compact={isNarrowViewport}
+                              compactScale={0.42}
                             />
                           </div>
                         </div>
@@ -573,7 +632,7 @@ function App() {
                   bonusPickActive={state.bonusPickActive}
                   onSlotClick={handleRosterSlotClick}
                 />
-                <div className="glass-panel rounded-[28px] p-5 shadow-card">
+                <div className="glass-panel rounded-[24px] p-4 shadow-card sm:p-5 sm:rounded-[28px]">
                   <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Team Snapshot</div>
                   <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-1">
                     <div className="rounded-2xl border border-white/10 bg-white/6 p-4">
@@ -599,8 +658,8 @@ function App() {
 
             {showExtraPickIntro && (
               <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/78 px-4 backdrop-blur-sm">
-                <div className="w-full max-w-2xl rounded-[32px] border border-fuchsia-200/22 bg-[linear-gradient(135deg,rgba(36,16,54,0.98),rgba(15,23,42,0.98),rgba(28,18,52,0.96))] p-7 shadow-[0_0_0_1px_rgba(216,180,254,0.06),0_0_42px_rgba(192,132,252,0.24)] lg:p-8">
-                  <div className="flex items-start gap-4">
+                <div className="w-full max-w-2xl rounded-[28px] border border-fuchsia-200/22 bg-[linear-gradient(135deg,rgba(36,16,54,0.98),rgba(15,23,42,0.98),rgba(28,18,52,0.96))] p-5 shadow-[0_0_0_1px_rgba(216,180,254,0.06),0_0_42px_rgba(192,132,252,0.24)] sm:rounded-[32px] sm:p-7 lg:p-8">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                     <div className="rounded-[22px] border border-fuchsia-200/22 bg-fuchsia-300/14 p-3 text-fuchsia-100">
                       <Crown size={22} />
                     </div>
@@ -608,10 +667,10 @@ function App() {
                       <div className="text-xs uppercase tracking-[0.28em] text-fuchsia-100/78">
                         Extra Pick
                       </div>
-                      <h2 className="mt-2 font-display text-4xl text-white lg:text-5xl">
+                      <h2 className="mt-2 font-display text-3xl text-white sm:text-4xl lg:text-5xl">
                         Bonus Board Unlocked
                       </h2>
-                      <p className="mt-4 text-base leading-8 text-slate-200">
+                      <p className="mt-4 text-sm leading-7 text-slate-200 sm:text-base sm:leading-8">
                         You can replace one player on your roster with one of these 5 extra-pick options, or skip the pick and keep your team exactly as it is.
                       </p>
                     </div>

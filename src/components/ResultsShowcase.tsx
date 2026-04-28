@@ -22,6 +22,7 @@ import {
   Info,
 } from "lucide-react";
 import { usePlayerImage } from "../hooks/usePlayerImage";
+import { HoverTooltip } from "./HoverTooltip";
 import { RunRosterPlayerCard } from "./RunRosterPlayerCard";
 import {
   BracketMatchup,
@@ -161,16 +162,11 @@ const MetricLabelWithTooltip = ({
   <div className={clsx("flex items-center gap-2", className)}>
     <span>{label}</span>
     {help ? (
-      <span className="group relative inline-flex">
-        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/12 bg-white/6 text-slate-400 transition group-hover:border-amber-200/30 group-hover:text-amber-100">
+      <HoverTooltip content={help} className="inline-flex">
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/12 bg-white/6 text-slate-400 transition hover:border-amber-200/30 hover:text-amber-100">
           <Info size={11} />
         </span>
-        <span className="pointer-events-none absolute bottom-full left-1/2 z-30 hidden w-56 -translate-x-1/2 pb-2 group-hover:block">
-          <span className="block rounded-2xl border border-white/12 bg-slate-950 px-3 py-2 text-xs normal-case leading-5 tracking-normal text-slate-200 shadow-[0_16px_40px_rgba(0,0,0,0.5)]">
-            {help}
-          </span>
-        </span>
-      </span>
+      </HoverTooltip>
     ) : null}
   </div>
 );
@@ -443,7 +439,10 @@ const BracketTeamRow = ({
   isWinner: boolean;
   compact?: boolean;
   tooltipSide?: "right" | "left" | "top";
-}) => (
+}) => {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  return (
   <div className="group relative">
     <div
       className={clsx(
@@ -476,6 +475,13 @@ const BracketTeamRow = ({
           </div>
         </div>
       </div>
+      <button
+        type="button"
+        onClick={() => setDetailsOpen((current) => !current)}
+        className="inline-flex h-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/6 px-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-200 lg:hidden"
+      >
+        {detailsOpen ? "Hide" : "Top 3"}
+      </button>
     </div>
 
     <div
@@ -485,7 +491,7 @@ const BracketTeamRow = ({
         tooltipSide === "left" && "right-full top-1/2 mr-3 -translate-y-1/2",
         tooltipSide === "top" && "bottom-full left-1/2 mb-3 -translate-x-1/2",
       )}
-    >
+      >
       <div className="rounded-[20px] border border-white/12 bg-slate-950 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.55)]">
         <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">
           Top 3 Players
@@ -509,8 +515,32 @@ const BracketTeamRow = ({
         </div>
       </div>
     </div>
+    {detailsOpen ? (
+      <div className="mt-2 rounded-[20px] border border-white/12 bg-slate-950/96 p-4 lg:hidden">
+        <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">
+          Top 3 Players
+        </div>
+        <div className="mt-3 space-y-2">
+          {team.stars.map((player) => (
+            <div
+              key={`${team.teamName}-${player.id}-mobile`}
+              className="flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/5 px-3 py-2"
+            >
+              <div className="min-w-0">
+                <div className="truncate text-sm text-white">{player.name}</div>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">
+                  {player.primaryPosition}
+                </div>
+              </div>
+              <div className="text-sm font-semibold text-amber-100">{player.overall}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ) : null}
   </div>
-);
+  );
+};
 
 const BracketSeriesStack = ({
   matchup,
@@ -631,8 +661,8 @@ const BracketConferenceTree = ({
 };
 
 const PlayoffBracketBoard = ({ bracket }: { bracket: PlayoffBracket }) => (
-  <div className="glass-panel overflow-visible rounded-[30px] p-6 shadow-card">
-    <div className="flex items-center justify-between gap-4">
+  <div className="glass-panel overflow-visible rounded-[28px] p-4 shadow-card sm:p-6 sm:rounded-[30px]">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
           Playoff Bracket
@@ -642,7 +672,7 @@ const PlayoffBracketBoard = ({ bracket }: { bracket: PlayoffBracket }) => (
         </h2>
       </div>
       <div className="rounded-full border border-white/10 bg-white/6 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-300">
-        Hover teams for top 3 players
+        Tap or hover teams for top 3 players
       </div>
     </div>
 
@@ -859,14 +889,14 @@ export const ResultsShowcase = ({
         {surpriseChallengeClear && <ChallengeOutcomeBanner result={result} surpriseClear />}
         {prestigeChallengeActive && <ChallengeOutcomeBanner result={result} />}
 
-        <div className="glass-panel overflow-hidden rounded-[34px] p-8 shadow-card lg:p-10">
+        <div className="glass-panel overflow-hidden rounded-[28px] p-5 shadow-card sm:p-8 lg:rounded-[34px] lg:p-10">
           <div className="relative flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-4xl">
               <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/85">
                 Category Focus Results
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-4">
-                <h1 className="font-display text-4xl text-white lg:text-6xl">
+                <h1 className="font-display text-3xl text-white sm:text-4xl lg:text-6xl">
                   {result.categoryChallenge.metricLabel} Run
                 </h1>
                 <div className="inline-flex items-center gap-3 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-4 py-2">
@@ -883,14 +913,14 @@ export const ResultsShowcase = ({
                   </div>
                 </div>
               </div>
-              <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-200">
+              <p className="mt-5 max-w-3xl text-base leading-7 text-slate-200 sm:text-lg sm:leading-8">
                 {result.summary}
               </p>
             </div>
 
             <button
               onClick={onDraftAgain}
-              className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900"
+              className="inline-flex min-h-[48px] items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900"
             >
               <RotateCcw size={18} />
               Draft Again
@@ -899,7 +929,7 @@ export const ResultsShowcase = ({
               <button
                 type="button"
                 onClick={onBackToChallenges}
-                className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/12"
+                className="inline-flex min-h-[48px] items-center gap-2 rounded-full border border-white/12 bg-white/8 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/12"
               >
                 <Target size={18} />
                 Back to Challenges
@@ -908,7 +938,7 @@ export const ResultsShowcase = ({
             <button
               type="button"
               onClick={onBackToHome}
-              className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/12"
+              className="inline-flex min-h-[48px] items-center gap-2 rounded-full border border-white/12 bg-white/8 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/12"
             >
               <ChevronLeft size={18} />
               Back to Home
@@ -1179,7 +1209,7 @@ export const ResultsShowcase = ({
         {prestigeChallengeActive && <ChallengeOutcomeBanner result={result} />}
 
       <div className="flex justify-center">
-        <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1">
+        <div className="grid w-full max-w-[420px] grid-cols-2 rounded-[22px] border border-white/10 bg-white/5 p-1 sm:inline-flex sm:w-auto sm:rounded-full">
           {[
             { id: "season" as const, label: "Season Outcome" },
             { id: "dashboard" as const, label: "Team Dashboard" },
@@ -1189,7 +1219,7 @@ export const ResultsShowcase = ({
               type="button"
               onClick={() => setResultsPage(page.id)}
               className={clsx(
-                "rounded-full px-5 py-2.5 text-sm font-semibold transition",
+                "rounded-[18px] px-4 py-3 text-sm font-semibold transition sm:rounded-full sm:px-5 sm:py-2.5",
                 resultsPage === page.id
                   ? "bg-white text-slate-950"
                   : "text-slate-300 hover:text-white",
@@ -1204,8 +1234,8 @@ export const ResultsShowcase = ({
       <div className={clsx("grid gap-8", resultsPage === "season" ? "xl:grid-cols-1" : "xl:grid-cols-[1.1fr_0.9fr]")}>
         <div className="space-y-8">
           {resultsPage === "dashboard" && (
-          <div className="glass-panel rounded-[30px] p-6 shadow-card">
-            <div className="flex items-center justify-between gap-4">
+          <div className="glass-panel rounded-[28px] p-4 shadow-card sm:p-6 sm:rounded-[30px]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-400">
                   Team Profile
@@ -1225,8 +1255,8 @@ export const ResultsShowcase = ({
                   key={metric.label}
                   className="rounded-[24px] border border-white/10 bg-white/5 p-4"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
                       <div
                         className={`rounded-2xl bg-gradient-to-br p-3 text-slate-950 ${metricTone(
                           metric.value,
@@ -1246,7 +1276,7 @@ export const ResultsShowcase = ({
                           </div>
                         </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-left sm:text-right">
                       <div className="text-xl font-semibold text-white">
                         {metric.value}
                       </div>
@@ -1276,7 +1306,7 @@ export const ResultsShowcase = ({
           )}
 
           {resultsPage === "season" && (
-          <div className="glass-panel overflow-hidden rounded-[34px] p-8 shadow-card lg:p-10">
+          <div className="glass-panel overflow-hidden rounded-[28px] p-5 shadow-card sm:p-8 lg:rounded-[34px] lg:p-10">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.16),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(56,189,248,0.16),transparent_28%)]" />
 
             <div className="relative grid gap-8 xl:grid-cols-[minmax(0,1.25fr)_340px] xl:items-start">
@@ -1285,7 +1315,7 @@ export const ResultsShowcase = ({
                   Season Outcome
                 </p>
                 <div className="mt-4 flex flex-wrap items-center gap-4">
-                  <h1 className="font-display text-4xl text-white lg:text-6xl">
+                  <h1 className="font-display text-3xl text-white sm:text-4xl lg:text-6xl">
                     {result.teamName}
                   </h1>
                   <div className="inline-flex items-center gap-3 rounded-full border border-amber-200/20 bg-amber-300/10 px-4 py-2">
@@ -1302,7 +1332,7 @@ export const ResultsShowcase = ({
                     </div>
                   </div>
                 </div>
-                <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-200">
+                <p className="mt-5 max-w-3xl text-base leading-7 text-slate-200 sm:text-lg sm:leading-8">
                   {result.summary}
                 </p>
               </div>
@@ -1387,7 +1417,7 @@ export const ResultsShowcase = ({
 
           {resultsPage === "season" && (
           <div className="grid gap-6 lg:grid-cols-[0.88fr_1.12fr]">
-            <div className="glass-panel rounded-[30px] p-6 shadow-card">
+            <div className="glass-panel rounded-[28px] p-4 shadow-card sm:p-6 sm:rounded-[30px]">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">
                 Championship Lens
               </p>
@@ -1395,7 +1425,7 @@ export const ResultsShowcase = ({
                 Power Snapshot
               </h2>
 
-              <div className="mt-6 flex items-center gap-5">
+              <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-center">
                 <div
                   className="h-32 w-32 rounded-full p-[8px]"
                   style={scoreRing(result.titleOdds)}
@@ -1480,7 +1510,7 @@ export const ResultsShowcase = ({
               </div>
             </div>
 
-            <div className="glass-panel rounded-[30px] p-6 shadow-card">
+            <div className="glass-panel rounded-[28px] p-4 shadow-card sm:p-6 sm:rounded-[30px]">
               <div className="grid gap-6 md:grid-cols-2">
                 <div>
                   <div className="text-xs uppercase tracking-[0.24em] text-emerald-200/70">
@@ -1561,7 +1591,7 @@ export const ResultsShowcase = ({
 
         {resultsPage === "dashboard" && (
         <div className="space-y-8">
-          <div className="glass-panel rounded-[30px] p-6 shadow-card">
+          <div className="glass-panel rounded-[28px] p-4 shadow-card sm:p-6 sm:rounded-[30px]">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-[24px] border border-white/10 bg-black/15 p-5">
                 <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Personal Record Watch</div>
@@ -1612,8 +1642,8 @@ export const ResultsShowcase = ({
             </div>
           </div>
 
-          <div className="glass-panel rounded-[30px] p-6 shadow-card">
-            <div className="flex items-center justify-between gap-4">
+          <div className="glass-panel rounded-[28px] p-4 shadow-card sm:p-6 sm:rounded-[30px]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
                   Award Watch
@@ -1641,8 +1671,8 @@ export const ResultsShowcase = ({
             </div>
           </div>
 
-          <div className="glass-panel rounded-[30px] p-6 shadow-card">
-            <div className="flex items-center justify-between gap-4">
+          <div className="glass-panel rounded-[28px] p-4 shadow-card sm:p-6 sm:rounded-[30px]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
                   Final Roster

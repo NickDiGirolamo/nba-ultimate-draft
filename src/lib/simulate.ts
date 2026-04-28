@@ -32,6 +32,7 @@ import {
   getActiveBigThrees,
   getActiveDynamicDuos,
   getActiveRolePlayerPairs,
+  getActiveTeamChemistryGroups,
 } from "./dynamicDuos";
 import { getPlayerTypeBalanceSnapshot } from "./playerTypeBadges";
 import { clamp, mulberry32 } from "./random";
@@ -125,11 +126,13 @@ export const evaluateDraftChemistry = (roster: RosterSlot[]): DraftChemistrySnap
   const activeDynamicDuos = getActiveDynamicDuos(players.map((player) => player.id));
   const activeBigThrees = getActiveBigThrees(players.map((player) => player.id));
   const activeRolePairs = getActiveRolePlayerPairs(players.map((player) => player.id));
+  const activeTeamChemistryGroups = getActiveTeamChemistryGroups(players.map((player) => player.id));
   const activeBadgeCount =
     chemistryBonuses.length +
     activeDynamicDuos.length +
     activeBigThrees.length +
-    activeRolePairs.length;
+    activeRolePairs.length +
+    activeTeamChemistryGroups.length;
 
   const ballHandlers = players.filter((player) => player.playmaking >= 85 || player.primaryPosition === "PG").length;
   const shooters = players.filter((player) => player.shooting >= 88).length;
@@ -162,7 +165,8 @@ export const evaluateDraftChemistry = (roster: RosterSlot[]): DraftChemistrySnap
     chemistryBonuses.reduce((sum, bonus) => sum + bonus.bonusScore, 0) * 0.85 +
       activeDynamicDuos.length * 5 +
       activeBigThrees.length * 8 +
-      activeRolePairs.length * 4,
+      activeRolePairs.length * 4 +
+      activeTeamChemistryGroups.length * 3,
     0,
     30,
   );

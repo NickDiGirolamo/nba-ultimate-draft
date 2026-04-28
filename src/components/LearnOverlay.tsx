@@ -148,18 +148,18 @@ export const LearnOverlay = ({ onClose }: LearnOverlayProps) => {
       className="fixed inset-0 z-[130] bg-slate-950/72 backdrop-blur-md"
       onMouseDown={onClose}
     >
-      <div className="mx-auto flex h-screen max-w-[1280px] items-start justify-center overflow-y-auto px-4 py-8 md:px-6">
+      <div className="mx-auto flex h-screen max-w-[1280px] items-start justify-center overflow-y-auto px-3 py-4 sm:px-4 sm:py-8 md:px-6">
         <div
-          className="glass-panel my-auto w-full rounded-[34px] border border-white/12 bg-slate-950/95 p-6 shadow-card lg:p-8"
+          className="glass-panel my-auto w-full rounded-[28px] border border-white/12 bg-slate-950/95 p-4 shadow-card sm:p-6 lg:rounded-[34px] lg:p-8"
           onMouseDown={(event) => event.stopPropagation()}
         >
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-sky-200/80">
               <BookOpen size={14} />
               Learn The Game
             </div>
-            <h2 className="mt-3 font-display text-4xl text-white">How the draft works</h2>
+            <h2 className="mt-3 font-display text-3xl text-white sm:text-4xl">How the draft works</h2>
             <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
               This page explains what the main team metrics mean, how chemistry badges work, and what the game wants
               you to optimize while drafting and simming.
@@ -175,7 +175,7 @@ export const LearnOverlay = ({ onClose }: LearnOverlayProps) => {
           </button>
         </div>
 
-        <div className="mt-8 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr] sm:mt-8">
           <div className="glass-panel rounded-[28px] p-5 shadow-card">
             <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Quick Start</div>
             <div className="mt-5 grid gap-4 md:grid-cols-3">

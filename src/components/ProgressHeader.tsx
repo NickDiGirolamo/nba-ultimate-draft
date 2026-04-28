@@ -9,14 +9,14 @@ export const ProgressHeader = ({ pickNumber, bonusPickActive = false }: Progress
   const progress = (completedPicks / 10) * 100;
 
   return (
-    <div className="glass-panel h-full rounded-[28px] p-4 shadow-card">
+    <div className="glass-panel h-full rounded-[24px] p-4 shadow-card sm:rounded-[28px]">
       <div className="flex h-full flex-col justify-between gap-4">
         <div>
           <p className="text-[10px] uppercase tracking-[0.24em] text-sky-200/70">Legends Draft</p>
-          <h2 className="mt-1 font-display text-[clamp(1.4rem,2.1vw,2.25rem)] leading-none text-white">
+          <h2 className="mt-1 font-display text-[clamp(1.2rem,5vw,2.25rem)] leading-tight text-white">
             {bonusPickActive ? "Bonus Pick" : `Pick ${current} of 10`}
           </h2>
-          <p className="mt-2 text-[11px] leading-4 text-slate-300">
+          <p className="mt-2 text-[12px] leading-5 text-slate-300 sm:text-[11px] sm:leading-4">
             {bonusPickActive
               ? "Prestige reward: pick one bonus player and replace one current roster slot."
               : "One choice locks in each round."}

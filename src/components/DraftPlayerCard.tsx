@@ -1,12 +1,15 @@
+import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { Shield } from "lucide-react";
 import { getPlayerBadgeStates } from "../lib/dynamicDuos";
+import { CardHoloOverlay, type CardHoloVariant } from "./CardHoloOverlay";
 import { DynamicDuoBadge } from "./DynamicDuoBadge";
 import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import { PlayerTypeBadges } from "./PlayerTypeBadges";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { getNbaTeamByName } from "../data/nbaTeams";
 import { isSameTeamChemistryPreviewActiveForPlayer } from "../lib/teamChemistry";
+import { isCurrentSeasonCard } from "../lib/playerCardLine";
 import {
   getPlayerTier,
   getPlayerTierLabelFromTier,
@@ -74,6 +77,9 @@ interface DraftPlayerCardProps {
   playerTypeBadgesOverride?: PlayerTypeBadgeDefinition[];
   playerTypeBadgeCountOverride?: number;
   enableTeamChemistryPreview?: boolean;
+  surfaceClassNameOverride?: string;
+  holoOverlay?: boolean;
+  holoVariant?: CardHoloVariant;
 }
 
 export const DraftPlayerCard = ({
@@ -88,7 +94,11 @@ export const DraftPlayerCard = ({
   playerTypeBadgesOverride,
   playerTypeBadgeCountOverride,
   enableTeamChemistryPreview = false,
+  surfaceClassNameOverride,
+  holoOverlay = false,
+  holoVariant = "prism",
 }: DraftPlayerCardProps) => {
+  const shellRef = useRef<HTMLDivElement | null>(null);
   const imageUrl = usePlayerImage(player);
   const team = getNbaTeamByName(player.teamLabel);
   const rarity = rarityOverride ?? getPlayerTier(player);
@@ -96,8 +106,10 @@ export const DraftPlayerCard = ({
   const fullName = player.name.replace(/\s*\([^)]*\)\s*$/, "").trim();
   const fullNameLength = fullName.length;
   const cardScale = compact ? compactScale : 1;
-  const shellWidth = Math.round(BASE_CARD_WIDTH * cardScale);
-  const shellHeight = Math.round(BASE_CARD_HEIGHT * cardScale);
+  const [responsiveScale, setResponsiveScale] = useState(cardScale);
+  const currentSeasonCard = isCurrentSeasonCard(player);
+  const shellWidth = Math.round(BASE_CARD_WIDTH * responsiveScale);
+  const shellHeight = Math.round(BASE_CARD_HEIGHT * responsiveScale);
   const hasChemistryBadges = getPlayerBadgeStates(player.id, draftedPlayerIds).length > 0;
   const sameTeamChemistryActive =
     enableTeamChemistryPreview &&
@@ -112,7 +124,35 @@ export const DraftPlayerCard = ({
         ? "text-[1.16rem]"
         : fullNameLength >= 16
           ? "text-[1.36rem]"
-          : "text-[1.7rem]";
+        : "text-[1.7rem]";
+
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell || typeof ResizeObserver === "undefined") {
+      setResponsiveScale(cardScale);
+      return;
+    }
+
+    const updateScale = () => {
+      const availableWidth = shell.clientWidth;
+      if (!availableWidth) {
+        setResponsiveScale(cardScale);
+        return;
+      }
+
+      const nextScale = Math.min(cardScale, availableWidth / BASE_CARD_WIDTH);
+      setResponsiveScale(Number.isFinite(nextScale) ? nextScale : cardScale);
+    };
+
+    updateScale();
+
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(shell);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [cardScale]);
 
   return (
     <button
@@ -126,9 +166,11 @@ export const DraftPlayerCard = ({
       )}
     >
       <div
+        ref={shellRef}
         className="relative mx-auto overflow-hidden"
         style={{
-          width: `${shellWidth}px`,
+          width: compact ? `${shellWidth}px` : "100%",
+          maxWidth: `${shellWidth}px`,
           height: `${shellHeight}px`,
         }}
       >
@@ -136,14 +178,14 @@ export const DraftPlayerCard = ({
           className={clsx(
             "relative min-h-[920px] overflow-hidden rounded-[30px] border bg-[linear-gradient(180deg,rgba(17,24,39,0.98),rgba(3,7,18,0.98))] p-5 text-white shadow-[0_24px_56px_rgba(0,0,0,0.34)]",
             getRarityShellClass(rarity),
-            getRaritySurfaceClass(rarity),
+            surfaceClassNameOverride ?? getRaritySurfaceClass(rarity),
             selected && "ring-2 ring-sky-300/80",
             "origin-top-left",
           )}
           style={{
             width: `${BASE_CARD_WIDTH}px`,
             minHeight: `${BASE_CARD_HEIGHT}px`,
-            transform: `scale(${cardScale})`,
+            transform: `scale(${responsiveScale})`,
           }}
         >
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_28%),linear-gradient(180deg,transparent,rgba(2,6,23,0.48)_60%,rgba(2,6,23,0.92))]" />
@@ -183,6 +225,11 @@ export const DraftPlayerCard = ({
                 <div className="rounded-full border border-white/12 bg-black/45 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-200 whitespace-nowrap">
                   {getRarityLabel(rarity)}
                 </div>
+                {currentSeasonCard ? (
+                  <div className="rounded-full border border-white/12 bg-black/45 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-200 whitespace-nowrap">
+                    Current
+                  </div>
+                ) : null}
                 {selected ? (
                   <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-200/28 bg-sky-300/14 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-100">
                     <Shield size={12} />
@@ -222,7 +269,7 @@ export const DraftPlayerCard = ({
 
             <div className="mt-4 px-2 py-2">
               <div className="flex justify-center">
-                <div className="inline-flex items-center justify-center rounded-[22px] border border-white/14 bg-[linear-gradient(180deg,rgba(4,8,18,0.78),rgba(4,8,18,0.9))] px-4 py-3 shadow-[0_14px_28px_rgba(0,0,0,0.32)] backdrop-blur-[5px]">
+                <div className="inline-flex items-center justify-center rounded-[22px] border border-white/14 bg-[linear-gradient(180deg,rgba(4,8,18,0.78),rgba(4,8,18,0.9))] px-5 py-3 shadow-[0_14px_28px_rgba(0,0,0,0.32)] backdrop-blur-[5px]">
                   <div className="scale-[1.22]">
                     <PlayerTypeBadges
                       player={player}
@@ -260,6 +307,7 @@ export const DraftPlayerCard = ({
               ) : null}
             </div>
           </div>
+          <CardHoloOverlay enabled={holoOverlay} variant={holoVariant} />
         </div>
       </div>
     </button>

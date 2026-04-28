@@ -64,6 +64,7 @@ const currentSeasonPositionOverrides: Record<string, Position[]> = {
   "josh-hart-2025-26": ["SG", "PF"],
   "kawhi-leonard-2025-26": ["SG", "PF"],
   "kevin-durant-2025-26": ["PF"],
+  "michael-porter-jr-2025-26": ["PF"],
   "cooper-flagg-2025-26": ["PF"],
   "chet-holmgren-2025-26": ["C"],
   "evan-mobley-2025-26": ["C"],

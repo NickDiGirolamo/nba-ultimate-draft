@@ -47,35 +47,35 @@ const StorePlayerCard = ({
   const imageUrl = usePlayerImage(player);
 
   return (
-    <div className="rounded-[28px] border border-amber-200/18 bg-[linear-gradient(180deg,rgba(53,35,8,0.68),rgba(17,20,30,0.94))] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
+    <div className="rounded-[24px] border border-amber-200/18 bg-[linear-gradient(180deg,rgba(53,35,8,0.68),rgba(17,20,30,0.94))] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.28)] sm:rounded-[28px]">
       <div className="overflow-hidden rounded-[22px] border border-white/12 bg-black/20">
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={player.name}
-            className="h-[220px] w-full object-cover object-top"
+            className="h-[180px] w-full object-cover object-top sm:h-[220px]"
             loading="lazy"
             referrerPolicy="no-referrer"
           />
         ) : (
-          <div className="flex h-[220px] items-center justify-center bg-slate-900 text-5xl text-white/70">
+          <div className="flex h-[180px] items-center justify-center bg-slate-900 text-5xl text-white/70 sm:h-[220px]">
             {player.name.charAt(0)}
           </div>
         )}
       </div>
-      <div className="mt-4 flex items-start justify-between gap-3">
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="text-[10px] uppercase tracking-[0.22em] text-amber-100/74">Galaxy Rogue Star</div>
-          <div className="mt-1 text-2xl font-semibold text-white">{player.name}</div>
+          <div className="mt-1 text-xl font-semibold text-white sm:text-2xl">{player.name}</div>
           <div className="mt-2 text-sm leading-6 text-slate-300">
             Use this player in place of one starter-pack card in Rogue runs.
           </div>
         </div>
-        <div className="rounded-full border border-amber-200/20 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
+        <div className="w-fit rounded-full border border-amber-200/20 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
           {player.overall} OVR
         </div>
       </div>
-      <div className="mt-4 flex items-center justify-between gap-3">
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Price</div>
           <div className="mt-1 text-xl font-semibold text-white">{formatNumber(price)}</div>
@@ -85,7 +85,7 @@ const StorePlayerCard = ({
             <button
               type="button"
               onClick={() => onSetActive()}
-              className="rounded-full border border-emerald-200/24 bg-emerald-300/12 px-5 py-2.5 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-300/18"
+              className="w-full rounded-full border border-emerald-200/24 bg-emerald-300/12 px-5 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-300/18 sm:w-auto sm:py-2.5"
             >
               Active In Rogue
             </button>
@@ -93,7 +93,7 @@ const StorePlayerCard = ({
             <button
               type="button"
               onClick={() => onSetActive()}
-              className="rounded-full border border-white/14 bg-white/8 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/12"
+              className="w-full rounded-full border border-white/14 bg-white/8 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/12 sm:w-auto sm:py-2.5"
             >
               Set Active
             </button>
@@ -103,7 +103,7 @@ const StorePlayerCard = ({
             type="button"
             onClick={onBuy}
             disabled={!canAfford}
-            className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48"
+            className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48 sm:w-auto sm:py-2.5"
           >
             Buy
           </button>
@@ -203,15 +203,15 @@ export const TokenStoreOverlay = ({
   );
 
   const overlay = (
-    <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/82 px-4 py-8 backdrop-blur-md">
-      <div className="w-full max-w-[1240px] rounded-[34px] border border-white/10 bg-[#070b12] p-6 shadow-[0_30px_90px_rgba(0,0,0,0.55)] lg:p-8">
-        <div className="flex items-start justify-between gap-4">
+    <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/82 px-3 py-4 backdrop-blur-md sm:px-4 sm:py-8">
+      <div className="w-full max-w-[1240px] rounded-[28px] border border-white/10 bg-[#070b12] p-4 shadow-[0_30px_90px_rgba(0,0,0,0.55)] sm:p-6 lg:rounded-[34px] lg:p-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.26em] text-slate-400">
               <Coins size={14} className="text-amber-200" />
               Token Store
             </div>
-            <h2 className="mt-3 font-display text-4xl text-white">Spend Tokens On Rogue Power</h2>
+            <h2 className="mt-3 font-display text-3xl text-white sm:text-4xl">Spend Tokens On Rogue Power</h2>
             <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
               Cash in your Tokens on Rogue-run utility items, Rogue starter pack upgrades, and premium starter stars. Utility items stack in your inventory, starter pack upgrades are spent before a run begins, and owned Galaxy stars can be set active for future Rogue runs.
             </p>
@@ -219,7 +219,7 @@ export const TokenStoreOverlay = ({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-white/10 bg-white/6 p-3 text-slate-300 transition hover:bg-white/10 hover:text-white"
+            className="self-end rounded-full border border-white/10 bg-white/6 p-3 text-slate-300 transition hover:bg-white/10 hover:text-white sm:self-auto"
           >
             <X size={18} />
           </button>
@@ -264,13 +264,13 @@ export const TokenStoreOverlay = ({
                     Owned {owned}
                   </div>
                 </div>
-                <div className="mt-5 flex items-center justify-between gap-3">
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="text-2xl font-semibold text-white">{formatNumber(item.price)}</div>
                   <button
                     type="button"
                     onClick={onBuy}
                     disabled={meta.tokens.balance < item.price}
-                    className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48"
+                    className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48 sm:w-auto sm:py-2.5"
                   >
                     Buy
                   </button>
@@ -306,13 +306,13 @@ export const TokenStoreOverlay = ({
                     Owned {owned}
                   </div>
                 </div>
-                <div className="mt-5 flex items-center justify-between gap-3">
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="text-2xl font-semibold text-white">{formatNumber(item.price)}</div>
                   <button
                     type="button"
                     onClick={onBuy}
                     disabled={meta.tokens.balance < item.price}
-                    className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48"
+                    className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48 sm:w-auto sm:py-2.5"
                   >
                     Buy
                   </button>

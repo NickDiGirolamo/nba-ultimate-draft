@@ -1,11 +1,13 @@
 import clsx from "clsx";
 import { Shield } from "lucide-react";
+import { CardHoloOverlay, type CardHoloVariant } from "./CardHoloOverlay";
 import { getPlayerBadgeStates } from "../lib/dynamicDuos";
 import { DynamicDuoBadge } from "./DynamicDuoBadge";
 import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import { PlayerTypeBadges } from "./PlayerTypeBadges";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { getNbaTeamByName } from "../data/nbaTeams";
+import { isCurrentSeasonCard } from "../lib/playerCardLine";
 import { getPlayerTierLabelFromTier, normalizePlayerTier, playerTierCardStyles } from "../lib/playerTier";
 import type { PlayerTypeBadgeDefinition } from "../lib/playerTypeBadges";
 import { LegacyPlayerTier, Player, PlayerTier } from "../types";
@@ -69,6 +71,8 @@ interface CardLabAltPlayerCardProps {
   draftedPlayerIds?: string[];
   playerTypeBadgesOverride?: PlayerTypeBadgeDefinition[];
   playerTypeBadgeCountOverride?: number;
+  holoOverlay?: boolean;
+  holoVariant?: CardHoloVariant;
 }
 
 export const CardLabAltPlayerCardV3 = ({
@@ -80,13 +84,17 @@ export const CardLabAltPlayerCardV3 = ({
   draftedPlayerIds = [],
   playerTypeBadgesOverride,
   playerTypeBadgeCountOverride,
+  holoOverlay = false,
+  holoVariant = "prism",
 }: CardLabAltPlayerCardProps) => {
   const imageUrl = usePlayerImage(player);
   const team = getNbaTeamByName(player.teamLabel);
   const naturalPositions = [player.primaryPosition, ...player.secondaryPositions].join(" / ");
   const fullName = player.name.replace(/\s*\([^)]*\)\s*$/, "").trim();
   const fullNameLength = fullName.length;
+  const currentSeasonCard = isCurrentSeasonCard(player);
   const hasChemistryBadges = getPlayerBadgeStates(player.id, draftedPlayerIds).length > 0;
+  const boostedHoloBorders = holoOverlay && holoVariant === "frame-soft";
   const nameClassName = compact
     ? fullNameLength >= 24
       ? "text-[0.78rem]"
@@ -110,15 +118,27 @@ export const CardLabAltPlayerCardV3 = ({
         compact ? "min-h-[420px] p-4" : "p-5",
         getLabRarityShellClass(rarityOverride),
         tierSurfaceStyles[rarityOverride],
+        boostedHoloBorders &&
+          "border-white/65 shadow-[0_0_0_1px_rgba(255,255,255,0.18),0_18px_50px_rgba(0,0,0,0.34),0_0_24px_rgba(255,0,170,0.16),0_0_32px_rgba(56,189,248,0.14)]",
         selected && "ring-2 ring-sky-300/80",
       )}
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_28%),linear-gradient(180deg,transparent,rgba(2,6,23,0.48)_60%,rgba(2,6,23,0.92))]" />
-      <div className="absolute inset-[1px] rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),transparent_22%,rgba(255,255,255,0.02)_76%,rgba(2,6,23,0.3))]" />
+      <div
+        className={clsx(
+          "absolute inset-[1px] rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),transparent_22%,rgba(255,255,255,0.02)_76%,rgba(2,6,23,0.3))]",
+          boostedHoloBorders && "border-white/26 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]",
+        )}
+      />
 
       <div className="relative flex h-full flex-col">
         <div className="grid grid-cols-[auto_1fr_auto] items-start gap-3">
-          <div className="rounded-[24px] border border-white/12 bg-slate-950/82 px-4 py-3 shadow-[0_12px_28px_rgba(2,6,23,0.32)]">
+          <div
+            className={clsx(
+              "rounded-[24px] border border-white/12 bg-slate-950/82 px-4 py-3 shadow-[0_12px_28px_rgba(2,6,23,0.32)]",
+              boostedHoloBorders && "border-white/28 shadow-[0_12px_28px_rgba(2,6,23,0.32),0_0_0_1px_rgba(255,255,255,0.08)]",
+            )}
+          >
             <div className={clsx("font-display font-semibold leading-none text-white", compact ? "text-[2.1rem]" : "text-[3rem]")}>
               {player.overall}
             </div>
@@ -133,6 +153,7 @@ export const CardLabAltPlayerCardV3 = ({
                 className={clsx(
                   "flex items-center justify-center rounded-[22px] border border-white/12 bg-black/45 shadow-[0_12px_28px_rgba(0,0,0,0.16)]",
                   compact ? "h-16 w-16 p-3" : "h-24 w-24 p-4",
+                  boostedHoloBorders && "border-white/28 shadow-[0_12px_28px_rgba(0,0,0,0.16),0_0_0_1px_rgba(255,255,255,0.08)]",
                 )}
               >
                 <img
@@ -147,9 +168,20 @@ export const CardLabAltPlayerCardV3 = ({
           </div>
 
           <div className="flex flex-col items-end gap-2">
-            <div className="rounded-full border border-white/12 bg-black/45 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-200">
+            <div className={clsx(
+              "rounded-full border border-white/12 bg-black/45 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-200",
+              boostedHoloBorders && "border-white/28 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]",
+            )}>
               {getLabRarityLabel(rarityOverride)}
             </div>
+            {currentSeasonCard ? (
+              <div className={clsx(
+                "rounded-full border border-white/12 bg-black/45 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-200",
+                boostedHoloBorders && "border-white/28 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]",
+              )}>
+                Current
+              </div>
+            ) : null}
             {selected ? (
               <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-200/28 bg-sky-300/14 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-100">
                 <Shield size={12} />
@@ -163,6 +195,7 @@ export const CardLabAltPlayerCardV3 = ({
           className={clsx(
             "relative mt-4 overflow-hidden rounded-[30px] border border-white/12 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_26%),linear-gradient(180deg,rgba(15,23,42,0.55),rgba(2,6,23,0.88))]",
             compact ? "h-[190px]" : "h-[360px]",
+            boostedHoloBorders && "border-white/26 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]",
           )}
         >
           {imageUrl ? (
@@ -227,7 +260,12 @@ export const CardLabAltPlayerCardV3 = ({
               </div>
             ) : (
               <div className="mt-4 flex justify-center">
-                <div className="w-full rounded-[24px] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.72),rgba(4,8,18,0.9))] px-4 py-4 shadow-[0_16px_32px_rgba(0,0,0,0.28)] backdrop-blur-[5px]">
+                <div
+                  className={clsx(
+                    "w-full rounded-[24px] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.72),rgba(4,8,18,0.9))] px-4 py-4 shadow-[0_16px_32px_rgba(0,0,0,0.28)] backdrop-blur-[5px]",
+                    boostedHoloBorders && "border-white/26 shadow-[0_16px_32px_rgba(0,0,0,0.28),0_0_0_1px_rgba(255,255,255,0.08)]",
+                  )}
+                >
                   <div className="text-center text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">
                     Chemistry
                   </div>
@@ -247,6 +285,7 @@ export const CardLabAltPlayerCardV3 = ({
           ) : null}
         </div>
       </div>
+      <CardHoloOverlay enabled={holoOverlay} variant={holoVariant} />
     </div>
   );
 };

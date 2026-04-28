@@ -4,6 +4,7 @@ import { GripHorizontal } from "lucide-react";
 import { getNbaTeamByName } from "../data/nbaTeams";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { getPlayerDisplayLines } from "../lib/playerDisplay";
+import type { PlayerTypeBadgeDefinition } from "../lib/playerTypeBadges";
 import { getPlayerTier, playerTierRunRosterSurfaceStyles } from "../lib/playerTier";
 import { isSameTeamChemistryActiveForPlayer } from "../lib/teamChemistry";
 import { Player } from "../types";
@@ -31,6 +32,7 @@ interface RunRosterPlayerCardProps {
   eyebrowToneClassName?: string;
   metaPills?: string[];
   metricChips?: RunRosterMetricChip[];
+  badgesOverride?: PlayerTypeBadgeDefinition[];
   showHandle?: boolean;
   className?: string;
   scale?: number;
@@ -46,6 +48,7 @@ export const RunRosterPlayerCard = ({
   eyebrowToneClassName,
   metaPills = [],
   metricChips = [],
+  badgesOverride,
   showHandle = false,
   className,
   scale = 1,
@@ -174,6 +177,7 @@ export const RunRosterPlayerCard = ({
                   <div className="flex max-w-full flex-wrap items-center gap-[calc(6px*var(--run-roster-scale))]">
                     <PlayerTypeBadges
                       player={resolvedPlayer ?? player}
+                      badgesOverride={badgesOverride}
                       compact
                       iconOnly
                       className="justify-start"

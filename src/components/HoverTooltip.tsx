@@ -55,6 +55,21 @@ export const HoverTooltip = ({
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (triggerRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [open]);
+
   return (
     <>
       <div
@@ -64,13 +79,14 @@ export const HoverTooltip = ({
         onMouseLeave={() => setOpen(false)}
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
+        onClick={() => setOpen((current) => !current)}
       >
         {children}
       </div>
       {open && typeof document !== "undefined"
         ? createPortal(
             <div
-              className="pointer-events-none fixed z-[200] w-[260px] -translate-x-1/2 -translate-y-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-center text-[11px] font-medium leading-5 text-slate-100 shadow-[0_18px_40px_rgba(2,6,23,0.6)]"
+              className="pointer-events-none fixed z-[200] w-[min(260px,calc(100vw-24px))] -translate-x-1/2 -translate-y-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-center text-[11px] font-medium leading-5 text-slate-100 shadow-[0_18px_40px_rgba(2,6,23,0.6)]"
               style={{ top: position.top, left: position.left }}
             >
               {content}

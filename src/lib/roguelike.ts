@@ -5,11 +5,13 @@ import {
   getActiveDynamicDuos,
   getActiveRivalBadges,
   getActiveRolePlayerPairs,
+  getActiveTeamChemistryGroups,
 } from "./dynamicDuos";
 import {
   getPlayerTypeBadges,
-  getPlayerTypeBalanceSnapshot,
   getPrimaryPlayerTypeBadge,
+  playerTypeBadgeDefinitions,
+  type PlayerTypeBadgeDefinition,
   type PlayerTypeBadge,
 } from "./playerTypeBadges";
 import { mulberry32 } from "./random";
@@ -17,6 +19,7 @@ import { evaluateDraftChemistry } from "./simulate";
 import { getSameTeamChemistryBonusForPlayer } from "./teamChemistry";
 import { Player, PlayerTier, Position, RosterSlot, RosterSlotType } from "../types";
 import { getPlayerTier } from "./playerTier";
+import { getNbaTeamByName } from "../data/nbaTeams";
 
 export type RoguelikeStarterPackageId =
   | "balanced-foundation"
@@ -37,6 +40,7 @@ export type RoguelikeNodeType =
   | "boss"
   | "training"
   | "trade"
+  | "choice"
   | "evolution"
   | "roster-cut"
   | "add-position"
@@ -44,6 +48,17 @@ export type RoguelikeNodeType =
 export type RoguelikeMetric = "overall" | "offense" | "defense" | "chemistry" | "rebounding";
 export type RoguelikeBattleMode = "starting-five-faceoff";
 export type RoguelikePlayerPoolMode = "all" | "current-season";
+export type RoguelikeConferenceFilter = "both" | "east" | "west";
+export type RoguelikeDifficulty = "normal" | "all-star" | "superstar" | "all-time" | "goat";
+
+export interface RoguelikeRunSettings {
+  conferenceFilter: RoguelikeConferenceFilter;
+  excludeGalaxyCards: boolean;
+  currentSeasonOnly: boolean;
+  difficulty: RoguelikeDifficulty;
+  disableTrainingNodes: boolean;
+  disableTradeNodes: boolean;
+}
 
 export interface RoguelikeStarterPackage {
   id: RoguelikeStarterPackageId;
@@ -85,6 +100,7 @@ export interface RoguelikeNode {
   allowedRewardTiers?: PlayerTier[];
   clearRewardsOverride?: RoguelikeClearRewards;
   unlocksBench?: boolean;
+  choiceOptions?: Array<"training" | "trade">;
 }
 
 export interface RoguelikeRosterMetrics {
@@ -141,26 +157,31 @@ export interface RoguelikeClearRewards {
   tokenReward: number;
 }
 
+export interface RoguelikeBonusBadgeAssignment {
+  playerId: string;
+  badgeType: PlayerTypeBadge;
+}
+
 const VERSION_SUFFIX_PATTERN = /\s\([^)]*\)$/;
 const STARTING_FIVE_POSITIONS: Position[] = ["PG", "SG", "SF", "PF", "C"];
 const DEFAULT_FACEOFF_TARGET_AVERAGE = 84;
 const BOSS_AVERAGE_OVERRIDES_BY_FLOOR: Partial<Record<number, number>> = {
   4: 79,
   6: 81,
-  14: 84,
-  18: 84.5,
-  20: 84.75,
-  22: 84.75,
+  14: 84.75,
+  18: 85,
+  20: 86,
+  22: 86.5,
   27: 88,
-  34: 89,
-  37: 89,
-  39: 91,
-  41: 92,
-  46: 92,
+  34: 90,
+  37: 91,
+  39: 92,
+  41: 92.5,
+  46: 92.75,
   53: 93,
   56: 94,
   58: 95,
-  60: 86,
+  60: 96,
 };
 
 export const getRoguelikeFailureRewards = (floorIndex: number): RoguelikeFailureRewards => {
@@ -194,6 +215,7 @@ export const getRoguelikeClearRewards = (
     draft: 2,
     training: 3,
     trade: 3,
+    choice: 3,
     evolution: 4,
     "roster-cut": 0,
     "add-position": 0,
@@ -300,6 +322,22 @@ export const roguelikeBundles: RoguelikeBundle[] = [
 ];
 
 const REGULAR_BOSS_COUNT = 16;
+const ROGUELIKE_DIFFICULTY_OVR_MODIFIERS: Record<RoguelikeDifficulty, number> = {
+  normal: 0,
+  "all-star": 1,
+  superstar: 2,
+  "all-time": 3,
+  goat: 4,
+};
+
+export const DEFAULT_ROGUELIKE_RUN_SETTINGS: RoguelikeRunSettings = {
+  conferenceFilter: "both",
+  excludeGalaxyCards: false,
+  currentSeasonOnly: false,
+  difficulty: "normal",
+  disableTrainingNodes: false,
+  disableTradeNodes: false,
+};
 
 const getProgressiveBossRewards = (bossIndex: number): RoguelikeClearRewards => ({
   tokenReward: 20 + (bossIndex - 1) * 4,
@@ -308,6 +346,20 @@ const getProgressiveBossRewards = (bossIndex: number): RoguelikeClearRewards => 
 
 const getBossAverageOverallForFloor = (floor: number, fallback?: number) =>
   BOSS_AVERAGE_OVERRIDES_BY_FLOOR[floor] ?? fallback ?? DEFAULT_FACEOFF_TARGET_AVERAGE;
+
+export const normalizeRoguelikeRunSettings = (
+  settings?: Partial<RoguelikeRunSettings> | null,
+): RoguelikeRunSettings => ({
+  conferenceFilter: settings?.conferenceFilter ?? DEFAULT_ROGUELIKE_RUN_SETTINGS.conferenceFilter,
+  excludeGalaxyCards: settings?.excludeGalaxyCards ?? DEFAULT_ROGUELIKE_RUN_SETTINGS.excludeGalaxyCards,
+  currentSeasonOnly: settings?.currentSeasonOnly ?? DEFAULT_ROGUELIKE_RUN_SETTINGS.currentSeasonOnly,
+  difficulty: settings?.difficulty ?? DEFAULT_ROGUELIKE_RUN_SETTINGS.difficulty,
+  disableTrainingNodes: settings?.disableTrainingNodes ?? DEFAULT_ROGUELIKE_RUN_SETTINGS.disableTrainingNodes,
+  disableTradeNodes: settings?.disableTradeNodes ?? DEFAULT_ROGUELIKE_RUN_SETTINGS.disableTradeNodes,
+});
+
+export const getRoguelikeDifficultyBossModifier = (difficulty: RoguelikeDifficulty) =>
+  ROGUELIKE_DIFFICULTY_OVR_MODIFIERS[difficulty] ?? 0;
 
 const makeDraftNode = (node: Omit<RoguelikeNode, "type">): RoguelikeNode => ({
   ...node,
@@ -323,6 +375,16 @@ const makeTrainingNode = (node: Omit<RoguelikeNode, "type" | "rewardChoices">): 
 const makeTradeNode = (node: Omit<RoguelikeNode, "type">): RoguelikeNode => ({
   ...node,
   type: "trade",
+});
+
+const makeChoiceNode = (
+  node: Omit<RoguelikeNode, "type" | "rewardChoices"> & {
+    choiceOptions: Array<"training" | "trade">;
+  },
+): RoguelikeNode => ({
+  ...node,
+  type: "choice",
+  rewardChoices: 0,
 });
 
 const makeChallengeNode = (
@@ -480,7 +542,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     floor: 11,
     act: 1,
     title: "All-Star Saturday",
-    description: "Send three players into the Dunk Contest, 3PT Contest, and Skills Challenge for permanent Rogue stat boosts.",
+    description: "Send three players into the Dunk Contest, 3PT Contest, and Skills Challenge to earn permanent Rogue bonus badges.",
     rewardBundleId: "balanced-floor",
     targetLabel: "Assign 1 player to each event and run All-Star Saturday",
   }),
@@ -716,7 +778,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     floor: 32,
     act: 2,
     title: "All-Star Saturday",
-    description: "Send three players into the skills events for permanent Rogue boosts.",
+    description: "Send three players into the skills events to earn permanent Rogue bonus badges.",
     rewardBundleId: "balanced-floor",
     targetLabel: "Assign 1 player to each event and run All-Star Saturday",
   }),
@@ -744,14 +806,15 @@ export const roguelikeNodes: RoguelikeNode[] = [
     opponentTeamName: "NBA Playoffs Round 1",
     allowedRewardTiers: ["Amethyst"],
   }),
-  makeTrainingNode({
+  makeChoiceNode({
     id: "year-2-playoff-training",
     floor: 35,
     act: 2,
-    title: "Playoff Training Camp",
-    description: "Tune up one player for the next round.",
+    title: "Training Camp or Trade",
+    description: "Choose whether to tune up one player or reshuffle the roster before the next round.",
     rewardBundleId: "elite-closers",
-    targetLabel: "Select 1 player to gain +1 OVR for the rest of the run",
+    targetLabel: "Choose Training Camp or Trade",
+    choiceOptions: ["training", "trade"],
   }),
   makeDraftNode({
     id: "year-2-return-from-injury",
@@ -930,7 +993,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     floor: 51,
     act: 3,
     title: "All-Star Saturday",
-    description: "Send three players into the skills events for final Rogue stat boosts.",
+    description: "Send three players into the skills events for final Rogue bonus badges.",
     rewardBundleId: "balanced-floor",
     targetLabel: "Assign 1 player to each event and run All-Star Saturday",
   }),
@@ -1068,6 +1131,53 @@ export const roguelikeNodes: RoguelikeNode[] = [
     },
   },
 ];
+
+const isCurrentSeasonPlayer = (player: Player) => player.era === "2025-26";
+
+const matchesConferenceFilter = (player: Player, conferenceFilter: RoguelikeConferenceFilter) => {
+  if (conferenceFilter === "both") return true;
+
+  const conference = getNbaTeamByName(player.teamLabel)?.conference;
+  if (!conference) return true;
+
+  return conferenceFilter === "east" ? conference === "East" : conference === "West";
+};
+
+export const getRoguelikePlayerUniverse = (
+  settings?: Partial<RoguelikeRunSettings> | null,
+  sourcePlayers: Player[] = allPlayers,
+) => {
+  const normalizedSettings = normalizeRoguelikeRunSettings(settings);
+
+  return sourcePlayers.filter((player) => {
+    if (normalizedSettings.currentSeasonOnly && !isCurrentSeasonPlayer(player)) return false;
+    if (normalizedSettings.excludeGalaxyCards && getPlayerTier(player) === "Galaxy") return false;
+    if (!matchesConferenceFilter(player, normalizedSettings.conferenceFilter)) return false;
+    return true;
+  });
+};
+
+export const getRoguelikeNodesForSettings = (
+  settings?: Partial<RoguelikeRunSettings> | null,
+): RoguelikeNode[] => {
+  const normalizedSettings = normalizeRoguelikeRunSettings(settings);
+  const bossOverallModifier = getRoguelikeDifficultyBossModifier(normalizedSettings.difficulty);
+
+  return roguelikeNodes
+    .filter((node) => {
+      if (normalizedSettings.disableTrainingNodes && node.type === "training") return false;
+      if (normalizedSettings.disableTradeNodes && node.type === "trade") return false;
+      return true;
+    })
+    .map((node, index) => ({
+      ...node,
+      floor: index + 1,
+      opponentAverageOverall:
+        node.type === "boss" && typeof node.opponentAverageOverall === "number"
+          ? node.opponentAverageOverall + bossOverallModifier
+          : node.opponentAverageOverall,
+    }));
+};
 
 const getPlayerIdentityKey = (player: Player) =>
   player.name.replace(VERSION_SUFFIX_PATTERN, "").trim().toLowerCase();
@@ -1244,9 +1354,9 @@ export const buildStarterPool = (
     ? [...starterPackageCandidates[packageId]]
     : getStarterPoolCandidates(packageId, sourcePlayers);
 
-export const buildOpeningDraftPool = () =>
+export const buildOpeningDraftPool = (sourcePlayers: Player[] = allPlayers) =>
   uniqueByIdentity(
-    allPlayers.filter(
+    sourcePlayers.filter(
       (player) => {
         const tier = getPlayerTier(player);
         return tier === "Emerald" || tier === "Sapphire" || tier === "Ruby";
@@ -1378,11 +1488,14 @@ export const unlockBundlePlayers = (
   currentPool: Player[],
   currentRoster: Player[],
   bundleId: RoguelikeBundleId,
+  candidateUniverse: Player[] = allPlayers,
 ) => {
   const seenIds = new Set(currentPool.map((player) => player.id));
   const blockedIdentities = new Set(currentRoster.map(getPlayerIdentityKey));
+  const allowedIds = new Set(candidateUniverse.map((player) => player.id));
 
   const additions = bundleCandidates[bundleId].filter((player) => {
+    if (!allowedIds.has(player.id)) return false;
     if (seenIds.has(player.id)) return false;
     return !blockedIdentities.has(getPlayerIdentityKey(player));
   });
@@ -1616,6 +1729,18 @@ const getRoguelikeRivalBoost = (
   return getActiveRivalBadges(playerIds).filter((group) => group.players.includes(player.id)).length * ROGUELIKE_RIVAL_BOOST[stat];
 };
 
+const getRoguelikeTeamChemistryBoost = (
+  player: Player | null,
+  playerIds: string[] = [],
+  stat: "overall" | "other" = "overall",
+) => {
+  if (!player || playerIds.length === 0) return 0;
+  if (stat !== "overall") return 0;
+  return getActiveTeamChemistryGroups(playerIds).filter((group) =>
+    group.eligiblePlayers.includes(player.id),
+  ).length;
+};
+
 const getRoguelikeTrainingBoost = (
   player: Player | null,
   trainedPlayerIds: string[] = [],
@@ -1640,6 +1765,7 @@ const getRoguelikeAdjustedRatingForSlot = (
 
   const baseValue =
     selector(player) +
+    getRoguelikeTeamChemistryBoost(player, playerIds, boostStat === "overall" ? "overall" : "other") +
     getRoguelikeDynamicDuoBoost(player, playerIds, boostStat) +
     getRoguelikeRolePairBoost(player, playerIds, boostStat) +
     getRoguelikeBigThreeBoost(player, playerIds, boostStat) +
@@ -1721,6 +1847,7 @@ export const getRoguelikeAdjustedOverallForSlot = (
   return Math.max(
     0,
     player.overall +
+      getRoguelikeTeamChemistryBoost(player, playerIds) +
       getSameTeamChemistryBonusForPlayer(player, playerIds) +
       getRoguelikeDynamicDuoBoost(player, playerIds, "overall") +
       getRoguelikeRolePairBoost(player, playerIds, "overall") +
@@ -1918,44 +2045,63 @@ export const generateFaceoffOpponentPlayerIds = (
     targetAverageOverall,
     candidatePool,
   );
-  const selected: Player[] = [];
-  const usedIdentities = new Set<string>();
-  const targetTotalOverall = targetAverageOverall * STARTING_FIVE_POSITIONS.length;
   const minimumRemainingOverall = Math.max(80, targetAverageOverall - 2);
   const maximumRemainingOverall = Math.min(99, targetAverageOverall + 4);
+  const minimumTargetTotal = Math.ceil(minimumRemainingOverall * STARTING_FIVE_POSITIONS.length);
+  const maximumTargetTotal = Math.floor(maximumRemainingOverall * STARTING_FIVE_POSITIONS.length);
+  const rawTargetTotalOverall = targetAverageOverall * STARTING_FIVE_POSITIONS.length;
+  const targetTotalCandidates = Array.from(
+    { length: Math.max(0, maximumTargetTotal - minimumTargetTotal + 1) },
+    (_, index) => minimumTargetTotal + index,
+  ).sort((left, right) => {
+    const leftDelta = Math.abs(left - rawTargetTotalOverall);
+    const rightDelta = Math.abs(right - rawTargetTotalOverall);
+    if (leftDelta !== rightDelta) return leftDelta - rightDelta;
+    return left - right;
+  });
 
-  const search = (positionIndex: number, totalOverall: number): boolean => {
-    if (positionIndex === STARTING_FIVE_POSITIONS.length) {
-      return totalOverall === targetTotalOverall;
-    }
+  const searchForTargetTotal = (targetTotalOverall: number) => {
+    const selected: Player[] = [];
+    const usedIdentities = new Set<string>();
 
-    const position = STARTING_FIVE_POSITIONS[positionIndex];
-    const candidates = candidatesByPosition[position] ?? [];
-    const remainingSlots = STARTING_FIVE_POSITIONS.length - positionIndex - 1;
-
-    for (const candidate of candidates) {
-      const identity = getPlayerIdentityKey(candidate);
-      if (usedIdentities.has(identity)) continue;
-
-      const nextTotal = totalOverall + candidate.overall;
-      const minimumPossible = nextTotal + remainingSlots * minimumRemainingOverall;
-      const maximumPossible = nextTotal + remainingSlots * maximumRemainingOverall;
-      if (minimumPossible > targetTotalOverall || maximumPossible < targetTotalOverall) {
-        continue;
+    const search = (positionIndex: number, totalOverall: number): boolean => {
+      if (positionIndex === STARTING_FIVE_POSITIONS.length) {
+        return totalOverall === targetTotalOverall;
       }
 
-      usedIdentities.add(identity);
-      selected.push(candidate);
-      if (search(positionIndex + 1, nextTotal)) return true;
-      selected.pop();
-      usedIdentities.delete(identity);
-    }
+      const position = STARTING_FIVE_POSITIONS[positionIndex];
+      const candidates = candidatesByPosition[position] ?? [];
+      const remainingSlots = STARTING_FIVE_POSITIONS.length - positionIndex - 1;
 
-    return false;
+      for (const candidate of candidates) {
+        const identity = getPlayerIdentityKey(candidate);
+        if (usedIdentities.has(identity)) continue;
+
+        const nextTotal = totalOverall + candidate.overall;
+        const minimumPossible = nextTotal + remainingSlots * minimumRemainingOverall;
+        const maximumPossible = nextTotal + remainingSlots * maximumRemainingOverall;
+        if (minimumPossible > targetTotalOverall || maximumPossible < targetTotalOverall) {
+          continue;
+        }
+
+        usedIdentities.add(identity);
+        selected.push(candidate);
+        if (search(positionIndex + 1, nextTotal)) return true;
+        selected.pop();
+        usedIdentities.delete(identity);
+      }
+
+      return false;
+    };
+
+    return search(0, 0) ? selected.map((player) => player.id) : null;
   };
 
-  if (search(0, 0)) {
-    return selected.map((player) => player.id);
+  for (const targetTotalOverall of targetTotalCandidates) {
+    const matchedLineup = searchForTargetTotal(targetTotalOverall);
+    if (matchedLineup) {
+      return matchedLineup;
+    }
   }
 
   const fallbackSelected: string[] = [];
@@ -2073,6 +2219,8 @@ const getFaceoffPlayerRating = (
   lineupPlayers: Player[],
   trainedPlayerIds: string[] = [],
   opponentTrainedPlayerIds: string[] = [],
+  bonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
+  opponentBonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
 ) => {
   if (!player) {
     return {
@@ -2116,6 +2264,8 @@ const getFaceoffPlayerRating = (
     lineupMetrics,
     lineupBalanceBonus,
     lineupPlayers,
+    bonusBadgeAssignments,
+    opponentBonusBadgeAssignments,
   );
   const headToHeadBonus = getBossBattleHeadToHeadBonus(
     {
@@ -2198,8 +2348,62 @@ const getBossBattleSlotWeight = (
   metric: keyof (typeof BOSS_BATTLE_SLOT_WEIGHTS)[RosterSlotType],
 ) => BOSS_BATTLE_SLOT_WEIGHTS[slotType]?.[metric] ?? BOSS_BATTLE_SLOT_WEIGHTS.UTIL[metric];
 
-const getBossBattleLineupBalanceBonus = (players: Player[], chemistry: number) => {
-  const snapshot = getPlayerTypeBalanceSnapshot(players);
+const getBonusBadgeDefinitionsForPlayer = (
+  playerId: string,
+  bonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
+) =>
+  bonusBadgeAssignments
+    .filter((assignment) => assignment.playerId === playerId)
+    .map((assignment) => playerTypeBadgeDefinitions[assignment.badgeType])
+    .filter((badge): badge is PlayerTypeBadgeDefinition => Boolean(badge));
+
+export const getRoguelikePlayerTypeBadges = (
+  player: Player,
+  bonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
+) => {
+  const mergedBadges = [
+    ...getPlayerTypeBadges(player),
+    ...getBonusBadgeDefinitionsForPlayer(player.id, bonusBadgeAssignments),
+  ];
+  const seenTypes = new Set<PlayerTypeBadge>();
+
+  return mergedBadges.filter((badge) => {
+    if (seenTypes.has(badge.type)) return false;
+    seenTypes.add(badge.type);
+    return true;
+  });
+};
+
+const getRoguelikePlayerTypeBalanceSnapshot = (
+  players: Player[],
+  bonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
+) => {
+  const representedTypes = Array.from(
+    new Set(
+      players.flatMap((player) =>
+        getRoguelikePlayerTypeBadges(player, bonusBadgeAssignments).map((badge) => badge.type),
+      ),
+    ),
+  ) as PlayerTypeBadge[];
+  const primaryTypes = players
+    .map((player) => getPrimaryPlayerTypeBadge(player)?.type)
+    .filter((type): type is PlayerTypeBadge => Boolean(type));
+  const uniquePrimaryCount = new Set(primaryTypes).size;
+
+  return {
+    representedTypes,
+    representedCount: representedTypes.length,
+    uniquePrimaryCount,
+    duplicatePrimaryCount: Math.max(0, primaryTypes.length - uniquePrimaryCount),
+  };
+};
+
+const getBossBattleLineupBalanceBonus = (
+  players: Player[],
+  chemistry: number,
+  bonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
+) => {
+  const snapshot = getRoguelikePlayerTypeBalanceSnapshot(players, bonusBadgeAssignments);
   let bonus = 0;
 
   if (snapshot.representedCount >= 3) bonus += 0.3;
@@ -2221,12 +2425,21 @@ const getBossBattleBadgeMatchupBonus = (
   lineupMetrics: RoguelikeRosterMetrics,
   lineupBalanceBonus: number,
   lineupPlayers: Player[],
+  bonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
+  opponentBonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
 ) => {
-  const playerBadges = getPlayerTypeBadges(player);
-  const opponentBadges = opponentPlayer ? getPlayerTypeBadges(opponentPlayer) : [];
-  const primaryBadge = getPrimaryPlayerTypeBadge(player)?.type ?? null;
-  const opponentPrimaryBadge = opponentPlayer ? getPrimaryPlayerTypeBadge(opponentPlayer)?.type ?? null : null;
-  const representedTypes = getPlayerTypeBalanceSnapshot(lineupPlayers).representedTypes;
+  const playerBadges = getRoguelikePlayerTypeBadges(player, bonusBadgeAssignments);
+  const opponentBadges = opponentPlayer
+    ? getRoguelikePlayerTypeBadges(opponentPlayer, opponentBonusBadgeAssignments)
+    : [];
+  const primaryBadge = getPrimaryPlayerTypeBadge(player)?.type ?? playerBadges[0]?.type ?? null;
+  const opponentPrimaryBadge = opponentPlayer
+    ? getPrimaryPlayerTypeBadge(opponentPlayer)?.type ?? opponentBadges[0]?.type ?? null
+    : null;
+  const representedTypes = getRoguelikePlayerTypeBalanceSnapshot(
+    lineupPlayers,
+    bonusBadgeAssignments,
+  ).representedTypes;
   const opponentHasBadge = (badgeType: PlayerTypeBadge) => opponentBadges.some((badge) => badge.type === badgeType);
 
   let bonus = 0;
@@ -2360,6 +2573,8 @@ export const resolveRoguelikeFaceoff = (
   opponentOwnedPlayerIds: string[] = [],
   trainedPlayerIds: string[] = [],
   opponentTrainedPlayerIds: string[] = [],
+  bonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
+  opponentBonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
 ): RoguelikeFaceoffResult => {
   const userLineup = lineup.map((slot) => ({ ...slot })).slice(0, 5);
   const opponentLineup = buildRoguelikeOpponentLineup(node).slice(0, 5);
@@ -2377,8 +2592,16 @@ export const resolveRoguelikeFaceoff = (
       : opponentLineup.map((slot) => slot.player?.id).filter((id): id is string => Boolean(id));
   const userLineupMetrics = evaluateRoguelikeLineup(userLineup, resolvedUserPlayerIds, trainedPlayerIds);
   const opponentLineupMetrics = evaluateRoguelikeLineup(opponentLineup, resolvedOpponentPlayerIds, opponentTrainedPlayerIds);
-  const userLineupBalanceBonus = getBossBattleLineupBalanceBonus(userPlayers, userLineupMetrics.chemistry);
-  const opponentLineupBalanceBonus = getBossBattleLineupBalanceBonus(opponentPlayers, opponentLineupMetrics.chemistry);
+  const userLineupBalanceBonus = getBossBattleLineupBalanceBonus(
+    userPlayers,
+    userLineupMetrics.chemistry,
+    bonusBadgeAssignments,
+  );
+  const opponentLineupBalanceBonus = getBossBattleLineupBalanceBonus(
+    opponentPlayers,
+    opponentLineupMetrics.chemistry,
+    opponentBonusBadgeAssignments,
+  );
 
   const matchups = userLineup.map((userSlot, index) => {
     const opponentSlot = opponentLineup[index] ?? userSlot;
@@ -2395,6 +2618,8 @@ export const resolveRoguelikeFaceoff = (
       userPlayers,
       trainedPlayerIds,
       opponentTrainedPlayerIds,
+      bonusBadgeAssignments,
+      opponentBonusBadgeAssignments,
     );
     const opponentBreakdown = getFaceoffPlayerRating(
       opponentPlayer,
@@ -2407,6 +2632,8 @@ export const resolveRoguelikeFaceoff = (
       opponentPlayers,
       opponentTrainedPlayerIds,
       trainedPlayerIds,
+      opponentBonusBadgeAssignments,
+      bonusBadgeAssignments,
     );
     const userRating = userBreakdown.total;
     const opponentRating = opponentBreakdown.total;
@@ -2449,6 +2676,7 @@ export const resolveRoguelikeNode = (
   players: Player[],
   lineup?: RosterSlot[],
   trainedPlayerIds: string[] = [],
+  bonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
 ) => {
   const playerIds = players.map((player) => player.id);
   const metrics = lineup ? evaluateRoguelikeLineup(lineup, playerIds, trainedPlayerIds) : evaluateRoguelikeRoster(players, trainedPlayerIds);
@@ -2460,7 +2688,15 @@ export const resolveRoguelikeNode = (
     opponentPlayers.length > 0 ? evaluateRoguelikeLineup(buildPreviewRoster(opponentPlayers), opponentPlayers.map((player) => player.id)) : null;
   const faceoffResult =
       node.battleMode === "starting-five-faceoff" && lineup
-        ? resolveRoguelikeFaceoff(node, lineup, playerIds, opponentPlayers.map((player) => player.id), trainedPlayerIds)
+        ? resolveRoguelikeFaceoff(
+            node,
+            lineup,
+            playerIds,
+            opponentPlayers.map((player) => player.id),
+            trainedPlayerIds,
+            [],
+            bonusBadgeAssignments,
+          )
         : null;
   const checks = node.checks ?? [];
   const weightedUserScore =
