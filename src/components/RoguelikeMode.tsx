@@ -9,7 +9,10 @@ import {
   Coins,
   Crown,
   GripHorizontal,
+  Handshake,
   Package2,
+  Pause,
+  Play,
   RefreshCcw,
   Shield,
   Sparkles,
@@ -116,6 +119,55 @@ type LockerRoomItemId =
   | "practice-offense"
   | "new-position-training";
 
+type SimulationTeam = "user" | "opponent";
+
+interface RoguelikeSimulationScore {
+  user: number;
+  opponent: number;
+}
+
+interface RoguelikeSimulationQuarterScore extends RoguelikeSimulationScore {
+  quarter: 1 | 2 | 3 | 4;
+}
+
+interface RoguelikeSimulationPlayerStat {
+  playerId: string;
+  playerName: string;
+  team: SimulationTeam;
+  slot: RosterSlot["slot"];
+  points: number;
+  assists: number;
+  rebounds: number;
+  steals: number;
+  blocks: number;
+  turnovers: number;
+  fieldGoalsMade: number;
+  fieldGoalsAttempted: number;
+  freeThrowsMade: number;
+  freeThrowsAttempted: number;
+}
+
+interface RoguelikeSimulationEvent {
+  id: string;
+  quarter: 1 | 2 | 3 | 4;
+  gameClockSeconds: number;
+  playbackMs: number;
+  team: SimulationTeam;
+  points: 1 | 2 | 3;
+  playerId: string;
+  assistPlayerId?: string;
+  description: string;
+}
+
+interface RoguelikeGameSimulationResult {
+  id: string;
+  durationMs: number;
+  finalScore: RoguelikeSimulationScore;
+  quarterBreakdown: RoguelikeSimulationQuarterScore[];
+  playerStats: RoguelikeSimulationPlayerStat[];
+  timeline: RoguelikeSimulationEvent[];
+}
+
 interface RoguelikeRun {
   ladderVersion?: number;
   seed: number;
@@ -182,6 +234,7 @@ interface RoguelikeRun {
       passed: boolean;
     } | null;
     faceoffResult?: RoguelikeFaceoffResult | null;
+    simulationResult?: RoguelikeGameSimulationResult | null;
     failureRewards?: RoguelikeFailureRewards | null;
   } | null;
 }
@@ -1599,6 +1652,467 @@ const getFaceoffFinalScore = (faceoffResult: RoguelikeFaceoffResult) => {
   };
 };
 
+const SIMULATION_DURATION_MS = 42_000;
+const QUARTER_SECONDS = 12 * 60;
+const SIMULATION_QUARTERS: Array<1 | 2 | 3 | 4> = [1, 2, 3, 4];
+
+const formatGameClock = (seconds: number) => {
+  const safeSeconds = Math.max(0, Math.min(QUARTER_SECONDS, Math.round(seconds)));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+};
+
+const formatPercentage = (made: number, attempted: number) =>
+  attempted > 0 ? `${Math.round((made / attempted) * 100)}%` : "0%";
+
+const getSimulationPlayerLabel = (player: Player) =>
+  player.name.replace(/\s*\([^)]*\)\s*$/, "").trim();
+
+const distributeIntegerTotal = (total: number, weights: number[]) => {
+  const safeTotal = Math.max(0, Math.round(total));
+  if (weights.length === 0) return [];
+
+  const positiveWeights = weights.map((weight) => Math.max(0.01, weight));
+  const weightTotal = positiveWeights.reduce((sum, weight) => sum + weight, 0);
+  const rawShares = positiveWeights.map((weight) => (safeTotal * weight) / weightTotal);
+  const floors = rawShares.map(Math.floor);
+  let remaining = safeTotal - floors.reduce((sum, value) => sum + value, 0);
+  const order = rawShares
+    .map((share, index) => ({ index, remainder: share - Math.floor(share) }))
+    .sort((left, right) => right.remainder - left.remainder);
+
+  order.forEach(({ index }) => {
+    if (remaining <= 0) return;
+    floors[index] += 1;
+    remaining -= 1;
+  });
+
+  return floors;
+};
+
+const pickWeightedIndex = (weights: number[], rng: () => number, blockedIndex: number | null = null) => {
+  const safeWeights = weights.map((weight, index) =>
+    index === blockedIndex ? 0 : Math.max(0, weight),
+  );
+  const total = safeWeights.reduce((sum, weight) => sum + weight, 0);
+  if (total <= 0) return safeWeights.findIndex((_, index) => index !== blockedIndex);
+
+  let cursor = rng() * total;
+  for (let index = 0; index < safeWeights.length; index += 1) {
+    cursor -= safeWeights[index];
+    if (cursor <= 0) return index;
+  }
+
+  return Math.max(0, safeWeights.length - 1);
+};
+
+const getPlayerSimulationBadges = (
+  player: Player,
+  allStarBonusBadges: RoguelikeBonusBadgeAssignment[] = [],
+) => getRoguelikePlayerTypeBadges(player, allStarBonusBadges).map((badge) => badge.type);
+
+const getSimulationScoringWeight = (
+  player: Player,
+  matchupRating: number,
+  allStarBonusBadges: RoguelikeBonusBadgeAssignment[] = [],
+) => {
+  const badges = getPlayerSimulationBadges(player, allStarBonusBadges);
+  return (
+    Math.max(1, player.overall - 60) * 1.15 +
+    Math.max(1, player.offense - 58) * 0.72 +
+    Math.max(1, player.shooting - 58) * (badges.includes("sniper") ? 0.38 : 0.2) +
+    Math.max(1, player.athleticism - 58) * (badges.includes("slasher") ? 0.3 : 0.12) +
+    Math.max(0, matchupRating - 80) * 0.75
+  );
+};
+
+const getSimulationAssistWeight = (
+  player: Player,
+  allStarBonusBadges: RoguelikeBonusBadgeAssignment[] = [],
+) => {
+  const badges = getPlayerSimulationBadges(player, allStarBonusBadges);
+  const positionBonus =
+    player.primaryPosition === "PG" ? 14 : player.primaryPosition === "SG" ? 5 : player.primaryPosition === "SF" ? 3 : 0;
+  return (
+    Math.max(1, player.playmaking - 60) * (badges.includes("playmaker") ? 1.45 : 1) +
+    player.ballDominance * 0.12 +
+    positionBonus
+  );
+};
+
+const getSimulationTeamAssistRate = (
+  players: Player[],
+  rng: () => number,
+  allStarBonusBadges: RoguelikeBonusBadgeAssignment[] = [],
+) => {
+  if (players.length === 0) return 0.55;
+
+  const averagePlaymaking =
+    players.reduce((sum, player) => sum + player.playmaking, 0) / players.length;
+  const leadCreator = players.reduce((best, player) => Math.max(best, player.playmaking), 0);
+  const playmakerBadgeCount = players.filter((player) =>
+    getPlayerSimulationBadges(player, allStarBonusBadges).includes("playmaker"),
+  ).length;
+  const baseRate =
+    0.49 +
+    Math.max(0, averagePlaymaking - 72) * 0.0022 +
+    Math.max(0, leadCreator - 84) * 0.003 +
+    playmakerBadgeCount * 0.012 +
+    (rng() - 0.5) * 0.07;
+
+  return Math.max(0.46, Math.min(0.72, baseRate));
+};
+
+const getSimulationReboundWeight = (
+  player: Player,
+  allStarBonusBadges: RoguelikeBonusBadgeAssignment[] = [],
+) => {
+  const badges = getPlayerSimulationBadges(player, allStarBonusBadges);
+  return Math.max(1, player.rebounding - 55) * (badges.includes("board-man") ? 1.35 : 1) + Math.max(1, player.interiorDefense - 55) * 0.18;
+};
+
+const getSimulationDefenseWeight = (
+  player: Player,
+  allStarBonusBadges: RoguelikeBonusBadgeAssignment[] = [],
+) => {
+  const badges = getPlayerSimulationBadges(player, allStarBonusBadges);
+  return Math.max(1, player.defense - 55) * (badges.includes("lockdown") ? 1.35 : 1) + Math.max(1, player.perimeterDefense - 55) * 0.2;
+};
+
+const chooseSimulationPointValue = (remaining: number, scorer: Player, rng: () => number): 1 | 2 | 3 => {
+  if (remaining <= 1) return 1;
+  if (remaining === 2 || remaining === 4) return 2;
+
+  const badges = getPlayerSimulationBadges(scorer);
+  const threeWeight = Math.max(0.08, (scorer.shooting - 62) / 80) + (badges.includes("sniper") ? 0.16 : 0);
+  const freeThrowWeight = Math.max(0.04, (scorer.athleticism - 66) / 160) + (badges.includes("slasher") ? 0.08 : 0);
+  const roll = rng();
+
+  if (remaining >= 3 && roll < threeWeight) return 3;
+  if (roll < threeWeight + freeThrowWeight) return 1;
+  return 2;
+};
+
+const createEmptySimulationStat = (
+  player: Player,
+  team: SimulationTeam,
+  slot: RosterSlot["slot"],
+): RoguelikeSimulationPlayerStat => ({
+  playerId: player.id,
+  playerName: getSimulationPlayerLabel(player),
+  team,
+  slot,
+  points: 0,
+  assists: 0,
+  rebounds: 0,
+  steals: 0,
+  blocks: 0,
+  turnovers: 0,
+  fieldGoalsMade: 0,
+  fieldGoalsAttempted: 0,
+  freeThrowsMade: 0,
+  freeThrowsAttempted: 0,
+});
+
+const buildSimulationQuarterBreakdown = (
+  finalScore: RoguelikeSimulationScore,
+  rng: () => number,
+): RoguelikeSimulationQuarterScore[] => {
+  const baseWeights = [0.24, 0.26, 0.23, 0.27];
+  const makeWeights = () => baseWeights.map((weight) => weight + (rng() - 0.5) * 0.08);
+  const userScores = distributeIntegerTotal(finalScore.user, makeWeights());
+  const opponentScores = distributeIntegerTotal(finalScore.opponent, makeWeights());
+
+  return SIMULATION_QUARTERS.map((quarter, index) => ({
+    quarter,
+    user: userScores[index] ?? 0,
+    opponent: opponentScores[index] ?? 0,
+  }));
+};
+
+const distributeSimulationAssists = (
+  events: RoguelikeSimulationEvent[],
+  stats: RoguelikeSimulationPlayerStat[],
+  players: Player[],
+  team: SimulationTeam,
+  rng: () => number,
+  opponentTeamName?: string | null,
+  bonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
+) => {
+  const teamStats = stats.filter((stat) => stat.team === team);
+  const fieldGoalEvents = events.filter((event) => event.team === team && event.points > 1);
+  const assistTarget = Math.min(
+    fieldGoalEvents.length,
+    Math.round(fieldGoalEvents.length * getSimulationTeamAssistRate(players, rng, bonusBadgeAssignments)),
+  );
+  const assistWeights = players.map((player) => getSimulationAssistWeight(player, bonusBadgeAssignments));
+  const statById = new Map(teamStats.map((stat) => [stat.playerId, stat]));
+  const playerById = new Map(players.map((player) => [player.id, player]));
+  const selectedEventIndexes = new Set<number>();
+
+  while (selectedEventIndexes.size < assistTarget && selectedEventIndexes.size < fieldGoalEvents.length) {
+    const weightedEvents = fieldGoalEvents.map((event, index) =>
+      selectedEventIndexes.has(index) ? 0 : Math.max(0.1, event.points === 3 ? 1.08 : 1),
+    );
+    const eventIndex = pickWeightedIndex(weightedEvents, rng);
+    if (eventIndex < 0) break;
+    selectedEventIndexes.add(eventIndex);
+  }
+
+  selectedEventIndexes.forEach((eventIndex) => {
+    const event = fieldGoalEvents[eventIndex];
+    if (!event) return;
+
+    const scorerIndex = players.findIndex((player) => player.id === event.playerId);
+    const assistIndex = pickWeightedIndex(assistWeights, rng, scorerIndex >= 0 ? scorerIndex : null);
+    const assistPlayer = assistIndex >= 0 ? players[assistIndex] : null;
+    if (!assistPlayer) return;
+
+    const assistStat = statById.get(assistPlayer.id);
+    if (assistStat) assistStat.assists += 1;
+
+    const scorer = playerById.get(event.playerId);
+    const teamLabel = team === "user" ? "Your team" : opponentTeamName ?? "Boss team";
+    const playLabel = event.points === 3 ? "hits a three" : "scores inside";
+
+    event.assistPlayerId = assistPlayer.id;
+    event.description = `${teamLabel}: ${getSimulationPlayerLabel(scorer ?? assistPlayer)} ${playLabel} off a feed from ${getSimulationPlayerLabel(assistPlayer)}.`;
+  });
+};
+
+const addNonScoringSimulationStats = (
+  stats: RoguelikeSimulationPlayerStat[],
+  players: Player[],
+  team: SimulationTeam,
+  rng: () => number,
+  bonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
+) => {
+  const teamStats = stats.filter((stat) => stat.team === team);
+  const playerById = new Map(players.map((player) => [player.id, player]));
+  const scoringPoints = teamStats.reduce((sum, stat) => sum + stat.points, 0);
+  const reboundTotal = Math.max(31, Math.round(36 + rng() * 8 + scoringPoints * 0.04));
+  const stealTotal = Math.max(4, Math.round(6 + rng() * 4));
+  const blockTotal = Math.max(3, Math.round(4 + rng() * 4));
+  const turnoverTotal = Math.max(7, Math.round(10 + rng() * 6));
+
+  const distributeToStats = (
+    total: number,
+    weightSelector: (player: Player, stat: RoguelikeSimulationPlayerStat) => number,
+    apply: (stat: RoguelikeSimulationPlayerStat, value: number) => void,
+  ) => {
+    const weights = teamStats.map((stat) => {
+      const player = playerById.get(stat.playerId);
+      return player ? weightSelector(player, stat) : 1;
+    });
+    distributeIntegerTotal(total, weights).forEach((value, index) => {
+      const stat = teamStats[index];
+      if (stat) apply(stat, value);
+    });
+  };
+
+  distributeToStats(
+    reboundTotal,
+    (player) => getSimulationReboundWeight(player, bonusBadgeAssignments),
+    (stat, value) => {
+      stat.rebounds += value;
+    },
+  );
+  distributeToStats(
+    stealTotal,
+    (player) => getSimulationDefenseWeight(player, bonusBadgeAssignments),
+    (stat, value) => {
+      stat.steals += value;
+    },
+  );
+  distributeToStats(
+    blockTotal,
+    (player) => getSimulationDefenseWeight(player, bonusBadgeAssignments) + player.interiorDefense * 0.18,
+    (stat, value) => {
+      stat.blocks += value;
+    },
+  );
+  distributeToStats(
+    turnoverTotal,
+    (player, stat) => Math.max(1, player.ballDominance * 0.16 + stat.points * 0.12),
+    (stat, value) => {
+      stat.turnovers += value;
+    },
+  );
+
+  teamStats.forEach((stat) => {
+    const player = playerById.get(stat.playerId);
+    const shotQuality = player ? Math.max(0.41, Math.min(0.58, 0.43 + (player.offense - 75) / 220)) : 0.45;
+    const extraMisses = Math.max(0, Math.round(stat.fieldGoalsMade * (1 / shotQuality - 1)));
+    stat.fieldGoalsAttempted += extraMisses;
+  });
+};
+
+const buildRoguelikeGameSimulationResult = ({
+  faceoffResult,
+  seed,
+  opponentTeamName,
+  ownedPlayerIds,
+  trainedPlayerIds,
+  coachTeamKey,
+  allStarBonusBadges,
+}: {
+  faceoffResult: RoguelikeFaceoffResult;
+  seed: number;
+  opponentTeamName?: string | null;
+  ownedPlayerIds: string[];
+  trainedPlayerIds: string[];
+  coachTeamKey: string | null;
+  allStarBonusBadges: RoguelikeBonusBadgeAssignment[];
+}): RoguelikeGameSimulationResult => {
+  const rng = mulberry32(seed);
+  const finalFaceoffScore = getFaceoffFinalScore(faceoffResult);
+  const finalScore = {
+    user: finalFaceoffScore.userScore,
+    opponent: finalFaceoffScore.opponentScore,
+  };
+  const quarterBreakdown = buildSimulationQuarterBreakdown(finalScore, rng);
+  const userSlots = faceoffResult.userLineup.slice(0, 5);
+  const opponentSlots = faceoffResult.opponentLineup.slice(0, 5);
+  const userPlayers = userSlots.map((slot) => slot.player).filter((player): player is Player => Boolean(player));
+  const opponentPlayers = opponentSlots.map((slot) => slot.player).filter((player): player is Player => Boolean(player));
+  const stats = [
+    ...userSlots
+      .filter((slot): slot is RosterSlot & { player: Player } => Boolean(slot.player))
+      .map((slot) =>
+        createEmptySimulationStat(
+          getRunDisplayPlayer(slot.player, ownedPlayerIds, trainedPlayerIds, coachTeamKey),
+          "user",
+          slot.slot,
+        ),
+      ),
+    ...opponentSlots
+      .filter((slot): slot is RosterSlot & { player: Player } => Boolean(slot.player))
+      .map((slot) => createEmptySimulationStat(slot.player, "opponent", slot.slot)),
+  ];
+  const statByKey = new Map(stats.map((stat) => [`${stat.team}:${stat.playerId}`, stat]));
+  const userRatingById = new Map(faceoffResult.matchups.map((matchup) => [matchup.userPlayer?.id, matchup.userRating]));
+  const opponentRatingById = new Map(faceoffResult.matchups.map((matchup) => [matchup.opponentPlayer?.id, matchup.opponentRating]));
+  const userScoringWeights = userPlayers.map((player) =>
+    getSimulationScoringWeight(
+      getRunDisplayPlayer(player, ownedPlayerIds, trainedPlayerIds, coachTeamKey),
+      userRatingById.get(player.id) ?? player.overall,
+      allStarBonusBadges,
+    ),
+  );
+  const opponentScoringWeights = opponentPlayers.map((player) =>
+    getSimulationScoringWeight(player, opponentRatingById.get(player.id) ?? player.overall),
+  );
+  const events: RoguelikeSimulationEvent[] = [];
+
+  const addTeamQuarterEvents = (
+    team: SimulationTeam,
+    quarter: 1 | 2 | 3 | 4,
+    quarterPoints: number,
+  ) => {
+    const teamPlayers = team === "user" ? userPlayers : opponentPlayers;
+    const scoringWeights = team === "user" ? userScoringWeights : opponentScoringWeights;
+    if (teamPlayers.length === 0 || quarterPoints <= 0) return;
+
+    let remaining = quarterPoints;
+    let eventIndex = 0;
+    while (remaining > 0) {
+      const scorerIndex = Math.max(0, pickWeightedIndex(scoringWeights, rng));
+      const rawScorer = teamPlayers[scorerIndex] ?? teamPlayers[0];
+      const scorer = team === "user"
+        ? getRunDisplayPlayer(rawScorer, ownedPlayerIds, trainedPlayerIds, coachTeamKey)
+        : rawScorer;
+      const points = chooseSimulationPointValue(remaining, scorer, rng);
+      const stat = statByKey.get(`${team}:${rawScorer.id}`);
+      if (stat) {
+        stat.points += points;
+        if (points === 1) {
+          stat.freeThrowsMade += 1;
+          stat.freeThrowsAttempted += 1;
+        } else {
+          stat.fieldGoalsMade += 1;
+          stat.fieldGoalsAttempted += 1;
+        }
+      }
+
+      const clockSpread = QUARTER_SECONDS - 42;
+      const naturalPosition = (eventIndex + 0.65 + rng() * 0.72) / Math.max(1, Math.ceil(quarterPoints / 2.25) + 1);
+      const gameClockSeconds = Math.max(8, Math.min(QUARTER_SECONDS - 10, Math.round(QUARTER_SECONDS - naturalPosition * clockSpread)));
+      const quarterOffsetMs = (quarter - 1) * (SIMULATION_DURATION_MS / 4);
+      const playbackMs =
+        quarterOffsetMs +
+        ((QUARTER_SECONDS - gameClockSeconds) / QUARTER_SECONDS) * (SIMULATION_DURATION_MS / 4);
+      const teamLabel = team === "user" ? "Your team" : opponentTeamName ?? "Boss team";
+      const playLabel =
+        points === 3
+          ? "hits a three"
+          : points === 2
+            ? "scores inside"
+            : "makes a free throw";
+
+      events.push({
+        id: `${team}-${quarter}-${eventIndex}-${rawScorer.id}`,
+        quarter,
+        gameClockSeconds,
+        playbackMs,
+        team,
+        points,
+        playerId: rawScorer.id,
+        description: `${teamLabel}: ${getSimulationPlayerLabel(scorer)} ${playLabel}.`,
+      });
+
+      remaining -= points;
+      eventIndex += 1;
+    }
+  };
+
+  quarterBreakdown.forEach((quarter) => {
+    addTeamQuarterEvents("user", quarter.quarter, quarter.user);
+    addTeamQuarterEvents("opponent", quarter.quarter, quarter.opponent);
+  });
+
+  distributeSimulationAssists(
+    events,
+    stats,
+    userPlayers.map((player) => getRunDisplayPlayer(player, ownedPlayerIds, trainedPlayerIds, coachTeamKey)),
+    "user",
+    rng,
+    opponentTeamName,
+    allStarBonusBadges,
+  );
+  distributeSimulationAssists(events, stats, opponentPlayers, "opponent", rng, opponentTeamName);
+  addNonScoringSimulationStats(stats, userPlayers.map((player) => getRunDisplayPlayer(player, ownedPlayerIds, trainedPlayerIds, coachTeamKey)), "user", rng, allStarBonusBadges);
+  addNonScoringSimulationStats(stats, opponentPlayers, "opponent", rng);
+
+  const userPointDelta = finalScore.user - stats.filter((stat) => stat.team === "user").reduce((sum, stat) => sum + stat.points, 0);
+  const opponentPointDelta = finalScore.opponent - stats.filter((stat) => stat.team === "opponent").reduce((sum, stat) => sum + stat.points, 0);
+  [
+    ["user", userPointDelta],
+    ["opponent", opponentPointDelta],
+  ].forEach(([team, delta]) => {
+    if (typeof delta !== "number" || delta === 0) return;
+    const teamStats = stats.filter((stat) => stat.team === team);
+    const target = teamStats.sort((left, right) => right.points - left.points)[0];
+    if (!target) return;
+    target.points += delta;
+    if (delta > 0) {
+      target.freeThrowsMade += delta;
+      target.freeThrowsAttempted += delta;
+    }
+  });
+
+  return {
+    id: `sim-${seed}-${finalScore.user}-${finalScore.opponent}`,
+    durationMs: SIMULATION_DURATION_MS,
+    finalScore,
+    quarterBreakdown,
+    playerStats: stats.sort((left, right) =>
+      left.team.localeCompare(right.team) || right.points - left.points || left.slot.localeCompare(right.slot),
+    ),
+    timeline: events.sort((left, right) => left.playbackMs - right.playbackMs),
+  };
+};
+
 interface RogueFailureAutopsyCard {
   title: string;
   rows: Array<{
@@ -1760,6 +2274,7 @@ const RogueRosterSlotCard = ({
   const outOfPosition = slotPenalty > 0;
   const overallDelta = displayPlayer ? adjustedOverall - displayPlayer.overall : 0;
   const boosted = overallDelta > 0;
+  const coachConnectionActive = player ? getCoachBoostForPlayer(player, coachTeamKey) > 0 : false;
   const playerNameLength = displayPlayer?.name.length ?? 0;
   const badgeOverrides = player
     ? getRunPlayerTypeBadgeOverrides(displayPlayer ?? player, allStarBonusBadges)
@@ -1801,6 +2316,7 @@ const RogueRosterSlotCard = ({
         showHandle
         scale={0.8}
         enableTeamChemistry
+        coachConnectionActive={coachConnectionActive}
       />
     </div>
   );
@@ -1838,6 +2354,7 @@ const FaceoffStarterCard = ({
     ? getRoguelikeAdjustedOverallForSlot(player, slot, ownedPlayerIds, trainedPlayerIds, coachTeamKey)
     : 0;
   const outOfPosition = slotPenalty > 0;
+  const coachConnectionActive = player ? getCoachBoostForPlayer(player, coachTeamKey) > 0 : false;
   const displayName = displayPlayer ? displayPlayer.name.replace(/\s*\([^)]*\)\s*$/, "").trim() : "Open Slot";
 
   return (
@@ -1901,6 +2418,14 @@ const FaceoffStarterCard = ({
               {outOfPosition ? <ChevronDown size={12} className="mr-1 inline-block align-[-1px]" /> : null}
               {adjustedOverall} OVR
             </div>
+            {coachConnectionActive ? (
+              <div
+                title="Coach Link active: player matches the coach's associated team"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-lime-300/70 bg-lime-300/18 text-lime-200 shadow-[0_0_18px_rgba(163,230,53,0.45)]"
+              >
+                <Handshake size={13} strokeWidth={2.3} />
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className={clsx("text-[11px] uppercase tracking-[0.16em] text-slate-500", align === "right" ? "text-left" : "text-right")}>
@@ -2332,6 +2857,7 @@ const FinalVictoryStarterCard = ({
   const adjustedOverall = Math.round(
     getRoguelikeAdjustedOverallForSlot(player, slot, ownedPlayerIds, trainedPlayerIds, coachTeamKey) * 10,
   ) / 10;
+  const coachConnectionActive = getCoachBoostForPlayer(player, coachTeamKey) > 0;
 
   return (
     <div className="overflow-hidden rounded-[18px] border border-white/12 bg-[linear-gradient(180deg,rgba(6,10,19,0.88),rgba(15,20,34,0.96))] shadow-[0_18px_44px_rgba(0,0,0,0.24)]">
@@ -2356,6 +2882,14 @@ const FinalVictoryStarterCard = ({
         <div className="absolute right-3 top-3 rounded-full border border-amber-200/24 bg-amber-300/14 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-50">
           {adjustedOverall} OVR
         </div>
+        {coachConnectionActive ? (
+          <div
+            title="Coach Link active: player matches the coach's associated team"
+            className="absolute right-3 top-12 inline-flex h-7 w-7 items-center justify-center rounded-full border border-lime-300/70 bg-lime-300/18 text-lime-200 shadow-[0_0_18px_rgba(163,230,53,0.45)]"
+          >
+            <Handshake size={13} strokeWidth={2.3} />
+          </div>
+        ) : null}
       </div>
       <div className="space-y-2 p-2.5">
         <div>
@@ -2413,6 +2947,10 @@ export const RoguelikeMode = ({
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [showOutcomeOverlay, setShowOutcomeOverlay] = useState(false);
   const [showChallengeBreakdown, setShowChallengeBreakdown] = useState(false);
+  const [simulationElapsedMs, setSimulationElapsedMs] = useState(0);
+  const [simulationPlaying, setSimulationPlaying] = useState(false);
+  const [simulationSpeed, setSimulationSpeed] = useState<1 | 2 | 4>(1);
+  const [showSimulationBoxScore, setShowSimulationBoxScore] = useState(false);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const [selectedStarterPackUpgrade, setSelectedStarterPackUpgrade] = useState<"standard" | "silver" | "gold" | "platinum">("standard");
   const [selectedRunSettings, setSelectedRunSettings] = useState<RoguelikeRunSettings>(
@@ -2426,6 +2964,7 @@ export const RoguelikeMode = ({
     offsetX: number;
     offsetY: number;
   } | null>(null);
+  const activeSimulationResult = run?.nodeResult?.simulationResult ?? null;
 
   const metrics = useMemo(() => {
     if (!run) return evaluateRoguelikeRoster([]);
@@ -3811,6 +4350,16 @@ export const RoguelikeMode = ({
 
     const edge =
       Math.round((faceoffResult.userTeamWinProbability - faceoffResult.opponentTeamWinProbability) * 10) / 10;
+    const ownedPlayers = getRunOwnedPlayers(run);
+    const simulationResult = buildRoguelikeGameSimulationResult({
+      faceoffResult,
+      seed: run.seed + run.floorIndex * 211 + 31,
+      opponentTeamName: node.opponentTeamName,
+      ownedPlayerIds: ownedPlayers.map((player) => player.id),
+      trainedPlayerIds: run.trainedPlayerIds ?? [],
+      coachTeamKey: getRoguelikeCoachTeamKey(run.hiredCoachId),
+      allStarBonusBadges: run.allStarBonusBadges ?? [],
+    });
 
     setRun({
       ...run,
@@ -3822,6 +4371,7 @@ export const RoguelikeMode = ({
           : `Your starters finished at ${faceoffResult.userTeamWinProbability}% against ${faceoffResult.opponentTeamWinProbability}% for ${node.opponentTeamName ?? "the boss team"}. ${edge < 0 ? "The boss lineup won the faceoff." : "The matchup was too close to swing your way."}`,
         passed: resolution.passed,
         faceoffResult,
+        simulationResult,
         failureRewards:
           !resolution.passed && node.eliminationOnLoss
             ? previewFailureRewards(run.floorIndex)
@@ -4490,7 +5040,6 @@ export const RoguelikeMode = ({
 
   useEffect(() => {
     const shouldOpen =
-      run?.stage === "faceoff-game" ||
       run?.stage === "node-result" ||
       (run?.stage === "reward-draft" && Boolean(run?.nodeResult?.challengeResult)) ||
       run?.stage === "run-over" ||
@@ -4507,6 +5056,40 @@ export const RoguelikeMode = ({
     if (typeof window === "undefined" || !run) return;
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [run?.stage, run?.floorIndex, run?.activeNode?.id, run?.nodeResult?.title]);
+
+  useEffect(() => {
+    setSimulationElapsedMs(0);
+    setSimulationPlaying(Boolean(activeSimulationResult));
+    setSimulationSpeed(1);
+    setShowSimulationBoxScore(false);
+  }, [activeSimulationResult?.id]);
+
+  useEffect(() => {
+    if (!activeSimulationResult || !simulationPlaying) return;
+
+    let animationFrame = 0;
+    let lastFrameTime = performance.now();
+
+    const tick = (frameTime: number) => {
+      const delta = (frameTime - lastFrameTime) * simulationSpeed;
+      lastFrameTime = frameTime;
+      setSimulationElapsedMs((currentElapsedMs) => {
+        const nextElapsedMs = Math.min(activeSimulationResult.durationMs, currentElapsedMs + delta);
+        if (nextElapsedMs >= activeSimulationResult.durationMs) {
+          setSimulationPlaying(false);
+          setShowSimulationBoxScore(true);
+        }
+        return nextElapsedMs;
+      });
+      animationFrame = window.requestAnimationFrame(tick);
+    };
+
+    animationFrame = window.requestAnimationFrame(tick);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [activeSimulationResult, simulationPlaying, simulationSpeed]);
 
   useEffect(() => {
     if (typeof window === "undefined" || run?.stage !== "ladder-overview") return;
@@ -5321,6 +5904,39 @@ export const RoguelikeMode = ({
     run.stage === "faceoff-game" && run.nodeResult?.faceoffResult
       ? getFaceoffFinalScore(run.nodeResult.faceoffResult)
       : null;
+  const simulationResult = activeSimulationResult;
+  const simulationDurationMs = simulationResult?.durationMs ?? SIMULATION_DURATION_MS;
+  const clampedSimulationElapsedMs = Math.min(simulationElapsedMs, simulationDurationMs);
+  const simulationComplete =
+    Boolean(simulationResult) && clampedSimulationElapsedMs >= simulationDurationMs;
+  const visibleSimulationEvents =
+    simulationResult?.timeline.filter((event) => event.playbackMs <= clampedSimulationElapsedMs) ?? [];
+  const simulationLiveScore = visibleSimulationEvents.reduce<RoguelikeSimulationScore>(
+    (score, event) => ({
+      user: score.user + (event.team === "user" ? event.points : 0),
+      opponent: score.opponent + (event.team === "opponent" ? event.points : 0),
+    }),
+    { user: 0, opponent: 0 },
+  );
+  const simulationQuarterLengthMs = simulationDurationMs / 4;
+  const currentSimulationQuarter = Math.min(
+    4,
+    Math.max(1, Math.floor(clampedSimulationElapsedMs / simulationQuarterLengthMs) + 1),
+  ) as 1 | 2 | 3 | 4;
+  const currentQuarterElapsedMs =
+    clampedSimulationElapsedMs - (currentSimulationQuarter - 1) * simulationQuarterLengthMs;
+  const currentSimulationClock = formatGameClock(
+    QUARTER_SECONDS - (currentQuarterElapsedMs / simulationQuarterLengthMs) * QUARTER_SECONDS,
+  );
+  const simulationQuarterScores = SIMULATION_QUARTERS.map((quarter) => {
+    const events = visibleSimulationEvents.filter((event) => event.quarter === quarter);
+    return {
+      quarter,
+      user: events.reduce((sum, event) => sum + (event.team === "user" ? event.points : 0), 0),
+      opponent: events.reduce((sum, event) => sum + (event.team === "opponent" ? event.points : 0), 0),
+    };
+  });
+  const recentSimulationEvents = [...visibleSimulationEvents].reverse().slice(0, 6);
   const completedNode =
     run.stage === "node-result" && run.floorIndex > 0
       ? runNodes[run.floorIndex - 1] ?? null
@@ -5580,6 +6196,8 @@ export const RoguelikeMode = ({
     reviewingChallengeResults ? [challengeReviewMetric] : [];
   const useNarrowRightRail = run.stage === "all-star-select";
   const showCompactLadderRewards = false;
+  const showingPostFaceoffAnalysis =
+    run.stage === "faceoff-game" && Boolean(run.nodeResult?.faceoffResult);
   const shouldRenderOutcomeOverlay =
     showOutcomeOverlay &&
     run.stage === "faceoff-game" ||
@@ -5589,6 +6207,7 @@ export const RoguelikeMode = ({
     showOutcomeOverlay && run.stage === "run-cleared";
   const hideRightRail =
     run.stage === "locker-room" ||
+    showingPostFaceoffAnalysis ||
     run.stage === "training-select" ||
     run.stage === "roster-cut-select" ||
     run.stage === "reward-replace-select";
@@ -6230,6 +6849,7 @@ export const RoguelikeMode = ({
                     compactScale={0.46}
                     draftedPlayerIds={runOwnedPlayerIds}
                     enableTeamChemistryPreview
+                    coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
                   />
                 ))}
               </div>
@@ -6284,7 +6904,7 @@ export const RoguelikeMode = ({
                       : "cursor-not-allowed bg-white/10 text-slate-500",
                   )}
                 >
-                  Start Faceoff Game
+                  Start Game
                   <ArrowRight size={16} />
                 </button>
                 <BackToRunLadderButton onClick={backToRunLadder} className="" />
@@ -6441,6 +7061,7 @@ export const RoguelikeMode = ({
                     compactScale={trainingSelectionCardScale}
                     draftedPlayerIds={runOwnedPlayerIds}
                     enableTeamChemistryPreview
+                    coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
                     actionLabel={lockerRoomTrainingSelectionCopy.actionLabel}
                   />
                 ))}
@@ -6473,6 +7094,7 @@ export const RoguelikeMode = ({
                       compactScale={trainingSelectionCardScale}
                       draftedPlayerIds={runOwnedPlayerIds}
                       enableTeamChemistryPreview
+                      coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
                       actionLabel={selected ? "Selected to cut" : "Select to cut"}
                     />
                   );
@@ -6695,6 +7317,7 @@ export const RoguelikeMode = ({
                     compactScale={rewardReplaceCardScale}
                     draftedPlayerIds={runOwnedPlayerIds}
                     enableTeamChemistryPreview
+                    coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
                     actionLabel="Replace this player"
                   />
                 ))}
@@ -6766,6 +7389,7 @@ export const RoguelikeMode = ({
                     compactScale={0.52}
                     draftedPlayerIds={runOwnedPlayerIds}
                     enableTeamChemistryPreview
+                    coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
                     actionLabel="Trade this player"
                   />
                 ))}
@@ -6794,6 +7418,7 @@ export const RoguelikeMode = ({
                     compactScale={0.52}
                     draftedPlayerIds={runOwnedPlayerIds}
                     enableTeamChemistryPreview
+                    coachConnectionActive={getCoachBoostForPlayer(option.currentPlayer, runCoachTeamKey) > 0}
                     actionLabel={`Evolve to ${option.nextPlayer.overall} OVR`}
                   />
                 ))}
@@ -6803,53 +7428,267 @@ export const RoguelikeMode = ({
           )}
 
           {run.stage === "faceoff-game" && activeNode && run.nodeResult?.faceoffResult && (
-            <div className="glass-panel rounded-[30px] p-6 shadow-card">
-              <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Faceoff Result</div>
-              <h2 className="mt-2 font-display text-3xl text-white">{run.nodeResult.title}</h2>
-              <p className="mt-3 text-sm leading-7 text-slate-300">{run.nodeResult.detail}</p>
-              <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                <div className="rounded-[24px] border border-emerald-200/16 bg-emerald-300/8 p-5">
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-emerald-100/80">Your Team Total</div>
-                  <div className="mt-2 text-3xl font-semibold text-white">
-                    {run.nodeResult.faceoffResult.userTeamWinProbability}%
+            <div className="glass-panel overflow-hidden rounded-[30px] p-0 shadow-card">
+              {simulationResult ? (
+                <div className="relative">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.14),transparent_34%),linear-gradient(135deg,rgba(6,10,18,0.98),rgba(9,18,30,0.98),rgba(12,10,20,0.98))]" />
+                  <div className="relative p-5 lg:p-7">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/18 bg-emerald-300/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.24em] text-emerald-50/84">
+                          Live Simulation
+                        </div>
+                        <h2 className="mt-3 font-display text-[clamp(2.2rem,5vw,4.8rem)] leading-none text-white">
+                          {activeNode.opponentTeamName ?? "Boss Battle"}
+                        </h2>
+                        <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-300">
+                          The result is locked in. Watch the precomputed game play out, then review the final box score and matchup breakdown.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSimulationPlaying((playing) => !playing)}
+                          disabled={simulationComplete}
+                          className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/18 disabled:text-white/50"
+                        >
+                          {simulationPlaying ? <Pause size={15} /> : <Play size={15} />}
+                          {simulationPlaying ? "Pause" : simulationComplete ? "Complete" : "Play"}
+                        </button>
+                        {[1, 2, 4].map((speed) => (
+                          <button
+                            key={speed}
+                            type="button"
+                            onClick={() => setSimulationSpeed(speed as 1 | 2 | 4)}
+                            className={clsx(
+                              "rounded-full border px-4 py-2.5 text-sm font-semibold transition",
+                              simulationSpeed === speed
+                                ? "border-emerald-200/32 bg-emerald-300/14 text-emerald-50"
+                                : "border-white/12 bg-white/6 text-white/78 hover:bg-white/10",
+                            )}
+                          >
+                            {speed}x
+                          </button>
+                        ))}
+                        {!simulationComplete ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSimulationElapsedMs(simulationResult.durationMs);
+                              setSimulationPlaying(false);
+                              setShowSimulationBoxScore(true);
+                            }}
+                            className="rounded-full border border-white/12 bg-white/6 px-4 py-2.5 text-sm font-semibold text-white/84 transition hover:bg-white/10"
+                          >
+                            Skip to Final
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
+                      <div className="rounded-[30px] border border-white/12 bg-black/22 p-5">
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+                          <div className="rounded-[24px] border border-emerald-200/16 bg-emerald-300/8 px-4 py-5 text-center">
+                            <div className="text-[10px] uppercase tracking-[0.22em] text-emerald-100/76">Your Team</div>
+                            <div className="mt-3 text-[clamp(3rem,7vw,6.5rem)] font-semibold leading-none text-white">
+                              {simulationLiveScore.user}
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="rounded-[24px] border border-white/12 bg-white/8 px-5 py-4">
+                              <div className="text-[10px] uppercase tracking-[0.22em] text-white/54">Q{currentSimulationQuarter}</div>
+                              <div className="mt-1 font-display text-4xl text-white">{currentSimulationClock}</div>
+                            </div>
+                            <div className="mt-3 text-[10px] uppercase tracking-[0.2em] text-slate-400">
+                              {simulationComplete ? "Final" : "Game Clock"}
+                            </div>
+                          </div>
+                          <div className="rounded-[24px] border border-rose-200/16 bg-rose-300/8 px-4 py-5 text-center">
+                            <div className="text-[10px] uppercase tracking-[0.22em] text-rose-100/76">
+                              {activeNode.opponentTeamName ?? "Boss Team"}
+                            </div>
+                            <div className="mt-3 text-[clamp(3rem,7vw,6.5rem)] font-semibold leading-none text-white">
+                              {simulationLiveScore.opponent}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-5 overflow-hidden rounded-[22px] border border-white/10 bg-white/5">
+                          <div className="grid grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(56px,0.35fr))_minmax(70px,0.42fr)] border-b border-white/10 px-4 py-2.5 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+                            <div>Team</div>
+                            {SIMULATION_QUARTERS.map((quarter) => <div key={quarter} className="text-center">Q{quarter}</div>)}
+                            <div className="text-center">Total</div>
+                          </div>
+                          {[
+                            { key: "user" as const, label: "Your Team", score: simulationLiveScore.user },
+                            { key: "opponent" as const, label: activeNode.opponentTeamName ?? "Boss Team", score: simulationLiveScore.opponent },
+                          ].map((teamRow) => (
+                            <div key={teamRow.key} className="grid grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(56px,0.35fr))_minmax(70px,0.42fr)] items-center px-4 py-3 text-sm text-white">
+                              <div className="font-semibold">{teamRow.label}</div>
+                              {simulationQuarterScores.map((quarter) => (
+                                <div key={`${teamRow.key}-${quarter.quarter}`} className="text-center text-slate-200">
+                                  {quarter[teamRow.key]}
+                                </div>
+                              ))}
+                              <div className="text-center text-lg font-semibold">{teamRow.score}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-[30px] border border-white/12 bg-black/20 p-5">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Play By Play</div>
+                            <div className="mt-1 text-xl font-semibold text-white">
+                              {simulationComplete ? "Final sequence" : "Live action"}
+                            </div>
+                          </div>
+                          <div className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-300">
+                            {Math.round((clampedSimulationElapsedMs / simulationDurationMs) * 100)}%
+                          </div>
+                        </div>
+                        <div className="mt-5 space-y-3">
+                          {recentSimulationEvents.length > 0 ? (
+                            recentSimulationEvents.map((event) => (
+                              <div
+                                key={event.id}
+                                className={clsx(
+                                  "rounded-[20px] border px-4 py-3",
+                                  event.team === "user"
+                                    ? "border-emerald-200/14 bg-emerald-300/8"
+                                    : "border-rose-200/14 bg-rose-300/8",
+                                )}
+                              >
+                                <div className="flex items-center justify-between gap-3 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+                                  <span>Q{event.quarter} | {formatGameClock(event.gameClockSeconds)}</span>
+                                  <span>{event.points} PTS</span>
+                                </div>
+                                <div className="mt-1 text-sm leading-6 text-white/88">{event.description}</div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-5 text-sm text-slate-300">
+                              Tipoff is set. Press play to watch the game unfold.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowSimulationBoxScore((shown) => !shown)}
+                        className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/6 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                      >
+                        {showSimulationBoxScore ? "Hide Box Score" : "Show Box Score"}
+                      </button>
+                      {simulationComplete ? (
+                        <button
+                          type="button"
+                          onClick={run.nodeResult?.passed ? continueAfterFaceoff : abortRun}
+                          className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.02]"
+                        >
+                          {run.nodeResult?.passed ? "Claim Reward" : "Try Again"}
+                          <ArrowRight size={16} />
+                        </button>
+                      ) : null}
+                      {simulationComplete && !run.nodeResult?.passed ? (
+                        <button
+                          type="button"
+                          onClick={handleBackToHome}
+                          className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/6 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                        >
+                          Back to Home
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {showSimulationBoxScore || simulationComplete ? (
+                      <div className="mt-6 grid gap-5 xl:grid-cols-2">
+                        {(["user", "opponent"] as SimulationTeam[]).map((team) => {
+                          const teamStats = simulationResult.playerStats.filter((stat) => stat.team === team);
+                          return (
+                            <div key={team} className="overflow-hidden rounded-[26px] border border-white/10 bg-black/18">
+                              <div className="border-b border-white/10 px-4 py-3">
+                                <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">
+                                  {team === "user" ? "Your Team" : activeNode.opponentTeamName ?? "Boss Team"}
+                                </div>
+                                <div className="mt-1 text-xl font-semibold text-white">Box Score</div>
+                              </div>
+                              <div className="overflow-x-auto">
+                                <table className="w-full min-w-[680px] text-left text-sm">
+                                  <thead className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
+                                    <tr className="border-b border-white/8">
+                                      <th className="px-4 py-3">Player</th>
+                                      <th className="px-3 py-3 text-right">PTS</th>
+                                      <th className="px-3 py-3 text-right">AST</th>
+                                      <th className="px-3 py-3 text-right">REB</th>
+                                      <th className="px-3 py-3 text-right">STL</th>
+                                      <th className="px-3 py-3 text-right">BLK</th>
+                                      <th className="px-3 py-3 text-right">TO</th>
+                                      <th className="px-3 py-3 text-right">FG</th>
+                                      <th className="px-3 py-3 text-right">FG%</th>
+                                      <th className="px-4 py-3 text-right">FT</th>
+                                      <th className="px-4 py-3 text-right">FT%</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {teamStats.map((stat) => (
+                                      <tr key={`${team}-${stat.playerId}`} className="border-b border-white/6 last:border-b-0">
+                                        <td className="px-4 py-3">
+                                          <div className="font-semibold text-white">{stat.playerName}</div>
+                                          <div className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-slate-500">{stat.slot}</div>
+                                        </td>
+                                        <td className="px-3 py-3 text-right font-semibold text-white">{stat.points}</td>
+                                        <td className="px-3 py-3 text-right text-slate-200">{stat.assists}</td>
+                                        <td className="px-3 py-3 text-right text-slate-200">{stat.rebounds}</td>
+                                        <td className="px-3 py-3 text-right text-slate-200">{stat.steals}</td>
+                                        <td className="px-3 py-3 text-right text-slate-200">{stat.blocks}</td>
+                                        <td className="px-3 py-3 text-right text-slate-200">{stat.turnovers}</td>
+                                        <td className="px-3 py-3 text-right text-slate-200">{stat.fieldGoalsMade}/{stat.fieldGoalsAttempted}</td>
+                                        <td className="px-3 py-3 text-right text-slate-200">{formatPercentage(stat.fieldGoalsMade, stat.fieldGoalsAttempted)}</td>
+                                        <td className="px-4 py-3 text-right text-slate-200">{stat.freeThrowsMade}/{stat.freeThrowsAttempted}</td>
+                                        <td className="px-4 py-3 text-right text-slate-200">{formatPercentage(stat.freeThrowsMade, stat.freeThrowsAttempted)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+
+                    {simulationComplete ? (
+                      <div className="mt-6 rounded-[28px] border border-white/10 bg-white/5 p-5">
+                        <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Matchup Breakdown</div>
+                        <div className="mt-4 space-y-4">
+                          {run.nodeResult.faceoffResult.matchups.map((matchup) => (
+                            <FaceoffMatchupRow
+                              key={`${matchup.slot}-${matchup.userPlayer?.id ?? "empty"}-${matchup.opponentPlayer?.id ?? "boss"}`}
+                              matchup={matchup}
+                              ownedPlayerIds={runOwnedPlayerIds}
+                              trainedPlayerIds={run.trainedPlayerIds ?? []}
+                              coachTeamKey={runCoachTeamKey}
+                              allStarBonusBadges={runAllStarBonusBadges}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
-                <div className="rounded-[24px] border border-rose-200/16 bg-rose-300/8 p-5">
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-rose-100/80">Boss Team Total</div>
-                  <div className="mt-2 text-3xl font-semibold text-white">
-                    {run.nodeResult.faceoffResult.opponentTeamWinProbability}%
-                  </div>
+              ) : (
+                <div className="p-6">
+                  <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Faceoff Result</div>
+                  <h2 className="mt-2 font-display text-3xl text-white">{run.nodeResult.title}</h2>
+                  <p className="mt-3 text-sm leading-7 text-slate-300">{run.nodeResult.detail}</p>
                 </div>
-              </div>
-              <div className="mt-6 space-y-4">
-                {run.nodeResult.faceoffResult.matchups.map((matchup) => (
-                  <FaceoffMatchupRow
-                    key={`${matchup.slot}-${matchup.userPlayer?.id ?? "empty"}-${matchup.opponentPlayer?.id ?? "boss"}`}
-                    matchup={matchup}
-                    ownedPlayerIds={runOwnedPlayerIds}
-                    trainedPlayerIds={run.trainedPlayerIds ?? []}
-                    coachTeamKey={runCoachTeamKey}
-                    allStarBonusBadges={runAllStarBonusBadges}
-                  />
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={run.nodeResult?.passed ? continueAfterFaceoff : abortRun}
-                className="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900"
-              >
-                {run.nodeResult?.passed ? "Continue" : "Try Again"}
-                <ArrowRight size={16} />
-              </button>
-              {!run.nodeResult?.passed ? (
-                <button
-                  type="button"
-                  onClick={handleBackToHome}
-                  className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/6 px-6 py-3 text-sm font-semibold text-white"
-                >
-                  Back to Home
-                </button>
-              ) : null}
+              )}
             </div>
           )}
 
@@ -6875,6 +7714,7 @@ export const RoguelikeMode = ({
                     compactScale={run.choices.length >= 5 ? 0.46 : 0.59}
                     draftedPlayerIds={runOwnedPlayerIds}
                     enableTeamChemistryPreview
+                    coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
                   />
                 ))}
               </div>

@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Shield } from "lucide-react";
+import { Handshake, Shield } from "lucide-react";
 import { CardHoloOverlay, type CardHoloVariant } from "./CardHoloOverlay";
 import { getPlayerBadgeStates } from "../lib/dynamicDuos";
 import { DynamicDuoBadge } from "./DynamicDuoBadge";
@@ -71,6 +71,7 @@ interface CardLabAltPlayerCardProps {
   draftedPlayerIds?: string[];
   playerTypeBadgesOverride?: PlayerTypeBadgeDefinition[];
   playerTypeBadgeCountOverride?: number;
+  showCoachConnectionBadgeMockup?: boolean;
   holoOverlay?: boolean;
   holoVariant?: CardHoloVariant;
 }
@@ -84,6 +85,7 @@ export const CardLabAltPlayerCardV3 = ({
   draftedPlayerIds = [],
   playerTypeBadgesOverride,
   playerTypeBadgeCountOverride,
+  showCoachConnectionBadgeMockup = false,
   holoOverlay = false,
   holoVariant = "prism",
 }: CardLabAltPlayerCardProps) => {
@@ -180,6 +182,14 @@ export const CardLabAltPlayerCardV3 = ({
                 boostedHoloBorders && "border-white/28 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]",
               )}>
                 Current
+              </div>
+            ) : null}
+            {showCoachConnectionBadgeMockup ? (
+              <div
+                title="Coach Link active: player matches the coach's associated team"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-lime-300/70 bg-lime-300/18 text-lime-200 shadow-[0_0_18px_rgba(163,230,53,0.45)]"
+              >
+                <Handshake size={17} strokeWidth={2.3} />
               </div>
             ) : null}
             {selected ? (

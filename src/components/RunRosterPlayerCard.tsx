@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import clsx from "clsx";
-import { GripHorizontal } from "lucide-react";
+import { GripHorizontal, Handshake } from "lucide-react";
 import { getNbaTeamByName } from "../data/nbaTeams";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { getPlayerDisplayLines } from "../lib/playerDisplay";
@@ -37,6 +37,7 @@ interface RunRosterPlayerCardProps {
   className?: string;
   scale?: number;
   enableTeamChemistry?: boolean;
+  coachConnectionActive?: boolean;
 }
 
 export const RunRosterPlayerCard = ({
@@ -53,6 +54,7 @@ export const RunRosterPlayerCard = ({
   className,
   scale = 1,
   enableTeamChemistry = false,
+  coachConnectionActive = false,
 }: RunRosterPlayerCardProps) => {
   const resolvedPlayer = displayPlayer ?? player ?? null;
   const imageUrl = player ? usePlayerImage(player) : null;
@@ -72,13 +74,13 @@ export const RunRosterPlayerCard = ({
       : false;
   const nameClassName =
     name.length >= 30
-      ? "text-[calc(10px*var(--run-roster-scale))]"
+      ? "text-[calc(9px*var(--run-roster-scale))]"
       : name.length >= 26
-        ? "text-[calc(11px*var(--run-roster-scale))]"
+        ? "text-[calc(10px*var(--run-roster-scale))]"
       : name.length >= 22
-          ? "text-[calc(12.2px*var(--run-roster-scale))]"
+          ? "text-[calc(11.2px*var(--run-roster-scale))]"
         : name.length >= 18
-          ? "text-[calc(13.8px*var(--run-roster-scale))]"
+          ? "text-[calc(12.8px*var(--run-roster-scale))]"
         : "text-[calc(17px*var(--run-roster-scale))]";
   const cardStyle = {
     [runRosterScaleVar]: scale,
@@ -120,9 +122,9 @@ export const RunRosterPlayerCard = ({
             )}
           </div>
 
-          <div className="min-w-0 flex-1">
-            <div className="inline-flex min-w-0 max-w-full flex-col rounded-[calc(18px*var(--run-roster-scale))] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.68),rgba(4,8,18,0.84))] px-[calc(11px*var(--run-roster-scale))] py-[calc(8px*var(--run-roster-scale))] shadow-[0_12px_26px_rgba(0,0,0,0.28)] backdrop-blur-[4px]">
-              <div className="flex flex-wrap items-center gap-[calc(6px*var(--run-roster-scale))]">
+          <div className="min-w-[calc(120px*var(--run-roster-scale))] flex-1">
+            <div className="flex w-full min-w-0 max-w-full flex-col rounded-[calc(18px*var(--run-roster-scale))] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.68),rgba(4,8,18,0.84))] px-[calc(10px*var(--run-roster-scale))] py-[calc(8px*var(--run-roster-scale))] shadow-[0_12px_26px_rgba(0,0,0,0.28)] backdrop-blur-[4px]">
+              <div className="flex min-w-0 flex-wrap items-center gap-[calc(6px*var(--run-roster-scale))]">
                 <div className={clsx("text-[calc(11px*var(--run-roster-scale))] font-semibold uppercase tracking-[0.24em] text-slate-400", eyebrowToneClassName)}>
                   {eyebrow ?? resolvedPlayer?.primaryPosition ?? "OPEN"}
                 </div>
@@ -137,7 +139,7 @@ export const RunRosterPlayerCard = ({
               </div>
               <div
                 className={clsx(
-                  "mt-0.5 overflow-hidden whitespace-nowrap font-display font-semibold leading-none text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)]",
+                  "mt-0.5 min-w-0 overflow-hidden whitespace-nowrap font-display font-semibold leading-none text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)]",
                   nameClassName,
                 )}
               >
@@ -151,7 +153,7 @@ export const RunRosterPlayerCard = ({
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-[calc(10px*var(--run-roster-scale))]">
+          <div className="flex min-w-0 shrink items-center gap-[calc(8px*var(--run-roster-scale))]">
             {team?.logo ? (
               <div
                 className={clsx(
@@ -171,7 +173,7 @@ export const RunRosterPlayerCard = ({
               </div>
             ) : null}
 
-            <div className="flex min-w-[calc(184px*var(--run-roster-scale))] max-w-[calc(244px*var(--run-roster-scale))] flex-col items-start justify-center gap-[calc(6px*var(--run-roster-scale))] rounded-[calc(18px*var(--run-roster-scale))] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.66),rgba(4,8,18,0.82))] px-[calc(8px*var(--run-roster-scale))] py-[calc(8px*var(--run-roster-scale))] shadow-[0_12px_26px_rgba(0,0,0,0.26)] backdrop-blur-[4px]">
+            <div className="flex min-w-[calc(116px*var(--run-roster-scale))] max-w-[calc(176px*var(--run-roster-scale))] shrink flex-col items-start justify-center gap-[calc(6px*var(--run-roster-scale))] rounded-[calc(18px*var(--run-roster-scale))] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.66),rgba(4,8,18,0.82))] px-[calc(8px*var(--run-roster-scale))] py-[calc(8px*var(--run-roster-scale))] shadow-[0_12px_26px_rgba(0,0,0,0.26)] backdrop-blur-[4px]">
               {player ? (
                 <>
                   <div className="flex max-w-full flex-wrap items-center gap-[calc(6px*var(--run-roster-scale))]">
@@ -192,9 +194,17 @@ export const RunRosterPlayerCard = ({
                       className="justify-start"
                       previewEligible={false}
                     />
+                    {coachConnectionActive ? (
+                      <div
+                        title="Coach Link active: player matches the coach's associated team"
+                        className="inline-flex h-[calc(28px*var(--run-roster-scale))] w-[calc(28px*var(--run-roster-scale))] items-center justify-center rounded-full border border-lime-300/70 bg-lime-300/18 text-lime-200 shadow-[0_0_18px_rgba(163,230,53,0.45)]"
+                      >
+                        <Handshake size={13 * scale} strokeWidth={2.3} />
+                      </div>
+                    ) : null}
                   </div>
                   {metricChips.length > 0 ? (
-                    <div className="flex max-w-[calc(150px*var(--run-roster-scale))] flex-wrap items-center gap-[calc(6px*var(--run-roster-scale))]">
+                    <div className="flex max-w-[calc(124px*var(--run-roster-scale))] flex-wrap items-center gap-[calc(6px*var(--run-roster-scale))]">
                       {metricChips.map((chip) => (
                         <div
                           key={`${chip.label}-${chip.value}`}

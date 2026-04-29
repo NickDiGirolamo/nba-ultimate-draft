@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { Shield } from "lucide-react";
+import { Handshake, Shield } from "lucide-react";
 import { getPlayerBadgeStates } from "../lib/dynamicDuos";
 import { CardHoloOverlay, type CardHoloVariant } from "./CardHoloOverlay";
 import { DynamicDuoBadge } from "./DynamicDuoBadge";
@@ -77,6 +77,8 @@ interface DraftPlayerCardProps {
   playerTypeBadgesOverride?: PlayerTypeBadgeDefinition[];
   playerTypeBadgeCountOverride?: number;
   enableTeamChemistryPreview?: boolean;
+  coachConnectionActive?: boolean;
+  showCoachConnectionBadgeMockup?: boolean;
   surfaceClassNameOverride?: string;
   holoOverlay?: boolean;
   holoVariant?: CardHoloVariant;
@@ -94,6 +96,8 @@ export const DraftPlayerCard = ({
   playerTypeBadgesOverride,
   playerTypeBadgeCountOverride,
   enableTeamChemistryPreview = false,
+  coachConnectionActive = false,
+  showCoachConnectionBadgeMockup = false,
   surfaceClassNameOverride,
   holoOverlay = false,
   holoVariant = "prism",
@@ -228,6 +232,14 @@ export const DraftPlayerCard = ({
                 {currentSeasonCard ? (
                   <div className="rounded-full border border-white/12 bg-black/45 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-200 whitespace-nowrap">
                     Current
+                  </div>
+                ) : null}
+                {coachConnectionActive || showCoachConnectionBadgeMockup ? (
+                  <div
+                    title="Coach Link active: player matches the coach's associated team"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-lime-300/70 bg-lime-300/18 text-lime-200 shadow-[0_0_18px_rgba(163,230,53,0.45)]"
+                  >
+                    <Handshake size={17} strokeWidth={2.3} />
                   </div>
                 ) : null}
                 {selected ? (

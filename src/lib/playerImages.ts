@@ -390,6 +390,8 @@ const directImageOverrides: Record<string, string> = {
     "https://live-production.wcms.abc-cdn.net.au/56f684ab95740e22d77e1bfb3281c6ad?impolicy=wcms_crop_resize&cropH=3139&cropW=3139&xPos=780&yPos=0&width=862&height=862",
   "kyle-korver":
     "https://www.usatoday.com/gcdn/media/USATODAY/USATODAY/2012/11/07/usp-nba_-indiana-pacers-at-atlanta-hawks-16_9.jpg",
+  "alonzo-mourning-hornets":
+    "https://cdn.nba.com/teams/legacy/www.nba.com/hornets/sites/hornets/files/181026_mourning_08.jpg",
   "lamarcus-aldridge":
     "https://www.usatoday.com/gcdn/-mm-/cc18c14920ff4d366d49560a7f4acafbc28884e2/c=85-81-1484-1947/local/-/media/2015/07/04/USATODAY/USATODAY/635716344825258869-USP-NBA-PLAYOFFS-PORTLAND-TRAIL-BLAZERS-AT-MEMPHI-72530096.JPG",
   "jamal-crawford":
@@ -624,8 +626,12 @@ const directImageOverrides: Record<string, string> = {
     "https://cdn.bleacherreport.net/images_root/slides/photos/000/748/228/109386852_original.jpg?1298564512",
   "calvin-murphy":
     "https://www.mcall.com/wp-content/uploads/migration/2021/04/03/35YNAXLMUVBIPOX2O322NT7S3Y.jpg?w=535",
+  "bryant-reeves":
+    "https://fanbuzz.com/wp-content/uploads/sites/5/2020/12/Bryant-Reeves-Now.png",
   "carlos-boozer":
     "https://cdn.nba.com/teams/legacy/www.nba.com/jazz/sites/jazz/files/gettyimages-98852331.jpg",
+  "p-j-brown":
+    "https://minutemedia-ressh.cloudinary.com/image/upload/v1693491643/shape/cover/sport/928b5be80bb2a4797aed71bf0edd20963f636105e55000f4e79e999064b1d80e.jpg",
   "chauncey-billups":
     "https://news.cgtn.com/news/3355544d356b6a4e306b544d3541444f3359444f31457a6333566d54/img/90771ec99d1e41d691b78f720b733601/90771ec99d1e41d691b78f720b733601.jpg",
   "dan-issel":

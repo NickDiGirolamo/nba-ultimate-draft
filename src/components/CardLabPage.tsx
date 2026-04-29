@@ -457,6 +457,7 @@ export const CardLabPage = () => {
                                   draftedPlayerIds={controlledCard.draftedPlayerIds}
                                   playerTypeBadgesOverride={controlledBadges}
                                   playerTypeBadgeCountOverride={badgeCount}
+                                  showCoachConnectionBadgeMockup
                                   holoOverlay={holo}
                                   holoVariant="prism"
                                 />
@@ -555,6 +556,46 @@ export const CardLabPage = () => {
                       ? "Run-roster coach rows for the persistent coach card that will sit at the top of the Rogue roster during a run."
                       : "The full 30-card coach line based on the exact same coaches used at the opening Rogue coach node, so we can tune the whole set before launch."}
                   </p>
+                  <div className="mt-6 rounded-[26px] border border-white/10 bg-black/18 p-4">
+                    <div className="flex flex-wrap items-end justify-between gap-3">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Coach Connection</div>
+                        <h3 className="mt-1 font-display text-xl text-white">Same-team badge mockups</h3>
+                      </div>
+                      <div className="rounded-full border border-lime-300/18 bg-lime-300/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-lime-100">
+                        Active = player matches coach team
+                      </div>
+                    </div>
+                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      {coachConnectionBadgeMockups.map((mockup) => {
+                        const Icon = mockup.icon;
+
+                        return (
+                          <div key={mockup.id} className="rounded-[20px] border border-white/10 bg-white/6 p-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-semibold text-white">{mockup.label}</div>
+                                <div className="mt-1 text-xs leading-5 text-slate-400">{mockup.description}</div>
+                              </div>
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-lime-300/70 bg-lime-300/18 text-lime-200 shadow-[0_0_18px_rgba(163,230,53,0.45)]">
+                                <Icon size={17} strokeWidth={2.2} />
+                              </div>
+                            </div>
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <div className="inline-flex h-8 items-center gap-1.5 rounded-full border border-lime-300/70 bg-lime-300/18 px-2.5 text-[10px] text-lime-200 shadow-[0_0_18px_rgba(163,230,53,0.45)]">
+                                <Icon size={14} strokeWidth={2.2} />
+                                <span className="font-semibold uppercase tracking-[0.14em]">Active</span>
+                              </div>
+                              <div className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/12 bg-black/30 px-2.5 text-[10px] text-slate-500">
+                                <Icon size={14} strokeWidth={2.2} />
+                                <span className="font-semibold uppercase tracking-[0.14em]">Inactive</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                   <div className="mt-6 space-y-8">
                     {coachCardSections.map((section) => (
                       <div key={section.id}>
@@ -631,6 +672,7 @@ export const CardLabPage = () => {
                       playerTypeBadgesOverride={controlledBadges}
                       playerTypeBadgeCountOverride={badgeCount}
                       actionLabel="Card Lab Preview"
+                      showCoachConnectionBadgeMockup
                       holoOverlay={holo}
                       holoVariant="prism"
                     />
