@@ -37,6 +37,7 @@ export type RoguelikeNodeType =
   | "draft"
   | "challenge"
   | "boss"
+  | "coaching-change"
   | "locker-room"
   | "training"
   | "trade"
@@ -278,6 +279,7 @@ export const getRoguelikeClearRewards = (
       "roster-cut": 0,
       "add-position": 0,
       "all-star": 0,
+      "coaching-change": 0,
       challenge: 4,
       boss: 5,
     };
@@ -445,9 +447,12 @@ export const drawRoguelikeCoachChoices = (
   seed: number,
   settings?: Partial<RoguelikeRunSettings> | null,
   count = 5,
+  excludedCoachIds: string[] = [],
 ) => {
   const normalizedSettings = normalizeRoguelikeRunSettings(settings);
+  const excludedIds = new Set(excludedCoachIds.filter(Boolean));
   const filteredCoaches = roguelikeCoaches.filter((coach) => {
+    if (excludedIds.has(coach.id)) return false;
     if (normalizedSettings.conferenceFilter === "both") return true;
     return coach.conference === normalizedSettings.conferenceFilter;
   });
@@ -506,6 +511,12 @@ const makeBossNode = (
   opponentAverageOverall: getBossAverageOverallForFloor(node.floor, node.opponentAverageOverall),
   type: "boss",
   clearRewardsOverride: getProgressiveBossRewards(bossIndex),
+});
+
+const makeCoachingChangeNode = (node: Omit<RoguelikeNode, "type" | "rewardChoices">): RoguelikeNode => ({
+  ...node,
+  type: "coaching-change",
+  rewardChoices: 0,
 });
 
 const makeRosterCutNode = (node: Omit<RoguelikeNode, "type" | "rewardChoices">): RoguelikeNode => ({
@@ -794,6 +805,15 @@ export const roguelikeNodes: RoguelikeNode[] = [
     opponentTeamName: "Finals Opponent",
     allowedRewardTiers: ["Ruby"],
   }),
+  makeCoachingChangeNode({
+    id: "year-1-coaching-change",
+    floor: 24,
+    act: 1,
+    title: "Coaching Change",
+    description: "Decide whether to resign your current coach or make a championship-level coaching change before Year 2.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Re-sign your coach or hire a new one",
+  }),
   makeDraftNode({
     id: "year-2-free-agency",
     floor: 24,
@@ -1018,6 +1038,15 @@ export const roguelikeNodes: RoguelikeNode[] = [
     opponentTeamName: "Finals Opponent",
     allowedRewardTiers: ["Amethyst"],
   }),
+  makeCoachingChangeNode({
+    id: "year-2-coaching-change",
+    floor: 44,
+    act: 2,
+    title: "Coaching Change",
+    description: "After another Finals run, choose whether to keep your coach or reshape the boost for Year 3.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Re-sign your coach or hire a new one",
+  }),
   makeDraftNode({
     id: "year-3-free-agency",
     floor: 44,
@@ -1241,6 +1270,15 @@ export const roguelikeNodes: RoguelikeNode[] = [
     opponentTeamName: "Finals Opponent",
     allowedRewardTiers: ["Galaxy"],
   }),
+  makeCoachingChangeNode({
+    id: "year-3-coaching-change",
+    floor: 64,
+    act: 3,
+    title: "Coaching Change",
+    description: "Make one last coaching decision before the final G.O.A.T. battle.",
+    rewardBundleId: "elite-closers",
+    targetLabel: "Re-sign your coach or hire a new one",
+  }),
   {
     id: "the-goats",
     floor: 64,
@@ -1302,6 +1340,7 @@ export const getRoguelikeNodesForSettings = (
 
   return roguelikeNodes
     .filter((node) => {
+      if (!normalizedSettings.enableCoaches && node.type === "coaching-change") return false;
       if (normalizedSettings.disableTrainingNodes && node.type === "training") return false;
       if (normalizedSettings.disableTradeNodes && node.type === "trade") return false;
       return true;

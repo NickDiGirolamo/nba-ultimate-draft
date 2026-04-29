@@ -87,6 +87,7 @@ type RoguelikeStage =
   | "package-select"
   | "starter-reveal"
   | "coach-select"
+  | "coaching-change"
   | "ladder-overview"
   | "initial-draft"
   | "choice-select"
@@ -259,7 +260,7 @@ interface RoguelikeModeProps {
 
 const ROGUELIKE_STORAGE_KEY = "legends-draft-roguelike-run-v1";
 const ROGUELIKE_PARKED_STORAGE_KEY = "legends-draft-roguelike-parked-v1";
-const CURRENT_ROGUELIKE_LADDER_VERSION = 2;
+const CURRENT_ROGUELIKE_LADDER_VERSION = 3;
 
 const createSeed = () => Math.floor(Date.now() % 1_000_000) + Math.floor(Math.random() * 1000);
 
@@ -462,9 +463,10 @@ const buildStarterRevealRunRepair = (
     : fillStarterRevealFallbackPlayers(starterRevealPlayers, starterRevealSource);
 };
 
-const getLegacyRoguelikeNodesForSettings = (settings: RoguelikeRunSettings) =>
+const getLegacyRoguelikeNodesForSettings = (settings: RoguelikeRunSettings, ladderVersion: number) =>
   getRoguelikeNodesForSettings(settings)
-    .filter((node) => node.type !== "locker-room")
+    .filter((node) => node.type !== "coaching-change")
+    .filter((node) => ladderVersion >= 2 || node.type !== "locker-room")
     .map((node, index) => ({
       ...node,
       floor: index + 1,
@@ -481,9 +483,10 @@ const mapStoredNodeToCurrentLadder = (
 const migrateLegacyFloorIndex = (
   floorIndex: number | undefined,
   settings: RoguelikeRunSettings,
+  ladderVersion: number,
 ) => {
   const currentNodes = getRoguelikeNodesForSettings(settings);
-  const legacyNodes = getLegacyRoguelikeNodesForSettings(settings);
+  const legacyNodes = getLegacyRoguelikeNodesForSettings(settings, ladderVersion);
   const safeLegacyFloorIndex = Math.max(0, floorIndex ?? 0);
 
   if (safeLegacyFloorIndex >= legacyNodes.length) {
@@ -507,13 +510,13 @@ const normalizeStoredRun = (parsed: Partial<RoguelikeRun>, activeRogueStarId: st
   const currentRunNodes = getRoguelikeNodesForSettings(settings);
   const runPlayerUniverse = getRoguelikePlayerUniverse(settings);
   const normalizedStage =
-    parsed.stage === "coach-select" && !settings.enableCoaches
+    (parsed.stage === "coach-select" || parsed.stage === "coaching-change") && !settings.enableCoaches
       ? "ladder-overview"
       : parsed.stage;
   const migratedFloorIndex =
     ladderVersion >= CURRENT_ROGUELIKE_LADDER_VERSION
       ? parsed.floorIndex ?? 0
-      : migrateLegacyFloorIndex(parsed.floorIndex, settings);
+      : migrateLegacyFloorIndex(parsed.floorIndex, settings, ladderVersion);
   const starterRevealTargetAverage = parsed.starterRevealTargetAverage ?? 80;
   const starterRevealPlayers =
     normalizedStage === "starter-reveal"
@@ -529,10 +532,17 @@ const normalizeStoredRun = (parsed: Partial<RoguelikeRun>, activeRogueStarId: st
         )
         : parsed.starterRevealPlayers ?? [];
   const coachChoices =
-    normalizedStage === "coach-select" && settings.enableCoaches
+    (normalizedStage === "coach-select" || normalizedStage === "coaching-change") && settings.enableCoaches
       ? (parsed.coachChoices && parsed.coachChoices.length > 0
           ? parsed.coachChoices
-          : drawRoguelikeCoachChoices(parsed.seed + 702, settings, 5))
+          : drawRoguelikeCoachChoices(
+              normalizedStage === "coaching-change"
+                ? nextChoiceSeed(parsed.seed, 900 + (migratedFloorIndex ?? 0) * 31)
+                : parsed.seed + 702,
+              settings,
+              5,
+              normalizedStage === "coaching-change" && parsed.hiredCoachId ? [parsed.hiredCoachId] : [],
+            ))
       : parsed.coachChoices ?? [];
 
   return {
@@ -1256,6 +1266,16 @@ const getRoguelikeNodeTypeTheme = (type: RoguelikeNode["type"]) => {
       summary:
         "border-rose-200/22 bg-[linear-gradient(135deg,rgba(251,113,133,0.18),rgba(15,23,42,0.86),rgba(154,52,18,0.16))] text-rose-50",
     },
+    "coaching-change": {
+      label: "Coaching Change",
+      Icon: Handshake,
+      chip: "border-cyan-200/18 bg-cyan-300/10 text-cyan-100",
+      iconWrap: "border-cyan-200/22 bg-cyan-300/12",
+      iconColor: "text-cyan-100",
+      accentLine: "from-cyan-300/90 via-emerald-300/30 to-transparent",
+      summary:
+        "border-cyan-200/22 bg-[linear-gradient(135deg,rgba(34,211,238,0.18),rgba(15,23,42,0.86),rgba(16,185,129,0.14))] text-cyan-50",
+    },
     trade: {
       label: "Trade",
       Icon: RefreshCcw,
@@ -1448,6 +1468,13 @@ const getNodeCompletionRewardCopy = (node: RoguelikeNode) => {
     return {
       title: "Locker Room visit",
       description: "Enter the Locker Room store, check your cash, and spend on any run upgrades you want before the climb continues.",
+    };
+  }
+
+  if (node.type === "coaching-change") {
+    return {
+      title: "Coaching decision",
+      description: "Re-sign your current coach to keep the same team boost, or fire them and hire a new coach to change which team gets +1 OVR.",
     };
   }
 
@@ -2839,9 +2866,11 @@ const RogueSelectionPlayerCard = ({
 const CoachChoiceCard = ({
   coach,
   onHire,
+  actionLabel = "Hire",
 }: {
   coach: RoguelikeCoach;
   onHire: () => void;
+  actionLabel?: string;
 }) => {
   const coachCard = {
     id: coach.id,
@@ -2864,7 +2893,7 @@ const CoachChoiceCard = ({
           Coach Pick
         </div>
         <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/18 bg-emerald-300/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-100">
-          Hire
+          {actionLabel}
           <ArrowRight size={12} />
         </div>
       </div>
@@ -3379,6 +3408,33 @@ export const RoguelikeMode = ({
     }
   };
 
+  const completeCoachingChange = (coachId: string, resignedCurrentCoach: boolean) => {
+    if (!run || run.stage !== "coaching-change" || run.activeNode?.type !== "coaching-change") return;
+
+    const selectedCoach = getRoguelikeCoachById(coachId);
+    const nextFloorIndex = run.floorIndex + 1;
+
+    setRun({
+      ...run,
+      hiredCoachId: coachId,
+      floorIndex: nextFloorIndex,
+      stage: runNodes[nextFloorIndex] ? "node-result" : "run-cleared",
+      activeNode: null,
+      activeOpponentPlayerIds: null,
+      nodeResult: {
+        title: resignedCurrentCoach ? "Coach re-signed" : "Coaching change complete",
+        detail: resignedCurrentCoach
+          ? `${selectedCoach?.name ?? "Your coach"} stays in charge. ${selectedCoach?.teamName ?? "Their team"} players keep the +1 coach boost.`
+          : `${selectedCoach?.name ?? "Your new coach"} takes over. ${selectedCoach?.teamName ?? "Their team"} players now receive the +1 coach boost.`,
+        passed: true,
+      },
+    });
+
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  };
+
   const completeRewardDraftSelection = (
     sourceRun: RoguelikeRun,
     nextRoster: Player[],
@@ -3461,6 +3517,11 @@ export const RoguelikeMode = ({
           lockerRoomNotice: null,
           nodeResult: null,
         });
+        return;
+      }
+
+      if (currentNode.type === "coaching-change") {
+        setRun({ ...run, stage: "coaching-change", nodeResult: null });
         return;
       }
 
@@ -3578,6 +3639,24 @@ export const RoguelikeMode = ({
         stage: "locker-room",
         nodeResult: null,
         lockerRoomNotice: null,
+      });
+      return;
+    }
+
+    if (currentNode.type === "coaching-change") {
+      const currentCoachId = run.hiredCoachId;
+      setRun({
+        ...run,
+        activeNode: currentNode,
+        activeOpponentPlayerIds: null,
+        coachChoices: drawRoguelikeCoachChoices(
+          nextChoiceSeed(run.seed, 900 + run.floorIndex * 31),
+          run.settings,
+          5,
+          currentCoachId ? [currentCoachId] : [],
+        ),
+        stage: "coaching-change",
+        nodeResult: null,
       });
       return;
     }
@@ -4054,6 +4133,22 @@ export const RoguelikeMode = ({
         stage: "locker-room",
         nodeResult: null,
         lockerRoomNotice: null,
+      });
+      return;
+    }
+
+    if (node.type === "coaching-change") {
+      const currentCoachId = run.hiredCoachId;
+      setRun({
+        ...run,
+        coachChoices: drawRoguelikeCoachChoices(
+          nextChoiceSeed(run.seed, 900 + run.floorIndex * 31),
+          run.settings,
+          5,
+          currentCoachId ? [currentCoachId] : [],
+        ),
+        stage: "coaching-change",
+        nodeResult: null,
       });
       return;
     }
@@ -5905,6 +6000,86 @@ export const RoguelikeMode = ({
             {run.coachChoices.map((coach) => (
               <CoachChoiceCard key={coach.id} coach={coach} onHire={() => hireCoach(coach.id)} />
             ))}
+          </div>
+        </section>
+      );
+    }
+
+    if (run.stage === "coaching-change") {
+      const currentCoach = getRoguelikeCoachById(run.hiredCoachId);
+      const currentCoachTeam = currentCoach ? getNbaTeamByName(currentCoach.teamName) : null;
+
+      return (
+        <section className="space-y-5">
+          <div className="rounded-[30px] border border-white/14 bg-[linear-gradient(180deg,rgba(9,13,21,0.98),rgba(12,18,28,0.99))] p-6 shadow-card">
+            <div className="max-w-4xl">
+              <div className="text-xs uppercase tracking-[0.24em] text-cyan-100/80">Coaching Change</div>
+              <h1 className="mt-2 font-display text-4xl text-white">Keep your coach or change the boost</h1>
+              <p className="mt-3 text-sm leading-7 text-slate-300">
+                Re-sign your current coach to keep the same +1 team boost, or fire them and hire a new coach to shift your roster-building target.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-5 xl:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.7fr)]">
+            <div className="rounded-[28px] border border-emerald-200/18 bg-[linear-gradient(180deg,rgba(6,78,59,0.18),rgba(10,16,26,0.96))] p-5 shadow-card">
+              <div className="text-[11px] uppercase tracking-[0.22em] text-emerald-100/80">Current Coach</div>
+              {currentCoach ? (
+                <>
+                  <div className="mt-5 flex items-center gap-4">
+                    <div className="grid h-16 w-16 place-items-center rounded-2xl border border-white/12 bg-white/8">
+                      {currentCoachTeam?.logo ? (
+                        <img
+                          src={currentCoachTeam.logo}
+                          alt=""
+                          className="h-12 w-12 object-contain"
+                          draggable={false}
+                        />
+                      ) : (
+                        <Shield size={28} className="text-emerald-100" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-display text-2xl text-white">{currentCoach.name}</div>
+                      <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
+                        {currentCoach.teamName} +1 OVR
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => completeCoachingChange(currentCoach.id, true)}
+                    className="mt-6 inline-flex w-full items-center justify-center gap-3 rounded-full bg-emerald-200 px-5 py-3 text-sm font-semibold text-emerald-950 transition hover:scale-[1.01]"
+                  >
+                    Re-sign Coach
+                    <CheckCircle2 size={16} />
+                  </button>
+                </>
+              ) : (
+                <div className="mt-5 rounded-2xl border border-white/10 bg-white/6 p-4 text-sm leading-6 text-slate-300">
+                  No coach is currently hired, so choose one of the available coaches to activate a team boost.
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Available Replacements</div>
+                  <div className="mt-1 text-sm text-slate-300">Hiring a new coach immediately changes which team gets the +1 OVR boost.</div>
+                </div>
+              </div>
+              <div className="grid gap-5 xl:grid-cols-5 md:grid-cols-2">
+                {run.coachChoices.map((coach) => (
+                  <CoachChoiceCard
+                    key={coach.id}
+                    coach={coach}
+                    actionLabel="Hire"
+                    onHire={() => completeCoachingChange(coach.id, false)}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
         </section>
       );
