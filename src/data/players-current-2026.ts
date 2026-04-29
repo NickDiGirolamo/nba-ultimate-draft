@@ -33,6 +33,7 @@ const dedupePositions = (positions: Position[]) =>
 
 const currentSeasonPositionOverrides: Record<string, Position[]> = {
   "amen-thompson-2025-26": ["SG", "SF"],
+  "anthony-davis-2025-26": ["C"],
   "de-aaron-fox-2025-26": ["SG"],
   "giannis-antetokounmpo-2025-26": ["SF", "C"],
   "luka-doncic-2025-26": ["SG", "SF"],

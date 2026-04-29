@@ -82,6 +82,8 @@ const directImageOverrides: Record<string, string> = {
     "https://platform.sbnation.com/wp-content/uploads/sites/2/chorus/uploads/chorus_asset/file/14212085/20130119_tjg_ah6_069.0.1358814165.jpg?quality=90&strip=all&crop=0.012500000000003%2C0%2C99.975%2C100&w=2400",
   "cj-mccollum-blazers":
     "https://media.gq.com/photos/56fe0a4d42f1abb10ad77965/master/pass/CJ-McCollum-Flex.jpg",
+  "kwame-brown":
+    "https://fadeawayworld.net/wp-content/uploads/2021/06/12487470100.jpg",
   "btg-joel-embiid":
     "https://www.billboard.com/wp-content/uploads/media/joel-embiid-11-of-the-philadelphia-76ers-2014-billboard-650.jpg?w=650&h=430&crop=1",
   "btg-dirk-nowitzki":
@@ -305,7 +307,7 @@ const directImageOverrides: Record<string, string> = {
   "james-harden-nets":
     "https://s.hdnux.com/photos/56/50/16/12223372/6/rawImage.jpg",
   "james-harden-clippers":
-    "https://s.hdnux.com/photos/56/50/16/12223372/6/rawImage.jpg",
+    "https://basketnews.com/image-455013-crop516x516.jpg",
   "jaylen-brown":
     "https://fieldlevelmedia.com/wp-content/uploads/2025/12/27725863-1024x768.jpg",
   "jason-kidd":
@@ -513,7 +515,7 @@ const directImageOverrides: Record<string, string> = {
   "penny-hardaway":
     "https://cdn.nba.com/teams/legacy/www.nba.com/magic/sites/magic/files/9_penny-20170112.jpg",
   "peja-stojakovic":
-    "https://cdn.nba.com/teams/legacy/www.nba.com/kings/sites/kings/files/2_24.jpg",
+    "https://cdn.nba.com/teams/legacy/www.nba.com/kings/sites/kings/files/9_24.jpg",
   "reggie-miller":
     "https://www.tuscaloosanews.com/gcdn/authoring/2007/08/09/NTTN/ghows-DA-956c6365-614f-4280-8405-f5e1f84e025e-1569fd9a.jpeg?width=1200&disable=upscale&format=pjpg&auto=webp",
   "robert-parish":

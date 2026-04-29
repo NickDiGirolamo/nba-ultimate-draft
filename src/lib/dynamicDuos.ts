@@ -28,7 +28,7 @@ export interface TeamChemistryGroupDefinition {
 }
 
 const duoStatBoost = {
-  overall: 1,
+  overall: 2,
   offense: 2,
   defense: 1,
   playmaking: 2,
@@ -42,7 +42,7 @@ const duoStatBoost = {
 } as const;
 
 const rolePlayerStatBoost = {
-  overall: 0,
+  overall: 1,
   offense: 1,
   defense: 1,
   playmaking: 1,
@@ -56,7 +56,7 @@ const rolePlayerStatBoost = {
 } as const;
 
 const bigThreeStatBoost = {
-  overall: 2,
+  overall: 3,
   offense: 3,
   defense: 2,
   playmaking: 2,
@@ -114,6 +114,7 @@ export const dynamicDuos: PlayerBadgeDefinition[] = [
   { id: "wall-beal", title: "Dynamic Duos: Wall + Beal", type: "dynamic-duo", players: ["john-wall", "bradley-beal"] },
   { id: "stockton-malone", title: "Dynamic Duos: Stockton + Malone", type: "dynamic-duo", players: ["john-stockton", "karl-malone"] },
   { id: "starbury-kg", title: "Dynamic Duos: Stephon Marbury + Kevin Garnett", type: "dynamic-duo", players: ["stephon-marbury", "kevin-garnett-timberwolves"] },
+  { id: "avery-isaiah-celtics", title: "Dynamic Duos: Avery Bradley + Isaiah Thomas", type: "dynamic-duo", players: ["avery-bradley", "isaiah-thomas"] },
   { id: "allan-sprewell", title: "Dynamic Duos: Allan Houston + Latrell Sprewell", type: "dynamic-duo", players: ["allan-houston", "latrell-sprewell"] },
   { id: "grit-grind", title: "Dynamic Duos: Randolph + Gasol", type: "dynamic-duo", players: ["zach-randolph", "marc-gasol"] },
   { id: "big-dog-baker", title: "Dynamic Duos: Glenn Robinson + Vin Baker", type: "dynamic-duo", players: ["glenn-robinson", "vin-baker"] },
@@ -245,7 +246,9 @@ export const rolePlayerPairs: RolePlayerPairDefinition[] = [
   { id: "ibaka-kd-thunder", title: "Thunder Support Cast: Serge Ibaka + Kevin Durant (Thunder)", rolePlayer: "serge-ibaka", centerpiece: "kevin-durant-thunder" },
   { id: "kawhi-duncan", title: "Spurs Support Cast: Kawhi Leonard (Spurs) + Tim Duncan", rolePlayer: "kawhi-leonard-spurs", centerpiece: "tim-duncan" },
   { id: "danny-duncan", title: "Spurs Support Cast: Danny Green + Tim Duncan", rolePlayer: "danny-green", centerpiece: "tim-duncan" },
+  { id: "bruce-duncan", title: "Spurs Support Cast: Bruce Bowen + Tim Duncan", rolePlayer: "bruce-bowen", centerpiece: "tim-duncan" },
   { id: "dawkins-erving", title: "76ers Support Cast: Darryl Dawkins + Julius Erving", rolePlayer: "darryl-dawkins", centerpiece: "julius-erving" },
+  { id: "cheeks-erving", title: "76ers Support Cast: Maurice Cheeks + Julius Erving", rolePlayer: "maurice-cheeks", centerpiece: "julius-erving" },
   { id: "iguodala-iverson", title: "76ers Support Cast: Andre Iguodala + Allen Iverson (76ers)", rolePlayer: "andre-iguodala", centerpiece: "allen-iverson-76ers" },
   { id: "kenyon-kidd", title: "Nets Support Cast: Kenyon Martin + Jason Kidd", rolePlayer: "kenyon-martin", centerpiece: "jason-kidd" },
   { id: "kittles-kidd", title: "Nets Support Cast: Kerry Kittles + Jason Kidd", rolePlayer: "kerry-kittles", centerpiece: "jason-kidd" },

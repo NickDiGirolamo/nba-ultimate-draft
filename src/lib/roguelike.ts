@@ -9,7 +9,6 @@ import {
 } from "./dynamicDuos";
 import {
   getPlayerTypeBadges,
-  getPrimaryPlayerTypeBadge,
   playerTypeBadgeDefinitions,
   type PlayerTypeBadgeDefinition,
   type PlayerTypeBadge,
@@ -212,11 +211,11 @@ const BOSS_AVERAGE_OVERRIDES_BY_FLOOR: Partial<Record<number, number>> = {
   6: 81,
   15: 84.75,
   19: 85,
-  21: 86,
-  23: 86.75,
+  21: 85.5,
+  23: 86,
   28: 88,
   36: 89,
-  39: 91,
+  39: 90.25,
   41: 92,
   43: 92.5,
   48: 92.75,
@@ -767,7 +766,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
     targetLabel: "Beat your Conference Finals Opponent",
     battleMode: "starting-five-faceoff",
     eliminationOnLoss: true,
-    opponentAverageOverall: 86,
+    opponentAverageOverall: 85.5,
     opponentTeamName: "Conference Finals Opponent",
     allowedRewardTiers: ["Sapphire"],
   }),
@@ -2570,16 +2569,10 @@ const getRoguelikePlayerTypeBalanceSnapshot = (
       ),
     ),
   ) as PlayerTypeBadge[];
-  const primaryTypes = players
-    .map((player) => getPrimaryPlayerTypeBadge(player)?.type)
-    .filter((type): type is PlayerTypeBadge => Boolean(type));
-  const uniquePrimaryCount = new Set(primaryTypes).size;
 
   return {
     representedTypes,
     representedCount: representedTypes.length,
-    uniquePrimaryCount,
-    duplicatePrimaryCount: Math.max(0, primaryTypes.length - uniquePrimaryCount),
   };
 };
 
@@ -2594,13 +2587,9 @@ const getBossBattleLineupBalanceBonus = (
   if (snapshot.representedCount >= 3) bonus += 0.3;
   if (snapshot.representedCount >= 4) bonus += 0.45;
   if (snapshot.representedCount >= 5) bonus += 0.55;
-  if (snapshot.uniquePrimaryCount >= 4) bonus += 0.25;
-  if (snapshot.uniquePrimaryCount >= 5) bonus += 0.25;
-  if (snapshot.duplicatePrimaryCount >= 2) bonus -= 0.45;
-  if (snapshot.duplicatePrimaryCount >= 3) bonus -= 0.65;
   bonus += (chemistry - 80) * 0.012;
 
-  return Math.max(-1.4, Math.min(1.8, Math.round(bonus * 10) / 10));
+  return Math.max(0, Math.min(1.8, Math.round(bonus * 10) / 10));
 };
 
 const getBossBattleBadgeMatchupBonus = (
@@ -2617,10 +2606,6 @@ const getBossBattleBadgeMatchupBonus = (
   const opponentBadges = opponentPlayer
     ? getRoguelikePlayerTypeBadges(opponentPlayer, opponentBonusBadgeAssignments)
     : [];
-  const primaryBadge = getPrimaryPlayerTypeBadge(player)?.type ?? playerBadges[0]?.type ?? null;
-  const opponentPrimaryBadge = opponentPlayer
-    ? getPrimaryPlayerTypeBadge(opponentPlayer)?.type ?? opponentBadges[0]?.type ?? null
-    : null;
   const representedTypes = getRoguelikePlayerTypeBalanceSnapshot(
     lineupPlayers,
     bonusBadgeAssignments,
@@ -2652,7 +2637,6 @@ const getBossBattleBadgeMatchupBonus = (
     if (representedTypes.length >= 4) playmakerBonus += 0.4;
     if (lineupBalanceBonus >= 1.2) playmakerBonus += 0.25;
     if (lineupMetrics.chemistry >= 86) playmakerBonus += 0.2;
-    if (opponentPrimaryBadge && opponentPrimaryBadge === primaryBadge) playmakerBonus += 0.1;
     bonus += Math.min(1, playmakerBonus);
   }
 

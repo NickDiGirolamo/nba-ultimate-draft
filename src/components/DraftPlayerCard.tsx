@@ -120,7 +120,9 @@ export const DraftPlayerCard = ({
     isSameTeamChemistryPreviewActiveForPlayer(player, draftedPlayerIds);
   const previewTeamChemistryBonus =
     sameTeamChemistryActive && !draftedPlayerIds.includes(player.id) ? 1 : 0;
-  const displayOverall = player.overall + previewTeamChemistryBonus;
+  const previewCoachConnectionBonus =
+    coachConnectionActive && !draftedPlayerIds.includes(player.id) ? 1 : 0;
+  const displayOverall = player.overall + previewTeamChemistryBonus + previewCoachConnectionBonus;
   const nameClassName =
     fullNameLength >= 24
       ? "text-[1rem]"

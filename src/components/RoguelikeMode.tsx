@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { useRef } from "react";
 import {
@@ -2624,6 +2624,71 @@ const StarterRevealCard = ({
               actionLabel="Starter revealed"
             />
           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DraftChoiceRevealCard = ({
+  children,
+  index,
+  compactScale,
+  revealKey,
+}: {
+  children: ReactNode;
+  index: number;
+  compactScale: number;
+  revealKey: string;
+}) => {
+  const [revealed, setRevealed] = useState(false);
+  const cardWidth = Math.round(380 * compactScale);
+  const cardHeight = Math.round(920 * compactScale);
+
+  useEffect(() => {
+    setRevealed(false);
+    const revealTimer = window.setTimeout(() => {
+      setRevealed(true);
+    }, 220 + index * 360);
+
+    return () => window.clearTimeout(revealTimer);
+  }, [index, revealKey]);
+
+  return (
+    <div
+      className="shrink-0 [perspective:1600px]"
+      style={{ width: `${cardWidth}px`, height: `${cardHeight}px` }}
+    >
+      <div
+        className="relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d]"
+        style={{
+          transform: revealed ? "rotateY(180deg)" : "rotateY(0deg)",
+        }}
+      >
+        <div className="absolute inset-0 [backface-visibility:hidden]">
+          <div className="relative h-full w-full overflow-hidden rounded-[28px] border border-white/12 bg-[linear-gradient(180deg,rgba(54,34,20,0.96),rgba(33,20,12,0.98))] shadow-[0_24px_56px_rgba(0,0,0,0.34)]">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.09),transparent_35%)]" />
+            <div className="absolute inset-[10px] rounded-[22px] border border-white/8" />
+            <div className="relative flex h-full items-center justify-center p-6">
+              <div className="relative flex items-center justify-center rounded-[24px] border border-white/10 bg-[radial-gradient(circle,rgba(255,255,255,0.06),rgba(255,255,255,0.01)_58%,transparent_78%)] px-6 py-6 shadow-[0_18px_40px_rgba(0,0,0,0.26)]">
+                <img
+                  src="/nba-ultimate-draft-badge.png"
+                  alt="NBA Ultimate Draft"
+                  className="h-auto w-full max-w-[180px] object-contain drop-shadow-[0_14px_28px_rgba(0,0,0,0.35)]"
+                  loading="eager"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          className={clsx(
+            "absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]",
+            !revealed && "pointer-events-none",
+          )}
+        >
+          {children}
         </div>
       </div>
     </div>
@@ -5893,6 +5958,13 @@ export const RoguelikeMode = ({
     run.draftShuffleTickets > 0 &&
     (run.stage === "initial-draft" || run.stage === "reward-draft") &&
     run.choices.length > 0;
+  const draftChoiceRevealKey = [
+    run.stage,
+    run.floorIndex,
+    run.initialPicks,
+    run.pendingTradeState?.outgoingPlayerId ?? "standard",
+    run.choices.map((player) => player.id).join("|"),
+  ].join(":");
   const faceoffOpponentLineup =
     activeNode?.battleMode === "starting-five-faceoff" && run.activeOpponentPlayerIds
       ? buildRoguelikeOpponentLineup({
@@ -5936,6 +6008,12 @@ export const RoguelikeMode = ({
       opponent: events.reduce((sum, event) => sum + (event.team === "opponent" ? event.points : 0), 0),
     };
   });
+  const simulationWinner =
+    simulationComplete && simulationLiveScore.user !== simulationLiveScore.opponent
+      ? simulationLiveScore.user > simulationLiveScore.opponent
+        ? "user"
+        : "opponent"
+      : null;
   const recentSimulationEvents = [...visibleSimulationEvents].reverse().slice(0, 6);
   const completedNode =
     run.stage === "node-result" && run.floorIndex > 0
@@ -6840,17 +6918,23 @@ export const RoguelikeMode = ({
                 Starter Cache is open. Make two picks from Emerald boards to turn your three-card starter pack into a full opening lineup.
               </p>
                 <div className="mt-6 flex flex-wrap justify-center gap-3 overflow-visible px-1 pt-2 pb-3">
-                {run.choices.map((player) => (
-                  <DraftPlayerCard
-                    key={player.id}
-                    player={player}
-                    onSelect={draftChoice}
-                    compact
+                {run.choices.map((player, index) => (
+                  <DraftChoiceRevealCard
+                    key={`${draftChoiceRevealKey}-${player.id}`}
+                    index={index}
                     compactScale={0.46}
-                    draftedPlayerIds={runOwnedPlayerIds}
-                    enableTeamChemistryPreview
-                    coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
-                  />
+                    revealKey={draftChoiceRevealKey}
+                  >
+                    <DraftPlayerCard
+                      player={player}
+                      onSelect={draftChoice}
+                      compact
+                      compactScale={0.46}
+                      draftedPlayerIds={runOwnedPlayerIds}
+                      enableTeamChemistryPreview
+                      coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
+                    />
+                  </DraftChoiceRevealCard>
                 ))}
               </div>
               <BackToRunLadderButton onClick={backToRunLadder} />
@@ -7433,7 +7517,7 @@ export const RoguelikeMode = ({
                 <div className="relative">
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.14),transparent_34%),linear-gradient(135deg,rgba(6,10,18,0.98),rgba(9,18,30,0.98),rgba(12,10,20,0.98))]" />
                   <div className="relative p-5 lg:p-7">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
                       <div>
                         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/18 bg-emerald-300/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.24em] text-emerald-50/84">
                           Live Simulation
@@ -7445,51 +7529,60 @@ export const RoguelikeMode = ({
                           The result is locked in. Watch the precomputed game play out, then review the final box score and matchup breakdown.
                         </p>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setSimulationPlaying((playing) => !playing)}
-                          disabled={simulationComplete}
-                          className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/18 disabled:text-white/50"
-                        >
-                          {simulationPlaying ? <Pause size={15} /> : <Play size={15} />}
-                          {simulationPlaying ? "Pause" : simulationComplete ? "Complete" : "Play"}
-                        </button>
-                        {[1, 2, 4].map((speed) => (
-                          <button
-                            key={speed}
-                            type="button"
-                            onClick={() => setSimulationSpeed(speed as 1 | 2 | 4)}
-                            className={clsx(
-                              "rounded-full border px-4 py-2.5 text-sm font-semibold transition",
-                              simulationSpeed === speed
-                                ? "border-emerald-200/32 bg-emerald-300/14 text-emerald-50"
-                                : "border-white/12 bg-white/6 text-white/78 hover:bg-white/10",
-                            )}
-                          >
-                            {speed}x
-                          </button>
-                        ))}
-                        {!simulationComplete ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSimulationElapsedMs(simulationResult.durationMs);
-                              setSimulationPlaying(false);
-                              setShowSimulationBoxScore(true);
-                            }}
-                            className="rounded-full border border-white/12 bg-white/6 px-4 py-2.5 text-sm font-semibold text-white/84 transition hover:bg-white/10"
-                          >
-                            Skip to Final
-                          </button>
-                        ) : null}
-                      </div>
                     </div>
 
                     <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
                       <div className="rounded-[30px] border border-white/12 bg-black/22 p-5">
+                        <div className="mb-4 flex flex-wrap items-center justify-center gap-2 rounded-[22px] border border-white/10 bg-white/5 px-3 py-3">
+                          <button
+                            type="button"
+                            onClick={() => setSimulationPlaying((playing) => !playing)}
+                            disabled={simulationComplete}
+                            className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/18 disabled:text-white/50"
+                          >
+                            {simulationPlaying ? <Pause size={15} /> : <Play size={15} />}
+                            {simulationPlaying ? "Pause" : simulationComplete ? "Complete" : "Play"}
+                          </button>
+                          {[1, 2, 4].map((speed) => (
+                            <button
+                              key={speed}
+                              type="button"
+                              onClick={() => setSimulationSpeed(speed as 1 | 2 | 4)}
+                              className={clsx(
+                                "rounded-full border px-4 py-2.5 text-sm font-semibold transition",
+                                simulationSpeed === speed
+                                  ? "border-emerald-200/32 bg-emerald-300/14 text-emerald-50"
+                                  : "border-white/12 bg-white/6 text-white/78 hover:bg-white/10",
+                              )}
+                            >
+                              {speed}x
+                            </button>
+                          ))}
+                          {!simulationComplete ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSimulationElapsedMs(simulationResult.durationMs);
+                                setSimulationPlaying(false);
+                                setShowSimulationBoxScore(true);
+                              }}
+                              className="rounded-full border border-white/12 bg-white/6 px-4 py-2.5 text-sm font-semibold text-white/84 transition hover:bg-white/10"
+                            >
+                              Skip to Final
+                            </button>
+                          ) : null}
+                        </div>
                         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
-                          <div className="rounded-[24px] border border-emerald-200/16 bg-emerald-300/8 px-4 py-5 text-center">
+                          <div
+                            className={clsx(
+                              "rounded-[24px] border px-4 py-5 text-center transition-colors",
+                              simulationWinner === "user"
+                                ? "border-emerald-100/70 bg-[linear-gradient(180deg,rgba(52,211,153,0.54),rgba(5,150,105,0.42))] shadow-[0_0_0_1px_rgba(167,243,208,0.34),0_0_36px_rgba(16,185,129,0.34)]"
+                                : simulationWinner === "opponent"
+                                  ? "border-rose-100/70 bg-[linear-gradient(180deg,rgba(251,113,133,0.52),rgba(190,18,60,0.42))] shadow-[0_0_0_1px_rgba(254,205,211,0.28),0_0_36px_rgba(244,63,94,0.3)]"
+                                  : "border-emerald-200/16 bg-emerald-300/8",
+                            )}
+                          >
                             <div className="text-[10px] uppercase tracking-[0.22em] text-emerald-100/76">Your Team</div>
                             <div className="mt-3 text-[clamp(3rem,7vw,6.5rem)] font-semibold leading-none text-white">
                               {simulationLiveScore.user}
@@ -7504,7 +7597,16 @@ export const RoguelikeMode = ({
                               {simulationComplete ? "Final" : "Game Clock"}
                             </div>
                           </div>
-                          <div className="rounded-[24px] border border-rose-200/16 bg-rose-300/8 px-4 py-5 text-center">
+                          <div
+                            className={clsx(
+                              "rounded-[24px] border px-4 py-5 text-center transition-colors",
+                              simulationWinner === "opponent"
+                                ? "border-emerald-100/70 bg-[linear-gradient(180deg,rgba(52,211,153,0.54),rgba(5,150,105,0.42))] shadow-[0_0_0_1px_rgba(167,243,208,0.34),0_0_36px_rgba(16,185,129,0.34)]"
+                                : simulationWinner === "user"
+                                  ? "border-rose-100/70 bg-[linear-gradient(180deg,rgba(251,113,133,0.52),rgba(190,18,60,0.42))] shadow-[0_0_0_1px_rgba(254,205,211,0.28),0_0_36px_rgba(244,63,94,0.3)]"
+                                  : "border-rose-200/16 bg-rose-300/8",
+                            )}
+                          >
                             <div className="text-[10px] uppercase tracking-[0.22em] text-rose-100/76">
                               {activeNode.opponentTeamName ?? "Boss Team"}
                             </div>
@@ -7619,7 +7721,7 @@ export const RoguelikeMode = ({
                                 <div className="mt-1 text-xl font-semibold text-white">Box Score</div>
                               </div>
                               <div className="overflow-x-auto">
-                                <table className="w-full min-w-[680px] text-left text-sm">
+                                <table className="w-full min-w-[560px] text-left text-sm">
                                   <thead className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
                                     <tr className="border-b border-white/8">
                                       <th className="px-4 py-3">Player</th>
@@ -7631,8 +7733,6 @@ export const RoguelikeMode = ({
                                       <th className="px-3 py-3 text-right">TO</th>
                                       <th className="px-3 py-3 text-right">FG</th>
                                       <th className="px-3 py-3 text-right">FG%</th>
-                                      <th className="px-4 py-3 text-right">FT</th>
-                                      <th className="px-4 py-3 text-right">FT%</th>
                                     </tr>
                                   </thead>
                                   <tbody>
@@ -7650,8 +7750,6 @@ export const RoguelikeMode = ({
                                         <td className="px-3 py-3 text-right text-slate-200">{stat.turnovers}</td>
                                         <td className="px-3 py-3 text-right text-slate-200">{stat.fieldGoalsMade}/{stat.fieldGoalsAttempted}</td>
                                         <td className="px-3 py-3 text-right text-slate-200">{formatPercentage(stat.fieldGoalsMade, stat.fieldGoalsAttempted)}</td>
-                                        <td className="px-4 py-3 text-right text-slate-200">{stat.freeThrowsMade}/{stat.freeThrowsAttempted}</td>
-                                        <td className="px-4 py-3 text-right text-slate-200">{formatPercentage(stat.freeThrowsMade, stat.freeThrowsAttempted)}</td>
                                       </tr>
                                     ))}
                                   </tbody>
@@ -7705,18 +7803,28 @@ export const RoguelikeMode = ({
                     : "",
                 )}
               >
-                {run.choices.map((player) => (
-                  <DraftPlayerCard
-                    key={player.id}
-                    player={player}
-                    onSelect={draftChoice}
-                    compact
-                    compactScale={run.choices.length >= 5 ? 0.46 : 0.59}
-                    draftedPlayerIds={runOwnedPlayerIds}
-                    enableTeamChemistryPreview
-                    coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
-                  />
-                ))}
+                {run.choices.map((player, index) => {
+                  const compactScale = run.choices.length >= 5 ? 0.46 : 0.59;
+
+                  return (
+                    <DraftChoiceRevealCard
+                      key={`${draftChoiceRevealKey}-${player.id}`}
+                      index={index}
+                      compactScale={compactScale}
+                      revealKey={draftChoiceRevealKey}
+                    >
+                      <DraftPlayerCard
+                        player={player}
+                        onSelect={draftChoice}
+                        compact
+                        compactScale={compactScale}
+                        draftedPlayerIds={runOwnedPlayerIds}
+                        enableTeamChemistryPreview
+                        coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
+                      />
+                    </DraftChoiceRevealCard>
+                  );
+                })}
               </div>
               <div className="mt-6 flex flex-wrap gap-3">
                 <button

@@ -122,8 +122,8 @@ export const RunRosterPlayerCard = ({
             )}
           </div>
 
-          <div className="min-w-[calc(120px*var(--run-roster-scale))] flex-1">
-            <div className="flex w-full min-w-0 max-w-full flex-col rounded-[calc(18px*var(--run-roster-scale))] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.68),rgba(4,8,18,0.84))] px-[calc(10px*var(--run-roster-scale))] py-[calc(8px*var(--run-roster-scale))] shadow-[0_12px_26px_rgba(0,0,0,0.28)] backdrop-blur-[4px]">
+          <div className="min-w-[calc(120px*var(--run-roster-scale))] flex-[0_1_auto]">
+            <div className="flex w-fit min-w-[calc(150px*var(--run-roster-scale))] max-w-[calc(300px*var(--run-roster-scale))] flex-col rounded-[calc(18px*var(--run-roster-scale))] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.68),rgba(4,8,18,0.84))] px-[calc(10px*var(--run-roster-scale))] py-[calc(8px*var(--run-roster-scale))] shadow-[0_12px_26px_rgba(0,0,0,0.28)] backdrop-blur-[4px]">
               <div className="flex min-w-0 flex-wrap items-center gap-[calc(6px*var(--run-roster-scale))]">
                 <div className={clsx("text-[calc(11px*var(--run-roster-scale))] font-semibold uppercase tracking-[0.24em] text-slate-400", eyebrowToneClassName)}>
                   {eyebrow ?? resolvedPlayer?.primaryPosition ?? "OPEN"}

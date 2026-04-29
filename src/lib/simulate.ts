@@ -94,13 +94,8 @@ const getPlayerTypeBalanceBonus = (players: Player[]) => {
   if (typeBalance.representedCount >= 3) bonus += 1.75;
   if (typeBalance.representedCount >= 4) bonus += 2;
   if (typeBalance.representedCount >= 5) bonus += 2.25;
-  if (typeBalance.uniquePrimaryCount >= 3) bonus += 1.5;
-  if (typeBalance.uniquePrimaryCount >= 4) bonus += 1.25;
-  if (typeBalance.uniquePrimaryCount >= 5) bonus += 1.25;
-  if (players.length >= 4 && typeBalance.uniquePrimaryCount <= 2) bonus -= 3.5;
-  if (players.length >= 5 && typeBalance.duplicatePrimaryCount >= 3) bonus -= 2;
 
-  return clamp(bonus, -6, 10);
+  return clamp(bonus, 0, 10);
 };
 
 export const evaluateDraftChemistry = (roster: RosterSlot[]): DraftChemistrySnapshot => {
