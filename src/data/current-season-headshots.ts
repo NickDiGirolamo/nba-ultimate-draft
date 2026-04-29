@@ -16,6 +16,7 @@ export const currentSeasonHeadshotUrls: Record<string, string> = {
   "chet-holmgren-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1631096.png",
   "collin-gillespie-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1631221.png",
   "cooper-flagg-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1642843.png",
+  "dalano-banton-2025-26": "https://a.espncdn.com/combiner/i?img=/i/headshots/nba/players/full/4397885.png",
   "de-aaron-fox-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1628368.png",
   "deni-avdija-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1630166.png",
   "derrick-white-2025-26": "https://cdn.nba.com/headshots/nba/latest/1040x760/1628401.png",

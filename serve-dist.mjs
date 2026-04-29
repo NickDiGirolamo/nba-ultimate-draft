@@ -26,7 +26,12 @@ const sendFile = (res, filePath) => {
 
 createServer((req, res) => {
   const pathname = req.url?.split("?")[0] ?? "/";
-  const relativePath = pathname === "/" ? "/index.html" : pathname;
+  const relativePath =
+    pathname === "/"
+      ? "/index.html"
+      : pathname === "/card-lab" || pathname === "/card-lab/"
+        ? "/card-lab.html"
+        : pathname;
   const filePath = normalize(join(root, relativePath));
 
   if (!filePath.startsWith(root)) {

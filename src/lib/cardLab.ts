@@ -1,4 +1,5 @@
 import { getTierFromOverall } from "./playerTier";
+import { roguelikeCoaches } from "./roguelike";
 import { LegacyPlayerTier, Player, PlayerTier } from "../types";
 import {
   PlayerTypeBadge,
@@ -40,6 +41,20 @@ export interface CardLabLinePreviewSection {
   title: string;
   description: string;
   cards: CardLabLinePreviewCard[];
+}
+
+export interface CardLabCoachPreviewCard {
+  id: string;
+  label: string;
+  teamName: string;
+  conference: "east" | "west";
+}
+
+export interface CardLabCoachPreviewSection {
+  id: string;
+  title: string;
+  description: string;
+  cards: CardLabCoachPreviewCard[];
 }
 
 const badgePriority: PlayerTypeBadge[] = [
@@ -1352,5 +1367,34 @@ export const beforeTheGlorySections: CardLabLinePreviewSection[] = [
         badgeCount: 1,
       }),
     ],
+  },
+];
+
+export const coachCardSections: CardLabCoachPreviewSection[] = [
+  {
+    id: "east-coaches",
+    title: "Eastern Conference",
+    description: "The same coach pool used in the Rogue opening coach node for Eastern Conference runs.",
+    cards: roguelikeCoaches
+      .filter((coach) => coach.conference === "east")
+      .map((coach) => ({
+        id: coach.id,
+        label: coach.name,
+        teamName: coach.teamName,
+        conference: coach.conference,
+      })),
+  },
+  {
+    id: "west-coaches",
+    title: "Western Conference",
+    description: "The same coach pool used in the Rogue opening coach node for Western Conference runs.",
+    cards: roguelikeCoaches
+      .filter((coach) => coach.conference === "west")
+      .map((coach) => ({
+        id: coach.id,
+        label: coach.name,
+        teamName: coach.teamName,
+        conference: coach.conference,
+      })),
   },
 ];

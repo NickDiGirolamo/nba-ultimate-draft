@@ -4,7 +4,7 @@ import { Player } from "../types";
 
 const playerById = new Map(allPlayers.map((player) => [player.id, player]));
 
-const getCanonicalTeamKey = (teamLabel: string) => getNbaTeamByName(teamLabel)?.name ?? null;
+export const getCanonicalTeamKey = (teamLabel: string) => getNbaTeamByName(teamLabel)?.name ?? null;
 
 export const getPlayerTeamKey = (player: Player | null | undefined) =>
   player ? getCanonicalTeamKey(player.teamLabel) : null;

@@ -16,7 +16,7 @@ import {
 } from "./playerTypeBadges";
 import { mulberry32 } from "./random";
 import { evaluateDraftChemistry } from "./simulate";
-import { getSameTeamChemistryBonusForPlayer } from "./teamChemistry";
+import { getPlayerTeamKey, getSameTeamChemistryBonusForPlayer } from "./teamChemistry";
 import { Player, PlayerTier, Position, RosterSlot, RosterSlotType } from "../types";
 import { getPlayerTier } from "./playerTier";
 import { getNbaTeamByName } from "../data/nbaTeams";
@@ -52,11 +52,19 @@ export type RoguelikePlayerPoolMode = "all" | "current-season";
 export type RoguelikeConferenceFilter = "both" | "east" | "west";
 export type RoguelikeDifficulty = "normal" | "all-star" | "superstar" | "all-time" | "goat";
 
+export interface RoguelikeCoach {
+  id: string;
+  name: string;
+  teamName: string;
+  conference: Exclude<RoguelikeConferenceFilter, "both">;
+}
+
 export interface RoguelikeRunSettings {
   conferenceFilter: RoguelikeConferenceFilter;
   excludeGalaxyCards: boolean;
   currentSeasonOnly: boolean;
   difficulty: RoguelikeDifficulty;
+  enableCoaches: boolean;
   disableTrainingNodes: boolean;
   disableTradeNodes: boolean;
 }
@@ -68,6 +76,39 @@ export interface RoguelikeStarterPackage {
   description: string;
   focus: string;
 }
+
+export const roguelikeCoaches: RoguelikeCoach[] = [
+  { id: "mike-budenholzer", name: "Mike Budenholzer", teamName: "Atlanta Hawks", conference: "east" },
+  { id: "red-auerbach", name: "Red Auerbach", teamName: "Boston Celtics", conference: "east" },
+  { id: "lawrence-frank", name: "Lawrence Frank", teamName: "Brooklyn Nets", conference: "east" },
+  { id: "paul-silas", name: "Paul Silas", teamName: "Charlotte Hornets", conference: "east" },
+  { id: "phil-jackson-bulls", name: "Phil Jackson (Bulls)", teamName: "Chicago Bulls", conference: "east" },
+  { id: "tyronn-lue", name: "Tyronn Lue", teamName: "Cleveland Cavaliers", conference: "east" },
+  { id: "chuck-daly", name: "Chuck Daly", teamName: "Detroit Pistons", conference: "east" },
+  { id: "larry-bird", name: "Larry Bird", teamName: "Indiana Pacers", conference: "east" },
+  { id: "erik-spoelstra", name: "Erik Spoelstra", teamName: "Miami Heat", conference: "east" },
+  { id: "don-nelson", name: "Don Nelson", teamName: "Milwaukee Bucks", conference: "east" },
+  { id: "red-holzman", name: "Red Holzman", teamName: "New York Knicks", conference: "east" },
+  { id: "stan-van-gundy", name: "Stan Van Gundy", teamName: "Orlando Magic", conference: "east" },
+  { id: "billy-cunningham", name: "Billy Cunningham", teamName: "Philadelphia 76ers", conference: "east" },
+  { id: "nick-nurse", name: "Nick Nurse", teamName: "Toronto Raptors", conference: "east" },
+  { id: "doug-collins", name: "Doug Collins", teamName: "Washington Wizards", conference: "east" },
+  { id: "rick-carlisle", name: "Rick Carlisle", teamName: "Dallas Mavericks", conference: "west" },
+  { id: "michael-malone", name: "Michael Malone", teamName: "Denver Nuggets", conference: "west" },
+  { id: "steve-kerr", name: "Steve Kerr", teamName: "Golden State Warriors", conference: "west" },
+  { id: "rudy-tomjanovich", name: "Rudy Tomjanovich", teamName: "Houston Rockets", conference: "west" },
+  { id: "doc-rivers", name: "Doc Rivers", teamName: "Los Angeles Clippers", conference: "west" },
+  { id: "phil-jackson-lakers", name: "Phil Jackson (Lakers)", teamName: "Los Angeles Lakers", conference: "west" },
+  { id: "lionel-hollins", name: "Lionel Hollins", teamName: "Memphis Grizzlies", conference: "west" },
+  { id: "flip-saunders", name: "Flip Saunders", teamName: "Minnesota Timberwolves", conference: "west" },
+  { id: "byron-scott-pelicans", name: "Byron Scott", teamName: "New Orleans Pelicans", conference: "west" },
+  { id: "mark-daigneault", name: "Mark Daigneault", teamName: "Oklahoma City Thunder", conference: "west" },
+  { id: "mike-dantoni", name: "Mike D'Antoni", teamName: "Phoenix Suns", conference: "west" },
+  { id: "jack-ramsay", name: "Jack Ramsay", teamName: "Portland Trail Blazers", conference: "west" },
+  { id: "rick-adelman", name: "Rick Adelman", teamName: "Sacramento Kings", conference: "west" },
+  { id: "gregg-popovich", name: "Gregg Popovich", teamName: "San Antonio Spurs", conference: "west" },
+  { id: "jerry-sloan", name: "Jerry Sloan", teamName: "Utah Jazz", conference: "west" },
+];
 
 export interface RoguelikeBundle {
   id: RoguelikeBundleId;
@@ -356,11 +397,27 @@ const ROGUELIKE_DIFFICULTY_OVR_MODIFIERS: Record<RoguelikeDifficulty, number> = 
   goat: 4,
 };
 
+const legacyRoguelikeCoachIds: Record<string, string> = {
+  "doug-moe": "michael-malone",
+  "larry-brown": "larry-bird",
+  "scott-brooks": "mark-daigneault",
+};
+
+export const getRoguelikeCoachById = (coachId: string | null | undefined) => {
+  if (!coachId) return null;
+  const resolvedCoachId = legacyRoguelikeCoachIds[coachId] ?? coachId;
+  return roguelikeCoaches.find((coach) => coach.id === resolvedCoachId) ?? null;
+};
+
+export const getRoguelikeCoachTeamKey = (coachId: string | null | undefined) =>
+  getRoguelikeCoachById(coachId)?.teamName ?? null;
+
 export const DEFAULT_ROGUELIKE_RUN_SETTINGS: RoguelikeRunSettings = {
   conferenceFilter: "both",
   excludeGalaxyCards: false,
   currentSeasonOnly: false,
   difficulty: "normal",
+  enableCoaches: true,
   disableTrainingNodes: false,
   disableTradeNodes: false,
 };
@@ -380,9 +437,31 @@ export const normalizeRoguelikeRunSettings = (
   excludeGalaxyCards: settings?.excludeGalaxyCards ?? DEFAULT_ROGUELIKE_RUN_SETTINGS.excludeGalaxyCards,
   currentSeasonOnly: settings?.currentSeasonOnly ?? DEFAULT_ROGUELIKE_RUN_SETTINGS.currentSeasonOnly,
   difficulty: settings?.difficulty ?? DEFAULT_ROGUELIKE_RUN_SETTINGS.difficulty,
+  enableCoaches: settings?.enableCoaches ?? DEFAULT_ROGUELIKE_RUN_SETTINGS.enableCoaches,
   disableTrainingNodes: settings?.disableTrainingNodes ?? DEFAULT_ROGUELIKE_RUN_SETTINGS.disableTrainingNodes,
   disableTradeNodes: settings?.disableTradeNodes ?? DEFAULT_ROGUELIKE_RUN_SETTINGS.disableTradeNodes,
 });
+
+export const drawRoguelikeCoachChoices = (
+  seed: number,
+  settings?: Partial<RoguelikeRunSettings> | null,
+  count = 5,
+) => {
+  const normalizedSettings = normalizeRoguelikeRunSettings(settings);
+  const filteredCoaches = roguelikeCoaches.filter((coach) => {
+    if (normalizedSettings.conferenceFilter === "both") return true;
+    return coach.conference === normalizedSettings.conferenceFilter;
+  });
+  const random = mulberry32(seed);
+  const shuffled = [...filteredCoaches];
+
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+
+  return shuffled.slice(0, Math.min(count, shuffled.length));
+};
 
 export const getRoguelikeDifficultyBossModifier = (difficulty: RoguelikeDifficulty) =>
   ROGUELIKE_DIFFICULTY_OVR_MODIFIERS[difficulty] ?? 0;
@@ -1901,11 +1980,14 @@ export const getRoguelikeAdjustedOverallForSlot = (
   slot: RosterSlot,
   playerIds: string[] = [],
   trainedPlayerIds: string[] = [],
+  coachTeamKey: string | null = null,
 ) => {
   if (!player) return 0;
+  const coachBoost = coachTeamKey && getPlayerTeamKey(player) === coachTeamKey ? 1 : 0;
   return Math.max(
     0,
     player.overall +
+      coachBoost +
       getRoguelikeTeamChemistryBoost(player, playerIds) +
       getSameTeamChemistryBonusForPlayer(player, playerIds) +
       getRoguelikeDynamicDuoBoost(player, playerIds, "overall") +
@@ -2210,7 +2292,11 @@ export const generateFaceoffOpponentPlayerIds = (
   return fallbackSelected;
 };
 
-export const evaluateRoguelikeRoster = (players: Player[], trainedPlayerIds: string[] = []): RoguelikeRosterMetrics => {
+export const evaluateRoguelikeRoster = (
+  players: Player[],
+  trainedPlayerIds: string[] = [],
+  coachTeamKey: string | null = null,
+): RoguelikeRosterMetrics => {
   if (players.length === 0) {
       return {
         overall: 0,
@@ -2227,12 +2313,13 @@ export const evaluateRoguelikeRoster = (players: Player[], trainedPlayerIds: str
   const chemistry = evaluateDraftChemistry(buildPreviewRoster(players)).score;
   const ownedPlayerIds = players.map((player) => player.id);
 
-  return {
-    overall: average((player) =>
-      player.overall +
-      getSameTeamChemistryBonusForPlayer(player, ownedPlayerIds) +
-      getRoguelikeTrainingBoost(player, trainedPlayerIds, "overall"),
-    ),
+    return {
+      overall: average((player) =>
+        player.overall +
+        (coachTeamKey && getPlayerTeamKey(player) === coachTeamKey ? 1 : 0) +
+        getSameTeamChemistryBonusForPlayer(player, ownedPlayerIds) +
+        getRoguelikeTrainingBoost(player, trainedPlayerIds, "overall"),
+      ),
     offense: average((player) => player.offense + getRoguelikeTrainingBoost(player, trainedPlayerIds, "offense")),
     defense: average((player) => player.defense + getRoguelikeTrainingBoost(player, trainedPlayerIds, "defense")),
     chemistry: Math.round(chemistry * 10) / 10,
@@ -2244,6 +2331,7 @@ export const evaluateRoguelikeLineup = (
   lineup: RosterSlot[],
   ownedPlayerIds: string[] = [],
   trainedPlayerIds: string[] = [],
+  coachTeamKey: string | null = null,
 ): RoguelikeRosterMetrics => {
   const players = lineup.map((slot) => slot.player).filter((player): player is Player => Boolean(player));
   const playerIds =
@@ -2266,7 +2354,9 @@ export const evaluateRoguelikeLineup = (
   const chemistry = evaluateDraftChemistry(lineup).score;
 
   return {
-    overall: average((slot) => getRoguelikeAdjustedOverallForSlot(slot.player, slot, playerIds, trainedPlayerIds)),
+      overall: average((slot) =>
+        getRoguelikeAdjustedOverallForSlot(slot.player, slot, playerIds, trainedPlayerIds, coachTeamKey),
+      ),
     offense: average((slot) => {
       const adjustedOffense = getRoguelikeAdjustedOffenseForSlot(slot.player, slot, playerIds, trainedPlayerIds);
       const adjustedPlaymaking = getRoguelikeAdjustedPlaymakingForSlot(slot.player, slot, playerIds, trainedPlayerIds);
@@ -2307,6 +2397,7 @@ const getFaceoffPlayerRating = (
   lineupPlayers: Player[],
   trainedPlayerIds: string[] = [],
   opponentTrainedPlayerIds: string[] = [],
+  coachTeamKey: string | null = null,
   bonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
   opponentBonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
 ) => {
@@ -2322,7 +2413,13 @@ const getFaceoffPlayerRating = (
     } satisfies RoguelikeFaceoffRatingBreakdown;
   }
 
-  const adjustedOverall = getRoguelikeAdjustedOverallForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
+  const adjustedOverall = getRoguelikeAdjustedOverallForSlot(
+    player,
+    slot,
+    ownedPlayerIds,
+    trainedPlayerIds,
+    coachTeamKey,
+  );
   const adjustedOffense = getRoguelikeAdjustedOffenseForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
   const adjustedDefense = getRoguelikeAdjustedDefenseForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
   const adjustedPlaymaking = getRoguelikeAdjustedPlaymakingForSlot(player, slot, ownedPlayerIds, trainedPlayerIds);
@@ -2661,6 +2758,7 @@ export const resolveRoguelikeFaceoff = (
   opponentOwnedPlayerIds: string[] = [],
   trainedPlayerIds: string[] = [],
   opponentTrainedPlayerIds: string[] = [],
+  coachTeamKey: string | null = null,
   bonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
   opponentBonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
 ): RoguelikeFaceoffResult => {
@@ -2678,7 +2776,12 @@ export const resolveRoguelikeFaceoff = (
           new Set([...opponentOwnedPlayerIds, ...opponentLineup.map((slot) => slot.player?.id).filter((id): id is string => Boolean(id))]),
         )
       : opponentLineup.map((slot) => slot.player?.id).filter((id): id is string => Boolean(id));
-  const userLineupMetrics = evaluateRoguelikeLineup(userLineup, resolvedUserPlayerIds, trainedPlayerIds);
+    const userLineupMetrics = evaluateRoguelikeLineup(
+      userLineup,
+      resolvedUserPlayerIds,
+      trainedPlayerIds,
+      coachTeamKey,
+    );
   const opponentLineupMetrics = evaluateRoguelikeLineup(opponentLineup, resolvedOpponentPlayerIds, opponentTrainedPlayerIds);
   const userLineupBalanceBonus = getBossBattleLineupBalanceBonus(
     userPlayers,
@@ -2702,13 +2805,14 @@ export const resolveRoguelikeFaceoff = (
       resolvedUserPlayerIds,
       resolvedOpponentPlayerIds,
       userLineupMetrics,
-      userLineupBalanceBonus,
-      userPlayers,
-      trainedPlayerIds,
-      opponentTrainedPlayerIds,
-      bonusBadgeAssignments,
-      opponentBonusBadgeAssignments,
-    );
+        userLineupBalanceBonus,
+        userPlayers,
+        trainedPlayerIds,
+        opponentTrainedPlayerIds,
+        coachTeamKey,
+        bonusBadgeAssignments,
+        opponentBonusBadgeAssignments,
+      );
     const opponentBreakdown = getFaceoffPlayerRating(
       opponentPlayer,
       opponentSlot ?? userSlot,
@@ -2720,6 +2824,7 @@ export const resolveRoguelikeFaceoff = (
       opponentPlayers,
       opponentTrainedPlayerIds,
       trainedPlayerIds,
+      null,
       opponentBonusBadgeAssignments,
       bonusBadgeAssignments,
     );
@@ -2764,10 +2869,13 @@ export const resolveRoguelikeNode = (
   players: Player[],
   lineup?: RosterSlot[],
   trainedPlayerIds: string[] = [],
+  coachTeamKey: string | null = null,
   bonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
 ) => {
   const playerIds = players.map((player) => player.id);
-  const metrics = lineup ? evaluateRoguelikeLineup(lineup, playerIds, trainedPlayerIds) : evaluateRoguelikeRoster(players, trainedPlayerIds);
+  const metrics = lineup
+    ? evaluateRoguelikeLineup(lineup, playerIds, trainedPlayerIds, coachTeamKey)
+    : evaluateRoguelikeRoster(players, trainedPlayerIds, coachTeamKey);
   const opponentPlayers =
     (node.opponentStarterPlayerIds ?? node.opponentPlayerIds)?.map((playerId) => allPlayers.find((player) => player.id === playerId)).filter(
       (player): player is Player => Boolean(player),
@@ -2778,13 +2886,14 @@ export const resolveRoguelikeNode = (
       node.battleMode === "starting-five-faceoff" && lineup
         ? resolveRoguelikeFaceoff(
             node,
-            lineup,
-            playerIds,
-            opponentPlayers.map((player) => player.id),
-            trainedPlayerIds,
-            [],
-            bonusBadgeAssignments,
-          )
+              lineup,
+              playerIds,
+              opponentPlayers.map((player) => player.id),
+              trainedPlayerIds,
+              [],
+              coachTeamKey,
+              bonusBadgeAssignments,
+            )
         : null;
   const checks = node.checks ?? [];
   const weightedUserScore =
