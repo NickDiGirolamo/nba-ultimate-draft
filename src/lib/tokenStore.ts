@@ -8,7 +8,8 @@ export interface TokenStoreUtilityItem {
     | "trade-phone"
     | "silver-starter-pack"
     | "gold-starter-pack"
-    | "platinum-starter-pack";
+    | "platinum-starter-pack"
+    | "coach-recruitment";
   title: string;
   description: string;
   price: number;
@@ -20,7 +21,7 @@ export const tokenStoreUtilityItems: TokenStoreUtilityItem[] = [
     title: "Training Camp Ticket",
     description:
       "Send one player from your Rogue run team to training camp for a +1 OVR boost for the rest of the run.",
-    price: 10_000,
+    price: 7_500,
   },
   {
     id: "trade-phone",
@@ -33,22 +34,29 @@ export const tokenStoreUtilityItems: TokenStoreUtilityItem[] = [
     id: "silver-starter-pack",
     title: "Silver Starter Pack",
     description:
-      "Use this before a Rogue run to upgrade your 3-card starter pack to an average of 81 OVR instead of 80.",
-    price: 40_000,
+      "Permanently unlocks the option to upgrade your 3-card Rogue starter pack to an average of 81 OVR instead of 80.",
+    price: 20_000,
   },
   {
     id: "gold-starter-pack",
     title: "Gold Starter Pack",
     description:
-      "Use this before a Rogue run to upgrade your 3-card starter pack to an average of 82 OVR instead of 80.",
-    price: 70_000,
+      "Permanently unlocks the option to upgrade your 3-card Rogue starter pack to an average of 82 OVR instead of 80.",
+    price: 50_000,
   },
   {
     id: "platinum-starter-pack",
     title: "Platinum Starter Pack",
     description:
-      "Use this before a Rogue run to upgrade your 3-card starter pack to an average of 83 OVR instead of 80.",
-    price: 100_000,
+      "Permanently unlocks the option to upgrade your 3-card Rogue starter pack to an average of 83 OVR instead of 80.",
+    price: 80_000,
+  },
+  {
+    id: "coach-recruitment",
+    title: "Coach Recruitment",
+    description:
+      "Permanently adds a Coach Recruitment node after your opening five, giving you a 1-of-5 board from your coach's NBA team.",
+    price: 35_000,
   },
 ];
 

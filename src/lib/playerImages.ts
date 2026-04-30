@@ -520,6 +520,8 @@ const directImageOverrides: Record<string, string> = {
     "https://www.tuscaloosanews.com/gcdn/authoring/2007/08/09/NTTN/ghows-DA-956c6365-614f-4280-8405-f5e1f84e025e-1569fd9a.jpeg?width=1200&disable=upscale&format=pjpg&auto=webp",
   "robert-parish":
     "https://s.yimg.com/ny/api/res/1.2/882IvYtfStkE8iCZMwl3qw--/YXBwaWQ9aGlnaGxhbmRlcjt3PTY0MDtoPTc4MTtjZj13ZWJw/https://media.zenfs.com/en/celtics_wire_usa_today_sports_articles_699/3c37a5b411ecd07a9130974c2c565823",
+  "hasheem-thabeet":
+    "https://fanbuzz.com/wp-content/uploads/sites/5/2022/03/Hasheem-Thabeet-Now.png?w=1056",
   "robert-horry":
     "https://oneway77jc.com/cdn/shop/products/ROBERT.jpg?v=1666502059",
   "richard-jefferson":
@@ -579,7 +581,7 @@ const directImageOverrides: Record<string, string> = {
   "chris-paul-clippers":
     "https://gsp-image-cdn.wmsports.io/cms/prod/bleacher-report/getty_images/136109782_large_image.jpg",
   "chris-bosh-raptors":
-    "https://images2.minutemediacdn.com/image/upload/c_fill,w_1200,ar_16:9,f_auto,q_auto,g_auto/shape/cover/sport/a8bb8cc1a3d67c9f3771e8de4b8205cde8398598f32aa66dae02d52c5d6c7eb8.jpg",
+    "https://s.yimg.com/ny/api/res/1.2/TOA_.ISO02dk2Rf4uym0fg--/YXBwaWQ9aGlnaGxhbmRlcjt3PTY0MDtoPTQyNTtjZj13ZWJw/https://s.yimg.com/os/creatr-uploaded-images/2021-09/268c2920-14a2-11ec-bddf-7cac2f45a5b2",
   "chris-bosh-heat":
     "https://www.sltrib.com/resizer/v2/6PFJB26LLVG6BHVQ2PI4WAI6TM.jpg?auth=88c739e06dba9e84037ffd655fa03c518f397c994e2ab24c10c2482054d2d8b8&width=1024&quality=88",
   "chris-mullin":

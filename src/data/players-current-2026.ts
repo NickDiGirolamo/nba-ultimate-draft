@@ -76,7 +76,7 @@ const currentSeasonPositionOverrides: Record<string, Position[]> = {
   "karl-anthony-towns-2025-26": ["PF"],
   "kevin-love-2025-26": ["C"],
   "kevin-huerter-2025-26": ["SG"],
-  "luguentz-dort-2025-26": ["PF", "SG"],
+  "luguentz-dort-2025-26": ["SG", "PF"],
   "marvin-bagley-iii-2025-26": ["C"],
   "carter-bryant-2025-26": ["SF"],
   "drew-timme-2025-26": ["C"],

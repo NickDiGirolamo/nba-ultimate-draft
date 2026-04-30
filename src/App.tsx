@@ -74,6 +74,7 @@ function App() {
     purchaseSilverStarterPack,
     purchaseGoldStarterPack,
     purchasePlatinumStarterPack,
+    purchaseCoachRecruitment,
     purchaseRogueStar,
     setActiveRogueStar,
     useTrainingCampTicket,
@@ -372,6 +373,7 @@ function App() {
             ownedSilverStarterPacks={state.ownedSilverStarterPacks}
             ownedGoldStarterPacks={state.ownedGoldStarterPacks}
             ownedPlatinumStarterPacks={state.ownedPlatinumStarterPacks}
+            ownedCoachRecruitment={state.ownedCoachRecruitment}
             onAwardFailureRewards={awardRogueFailureRewards}
             onUpdatePersonalBests={updateRoguePersonalBests}
             onUseTrainingCampTicket={useTrainingCampTicket}
@@ -770,6 +772,7 @@ function App() {
           ownedSilverStarterPacks={state.ownedSilverStarterPacks}
           ownedGoldStarterPacks={state.ownedGoldStarterPacks}
           ownedPlatinumStarterPacks={state.ownedPlatinumStarterPacks}
+          ownedCoachRecruitment={state.ownedCoachRecruitment}
           ownedRogueStarIds={state.ownedRogueStarIds}
           activeRogueStarId={state.activeRogueStarId}
           onBuyTrainingCampTicket={() => purchaseTrainingCampTicket(10_000)}
@@ -777,6 +780,7 @@ function App() {
           onBuySilverStarterPack={() => purchaseSilverStarterPack(35_000)}
           onBuyGoldStarterPack={() => purchaseGoldStarterPack(70_000)}
           onBuyPlatinumStarterPack={() => purchasePlatinumStarterPack(100_000)}
+          onBuyCoachRecruitment={() => purchaseCoachRecruitment(50_000)}
           onBuyRogueStar={purchaseRogueStar}
           onSetActiveRogueStar={setActiveRogueStar}
           onClose={() => setTokenStoreOpen(false)}

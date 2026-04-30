@@ -312,6 +312,7 @@ const createInitialState = (): DraftState => {
     ownedSilverStarterPacks: 0,
     ownedGoldStarterPacks: 0,
     ownedPlatinumStarterPacks: 0,
+    ownedCoachRecruitment: 0,
     ownedRogueStarIds: [],
     activeRogueStarId: null,
     seed,
@@ -379,6 +380,7 @@ const normalizeState = (value: DraftState): DraftState => {
     ownedSilverStarterPacks: value.ownedSilverStarterPacks ?? 0,
     ownedGoldStarterPacks: value.ownedGoldStarterPacks ?? 0,
     ownedPlatinumStarterPacks: value.ownedPlatinumStarterPacks ?? 0,
+    ownedCoachRecruitment: value.ownedCoachRecruitment ?? 0,
     ownedRogueStarIds: Array.isArray(value.ownedRogueStarIds) ? normalizePlayerIds(value.ownedRogueStarIds) : [],
     activeRogueStarId:
       typeof value.activeRogueStarId === "string"
@@ -855,6 +857,7 @@ export const useDraftGame = () => {
         ownedSilverStarterPacks: state.ownedSilverStarterPacks,
         ownedGoldStarterPacks: state.ownedGoldStarterPacks,
         ownedPlatinumStarterPacks: state.ownedPlatinumStarterPacks,
+        ownedCoachRecruitment: state.ownedCoachRecruitment,
         ownedRogueStarIds: state.ownedRogueStarIds,
       activeRogueStarId: state.activeRogueStarId,
       screen: "landing",
@@ -986,6 +989,7 @@ export const useDraftGame = () => {
           ownedSilverStarterPacks: current.ownedSilverStarterPacks,
           ownedGoldStarterPacks: current.ownedGoldStarterPacks,
           ownedPlatinumStarterPacks: current.ownedPlatinumStarterPacks,
+          ownedCoachRecruitment: current.ownedCoachRecruitment,
           ownedRogueStarIds: current.ownedRogueStarIds,
         activeRogueStarId: current.activeRogueStarId,
         seed,
@@ -1061,33 +1065,48 @@ export const useDraftGame = () => {
 
   const purchaseSilverStarterPack = (price: number) => {
     if (metaProgress.tokens.balance < price) return false;
+    if (state.ownedSilverStarterPacks > 0) return false;
 
     setState((current) => ({
       ...current,
       spentTokens: current.spentTokens + price,
-      ownedSilverStarterPacks: current.ownedSilverStarterPacks + 1,
+      ownedSilverStarterPacks: 1,
     }));
     return true;
   };
 
   const purchaseGoldStarterPack = (price: number) => {
     if (metaProgress.tokens.balance < price) return false;
+    if (state.ownedGoldStarterPacks > 0) return false;
 
     setState((current) => ({
       ...current,
       spentTokens: current.spentTokens + price,
-      ownedGoldStarterPacks: current.ownedGoldStarterPacks + 1,
+      ownedGoldStarterPacks: 1,
     }));
     return true;
   };
 
   const purchasePlatinumStarterPack = (price: number) => {
     if (metaProgress.tokens.balance < price) return false;
+    if (state.ownedPlatinumStarterPacks > 0) return false;
 
     setState((current) => ({
       ...current,
       spentTokens: current.spentTokens + price,
-      ownedPlatinumStarterPacks: current.ownedPlatinumStarterPacks + 1,
+      ownedPlatinumStarterPacks: 1,
+    }));
+    return true;
+  };
+
+  const purchaseCoachRecruitment = (price: number) => {
+    if (metaProgress.tokens.balance < price) return false;
+    if (state.ownedCoachRecruitment > 0) return false;
+
+    setState((current) => ({
+      ...current,
+      spentTokens: current.spentTokens + price,
+      ownedCoachRecruitment: 1,
     }));
     return true;
   };
@@ -1135,31 +1154,16 @@ export const useDraftGame = () => {
 
   const useSilverStarterPack = () => {
     if (state.ownedSilverStarterPacks <= 0) return false;
-
-    setState((current) => ({
-      ...current,
-      ownedSilverStarterPacks: Math.max(0, current.ownedSilverStarterPacks - 1),
-    }));
     return true;
   };
 
   const useGoldStarterPack = () => {
     if (state.ownedGoldStarterPacks <= 0) return false;
-
-    setState((current) => ({
-      ...current,
-      ownedGoldStarterPacks: Math.max(0, current.ownedGoldStarterPacks - 1),
-    }));
     return true;
   };
 
   const usePlatinumStarterPack = () => {
     if (state.ownedPlatinumStarterPacks <= 0) return false;
-
-    setState((current) => ({
-      ...current,
-      ownedPlatinumStarterPacks: Math.max(0, current.ownedPlatinumStarterPacks - 1),
-    }));
     return true;
   };
 
@@ -1189,6 +1193,7 @@ export const useDraftGame = () => {
     purchaseSilverStarterPack,
     purchaseGoldStarterPack,
     purchasePlatinumStarterPack,
+    purchaseCoachRecruitment,
     purchaseRogueStar,
     setActiveRogueStar,
     useTrainingCampTicket,

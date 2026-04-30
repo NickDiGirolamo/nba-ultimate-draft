@@ -427,6 +427,7 @@ export interface DraftState {
   ownedSilverStarterPacks: number;
   ownedGoldStarterPacks: number;
   ownedPlatinumStarterPacks: number;
+  ownedCoachRecruitment: number;
   ownedRogueStarIds: string[];
   activeRogueStarId: string | null;
   seed: number;

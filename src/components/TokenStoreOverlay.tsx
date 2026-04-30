@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Coins, Crown, Package2, ShieldPlus, Sparkles, Ticket, X } from "lucide-react";
+import { Coins, Crown, Handshake, Package2, ShieldPlus, Sparkles, Ticket, X } from "lucide-react";
 import { MetaProgress } from "../types";
 import { getTokenStorePlayerPrice, getTokenStorePlayerPriceMap, getTokenStoreSPlayers, tokenStoreUtilityItems } from "../lib/tokenStore";
 import { usePlayerImage } from "../hooks/usePlayerImage";
@@ -12,6 +12,7 @@ interface TokenStoreOverlayProps {
   ownedSilverStarterPacks: number;
   ownedGoldStarterPacks: number;
   ownedPlatinumStarterPacks: number;
+  ownedCoachRecruitment: number;
   ownedRogueStarIds: string[];
   activeRogueStarId: string | null;
   onBuyTrainingCampTicket: () => void;
@@ -19,6 +20,7 @@ interface TokenStoreOverlayProps {
   onBuySilverStarterPack: () => void;
   onBuyGoldStarterPack: () => void;
   onBuyPlatinumStarterPack: () => void;
+  onBuyCoachRecruitment: () => void;
   onBuyRogueStar: (playerId: string, price: number) => void;
   onSetActiveRogueStar: (playerId: string | null) => void;
   onClose: () => void;
@@ -120,6 +122,7 @@ export const TokenStoreOverlay = ({
   ownedSilverStarterPacks,
   ownedGoldStarterPacks,
   ownedPlatinumStarterPacks,
+  ownedCoachRecruitment,
   ownedRogueStarIds,
   activeRogueStarId,
   onBuyTrainingCampTicket,
@@ -127,6 +130,7 @@ export const TokenStoreOverlay = ({
   onBuySilverStarterPack,
   onBuyGoldStarterPack,
   onBuyPlatinumStarterPack,
+  onBuyCoachRecruitment,
   onBuyRogueStar,
   onSetActiveRogueStar,
   onClose,
@@ -192,6 +196,20 @@ export const TokenStoreOverlay = ({
       uplift: "+3 Avg OVR",
     },
   ];
+  const rogueUpgradeCards = [
+    {
+      item: tokenStoreUtilityItems[5],
+      owned: ownedCoachRecruitment,
+      onBuy: onBuyCoachRecruitment,
+      icon: Handshake,
+      cardClass:
+        "border-emerald-200/18 bg-[linear-gradient(135deg,rgba(21,94,72,0.3),rgba(9,13,24,0.92))]",
+      badgeClass:
+        "border-emerald-200/20 bg-emerald-300/10 text-emerald-100",
+      iconClass: "text-emerald-200",
+      uplift: "Coach-Team Node",
+    },
+  ];
   const orderedStarPlayers = useMemo(
     () =>
       [...sTierPlayers].sort((a, b) => {
@@ -213,7 +231,7 @@ export const TokenStoreOverlay = ({
             </div>
             <h2 className="mt-3 font-display text-3xl text-white sm:text-4xl">Spend Tokens On Rogue Power</h2>
             <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
-              Cash in your Tokens on Rogue-run utility items, Rogue starter pack upgrades, and premium starter stars. Utility items stack in your inventory, starter pack upgrades are spent before a run begins, and owned Galaxy stars can be set active for future Rogue runs.
+              Cash in your Tokens on Rogue-run utility items, permanent Rogue upgrades, and premium starter stars. Utility items stack in your inventory, Rogue upgrades unlock forever, and owned Galaxy stars can be set active for future Rogue runs.
             </p>
           </div>
           <button
@@ -282,6 +300,52 @@ export const TokenStoreOverlay = ({
 
         <div className="mt-10">
           <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
+            <Handshake size={14} className="text-emerald-200" />
+            Permanent Rogue Upgrades
+          </div>
+          <div className="mt-3 text-sm leading-7 text-slate-300">
+            Unlock run-shaping systems that become available when a new Rogue run starts.
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {rogueUpgradeCards.map(({ item, owned, onBuy, icon: Icon, cardClass, badgeClass, iconClass, uplift }) => {
+              const unlocked = owned > 0;
+
+              return (
+                <div key={item.id} className={`rounded-[28px] border p-5 ${cardClass}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 text-xl font-semibold text-white">
+                        <Icon size={18} className={iconClass} />
+                        {item.title}
+                      </div>
+                      <div className="mt-2 text-[11px] uppercase tracking-[0.22em] text-white/58">
+                        {uplift}
+                      </div>
+                      <div className="mt-3 text-sm leading-7 text-slate-300">{item.description}</div>
+                    </div>
+                    <div className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${badgeClass}`}>
+                      {unlocked ? "Owned" : "Locked"}
+                    </div>
+                  </div>
+                  <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-2xl font-semibold text-white">{formatNumber(item.price)}</div>
+                    <button
+                      type="button"
+                      onClick={onBuy}
+                      disabled={unlocked || meta.tokens.balance < item.price}
+                      className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48 sm:w-auto sm:py-2.5"
+                    >
+                      {unlocked ? "Owned" : "Unlock"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-10">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
             <Package2 size={14} className="text-amber-200" />
             Rogue Starter Pack Upgrades
           </div>
@@ -289,7 +353,10 @@ export const TokenStoreOverlay = ({
             Buy premium starter packs to raise the average strength of your 3-card Rogue opening before you pick Balanced, Defense, or Offense.
           </div>
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {starterPackCards.map(({ item, owned, onBuy, cardClass, badgeClass, iconClass, uplift }) => (
+            {starterPackCards.map(({ item, owned, onBuy, cardClass, badgeClass, iconClass, uplift }) => {
+              const unlocked = owned > 0;
+
+              return (
               <div key={item.id} className={`rounded-[28px] border p-5 ${cardClass}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -303,7 +370,7 @@ export const TokenStoreOverlay = ({
                     <div className="mt-3 text-sm leading-7 text-slate-300">{item.description}</div>
                   </div>
                   <div className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${badgeClass}`}>
-                    Owned {owned}
+                    {unlocked ? "Owned" : "Locked"}
                   </div>
                 </div>
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -311,14 +378,15 @@ export const TokenStoreOverlay = ({
                   <button
                     type="button"
                     onClick={onBuy}
-                    disabled={meta.tokens.balance < item.price}
+                    disabled={unlocked || meta.tokens.balance < item.price}
                     className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48 sm:w-auto sm:py-2.5"
                   >
-                    Buy
+                    {unlocked ? "Owned" : "Unlock"}
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

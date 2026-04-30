@@ -140,6 +140,8 @@ export interface RoguelikeNode {
   opponentStarterPlayerIds?: string[];
   playerPoolMode?: RoguelikePlayerPoolMode;
   allowedRewardTiers?: PlayerTier[];
+  coachTeamOnly?: boolean;
+  requiresCoachRecruitment?: boolean;
   clearRewardsOverride?: RoguelikeClearRewards;
   unlocksBench?: boolean;
   choiceOptions?: Array<"training" | "trade">;
@@ -554,6 +556,19 @@ export const roguelikeNodes: RoguelikeNode[] = [
     rewardChoices: 0,
     targetLabel: "Choose 2 Emerald players to complete your opening five",
     allowedRewardTiers: ["Emerald"],
+  }),
+  makeDraftNode({
+    id: "year-1-coach-recruitment",
+    floor: 2,
+    act: 1,
+    title: "Coach Recruitment",
+    description: "Use your head coach's NBA ties to recruit a sixth player from that same franchise.",
+    rewardBundleId: "balanced-floor",
+    rewardChoices: 5,
+    targetLabel: "Choose 1 of 5 coach-team players",
+    allowedRewardTiers: ["Emerald", "Sapphire"],
+    coachTeamOnly: true,
+    requiresCoachRecruitment: true,
   }),
   makeDraftNode({
     id: "year-1-free-agency-1",
@@ -1334,6 +1349,7 @@ export const getRoguelikePlayerUniverse = (
 
 export const getRoguelikeNodesForSettings = (
   settings?: Partial<RoguelikeRunSettings> | null,
+  options: { enableCoachRecruitment?: boolean } = {},
 ): RoguelikeNode[] => {
   const normalizedSettings = normalizeRoguelikeRunSettings(settings);
   const bossOverallModifier = getRoguelikeDifficultyBossModifier(normalizedSettings.difficulty);
@@ -1341,6 +1357,8 @@ export const getRoguelikeNodesForSettings = (
   return roguelikeNodes
     .filter((node) => {
       if (!normalizedSettings.enableCoaches && node.type === "coaching-change") return false;
+      if (!normalizedSettings.enableCoaches && node.requiresCoachRecruitment) return false;
+      if (node.requiresCoachRecruitment && !options.enableCoachRecruitment) return false;
       if (normalizedSettings.disableTrainingNodes && node.type === "training") return false;
       if (normalizedSettings.disableTradeNodes && node.type === "trade") return false;
       return true;
