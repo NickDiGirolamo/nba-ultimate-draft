@@ -15,10 +15,14 @@ import { SimulationScreen } from "./components/SimulationScreen";
 import { TokenStoreOverlay } from "./components/TokenStoreOverlay";
 import { useDraftGame } from "./hooks/useDraftGame";
 import { getCategoryChallengeTarget } from "./lib/simulate";
+import { tokenStoreUtilityItems, type TokenStoreUtilityItem } from "./lib/tokenStore";
 
 const ROGUELIKE_UI_STORAGE_KEY = "legends-draft-roguelike-ui-v1";
 const ROGUELIKE_RUN_STORAGE_KEY = "legends-draft-roguelike-run-v1";
 const ROGUELIKE_PARKED_STORAGE_KEY = "legends-draft-roguelike-parked-v1";
+
+const getTokenStoreUtilityPrice = (id: TokenStoreUtilityItem["id"]) =>
+  tokenStoreUtilityItems.find((item) => item.id === id)?.price ?? 0;
 
 const challengeStrategyMap: Record<string, string> = {
   "classic": "Take the best long-term team, not the flashiest individual player.",
@@ -256,8 +260,8 @@ function App() {
 
   return (
     <div className="arena-shell text-white">
-      <div className="mx-auto max-w-[1720px] px-3 py-4 sm:px-4 sm:py-5 lg:px-5 lg:py-6">
-        <div className="mb-5 grid grid-cols-4 gap-2 lg:flex lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+      <div className="mx-auto max-w-[1720px] px-3 py-3 sm:px-4 sm:py-4 lg:px-5 lg:py-4">
+        <div className="mb-4 grid grid-cols-4 gap-2 lg:flex lg:flex-row lg:items-center lg:justify-between lg:gap-4">
           <button
             type="button"
             onClick={() => {
@@ -267,16 +271,16 @@ function App() {
               setRoguelikeOpen(false);
               resetDraft();
             }}
-            className="group col-span-1 flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border border-white/10 bg-black/18 px-2 py-2 text-center transition hover:border-amber-200/22 hover:bg-black/24 lg:max-w-[360px] lg:flex-row lg:justify-start lg:gap-3 lg:px-4 lg:py-3 lg:text-left"
+            className="group col-span-1 flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border border-white/10 bg-black/18 px-2 py-2 text-center transition hover:border-amber-200/22 hover:bg-black/24 lg:max-w-[320px] lg:flex-row lg:justify-start lg:gap-2.5 lg:px-3.5 lg:py-2 lg:text-left"
           >
-            <div className="rounded-2xl border border-amber-200/18 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.24),rgba(249,115,22,0.14),rgba(15,23,42,0.2))] p-2 text-amber-200 shadow-[0_10px_24px_rgba(251,191,36,0.16)] lg:p-2.5">
-              <Trophy size={16} className="lg:hidden" />
-              <Trophy size={20} className="hidden lg:block" />
+            <div className="rounded-2xl border border-amber-200/18 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.24),rgba(249,115,22,0.14),rgba(15,23,42,0.2))] p-2 text-amber-200 shadow-[0_10px_24px_rgba(251,191,36,0.16)] lg:p-2">
+              <Trophy size={15} className="lg:hidden" />
+              <Trophy size={17} className="hidden lg:block" />
             </div>
             <div className="min-w-0">
-              <div className="text-[8px] uppercase tracking-[0.16em] text-slate-400 lg:text-[10px] lg:tracking-[0.24em]">Home</div>
+              <div className="text-[8px] uppercase tracking-[0.16em] text-slate-400 lg:text-[9px] lg:tracking-[0.22em]">Home</div>
               <div className="mt-0.5 truncate font-display text-[0.65rem] text-white lg:hidden">Draft</div>
-              <div className="mt-1 hidden truncate font-display text-[clamp(1.1rem,1.6vw,1.6rem)] text-white lg:block">
+              <div className="mt-0.5 hidden truncate font-display text-[clamp(1rem,1.35vw,1.35rem)] text-white lg:block">
                 NBA Ultimate Draft
               </div>
             </div>
@@ -286,44 +290,44 @@ function App() {
             <button
               type="button"
               onClick={() => setLearnOpen(true)}
-              className="glass-panel group min-h-[72px] w-full rounded-2xl border border-sky-200/12 bg-[linear-gradient(135deg,rgba(9,18,34,0.96),rgba(16,26,46,0.92))] px-2 py-2 text-left shadow-[0_16px_32px_rgba(0,0,0,0.24)] transition hover:border-sky-200/28 hover:bg-[linear-gradient(135deg,rgba(12,24,44,0.98),rgba(20,34,58,0.94))] hover:shadow-[0_18px_36px_rgba(56,189,248,0.14)] sm:min-w-0 lg:min-h-[94px] lg:min-w-[230px] lg:px-4 lg:py-3"
+              className="glass-panel group min-h-[54px] w-full rounded-2xl border border-sky-200/12 bg-[linear-gradient(135deg,rgba(9,18,34,0.96),rgba(16,26,46,0.92))] px-2 py-1.5 text-left shadow-[0_16px_32px_rgba(0,0,0,0.24)] transition hover:border-sky-200/28 hover:bg-[linear-gradient(135deg,rgba(12,24,44,0.98),rgba(20,34,58,0.94))] hover:shadow-[0_18px_36px_rgba(56,189,248,0.14)] sm:min-w-0 lg:min-h-[70px] lg:min-w-[230px] lg:px-3.5 lg:py-2"
             >
 	              <div className="flex items-center justify-center gap-1.5 lg:justify-between lg:gap-3">
-	                <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-200 lg:gap-2 lg:text-[12px] lg:tracking-[0.2em]">
-                  <div className="rounded-full border border-sky-200/18 bg-sky-300/12 p-1 text-sky-200 transition group-hover:border-sky-200/28 group-hover:bg-sky-300/18 lg:p-1.5">
+	                <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-200 lg:gap-2 lg:text-[11px] lg:tracking-[0.18em]">
+                  <div className="rounded-full border border-sky-200/18 bg-sky-300/12 p-1 text-sky-200 transition group-hover:border-sky-200/28 group-hover:bg-sky-300/18">
                     <BookOpen size={11} className="lg:hidden" />
-                    <BookOpen size={13} className="hidden lg:block" />
+                    <BookOpen size={12} className="hidden lg:block" />
                   </div>
                   <span className="hidden sm:inline lg:inline">Learn</span>
                   <span className="sm:hidden">Tips</span>
                 </div>
-                <span className="hidden rounded-full border border-white/10 bg-white/6 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-100 lg:inline-flex">
+                <span className="hidden rounded-full border border-white/10 bg-white/6 px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-sky-100 lg:inline-flex">
                   Open
                 </span>
               </div>
-	              <div className="mt-1 hidden text-[0.88rem] font-medium leading-5 text-slate-300 lg:mt-3 lg:block">
+	              <div className="mt-2 hidden text-[0.78rem] font-medium leading-4 text-slate-300 lg:block">
 	                Learn categories, badges, and draft tips
 	              </div>
             </button>
             <button
               type="button"
               onClick={() => setTokenStoreOpen(true)}
-              className="glass-panel min-h-[72px] w-full rounded-2xl px-2 py-2 text-left transition hover:border-amber-200/24 hover:bg-white/10 sm:min-w-0 lg:min-h-[94px] lg:min-w-[200px] lg:px-4 lg:py-3"
+              className="glass-panel min-h-[54px] w-full rounded-2xl px-2 py-1.5 text-left transition hover:border-amber-200/24 hover:bg-white/10 sm:min-w-0 lg:min-h-[70px] lg:min-w-[200px] lg:px-3.5 lg:py-2"
             >
-              <div className="flex items-center justify-center gap-1 text-[9px] uppercase tracking-[0.12em] text-slate-400 lg:justify-start lg:gap-1.5 lg:text-[11px] lg:tracking-[0.18em]">
+              <div className="flex items-center justify-center gap-1 text-[9px] uppercase tracking-[0.12em] text-slate-400 lg:justify-start lg:gap-1.5 lg:text-[10px] lg:tracking-[0.17em]">
                 <Coins size={11} className="text-amber-200 lg:hidden" />
-                <Coins size={13} className="hidden text-amber-200 lg:block" />
+                <Coins size={12} className="hidden text-amber-200 lg:block" />
                 Tokens
               </div>
-              <div className="mt-1 flex flex-col items-center gap-0.5 lg:mt-2 lg:flex-row lg:items-end lg:justify-between lg:gap-3">
-                <div className="text-[1rem] font-semibold leading-none text-white lg:text-[2rem]">
+              <div className="mt-1 flex flex-col items-center gap-0.5 lg:flex-row lg:items-end lg:justify-between lg:gap-3">
+                <div className="text-[1rem] font-semibold leading-none text-white lg:text-[1.65rem]">
                   {metaProgress.tokens.balance}
                 </div>
-                <div className="pb-0 text-center text-[8px] uppercase tracking-[0.1em] text-slate-400 lg:pb-1 lg:text-right lg:text-[10px] lg:tracking-[0.12em]">
+                <div className="pb-0 text-center text-[8px] uppercase tracking-[0.1em] text-slate-400 lg:pb-0.5 lg:text-right lg:text-[9px] lg:tracking-[0.12em]">
                   Spendable
                 </div>
               </div>
-              <div className="mt-2 h-1" />
+              <div className="mt-1 h-0.5" />
             </button>
             <button
               type="button"
@@ -331,25 +335,25 @@ function App() {
                 setPrestigeInitialView("overview");
                 setPrestigeOpen(true);
               }}
-              className="glass-panel min-h-[72px] w-full rounded-2xl px-2 py-2 text-left transition hover:border-amber-200/24 hover:bg-white/10 sm:min-w-0 lg:min-h-[94px] lg:min-w-[230px] lg:px-4 lg:py-3"
+              className="glass-panel min-h-[54px] w-full rounded-2xl px-2 py-1.5 text-left transition hover:border-amber-200/24 hover:bg-white/10 sm:min-w-0 lg:min-h-[70px] lg:min-w-[230px] lg:px-3.5 lg:py-2"
             >
-              <div className="flex items-center justify-center gap-1 text-[9px] uppercase tracking-[0.12em] text-slate-400 lg:justify-start lg:gap-1.5 lg:text-[11px] lg:tracking-[0.18em]">
+              <div className="flex items-center justify-center gap-1 text-[9px] uppercase tracking-[0.12em] text-slate-400 lg:justify-start lg:gap-1.5 lg:text-[10px] lg:tracking-[0.17em]">
                 <Crown size={11} className="text-amber-200 lg:hidden" />
-                <Crown size={13} className="hidden text-amber-200 lg:block" />
+                <Crown size={12} className="hidden text-amber-200 lg:block" />
                 Prestige
               </div>
-              <div className="mt-1 flex flex-col items-center gap-0.5 lg:mt-2 lg:flex-row lg:items-end lg:justify-between lg:gap-3">
+              <div className="mt-1 flex flex-col items-center gap-0.5 lg:flex-row lg:items-end lg:justify-between lg:gap-3">
                 <div className="flex items-end gap-1 lg:gap-2">
-                  <span className="pb-0 text-[8px] uppercase tracking-[0.1em] text-amber-100/80 lg:pb-1 lg:text-[10px] lg:tracking-[0.14em]">Lvl</span>
-                  <span className="text-[1rem] font-semibold leading-none text-white lg:text-[2rem]">
+                  <span className="pb-0 text-[8px] uppercase tracking-[0.1em] text-amber-100/80 lg:pb-0.5 lg:text-[9px] lg:tracking-[0.13em]">Lvl</span>
+                  <span className="text-[1rem] font-semibold leading-none text-white lg:text-[1.65rem]">
                     {metaProgress.prestige.level}
                   </span>
                 </div>
-                <div className="pb-0 text-center text-[8px] uppercase tracking-[0.1em] text-slate-400 lg:pb-1 lg:text-right lg:text-[10px] lg:tracking-[0.12em]">
+                <div className="pb-0 text-center text-[8px] uppercase tracking-[0.1em] text-slate-400 lg:pb-0.5 lg:text-right lg:text-[9px] lg:tracking-[0.12em]">
                   {metaProgress.prestige.score}/{metaProgress.prestige.nextLevelScore}
                 </div>
               </div>
-              <div className="mt-1 h-1.5 overflow-hidden rounded-full border border-white/10 bg-slate-700/70 lg:mt-2 lg:h-2">
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full border border-white/10 bg-slate-700/70 lg:h-1.5">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-amber-300 via-yellow-200 to-orange-300"
                   style={{
@@ -360,7 +364,7 @@ function App() {
                   }}
                 />
               </div>
-              <div className="mt-2 h-1" />
+              <div className="mt-1 h-0.5" />
             </button>
           </div>
         </div>
@@ -775,12 +779,12 @@ function App() {
           ownedCoachRecruitment={state.ownedCoachRecruitment}
           ownedRogueStarIds={state.ownedRogueStarIds}
           activeRogueStarId={state.activeRogueStarId}
-          onBuyTrainingCampTicket={() => purchaseTrainingCampTicket(10_000)}
-          onBuyTradePhone={() => purchaseTradePhone(5_000)}
-          onBuySilverStarterPack={() => purchaseSilverStarterPack(35_000)}
-          onBuyGoldStarterPack={() => purchaseGoldStarterPack(70_000)}
-          onBuyPlatinumStarterPack={() => purchasePlatinumStarterPack(100_000)}
-          onBuyCoachRecruitment={() => purchaseCoachRecruitment(50_000)}
+          onBuyTrainingCampTicket={() => purchaseTrainingCampTicket(getTokenStoreUtilityPrice("training-camp-ticket"))}
+          onBuyTradePhone={() => purchaseTradePhone(getTokenStoreUtilityPrice("trade-phone"))}
+          onBuySilverStarterPack={() => purchaseSilverStarterPack(getTokenStoreUtilityPrice("silver-starter-pack"))}
+          onBuyGoldStarterPack={() => purchaseGoldStarterPack(getTokenStoreUtilityPrice("gold-starter-pack"))}
+          onBuyPlatinumStarterPack={() => purchasePlatinumStarterPack(getTokenStoreUtilityPrice("platinum-starter-pack"))}
+          onBuyCoachRecruitment={() => purchaseCoachRecruitment(getTokenStoreUtilityPrice("coach-recruitment"))}
           onBuyRogueStar={purchaseRogueStar}
           onSetActiveRogueStar={setActiveRogueStar}
           onClose={() => setTokenStoreOpen(false)}

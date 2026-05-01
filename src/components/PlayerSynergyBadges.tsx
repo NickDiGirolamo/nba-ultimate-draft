@@ -41,39 +41,6 @@ const BigThreeIcon = ({ compact = false }: { compact?: boolean }) => (
   </div>
 );
 
-const HexChessIcon = ({
-  piece,
-  compact = false,
-}: {
-  piece: string;
-  compact?: boolean;
-}) => {
-  const size = compact ? 16 : 20;
-
-  return (
-    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg
-        viewBox="0 0 24 24"
-        className="absolute inset-0 h-full w-full"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        aria-hidden="true"
-      >
-        <path d="M7 3.5h10L22 12l-5 8.5H7L2 12 7 3.5Z" />
-      </svg>
-      <span
-        className={clsx(
-          "relative font-black leading-none",
-          compact ? "text-[9px]" : "text-[11px]",
-        )}
-      >
-        {piece}
-      </span>
-    </div>
-  );
-};
-
 const TeamChemistryIcon = ({ compact = false }: { compact?: boolean }) => (
   <svg
     viewBox="0 0 24 24"
@@ -103,10 +70,6 @@ const badgeContent = (type: PlayerBadgeType, compact: boolean) => {
       return <BigThreeIcon compact={compact} />;
     case "rival":
       return <RivalIcon compact={compact} />;
-    case "role-player":
-      return <HexChessIcon piece="P" compact={compact} />;
-    case "centerpiece":
-      return <HexChessIcon piece="K" compact={compact} />;
     case "team-chemistry":
       return <TeamChemistryIcon compact={compact} />;
     default:
@@ -122,10 +85,6 @@ const badgeLabel = (type: PlayerBadgeType) => {
       return "Big 3";
     case "rival":
       return "Rival";
-    case "role-player":
-      return "Role Player";
-    case "centerpiece":
-      return "Centerpiece";
     case "team-chemistry":
       return "Team Chem";
     default:
@@ -151,17 +110,6 @@ const badgeTooltip = (
     return active
       ? `${title} active: ${playerList}`
       : `${title} requires: ${playerList}`;
-  }
-
-  if (type === "role-player" || type === "centerpiece") {
-    const playerList = players.map(formatPlayerName).join(" - ");
-
-    if (type === "centerpiece") {
-      return `Centerpiece: Role Players - ${playerList}`;
-    }
-
-    const centerpieceName = players[1] ? formatPlayerName(players[1]) : "Centerpiece";
-    return `Role Player: Linked to ${centerpieceName}`;
   }
 
   if (type === "dynamic-duo") {

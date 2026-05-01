@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { Handshake, Shield } from "lucide-react";
-import { getPlayerBadgeStates } from "../lib/dynamicDuos";
+import { getPlayerBadgeStates, getPreviewBadgeOverallBonusForPlayer } from "../lib/dynamicDuos";
 import { CardHoloOverlay, type CardHoloVariant } from "./CardHoloOverlay";
 import { DynamicDuoBadge } from "./DynamicDuoBadge";
 import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
@@ -122,7 +122,10 @@ export const DraftPlayerCard = ({
     sameTeamChemistryActive && !draftedPlayerIds.includes(player.id) ? 1 : 0;
   const previewCoachConnectionBonus =
     coachConnectionActive && !draftedPlayerIds.includes(player.id) ? 1 : 0;
-  const displayOverall = player.overall + previewTeamChemistryBonus + previewCoachConnectionBonus;
+  const previewBadgeOverallBonus =
+    !draftedPlayerIds.includes(player.id) ? getPreviewBadgeOverallBonusForPlayer(player.id, draftedPlayerIds) : 0;
+  const displayOverall =
+    player.overall + previewTeamChemistryBonus + previewCoachConnectionBonus + previewBadgeOverallBonus;
   const nameClassName =
     fullNameLength >= 24
       ? "text-[1rem]"

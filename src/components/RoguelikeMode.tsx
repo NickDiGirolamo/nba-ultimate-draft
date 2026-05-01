@@ -11,6 +11,7 @@ import {
   GripHorizontal,
   Handshake,
   Package2,
+  PillBottle,
   Pause,
   Play,
   RefreshCcw,
@@ -35,7 +36,7 @@ import { allPlayers } from "../data/players";
 import { getNbaTeamByName } from "../data/nbaTeams";
 import { assignPlayerToRoster } from "../lib/draft";
 import { getPlayerDisplayLines } from "../lib/playerDisplay";
-import { getPlayerTier, getPlayerTierLabel } from "../lib/playerTier";
+import { getPlayerTier, getPlayerTierLabel, playerTierRunRosterSurfaceStyles } from "../lib/playerTier";
 import { getPlayerArchetypeBehaviorProfile } from "../lib/playerArchetypeBehavior";
 import { mulberry32 } from "../lib/random";
 import { getPlayerTeamKey, getSameTeamChemistryBonusForPlayer } from "../lib/teamChemistry";
@@ -63,6 +64,7 @@ import {
   normalizeRoguelikeRunSettings,
   buildPreviewRoster,
   getRoguelikeAdjustedOverallForSlot,
+  getRoguelikeDisplayOverallBonus,
   getRoguelikeSlotPenalty,
   generateFaceoffOpponentPlayerIds,
   getRoguelikePlayerTypeBadges,
@@ -120,10 +122,19 @@ type LockerRoomItemId =
   | "practice-defense"
   | "practice-playmaking"
   | "practice-offense"
+  | "special-stuff"
   | "new-position-training";
 
 type SimulationTeam = "user" | "opponent";
 type StarterPackUpgrade = "standard" | "silver" | "gold" | "platinum";
+type AllStarEventKey =
+  | "dunkContest"
+  | "threePointContest"
+  | "skillsChallenge"
+  | "risingStarGame"
+  | "allStarGame";
+
+type AllStarAssignments = Record<AllStarEventKey, string | null>;
 
 interface RoguelikeSimulationScore {
   user: number;
@@ -172,6 +183,13 @@ interface RoguelikeGameSimulationResult {
   timeline: RoguelikeSimulationEvent[];
 }
 
+interface SimulationFitProfile {
+  scoringMultiplier: number;
+  assistMultiplier: number;
+  shotQualityLift: number;
+  turnoverMultiplier: number;
+}
+
 interface RoguelikeRun {
   ladderVersion?: number;
   seed: number;
@@ -203,16 +221,14 @@ interface RoguelikeRun {
   unlockedBundleIds: string[];
   scoutedBossNodeIds: string[];
   trainedPlayerIds: string[];
+  specialStuffInventoryCount: number;
+  activeSpecialStuffPlayerId: string | null;
   allStarBonusBadges: RoguelikeBonusBadgeAssignment[];
   pendingChoiceSelection?: "training" | "trade" | null;
   selectedCutPlayerIds: string[];
   selectedNaturalPositionPlayerId: string | null;
   selectedNaturalPosition: Position | null;
-  allStarAssignments: {
-    dunkContest: string | null;
-    threePointContest: string | null;
-    skillsChallenge: string | null;
-  };
+  allStarAssignments: AllStarAssignments;
   utilityReturnState?: {
     stage: RoguelikeStage;
     activeNode: RoguelikeNode | null;
@@ -379,6 +395,20 @@ const LOCKER_ROOM_NEW_POSITION_NODE: RoguelikeNode = {
   targetLabel: "Choose 1 player and add 1 new natural position",
 };
 
+const LOCKER_ROOM_SPECIAL_STUFF_NODE: RoguelikeNode = {
+  id: "locker-room-special-stuff",
+  floor: 0,
+  act: 0,
+  type: "training",
+  title: "Special Stuff",
+  description: "Choose 1 player to gain +3 OVR for the next boss battle only.",
+  rewardBundleId: "elite-closers",
+  rewardChoices: 0,
+  targetLabel: "Select 1 player to gain +3 OVR for the next boss battle only",
+};
+
+const SPECIAL_STUFF_BOOST_AMOUNT = 3;
+
 const LOCKER_ROOM_ITEM_PRICES: Record<LockerRoomItemId, number> = {
   "advanced-scouting": 24,
   "draft-shuffle-ticket": 30,
@@ -388,6 +418,7 @@ const LOCKER_ROOM_ITEM_PRICES: Record<LockerRoomItemId, number> = {
   "practice-defense": 22,
   "practice-playmaking": 22,
   "practice-offense": 22,
+  "special-stuff": 12,
   "new-position-training": 34,
 };
 
@@ -424,6 +455,55 @@ const STARTER_PACK_UPGRADE_OPTIONS: Array<{
   { value: "platinum", label: "Platinum", detail: "Best upgraded starter reveal", targetAverage: 83 },
 ];
 
+const DEFAULT_ALL_STAR_ASSIGNMENTS: AllStarAssignments = {
+  dunkContest: null,
+  threePointContest: null,
+  skillsChallenge: null,
+  risingStarGame: null,
+  allStarGame: null,
+};
+
+const ALL_STAR_EVENT_CARDS: Array<{
+  key: AllStarEventKey;
+  title: string;
+  stat: string;
+  badgeType: PlayerTypeBadge;
+}> = [
+  {
+    key: "dunkContest",
+    title: "Dunk Contest",
+    stat: "Slasher badge",
+    badgeType: "slasher",
+  },
+  {
+    key: "threePointContest",
+    title: "3PT Shootout",
+    stat: "Sniper badge",
+    badgeType: "sniper",
+  },
+  {
+    key: "skillsChallenge",
+    title: "Skills Challenge",
+    stat: "Playmaker badge",
+    badgeType: "playmaker",
+  },
+  {
+    key: "risingStarGame",
+    title: "Rising Star Game",
+    stat: "Board Man badge",
+    badgeType: "board-man",
+  },
+  {
+    key: "allStarGame",
+    title: "All-Star Game",
+    stat: "Lockdown badge",
+    badgeType: "lockdown",
+  },
+];
+
+const isAllStarEventKey = (value: string | null): value is AllStarEventKey =>
+  Boolean(value && ALL_STAR_EVENT_CARDS.some((eventCard) => eventCard.key === value));
+
 const LOCKER_ROOM_SELECTION_NODE_IDS = new Set<string>([
   LOCKER_ROOM_TRAINING_NODE.id,
   LOCKER_ROOM_PRACTICE_SHOOTING_NODE.id,
@@ -431,6 +511,7 @@ const LOCKER_ROOM_SELECTION_NODE_IDS = new Set<string>([
   LOCKER_ROOM_PRACTICE_DEFENSE_NODE.id,
   LOCKER_ROOM_PRACTICE_PLAYMAKING_NODE.id,
   LOCKER_ROOM_PRACTICE_OFFENSE_NODE.id,
+  LOCKER_ROOM_SPECIAL_STUFF_NODE.id,
   LOCKER_ROOM_NEW_POSITION_NODE.id,
 ]);
 
@@ -612,15 +693,16 @@ const normalizeStoredRun = (parsed: Partial<RoguelikeRun>, activeRogueStarId: st
     unlockedBundleIds: parsed.unlockedBundleIds ?? [],
     scoutedBossNodeIds: parsed.scoutedBossNodeIds ?? [],
     trainedPlayerIds: parsed.trainedPlayerIds ?? [],
+    specialStuffInventoryCount: parsed.specialStuffInventoryCount ?? 0,
+    activeSpecialStuffPlayerId: parsed.activeSpecialStuffPlayerId ?? null,
     allStarBonusBadges: parsed.allStarBonusBadges ?? [],
     pendingChoiceSelection: parsed.pendingChoiceSelection ?? null,
     selectedCutPlayerIds: parsed.selectedCutPlayerIds ?? [],
     selectedNaturalPositionPlayerId: parsed.selectedNaturalPositionPlayerId ?? null,
     selectedNaturalPosition: parsed.selectedNaturalPosition ?? null,
-    allStarAssignments: parsed.allStarAssignments ?? {
-      dunkContest: null,
-      threePointContest: null,
-      skillsChallenge: null,
+    allStarAssignments: {
+      ...DEFAULT_ALL_STAR_ASSIGNMENTS,
+      ...(parsed.allStarAssignments ?? {}),
     },
     utilityReturnState: parsed.utilityReturnState
       ? {
@@ -719,6 +801,14 @@ const getRunOwnedPlayers = (run: RoguelikeRun) => {
 const getTrainingCountForPlayer = (playerId: string, trainedPlayerIds: string[] = []) =>
   trainedPlayerIds.filter((trainedPlayerId) => trainedPlayerId === playerId).length;
 
+const getSpecialStuffTrainingIds = (playerId: string | null | undefined) =>
+  playerId ? Array.from({ length: SPECIAL_STUFF_BOOST_AMOUNT }, () => playerId) : [];
+
+const getEffectiveBossTrainedPlayerIds = (run: Pick<RoguelikeRun, "trainedPlayerIds" | "activeSpecialStuffPlayerId">) => [
+  ...(run.trainedPlayerIds ?? []),
+  ...getSpecialStuffTrainingIds(run.activeSpecialStuffPlayerId),
+];
+
 const getCoachBoostForPlayer = (player: Player, coachTeamKey: string | null = null) =>
   coachTeamKey && getPlayerTeamKey(player) === coachTeamKey ? 1 : 0;
 
@@ -730,12 +820,8 @@ const getTradePreviewOverall = (
   const previewOwnedPlayerIds = nextOwnedPlayerIds.includes(player.id)
     ? nextOwnedPlayerIds
     : [...nextOwnedPlayerIds, player.id];
-  const sameTeamChemistryBonus = getSameTeamChemistryBonusForPlayer(
-    player,
-    previewOwnedPlayerIds,
-  );
 
-  return player.overall + sameTeamChemistryBonus + getCoachBoostForPlayer(player, coachTeamKey);
+  return player.overall + getRoguelikeDisplayOverallBonus(player, previewOwnedPlayerIds, [], coachTeamKey);
 };
 
 const PLAYER_IDENTITY_SUFFIX_PATTERN = /\s\([^)]*\)$/;
@@ -763,13 +849,12 @@ const getRunDisplayPlayer = (
   coachTeamKey: string | null = null,
 ) => {
   const trainingCount = getTrainingCountForPlayer(player.id, trainedPlayerIds);
-  const sameTeamChemistryBonus = getSameTeamChemistryBonusForPlayer(player, ownedPlayerIds);
-  const coachBoost = getCoachBoostForPlayer(player, coachTeamKey);
-  if (trainingCount === 0 && sameTeamChemistryBonus === 0 && coachBoost === 0) return player;
+  const displayOverallBonus = getRoguelikeDisplayOverallBonus(player, ownedPlayerIds, trainedPlayerIds, coachTeamKey);
+  if (trainingCount === 0 && displayOverallBonus === 0) return player;
 
   return {
     ...player,
-    overall: player.overall + trainingCount + sameTeamChemistryBonus + coachBoost,
+    overall: player.overall + displayOverallBonus,
     offense: player.offense + trainingCount,
     defense: player.defense + trainingCount,
     playmaking: player.playmaking + trainingCount,
@@ -1826,10 +1911,64 @@ const getPlayerSimulationBadges = (
   allStarBonusBadges: RoguelikeBonusBadgeAssignment[] = [],
 ) => getRoguelikePlayerTypeBadges(player, allStarBonusBadges).map((badge) => badge.type);
 
+const DEFAULT_SIMULATION_FIT_PROFILE: SimulationFitProfile = {
+  scoringMultiplier: 1,
+  assistMultiplier: 1,
+  shotQualityLift: 0,
+  turnoverMultiplier: 1,
+};
+
+const getSimulationFitSupportScore = (
+  breakdown: RoguelikeFaceoffResult["matchups"][number]["userBreakdown"],
+) =>
+  breakdown.chemistrySupport * 0.7 +
+  breakdown.teamProfileSupport * 0.35 +
+  breakdown.lineupBalanceBonus * 0.55 +
+  breakdown.badgeMatchupBonus * 0.45;
+
+const buildSimulationFitProfiles = (
+  matchups: RoguelikeFaceoffResult["matchups"],
+  side: SimulationTeam,
+) => {
+  const entries = matchups
+    .map((matchup) => {
+      const player = side === "user" ? matchup.userPlayer : matchup.opponentPlayer;
+      const breakdown = side === "user" ? matchup.userBreakdown : matchup.opponentBreakdown;
+      return player
+        ? {
+            playerId: player.id,
+            supportScore: getSimulationFitSupportScore(breakdown),
+          }
+        : null;
+    })
+    .filter((entry): entry is { playerId: string; supportScore: number } => Boolean(entry));
+
+  if (entries.length === 0) return new Map<string, SimulationFitProfile>();
+
+  const averageSupport =
+    entries.reduce((sum, entry) => sum + entry.supportScore, 0) / entries.length;
+
+  return new Map(
+    entries.map((entry) => {
+      const relativeFit = entry.supportScore - averageSupport;
+      return [
+        entry.playerId,
+        {
+          scoringMultiplier: Math.max(0.92, Math.min(1.1, 1 + relativeFit * 0.035)),
+          assistMultiplier: Math.max(0.94, Math.min(1.08, 1 + relativeFit * 0.025)),
+          shotQualityLift: Math.max(-0.015, Math.min(0.018, relativeFit * 0.004)),
+          turnoverMultiplier: Math.max(0.9, Math.min(1.1, 1 - relativeFit * 0.025)),
+        },
+      ];
+    }),
+  );
+};
+
 const getSimulationScoringWeight = (
   player: Player,
   matchupRating: number,
   allStarBonusBadges: RoguelikeBonusBadgeAssignment[] = [],
+  fitProfile: SimulationFitProfile = DEFAULT_SIMULATION_FIT_PROFILE,
 ) => {
   const badges = getPlayerSimulationBadges(player, allStarBonusBadges);
   const behavior = getPlayerArchetypeBehaviorProfile(player, badges);
@@ -1840,7 +1979,7 @@ const getSimulationScoringWeight = (
       Math.max(1, player.shooting - 58) * (badges.includes("sniper") ? 0.38 : 0.2) +
       Math.max(1, player.athleticism - 58) * (badges.includes("slasher") ? 0.3 : 0.12) +
       Math.max(0, matchupRating - 80) * 0.75
-    ) * behavior.scoringWeightMultiplier
+    ) * behavior.scoringWeightMultiplier * fitProfile.scoringMultiplier
   );
 };
 
@@ -1944,6 +2083,7 @@ const getSimulationScoringTargets = (
 const getSimulationAssistWeight = (
   player: Player,
   allStarBonusBadges: RoguelikeBonusBadgeAssignment[] = [],
+  fitProfile: SimulationFitProfile = DEFAULT_SIMULATION_FIT_PROFILE,
 ) => {
   const badges = getPlayerSimulationBadges(player, allStarBonusBadges);
   const behavior = getPlayerArchetypeBehaviorProfile(player, badges);
@@ -1954,7 +2094,7 @@ const getSimulationAssistWeight = (
       Math.max(1, player.playmaking - 60) * (badges.includes("playmaker") ? 1.45 : 1) +
       player.ballDominance * 0.12 +
       positionBonus
-    ) * behavior.assistWeightMultiplier
+    ) * behavior.assistWeightMultiplier * fitProfile.assistMultiplier
   );
 };
 
@@ -2021,6 +2161,7 @@ const getSimulationFieldGoalPercentage = (
   stat: RoguelikeSimulationPlayerStat,
   rng: () => number,
   allStarBonusBadges: RoguelikeBonusBadgeAssignment[] = [],
+  fitProfile: SimulationFitProfile = DEFAULT_SIMULATION_FIT_PROFILE,
 ) => {
   const badges = getPlayerSimulationBadges(player, allStarBonusBadges);
   const behavior = getPlayerArchetypeBehaviorProfile(player, badges);
@@ -2060,7 +2201,7 @@ const getSimulationFieldGoalPercentage = (
     minimum,
     Math.min(
       maximum,
-      positionBaseline + skillLift + badgeLift + shotDietAdjustment + gameVariance,
+      positionBaseline + skillLift + badgeLift + shotDietAdjustment + fitProfile.shotQualityLift + gameVariance,
     ),
   );
 };
@@ -2158,6 +2299,7 @@ const distributeSimulationAssists = (
   rng: () => number,
   opponentTeamName?: string | null,
   bonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
+  fitProfiles: Map<string, SimulationFitProfile> = new Map(),
 ) => {
   const teamStats = stats.filter((stat) => stat.team === team);
   const fieldGoalEvents = events.filter((event) => event.team === team && event.points > 1);
@@ -2165,7 +2307,13 @@ const distributeSimulationAssists = (
     fieldGoalEvents.length,
     Math.round(fieldGoalEvents.length * getSimulationTeamAssistRate(players, rng, bonusBadgeAssignments)),
   );
-  const assistWeights = players.map((player) => getSimulationAssistWeight(player, bonusBadgeAssignments));
+  const assistWeights = players.map((player) =>
+    getSimulationAssistWeight(
+      player,
+      bonusBadgeAssignments,
+      fitProfiles.get(player.id) ?? DEFAULT_SIMULATION_FIT_PROFILE,
+    ),
+  );
   const statById = new Map(teamStats.map((stat) => [stat.playerId, stat]));
   const playerById = new Map(players.map((player) => [player.id, player]));
   const selectedEventIndexes = new Set<number>();
@@ -2206,6 +2354,7 @@ const addNonScoringSimulationStats = (
   team: SimulationTeam,
   rng: () => number,
   bonusBadgeAssignments: RoguelikeBonusBadgeAssignment[] = [],
+  fitProfiles: Map<string, SimulationFitProfile> = new Map(),
 ) => {
   const teamStats = stats.filter((stat) => stat.team === team);
   const playerById = new Map(players.map((player) => [player.id, player]));
@@ -2258,9 +2407,11 @@ const addNonScoringSimulationStats = (
         player,
         getPlayerSimulationBadges(player, bonusBadgeAssignments),
       );
+      const fitProfile = fitProfiles.get(player.id) ?? DEFAULT_SIMULATION_FIT_PROFILE;
       return (
         Math.max(1, player.ballDominance * 0.16 + stat.points * 0.12) *
-        behavior.turnoverLoadMultiplier
+        behavior.turnoverLoadMultiplier *
+        fitProfile.turnoverMultiplier
       );
     },
     (stat, value) => {
@@ -2271,8 +2422,9 @@ const addNonScoringSimulationStats = (
   const shotQualityById = new Map<string, number>();
   teamStats.forEach((stat) => {
     const player = playerById.get(stat.playerId);
+    const fitProfile = fitProfiles.get(stat.playerId) ?? DEFAULT_SIMULATION_FIT_PROFILE;
     const shotQuality = player
-      ? getSimulationFieldGoalPercentage(player, stat, rng, bonusBadgeAssignments)
+      ? getSimulationFieldGoalPercentage(player, stat, rng, bonusBadgeAssignments, fitProfile)
       : 0.45;
     shotQualityById.set(stat.playerId, shotQuality);
     const extraMisses = Math.max(0, Math.round(stat.fieldGoalsMade * (1 / shotQuality - 1)));
@@ -2416,15 +2568,23 @@ const buildRoguelikeGameSimulationResult = ({
   const statByKey = new Map(stats.map((stat) => [`${stat.team}:${stat.playerId}`, stat]));
   const userRatingById = new Map(faceoffResult.matchups.map((matchup) => [matchup.userPlayer?.id, matchup.userRating]));
   const opponentRatingById = new Map(faceoffResult.matchups.map((matchup) => [matchup.opponentPlayer?.id, matchup.opponentRating]));
+  const userFitProfiles = buildSimulationFitProfiles(faceoffResult.matchups, "user");
+  const opponentFitProfiles = buildSimulationFitProfiles(faceoffResult.matchups, "opponent");
   const userScoringWeights = userPlayers.map((player) =>
     getSimulationScoringWeight(
       getRunDisplayPlayer(player, ownedPlayerIds, trainedPlayerIds, coachTeamKey),
       userRatingById.get(player.id) ?? player.overall,
       allStarBonusBadges,
+      userFitProfiles.get(player.id) ?? DEFAULT_SIMULATION_FIT_PROFILE,
     ),
   );
   const opponentScoringWeights = opponentPlayers.map((player) =>
-    getSimulationScoringWeight(player, opponentRatingById.get(player.id) ?? player.overall),
+    getSimulationScoringWeight(
+      player,
+      opponentRatingById.get(player.id) ?? player.overall,
+      [],
+      opponentFitProfiles.get(player.id) ?? DEFAULT_SIMULATION_FIT_PROFILE,
+    ),
   );
   const userScoringTargets = getSimulationScoringTargets(
     finalScore.user,
@@ -2532,10 +2692,11 @@ const buildRoguelikeGameSimulationResult = ({
     rng,
     opponentTeamName,
     allStarBonusBadges,
+    userFitProfiles,
   );
-  distributeSimulationAssists(events, stats, opponentPlayers, "opponent", rng, opponentTeamName);
-  addNonScoringSimulationStats(stats, userSimulationPlayers, "user", rng, allStarBonusBadges);
-  addNonScoringSimulationStats(stats, opponentPlayers, "opponent", rng);
+  distributeSimulationAssists(events, stats, opponentPlayers, "opponent", rng, opponentTeamName, [], opponentFitProfiles);
+  addNonScoringSimulationStats(stats, userSimulationPlayers, "user", rng, allStarBonusBadges, userFitProfiles);
+  addNonScoringSimulationStats(stats, opponentPlayers, "opponent", rng, [], opponentFitProfiles);
   normalizeSimulationReboundsToMissedShots(stats, rng);
 
   const userPointDelta = finalScore.user - stats.filter((stat) => stat.team === "user").reduce((sum, stat) => sum + stat.points, 0);
@@ -3043,10 +3204,10 @@ const StarterRevealCard = ({
   index: number;
   revealed: boolean;
   onReveal: () => void;
-}) => {
-  const shellRef = useRef<HTMLDivElement | null>(null);
-  const starterRevealBackLogo = "/nba-ultimate-draft-badge.png";
-  const starterRevealCardScale = 0.49;
+  }) => {
+    const shellRef = useRef<HTMLDivElement | null>(null);
+    const starterRevealBackLogo = "/nba-ultimate-draft-badge.png";
+    const starterRevealCardScale = 0.43;
   const starterRevealBaseWidth = 380;
   const starterRevealBaseHeight = 920;
   const [responsiveScale, setResponsiveScale] = useState(starterRevealCardScale);
@@ -3295,6 +3456,68 @@ const AllStarPlayerOptionCard = ({
         </div>
       </div>
     </button>
+  );
+};
+
+const AllStarEventPlayerCard = ({ player }: { player: Player }) => {
+  const imageUrl = usePlayerImage(player);
+  const tier = getPlayerTier(player);
+  const { firstNameLine, lastNameLine } = getPlayerDisplayLines(player);
+  const nameLines = [firstNameLine, lastNameLine].filter(Boolean);
+  const longestNameLineLength = nameLines.reduce((max, line) => Math.max(max, line.length), 0);
+  const nameClassName =
+    longestNameLineLength >= 20
+      ? "text-[0.64rem]"
+      : longestNameLineLength >= 17
+        ? "text-[0.76rem]"
+        : "text-[0.95rem]";
+
+  return (
+    <div className="rounded-[22px] border border-dashed border-white/40 p-1">
+      <div
+        className={clsx(
+          "relative overflow-hidden rounded-[19px] border border-white/12 px-3 py-3 shadow-[0_18px_42px_rgba(0,0,0,0.28)]",
+          playerTierRunRosterSurfaceStyles[tier],
+        )}
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_34%),linear-gradient(180deg,transparent,rgba(2,6,23,0.28)_64%,rgba(2,6,23,0.48))]" />
+        <div className="relative flex min-h-[150px] flex-col items-center justify-start px-2 py-2 text-center">
+          <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-[18px] border border-white/12 bg-black/24 shadow-[0_12px_26px_rgba(0,0,0,0.24)]">
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt={player.name}
+                className="h-full w-full object-cover object-top"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-slate-200">
+                {player.name
+                  .split(" ")
+                  .slice(0, 2)
+                  .map((part) => part[0])
+                  .join("")}
+              </div>
+            )}
+          </div>
+          <div className="mt-3 w-full rounded-[18px] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.66),rgba(4,8,18,0.84))] px-1.5 py-2.5 shadow-[0_12px_26px_rgba(0,0,0,0.24)] backdrop-blur-[4px]">
+            <div
+              className={clsx(
+                "font-display font-semibold leading-[1.04] tracking-[-0.01em] text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)]",
+                nameClassName,
+              )}
+            >
+              {nameLines.map((line) => (
+                <div key={line} className="block overflow-hidden whitespace-nowrap text-center">
+                  {line}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -3597,8 +3820,10 @@ export const RoguelikeMode = ({
   const [simulationPlaying, setSimulationPlaying] = useState(false);
   const [simulationSpeed, setSimulationSpeed] = useState<1 | 2 | 4>(1);
   const [showSimulationBoxScore, setShowSimulationBoxScore] = useState(false);
+  const [showCoachChangeRoster, setShowCoachChangeRoster] = useState(false);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const [cutDropTargetIndex, setCutDropTargetIndex] = useState<number | null>(null);
+  const [allStarDropTargetKey, setAllStarDropTargetKey] = useState<AllStarEventKey | null>(null);
   const bestOwnedStarterPackUpgrade = getBestOwnedStarterPackUpgrade({
     ownedSilverStarterPacks,
     ownedGoldStarterPacks,
@@ -3820,6 +4045,7 @@ export const RoguelikeMode = ({
     setDraggingIndex(null);
     setDropTargetIndex(null);
     setCutDropTargetIndex(null);
+    setAllStarDropTargetKey(null);
     setDragPointer(null);
     setParkedRunState(false);
     if (typeof window !== "undefined") {
@@ -3851,12 +4077,10 @@ export const RoguelikeMode = ({
       selectedCutPlayerIds: [],
       selectedNaturalPositionPlayerId: null,
       selectedNaturalPosition: null,
-      allStarAssignments: {
-        dunkContest: null,
-        threePointContest: null,
-        skillsChallenge: null,
-      },
+      allStarAssignments: { ...DEFAULT_ALL_STAR_ASSIGNMENTS },
       trainedPlayerIds: [],
+      specialStuffInventoryCount: 0,
+      activeSpecialStuffPlayerId: null,
       allStarBonusBadges: [],
       pendingChoiceSelection: null,
       pendingTradeState: null,
@@ -3939,11 +4163,7 @@ export const RoguelikeMode = ({
         selectedCutPlayerIds: [],
         selectedNaturalPositionPlayerId: null,
         selectedNaturalPosition: null,
-        allStarAssignments: {
-          dunkContest: null,
-          threePointContest: null,
-          skillsChallenge: null,
-        },
+        allStarAssignments: { ...DEFAULT_ALL_STAR_ASSIGNMENTS },
         utilityReturnState: null,
       });
       return;
@@ -3958,11 +4178,7 @@ export const RoguelikeMode = ({
       selectedCutPlayerIds: [],
       selectedNaturalPositionPlayerId: null,
       selectedNaturalPosition: null,
-      allStarAssignments: {
-        dunkContest: null,
-        threePointContest: null,
-        skillsChallenge: null,
-      },
+      allStarAssignments: { ...DEFAULT_ALL_STAR_ASSIGNMENTS },
     });
   };
 
@@ -4291,11 +4507,7 @@ export const RoguelikeMode = ({
         ...run,
         activeNode: currentNode,
         activeOpponentPlayerIds: null,
-        allStarAssignments: {
-          dunkContest: null,
-          threePointContest: null,
-          skillsChallenge: null,
-        },
+        allStarAssignments: { ...DEFAULT_ALL_STAR_ASSIGNMENTS },
         stage: "all-star-select",
         nodeResult: null,
       });
@@ -4630,21 +4842,20 @@ export const RoguelikeMode = ({
     });
   };
 
-  const assignAllStarPlayer = (
-    slot: "dunkContest" | "threePointContest" | "skillsChallenge",
-    player: Player,
-  ) => {
+  const assignAllStarPlayer = (slot: AllStarEventKey, player: Player) => {
     if (!run || run.stage !== "all-star-select") return;
 
-    const nextAssignments = {
+    const nextAssignments: AllStarAssignments = {
+      ...DEFAULT_ALL_STAR_ASSIGNMENTS,
       ...run.allStarAssignments,
-      [slot]: player.id,
     };
 
-    const selectedIds = new Set(Object.values(nextAssignments).filter((value): value is string => Boolean(value)));
-    if (selectedIds.size < Object.values(nextAssignments).filter(Boolean).length) {
-      return;
-    }
+    ALL_STAR_EVENT_CARDS.forEach((eventCard) => {
+      if (eventCard.key !== slot && nextAssignments[eventCard.key] === player.id) {
+        nextAssignments[eventCard.key] = null;
+      }
+    });
+    nextAssignments[slot] = player.id;
 
     setRun({
       ...run,
@@ -4652,10 +4863,76 @@ export const RoguelikeMode = ({
     });
   };
 
+  const assignDraggedPlayerToAllStarEvent = (fromIndex: number, eventKey: AllStarEventKey) => {
+    setRun((currentRun) => {
+      if (!currentRun || currentRun.stage !== "all-star-select") return currentRun;
+
+      const hydratedRun = getHydratedRun(currentRun, runNodes);
+      const player = hydratedRun.lineup[fromIndex]?.player ?? null;
+      if (!player) return currentRun;
+
+      const nextAssignments: AllStarAssignments = {
+        ...DEFAULT_ALL_STAR_ASSIGNMENTS,
+        ...currentRun.allStarAssignments,
+      };
+
+      ALL_STAR_EVENT_CARDS.forEach((eventCard) => {
+        if (eventCard.key !== eventKey && nextAssignments[eventCard.key] === player.id) {
+          nextAssignments[eventCard.key] = null;
+        }
+      });
+      nextAssignments[eventKey] = player.id;
+
+      return {
+        ...hydratedRun,
+        allStarAssignments: nextAssignments,
+      };
+    });
+  };
+
+  const removeAllStarAssignment = (eventKey: AllStarEventKey) => {
+    setRun((currentRun) => {
+      if (!currentRun || currentRun.stage !== "all-star-select") return currentRun;
+
+      return {
+        ...currentRun,
+        allStarAssignments: {
+          ...DEFAULT_ALL_STAR_ASSIGNMENTS,
+          ...currentRun.allStarAssignments,
+          [eventKey]: null,
+        },
+      };
+    });
+  };
+
+  const allStarAssignmentsComplete = (assignments: AllStarAssignments) =>
+    ALL_STAR_EVENT_CARDS.every((eventCard) => Boolean(assignments[eventCard.key]));
+
+  const getAllStarAssignedPlayer = (eventKey: AllStarEventKey) => {
+    const playerId = run?.allStarAssignments[eventKey] ?? null;
+    if (!playerId) return null;
+    return runOwnedDisplayPlayers.find((player) => player.id === playerId) ?? null;
+  };
+
+  const getAllStarResultCopy = (assignments: AllStarAssignments) => {
+    const parts = ALL_STAR_EVENT_CARDS.map((eventCard) => {
+      const player = runOwnedDisplayPlayers.find((entry) => entry.id === assignments[eventCard.key]);
+      const badgeLabel = eventCard.stat.replace(" badge", "");
+      return `${player?.name ?? eventCard.title} earned a ${badgeLabel} badge`;
+    });
+
+    if (parts.length <= 1) return parts[0] ?? "Your All-Star Weekend selections earned new badges.";
+
+    return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]} for the rest of this run.`;
+  };
+
   const runAllStarSaturday = () => {
     if (!run || run.stage !== "all-star-select" || !run.activeNode) return;
-    const { dunkContest, threePointContest, skillsChallenge } = run.allStarAssignments;
-    if (!dunkContest || !threePointContest || !skillsChallenge) return;
+    const assignments: AllStarAssignments = {
+      ...DEFAULT_ALL_STAR_ASSIGNMENTS,
+      ...run.allStarAssignments,
+    };
+    if (!allStarAssignmentsComplete(assignments)) return;
     const nextBonusBadges = [...(run.allStarBonusBadges ?? [])];
     const addBonusBadge = (
       playerId: string,
@@ -4673,13 +4950,11 @@ export const RoguelikeMode = ({
       nextBonusBadges.push({ playerId, badgeType });
     };
 
-    addBonusBadge(dunkContest, "slasher");
-    addBonusBadge(threePointContest, "sniper");
-    addBonusBadge(skillsChallenge, "playmaker");
+    ALL_STAR_EVENT_CARDS.forEach((eventCard) => {
+      const playerId = assignments[eventCard.key];
+      if (playerId) addBonusBadge(playerId, eventCard.badgeType);
+    });
     const nextFloorIndex = run.floorIndex + 1;
-    const dunkPlayer = run.roster.find((player) => player.id === dunkContest);
-    const threePointPlayer = run.roster.find((player) => player.id === threePointContest);
-    const skillsPlayer = run.roster.find((player) => player.id === skillsChallenge);
 
     setRun({
       ...run,
@@ -4688,14 +4963,10 @@ export const RoguelikeMode = ({
       stage: "node-result",
       activeNode: null,
       activeOpponentPlayerIds: null,
-      allStarAssignments: {
-        dunkContest: null,
-        threePointContest: null,
-        skillsChallenge: null,
-      },
+      allStarAssignments: { ...DEFAULT_ALL_STAR_ASSIGNMENTS },
       nodeResult: {
         title: `${run.activeNode.title} complete`,
-        detail: `${dunkPlayer?.name ?? "Your dunk contestant"} earned a Slasher badge, ${threePointPlayer?.name ?? "your 3PT contestant"} earned a Sniper badge, and ${skillsPlayer?.name ?? "your skills contestant"} earned a Playmaker badge for the rest of this run.`,
+        detail: getAllStarResultCopy(assignments),
         passed: true,
       },
     });
@@ -4791,11 +5062,7 @@ export const RoguelikeMode = ({
       setRun({
         ...run,
         stage: "all-star-select",
-        allStarAssignments: {
-          dunkContest: null,
-          threePointContest: null,
-          skillsChallenge: null,
-        },
+        allStarAssignments: { ...DEFAULT_ALL_STAR_ASSIGNMENTS },
         nodeResult: null,
       });
       return;
@@ -5116,6 +5383,7 @@ export const RoguelikeMode = ({
   const startFaceoffGame = () => {
     if (!run?.activeNode) return;
 
+    const effectiveTrainedPlayerIds = getEffectiveBossTrainedPlayerIds(run);
     const node = {
       ...run.activeNode,
       opponentPlayerIds: run.activeOpponentPlayerIds ?? run.activeNode.opponentPlayerIds,
@@ -5124,7 +5392,7 @@ export const RoguelikeMode = ({
         node,
         getRunOwnedPlayers(run),
         run.lineup,
-        run.trainedPlayerIds ?? [],
+        effectiveTrainedPlayerIds,
         getRoguelikeCoachTeamKey(run.hiredCoachId),
         run.allStarBonusBadges ?? [],
       );
@@ -5139,7 +5407,7 @@ export const RoguelikeMode = ({
       seed: run.seed + run.floorIndex * 211 + 31,
       opponentTeamName: node.opponentTeamName,
       ownedPlayerIds: ownedPlayers.map((player) => player.id),
-      trainedPlayerIds: run.trainedPlayerIds ?? [],
+      trainedPlayerIds: effectiveTrainedPlayerIds,
       coachTeamKey: getRoguelikeCoachTeamKey(run.hiredCoachId),
       allStarBonusBadges: run.allStarBonusBadges ?? [],
     });
@@ -5177,6 +5445,7 @@ export const RoguelikeMode = ({
         }
         setRun({
           ...run,
+          activeSpecialStuffPlayerId: null,
           stage: "run-over",
           activeNode: null,
           activeOpponentPlayerIds: null,
@@ -5197,6 +5466,7 @@ export const RoguelikeMode = ({
       const failureRewards = nextNode ? null : buildFailureRewards(nextFloorIndex);
       setRun({
         ...run,
+        activeSpecialStuffPlayerId: null,
         lives: remainingLives,
         floorIndex: nextFloorIndex,
         stage: nextNode ? "ladder-overview" : "run-over",
@@ -5217,6 +5487,7 @@ export const RoguelikeMode = ({
       const rewardedRun = awardLockerRoomCash(run, node);
       setRun({
         ...rewardedRun,
+        activeSpecialStuffPlayerId: null,
         stage: "run-cleared",
         activeNode: null,
         activeOpponentPlayerIds: null,
@@ -5237,6 +5508,7 @@ export const RoguelikeMode = ({
       const rewardedRun = awardLockerRoomCash(run, node);
       setRun({
         ...rewardedRun,
+        activeSpecialStuffPlayerId: null,
         draftShuffleTickets: run.draftShuffleTickets + rewardAmount,
         floorIndex: nextFloorIndex,
         stage: "node-result",
@@ -5266,6 +5538,7 @@ export const RoguelikeMode = ({
     );
     setRun({
       ...rewardedRun,
+      activeSpecialStuffPlayerId: null,
       seenChoicePlayerIds: nextChoicesState.seenChoicePlayerIds,
       choices: nextChoicesState.choices,
       stage: "reward-draft",
@@ -5335,6 +5608,10 @@ export const RoguelikeMode = ({
 
   const openLockerRoomSelection = (node: RoguelikeNode) => {
     if (!run || run.stage !== "locker-room") return;
+    if (node.id === LOCKER_ROOM_SPECIAL_STUFF_NODE.id) {
+      openSpecialStuffSelection();
+      return;
+    }
     const price = getLockerRoomItemPrice(
       node.id === LOCKER_ROOM_TRAINING_NODE.id
         ? "training-camp-ticket"
@@ -5373,6 +5650,30 @@ export const RoguelikeMode = ({
     });
   };
 
+  const openSpecialStuffSelection = () => {
+    if (!run) return;
+    if (run.specialStuffInventoryCount <= 0 && !run.activeSpecialStuffPlayerId) return;
+    if (!getUpcomingBossNodeForLockerRoom(run, runNodes)) return;
+
+    setRun({
+      ...run,
+      stage: "training-select",
+      activeNode: LOCKER_ROOM_SPECIAL_STUFF_NODE,
+      activeOpponentPlayerIds: null,
+      selectedNaturalPositionPlayerId: null,
+      selectedNaturalPosition: null,
+      nodeResult: null,
+      lockerRoomNotice: null,
+      utilityReturnState:
+        run.utilityReturnState ?? {
+          stage: run.stage,
+          activeNode: run.activeNode,
+          activeOpponentPlayerIds: run.activeOpponentPlayerIds,
+          nodeResult: run.nodeResult,
+        },
+    });
+  };
+
   const buyLockerRoomAdvancedScouting = () => {
     if (!run || run.stage !== "locker-room") return;
     const nextBossNode = getUpcomingBossNodeForLockerRoom(run, runNodes);
@@ -5403,6 +5704,24 @@ export const RoguelikeMode = ({
       lockerRoomNotice: {
         title: "Draft Shuffle Ticket Added",
         detail: "You banked 1 extra Draft Shuffle ticket for this run. Use it on any live five-player board when the timing is right.",
+      },
+    });
+  };
+
+  const buyLockerRoomSpecialStuff = () => {
+    if (!run || run.stage !== "locker-room") return;
+    const nextBossNode = getUpcomingBossNodeForLockerRoom(run, runNodes);
+    const price = getLockerRoomItemPrice("special-stuff");
+    if (!nextBossNode || run.lockerRoomCash < price) return;
+
+    const nextInventoryCount = run.specialStuffInventoryCount + 1;
+    setRun({
+      ...run,
+      lockerRoomCash: run.lockerRoomCash - price,
+      specialStuffInventoryCount: nextInventoryCount,
+      lockerRoomNotice: {
+        title: "Special Stuff Purchased",
+        detail: `You banked Special Stuff for this run. Apply it to any player before ${nextBossNode.title} to give them +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for that boss game only.`,
       },
     });
   };
@@ -5444,6 +5763,27 @@ export const RoguelikeMode = ({
           detail: `${player.name} gained +1 OVR and now has +${trainingCount} total training applied for the rest of this run.`,
         },
       });
+      return;
+    }
+
+    if (run.activeNode.id === LOCKER_ROOM_SPECIAL_STUFF_NODE.id) {
+      const hadActiveSpecialStuff = Boolean(run.activeSpecialStuffPlayerId);
+      if (!hadActiveSpecialStuff && run.specialStuffInventoryCount <= 0) return;
+
+      const nextBossNode = getUpcomingBossNodeForLockerRoom(run, runNodes);
+      const nextSpecialStuffInventoryCount = hadActiveSpecialStuff
+        ? run.specialStuffInventoryCount
+        : Math.max(0, run.specialStuffInventoryCount - 1);
+
+      setRun(restoreUtilityReturnState({
+        ...run,
+        activeSpecialStuffPlayerId: player.id,
+        specialStuffInventoryCount: nextSpecialStuffInventoryCount,
+        lockerRoomNotice: {
+          title: "Special Stuff Ready",
+          detail: `${player.name} will get +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for ${nextBossNode?.title ?? "the next boss battle"} only.`,
+        },
+      }, run.utilityReturnState?.stage ?? "locker-room"));
       return;
     }
 
@@ -5855,6 +6195,7 @@ export const RoguelikeMode = ({
     setDraggingIndex(index);
     setDropTargetIndex(null);
     setCutDropTargetIndex(null);
+    setAllStarDropTargetKey(null);
     setDragPointer({
       x: event.clientX,
       y: event.clientY,
@@ -6058,11 +6399,17 @@ export const RoguelikeMode = ({
       const nextCutTarget = hovered?.getAttribute("data-roster-cut-slot-index");
       setCutDropTargetIndex(nextCutTarget ? Number(nextCutTarget) : null);
 
+      const hoveredAllStarSlot = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest("[data-all-star-event-key]");
+      const nextAllStarTarget = hoveredAllStarSlot?.getAttribute("data-all-star-event-key") ?? null;
+      setAllStarDropTargetKey(isAllStarEventKey(nextAllStarTarget) ? nextAllStarTarget : null);
+
       const hoveredRosterSlot = document
         .elementFromPoint(event.clientX, event.clientY)
         ?.closest("[data-rogue-slot-index]");
       const nextTarget = hoveredRosterSlot?.getAttribute("data-rogue-slot-index");
-      setDropTargetIndex(nextCutTarget ? null : nextTarget ? Number(nextTarget) : null);
+      setDropTargetIndex(nextCutTarget || nextAllStarTarget ? null : nextTarget ? Number(nextTarget) : null);
     };
 
     const handlePointerUp = (event: PointerEvent) => {
@@ -6073,9 +6420,25 @@ export const RoguelikeMode = ({
 
       if (nextCutTarget) {
         assignDraggedPlayerToCutSlot(draggingIndex, Number(nextCutTarget));
+          setDraggingIndex(null);
+          setDropTargetIndex(null);
+          setCutDropTargetIndex(null);
+          setAllStarDropTargetKey(null);
+          setDragPointer(null);
+        return;
+      }
+
+      const hoveredAllStarSlot = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest("[data-all-star-event-key]");
+      const nextAllStarTarget = hoveredAllStarSlot?.getAttribute("data-all-star-event-key") ?? null;
+
+      if (isAllStarEventKey(nextAllStarTarget)) {
+        assignDraggedPlayerToAllStarEvent(draggingIndex, nextAllStarTarget);
         setDraggingIndex(null);
         setDropTargetIndex(null);
         setCutDropTargetIndex(null);
+        setAllStarDropTargetKey(null);
         setDragPointer(null);
         return;
       }
@@ -6094,6 +6457,7 @@ export const RoguelikeMode = ({
       setDraggingIndex(null);
       setDropTargetIndex(null);
       setCutDropTargetIndex(null);
+      setAllStarDropTargetKey(null);
       setDragPointer(null);
     };
 
@@ -6131,6 +6495,7 @@ export const RoguelikeMode = ({
     setDraggingIndex(null);
     setDropTargetIndex(null);
     setCutDropTargetIndex(null);
+    setAllStarDropTargetKey(null);
     setDragPointer(null);
     setShowRunSettingsScreen(true);
     setShowPackSelectionHub(true);
@@ -6156,6 +6521,7 @@ export const RoguelikeMode = ({
     setDraggingIndex(null);
     setDropTargetIndex(null);
     setCutDropTargetIndex(null);
+    setAllStarDropTargetKey(null);
     setDragPointer(null);
     setShowRunSettingsScreen(true);
     setShowPackSelectionHub(false);
@@ -6169,6 +6535,7 @@ export const RoguelikeMode = ({
     setDraggingIndex(null);
     setDropTargetIndex(null);
     setCutDropTargetIndex(null);
+    setAllStarDropTargetKey(null);
     setDragPointer(null);
     setRun({
       ...run,
@@ -6177,11 +6544,7 @@ export const RoguelikeMode = ({
       selectedNaturalPositionPlayerId: null,
       selectedNaturalPosition: null,
       pendingChoiceSelection: null,
-      allStarAssignments: {
-        dunkContest: null,
-        threePointContest: null,
-        skillsChallenge: null,
-      },
+      allStarAssignments: { ...DEFAULT_ALL_STAR_ASSIGNMENTS },
       utilityReturnState: null,
       failureReviewStage: null,
     });
@@ -6222,7 +6585,7 @@ export const RoguelikeMode = ({
   if (showRunSettingsScreen) {
     return (
       <section className="space-y-4">
-        <div className="glass-panel rounded-[34px] p-5 shadow-card lg:p-6">
+        <div className="glass-panel rounded-[34px] border border-white/14 bg-[linear-gradient(135deg,rgba(15,23,42,0.9),rgba(6,10,18,0.82),rgba(22,12,34,0.7))] p-5 shadow-[0_22px_60px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.06)] lg:p-6">
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
             <div>
               <div className="inline-flex rounded-full border border-fuchsia-200/18 bg-fuchsia-300/10 px-3 py-1 text-xs tracking-[0.18em] text-fuchsia-100">
@@ -6287,9 +6650,9 @@ export const RoguelikeMode = ({
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="glass-panel rounded-[30px] p-5 shadow-card lg:p-6">
+          <div className="glass-panel rounded-[30px] border border-white/14 bg-[linear-gradient(180deg,rgba(15,23,42,0.78),rgba(6,10,18,0.9))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.05)] lg:p-6">
             <div className="grid gap-5">
-              <div className="rounded-[24px] border border-white/10 bg-black/18 p-4">
+              <div className="rounded-[24px] border border-sky-200/12 bg-[linear-gradient(135deg,rgba(14,35,58,0.54),rgba(9,13,22,0.82))] p-4 shadow-[0_16px_36px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.05)]">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-sky-200/16 bg-sky-300/10 text-sky-100">
                     <Shield size={18} />
@@ -6310,8 +6673,8 @@ export const RoguelikeMode = ({
                         className={clsx(
                           "rounded-full border px-4 py-2 text-sm font-semibold transition",
                           selected
-                            ? "border-sky-300/45 bg-sky-300/14 text-white"
-                            : "border-white/10 bg-white/6 text-slate-200 hover:bg-white/10",
+                            ? "border-sky-200/48 bg-[linear-gradient(135deg,rgba(56,189,248,0.26),rgba(14,165,233,0.12))] text-white shadow-[0_10px_24px_rgba(56,189,248,0.16)]"
+                            : "border-white/10 bg-white/8 text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-white/18 hover:bg-white/12",
                         )}
                       >
                         {option.label}
@@ -6321,7 +6684,7 @@ export const RoguelikeMode = ({
                 </div>
               </div>
 
-              <div className="rounded-[24px] border border-white/10 bg-black/18 p-4">
+              <div className="rounded-[24px] border border-amber-200/12 bg-[linear-gradient(135deg,rgba(57,40,14,0.5),rgba(9,13,22,0.82))] p-4 shadow-[0_16px_36px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.05)]">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-200/16 bg-amber-300/10 text-amber-50">
                     <Crown size={18} />
@@ -6342,8 +6705,8 @@ export const RoguelikeMode = ({
                         className={clsx(
                           "rounded-[18px] border px-4 py-3 text-left transition",
                           selected
-                            ? "border-amber-200/34 bg-amber-300/12 text-white"
-                            : "border-white/10 bg-white/6 text-slate-200 hover:bg-white/10",
+                            ? "border-amber-200/44 bg-[linear-gradient(135deg,rgba(251,191,36,0.22),rgba(180,83,9,0.12))] text-white shadow-[0_12px_28px_rgba(251,191,36,0.14)]"
+                            : "border-white/10 bg-white/8 text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-white/18 hover:bg-white/12",
                         )}
                       >
                         <div className="text-sm font-semibold">{option.label}</div>
@@ -6354,7 +6717,7 @@ export const RoguelikeMode = ({
                 </div>
               </div>
 
-              <div className="rounded-[24px] border border-white/10 bg-black/18 p-4">
+              <div className="rounded-[24px] border border-fuchsia-200/12 bg-[linear-gradient(135deg,rgba(50,25,72,0.5),rgba(9,13,22,0.82))] p-4 shadow-[0_16px_36px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.05)]">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-fuchsia-200/16 bg-fuchsia-300/10 text-fuchsia-100">
                     <Package2 size={18} />
@@ -6384,10 +6747,10 @@ export const RoguelikeMode = ({
                         className={clsx(
                           "rounded-[18px] border px-4 py-3 text-left transition",
                           selected
-                            ? "border-fuchsia-200/34 bg-fuchsia-300/14 text-white shadow-[0_0_0_1px_rgba(240,171,252,0.08)]"
+                            ? "border-fuchsia-200/44 bg-[linear-gradient(135deg,rgba(217,70,239,0.22),rgba(124,58,237,0.13))] text-white shadow-[0_14px_30px_rgba(217,70,239,0.16),inset_0_1px_0_rgba(255,255,255,0.07)]"
                             : unlocked
-                              ? "border-white/10 bg-white/6 text-slate-200 hover:bg-white/10"
-                              : "cursor-not-allowed border-white/8 bg-white/[0.03] text-slate-500 opacity-75",
+                              ? "border-white/10 bg-white/8 text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-white/18 hover:bg-white/12"
+                              : "cursor-not-allowed border-white/8 bg-black/18 text-slate-500 opacity-75",
                         )}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -6412,7 +6775,7 @@ export const RoguelikeMode = ({
                           </span>
                           <span className={clsx(
                             "rounded-full border px-2.5 py-1",
-                            unlocked ? "border-emerald-200/18 bg-emerald-300/10 text-emerald-100" : "border-white/8 bg-white/[0.03] text-slate-500",
+                            unlocked ? "border-emerald-200/22 bg-emerald-300/12 text-emerald-100" : "border-white/8 bg-black/18 text-slate-500",
                           )}>
                             {inventoryLabel}
                           </span>
@@ -6464,10 +6827,10 @@ export const RoguelikeMode = ({
                       type="button"
                       onClick={() => updateRunSetting(toggle.key, !enabled)}
                       className={clsx(
-                        "rounded-[24px] border p-4 text-left transition",
+                        "rounded-[24px] border p-4 text-left shadow-[0_14px_30px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.04)] transition",
                         enabled
-                          ? "border-emerald-300/28 bg-[linear-gradient(135deg,rgba(6,78,59,0.34),rgba(16,185,129,0.14),rgba(6,24,38,0.34))]"
-                          : "border-white/10 bg-black/18 hover:bg-white/6",
+                          ? "border-emerald-300/38 bg-[linear-gradient(135deg,rgba(6,78,59,0.48),rgba(16,185,129,0.18),rgba(6,24,38,0.42))] shadow-[0_16px_38px_rgba(16,185,129,0.12),inset_0_1px_0_rgba(255,255,255,0.06)]"
+                          : "border-white/10 bg-[linear-gradient(135deg,rgba(15,23,42,0.46),rgba(3,7,18,0.62))] hover:border-white/18 hover:bg-white/8",
                       )}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -6497,26 +6860,26 @@ export const RoguelikeMode = ({
             </div>
           </div>
 
-          <div className="glass-panel rounded-[30px] p-5 shadow-card lg:p-6">
+          <div className="glass-panel rounded-[30px] border border-white/14 bg-[linear-gradient(180deg,rgba(15,23,42,0.82),rgba(6,10,18,0.94))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.05)] lg:p-6">
             <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Run Preview</div>
             <h2 className="mt-2 font-display text-3xl text-white">What this setup changes</h2>
             <div className="mt-5 space-y-3 text-sm text-slate-200/82">
-              <div className="rounded-[20px] border border-white/10 bg-white/6 px-4 py-3">
+              <div className="rounded-[20px] border border-white/12 bg-[linear-gradient(135deg,rgba(255,255,255,0.09),rgba(255,255,255,0.045))] px-4 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.2)]">
                 Player pool: {selectedRunSettings.conferenceFilter === "both" ? "both conferences" : selectedRunSettings.conferenceFilter === "east" ? "Eastern Conference only" : "Western Conference only"}.
               </div>
-              <div className="rounded-[20px] border border-white/10 bg-white/6 px-4 py-3">
+              <div className="rounded-[20px] border border-white/12 bg-[linear-gradient(135deg,rgba(255,255,255,0.09),rgba(255,255,255,0.045))] px-4 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.2)]">
                 Card line: {selectedRunSettings.currentSeasonOnly ? "current season only" : "all eras available"}.
               </div>
-              <div className="rounded-[20px] border border-white/10 bg-white/6 px-4 py-3">
+              <div className="rounded-[20px] border border-white/12 bg-[linear-gradient(135deg,rgba(255,255,255,0.09),rgba(255,255,255,0.045))] px-4 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.2)]">
                 Top-end cards: {selectedRunSettings.excludeGalaxyCards ? "Galaxy cards removed" : "Galaxy cards allowed"}.
               </div>
-              <div className="rounded-[20px] border border-white/10 bg-white/6 px-4 py-3">
+              <div className="rounded-[20px] border border-white/12 bg-[linear-gradient(135deg,rgba(255,255,255,0.09),rgba(255,255,255,0.045))] px-4 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.2)]">
                 Coaches: {selectedRunSettings.enableCoaches ? "hire 1 coach after starter reveal" : "skipped, with no coach bonuses"}.
               </div>
-              <div className="rounded-[20px] border border-white/10 bg-white/6 px-4 py-3">
+              <div className="rounded-[20px] border border-white/12 bg-[linear-gradient(135deg,rgba(255,255,255,0.09),rgba(255,255,255,0.045))] px-4 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.2)]">
                 Starter upgrade: {STARTER_PACK_UPGRADE_OPTIONS.find((option) => option.value === selectedStarterPackUpgrade)?.label ?? "Standard"} pack, {getStarterPackAverageForUpgrade(selectedStarterPackUpgrade)} average target.
               </div>
-              <div className="rounded-[20px] border border-white/10 bg-white/6 px-4 py-3">
+              <div className="rounded-[20px] border border-white/12 bg-[linear-gradient(135deg,rgba(255,255,255,0.09),rgba(255,255,255,0.045))] px-4 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.2)]">
                 Node path: {runNodes.length} total nodes with {runNodes.filter((node) => node.type === "boss").length} boss battles.
               </div>
             </div>
@@ -6700,33 +7063,33 @@ export const RoguelikeMode = ({
     const allStarterCardsRevealed = run.revealedStarterIds.length === run.starterRevealPlayers.length;
 
     return (
-      <section className="space-y-5">
-        <div className="rounded-[30px] border border-white/14 bg-[linear-gradient(180deg,rgba(9,13,21,0.98),rgba(12,18,28,0.99))] p-6 shadow-card">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+      <section className="space-y-3">
+        <div className="rounded-[26px] border border-white/14 bg-[linear-gradient(180deg,rgba(9,13,21,0.98),rgba(12,18,28,0.99))] px-5 py-4 shadow-card">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div className="text-xs uppercase tracking-[0.24em] text-fuchsia-100/80">Roguelike Run</div>
-              <h1 className="mt-2 font-display text-4xl text-white">Starter Reveal</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-fuchsia-100/80">Roguelike Run</div>
+              <h1 className="mt-1 font-display text-3xl text-white">Starter Reveal</h1>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
                 Open the three starter cards from your selected pack to reveal the foundation of this Rogue run.
               </p>
             </div>
             <button
               type="button"
               onClick={handleBackToHome}
-              className="rounded-full border border-white/12 bg-white/6 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+              className="rounded-full border border-white/12 bg-white/6 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"
             >
               Back to Home
             </button>
           </div>
         </div>
 
-        <div className="rounded-[30px] border border-white/14 bg-[linear-gradient(180deg,rgba(10,14,20,0.98),rgba(16,22,32,0.99))] p-6 shadow-card">
-          <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Starter Reveal</div>
-          <h2 className="mt-2 font-display text-3xl text-white">Open your first 3 cards</h2>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
+        <div className="rounded-[26px] border border-white/14 bg-[linear-gradient(180deg,rgba(10,14,20,0.98),rgba(16,22,32,0.99))] px-5 py-4 shadow-card">
+          <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Starter Reveal</div>
+          <h2 className="mt-1 font-display text-2xl text-white">Open your first 3 cards</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
             Reveal all three to see which players are starting this run before you move on to the Run Ladder.
           </p>
-          <div className="mt-8 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:justify-center sm:gap-8">
+          <div className="mt-5 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:justify-center sm:gap-5">
             {run.starterRevealPlayers.map((player, index) => {
               const revealed = run.revealedStarterIds.includes(player.id);
 
@@ -6743,11 +7106,11 @@ export const RoguelikeMode = ({
           </div>
 
           {allStarterCardsRevealed ? (
-            <div className="mt-8 flex justify-center">
+            <div className="mt-5 flex justify-center">
               <button
                 type="button"
                 onClick={proceedToRunLadder}
-                className="inline-flex items-center gap-3 rounded-full bg-white px-7 py-4 text-sm font-semibold text-slate-900 transition hover:scale-[1.02]"
+                className="inline-flex items-center gap-3 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:scale-[1.02]"
               >
                 Proceed to Run Ladder
                 <ArrowRight size={16} />
@@ -6788,85 +7151,174 @@ export const RoguelikeMode = ({
     if (run.stage === "coaching-change") {
       const currentCoach = getRoguelikeCoachById(run.hiredCoachId);
       const currentCoachTeam = currentCoach ? getNbaTeamByName(currentCoach.teamName) : null;
+      const coachChangeRun = getHydratedRun(run, runNodes);
+      const coachChangeCoachTeamKey = getRoguelikeCoachTeamKey(run.hiredCoachId);
+      const coachChangeAllStarBonusBadges = run.allStarBonusBadges ?? [];
+      const coachChangeOwnedPlayers = getRunOwnedPlayers(coachChangeRun);
+      const coachChangeOwnedPlayerIds = coachChangeOwnedPlayers.map((player) => player.id);
+      const coachChangeFurthestOccupiedSlotIndex = coachChangeRun.lineup.reduce(
+        (furthestIndex, slot, index) => (slot.player ? index : furthestIndex),
+        -1,
+      );
+      const coachChangeVisibleRosterSlotCount = Math.min(
+        10,
+        Math.max(5, coachChangeOwnedPlayers.length, coachChangeFurthestOccupiedSlotIndex + 1),
+      );
+      const coachChangeVisibleLineup = coachChangeRun.lineup.slice(0, coachChangeVisibleRosterSlotCount);
+      const coachChangeBoostedPlayerCount = coachChangeOwnedPlayers.filter((player) =>
+        getCoachBoostForPlayer(player, coachChangeCoachTeamKey) > 0,
+      ).length;
 
       return (
-        <section className="space-y-5">
-          <div className="rounded-[30px] border border-white/14 bg-[linear-gradient(180deg,rgba(9,13,21,0.98),rgba(12,18,28,0.99))] p-6 shadow-card">
-            <div className="max-w-4xl">
-              <div className="text-xs uppercase tracking-[0.24em] text-cyan-100/80">Coaching Change</div>
-              <h1 className="mt-2 font-display text-4xl text-white">Keep your coach or change the boost</h1>
-              <p className="mt-3 text-sm leading-7 text-slate-300">
-                Re-sign your current coach to keep the same +1 team boost, or fire them and hire a new coach to shift your roster-building target.
-              </p>
+        <>
+          <section className="space-y-5">
+            <div className="rounded-[30px] border border-white/14 bg-[linear-gradient(180deg,rgba(9,13,21,0.98),rgba(12,18,28,0.99))] p-6 shadow-card">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="max-w-4xl">
+                  <div className="text-xs uppercase tracking-[0.24em] text-cyan-100/80">Coaching Change</div>
+                  <h1 className="mt-2 font-display text-4xl text-white">Keep your coach or change the boost</h1>
+                  <p className="mt-3 text-sm leading-7 text-slate-300">
+                    Re-sign your current coach to keep the same +1 team boost, or fire them and hire a new coach to shift your roster-building target.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCoachChangeRoster(true)}
+                  className="inline-flex items-center gap-2 rounded-full border border-cyan-100/22 bg-cyan-300/10 px-5 py-3 text-sm font-semibold text-cyan-50 transition hover:scale-[1.02] hover:border-cyan-100/34 hover:bg-cyan-300/16"
+                >
+                  <Users size={16} />
+                  View Run Roster
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div className="grid gap-5 xl:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.7fr)]">
-            <div className="rounded-[28px] border border-emerald-200/18 bg-[linear-gradient(180deg,rgba(6,78,59,0.18),rgba(10,16,26,0.96))] p-5 shadow-card">
-              <div className="text-[11px] uppercase tracking-[0.22em] text-emerald-100/80">Current Coach</div>
-              {currentCoach ? (
-                <>
-                  <div className="mt-5 flex items-center gap-4">
-                    <div className="grid h-16 w-16 place-items-center rounded-2xl border border-white/12 bg-white/8">
-                      {currentCoachTeam?.logo ? (
-                        <img
-                          src={currentCoachTeam.logo}
-                          alt=""
-                          className="h-12 w-12 object-contain"
-                          draggable={false}
-                        />
-                      ) : (
-                        <Shield size={28} className="text-emerald-100" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="font-display text-2xl text-white">{currentCoach.name}</div>
-                      <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
-                        {currentCoach.teamName} +1 OVR
+            <div className="grid gap-5 xl:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.7fr)]">
+              <div className="rounded-[28px] border border-emerald-200/18 bg-[linear-gradient(180deg,rgba(6,78,59,0.18),rgba(10,16,26,0.96))] p-5 shadow-card">
+                <div className="text-[11px] uppercase tracking-[0.22em] text-emerald-100/80">Current Coach</div>
+                {currentCoach ? (
+                  <>
+                    <div className="mt-5 flex items-center gap-4">
+                      <div className="grid h-16 w-16 place-items-center rounded-2xl border border-white/12 bg-white/8">
+                        {currentCoachTeam?.logo ? (
+                          <img
+                            src={currentCoachTeam.logo}
+                            alt=""
+                            className="h-12 w-12 object-contain"
+                            draggable={false}
+                          />
+                        ) : (
+                          <Shield size={28} className="text-emerald-100" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-display text-2xl text-white">{currentCoach.name}</div>
+                        <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
+                          {currentCoach.teamName} +1 OVR
+                        </div>
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => completeCoachingChange(currentCoach.id, true)}
+                      className="mt-6 inline-flex w-full items-center justify-center gap-3 rounded-full bg-emerald-200 px-5 py-3 text-sm font-semibold text-emerald-950 transition hover:scale-[1.01]"
+                    >
+                      Re-sign Coach
+                      <CheckCircle2 size={16} />
+                    </button>
+                  </>
+                ) : (
+                  <div className="mt-5 rounded-2xl border border-white/10 bg-white/6 p-4 text-sm leading-6 text-slate-300">
+                    No coach is currently hired, so choose one of the available coaches to activate a team boost.
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Available Replacements</div>
+                    <div className="mt-1 text-sm text-slate-300">Hiring a new coach immediately changes which team gets the +1 OVR boost.</div>
+                  </div>
+                </div>
+                <div
+                  className={clsx(
+                    "gap-5",
+                    isMobileViewport ? "grid grid-cols-5 gap-1.5" : "grid md:grid-cols-2 xl:grid-cols-5",
+                  )}
+                >
+                  {run.coachChoices.map((coach) => (
+                    <CoachChoiceCard
+                      key={coach.id}
+                      coach={coach}
+                      actionLabel="Hire"
+                      onHire={() => completeCoachingChange(coach.id, false)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+          {showCoachChangeRoster ? (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/72 p-4 backdrop-blur-sm">
+              <div className="max-h-[calc(100vh-48px)] w-full max-w-5xl overflow-y-auto rounded-[30px] border border-white/14 bg-[#070b12]/98 shadow-[0_28px_90px_rgba(0,0,0,0.55)]">
+                <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#070b12]/96 px-5 py-4 backdrop-blur-xl">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/78">Run Roster</div>
+                    <div className="mt-1 font-display text-2xl text-white">Check your team before choosing</div>
                   </div>
                   <button
                     type="button"
-                    onClick={() => completeCoachingChange(currentCoach.id, true)}
-                    className="mt-6 inline-flex w-full items-center justify-center gap-3 rounded-full bg-emerald-200 px-5 py-3 text-sm font-semibold text-emerald-950 transition hover:scale-[1.01]"
+                    onClick={() => setShowCoachChangeRoster(false)}
+                    className="rounded-full border border-white/12 bg-white/6 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
                   >
-                    Re-sign Coach
-                    <CheckCircle2 size={16} />
+                    Close
                   </button>
-                </>
-              ) : (
-                <div className="mt-5 rounded-2xl border border-white/10 bg-white/6 p-4 text-sm leading-6 text-slate-300">
-                  No coach is currently hired, so choose one of the available coaches to activate a team boost.
                 </div>
-              )}
-            </div>
-
-            <div>
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Available Replacements</div>
-                  <div className="mt-1 text-sm text-slate-300">Hiring a new coach immediately changes which team gets the +1 OVR boost.</div>
+                <div className="p-5">
+                  {currentCoach ? (
+                    <div className="mb-5">
+                      <CardLabCoachRunRosterCard
+                        coach={{
+                          id: currentCoach.id,
+                          label: currentCoach.name,
+                          teamName: currentCoach.teamName,
+                          conference: currentCoach.conference,
+                        }}
+                        boostedCount={coachChangeBoostedPlayerCount}
+                        rosterCount={coachChangeVisibleRosterSlotCount}
+                      />
+                    </div>
+                  ) : null}
+                  <div className="space-y-3">
+                    {coachChangeVisibleLineup.map((slot, index) => (
+                      <div key={`${slot.slot}-${index}`}>
+                        {index === 5 ? (
+                          <div className="mb-5 mt-7">
+                            <div className="h-px w-full bg-gradient-to-r from-transparent via-white/18 to-transparent" />
+                            <div className="mt-2 text-center text-[10px] uppercase tracking-[0.24em] text-slate-500">
+                              Bench Unit
+                            </div>
+                          </div>
+                        ) : null}
+                        <div className="rounded-[24px] border border-dashed border-white/12 bg-black/12 p-1.5">
+                          <RogueRosterSlotCard
+                            slot={slot}
+                            index={index}
+                            ownedPlayerIds={coachChangeOwnedPlayerIds}
+                            trainedPlayerIds={run.trainedPlayerIds ?? []}
+                            coachTeamKey={coachChangeCoachTeamKey}
+                            allStarBonusBadges={coachChangeAllStarBonusBadges}
+                            dragged={false}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div
-                className={clsx(
-                  "gap-5",
-                  isMobileViewport ? "grid grid-cols-5 gap-1.5" : "grid md:grid-cols-2 xl:grid-cols-5",
-                )}
-              >
-                {run.coachChoices.map((coach) => (
-                  <CoachChoiceCard
-                    key={coach.id}
-                    coach={coach}
-                    actionLabel="Hire"
-                    onHire={() => completeCoachingChange(coach.id, false)}
-                  />
-                ))}
-              </div>
             </div>
-          </div>
-        </section>
+          ) : null}
+        </>
       );
     }
 
@@ -6879,8 +7331,13 @@ export const RoguelikeMode = ({
   const runAllStarBonusBadges = run.allStarBonusBadges ?? [];
   const runOwnedPlayers = getRunOwnedPlayers(displayedRun);
   const runOwnedPlayerIds = runOwnedPlayers.map((player) => player.id);
+  const runEffectiveBossTrainedPlayerIds = getEffectiveBossTrainedPlayerIds(run);
+  const runDisplayTrainedPlayerIds =
+    run.activeSpecialStuffPlayerId && ["locker-room", "faceoff-setup", "faceoff-game"].includes(run.stage)
+      ? runEffectiveBossTrainedPlayerIds
+      : run.trainedPlayerIds ?? [];
   const runOwnedDisplayPlayers = runOwnedPlayers.map((player) =>
-    getRunDisplayPlayer(player, runOwnedPlayerIds, run.trainedPlayerIds ?? [], runCoachTeamKey),
+    getRunDisplayPlayer(player, runOwnedPlayerIds, runDisplayTrainedPlayerIds, runCoachTeamKey),
   );
   const runOwnedDisplayPlayerById = new Map(runOwnedDisplayPlayers.map((player) => [player.id, player]));
   const runCoachBoostedPlayerCount = runOwnedPlayers.filter((player) =>
@@ -6890,6 +7347,8 @@ export const RoguelikeMode = ({
   const nextBossNode = getUpcomingBossNodeForLockerRoom(run, runNodes);
   const nextBossScouted = Boolean(nextBossNode && run.scoutedBossNodeIds.includes(nextBossNode.id));
   const scoutedBossLineup = nextBossScouted ? getScoutedBossLineup(run, nextBossNode, runPlayerUniverse) : [];
+  const canApplySpecialStuff =
+    Boolean(nextBossNode) && (run.specialStuffInventoryCount > 0 || Boolean(run.activeSpecialStuffPlayerId));
   const currentAct = activeNode?.act ?? currentLadderNode?.act ?? 1;
   const headerNode =
     run.stage === "ladder-overview"
@@ -6908,11 +7367,11 @@ export const RoguelikeMode = ({
   const startingFiveMetrics = evaluateRoguelikeLineup(
     startingFive,
     runOwnedPlayerIds,
-    run.trainedPlayerIds ?? [],
+    runDisplayTrainedPlayerIds,
     runCoachTeamKey,
   );
-  const shotCreationScore = getAverageAdjustedOffense(startingFive, runOwnedPlayerIds, run.trainedPlayerIds ?? []);
-  const reboundingChallengeScore = getAverageAdjustedRebounding(startingFive, runOwnedPlayerIds, run.trainedPlayerIds ?? []);
+  const shotCreationScore = getAverageAdjustedOffense(startingFive, runOwnedPlayerIds, runDisplayTrainedPlayerIds);
+  const reboundingChallengeScore = getAverageAdjustedRebounding(startingFive, runOwnedPlayerIds, runDisplayTrainedPlayerIds);
   const challengeMetric = activeNode?.checks?.[0]?.metric ?? "offense";
   const canUseDraftShuffle =
     run.draftShuffleTickets > 0 &&
@@ -7015,7 +7474,7 @@ export const RoguelikeMode = ({
     .filter((slot): slot is RosterSlot & { player: Player } => Boolean(slot.player))
       .map((slot) => ({
         slot: slot.slot,
-        player: getRunDisplayPlayer(slot.player, runOwnedPlayerIds, run.trainedPlayerIds ?? [], runCoachTeamKey),
+        player: getRunDisplayPlayer(slot.player, runOwnedPlayerIds, runDisplayTrainedPlayerIds, runCoachTeamKey),
       }))
     .sort(
       (left, right) =>
@@ -7196,19 +7655,28 @@ export const RoguelikeMode = ({
                     detail: "Use this when a player needs more downhill scoring identity. You are only charged when you confirm the player.",
                     actionLabel: "Assign Slasher badge",
                   }
-                : isChoiceTrainingPath
+                : activeNode?.id === LOCKER_ROOM_SPECIAL_STUFF_NODE.id
                   ? {
-                      eyebrow: "Choice Node",
-                      description: "You chose the Training Camp path. Select 1 player from your run roster to gain +1 OVR for the rest of this run.",
-                      detail: "This is the steadier branch: one permanent training boost with no roster volatility.",
-                      actionLabel: "Send to training",
+                      eyebrow: "Locker Room Boost",
+                      description: `Choose 1 player to gain +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for the upcoming boss battle only.`,
+                      detail: run.activeSpecialStuffPlayerId
+                        ? "Changing the selected player will keep using the same purchased Special Stuff. The boost still expires after the next boss game."
+                        : "This consumes 1 owned Special Stuff, does not count as permanent training, and expires after the next boss game.",
+                      actionLabel: run.activeSpecialStuffPlayerId ? "Change Special Stuff target" : "Apply Special Stuff",
                     }
-                : {
-                    eyebrow: "Training Node",
-                    description: "Select 1 player from your run roster to send to training. This will increase that player's Overall Rating by +1 for the remainder of the run.",
-                    detail: "The training boost is permanent for the rest of this Rogue run and carries through the underlying lineup calculations too.",
-                    actionLabel: "Send to training",
-                  };
+                  : isChoiceTrainingPath
+                    ? {
+                        eyebrow: "Choice Node",
+                        description: "You chose the Training Camp path. Select 1 player from your run roster to gain +1 OVR for the rest of this run.",
+                        detail: "This is the steadier branch: one permanent training boost with no roster volatility.",
+                        actionLabel: "Send to training",
+                      }
+                  : {
+                      eyebrow: "Training Node",
+                      description: "Select 1 player from your run roster to send to training. This will increase that player's Overall Rating by +1 for the remainder of the run.",
+                      detail: "The training boost is permanent for the rest of this Rogue run and carries through the underlying lineup calculations too.",
+                      actionLabel: "Send to training",
+                    };
   const showDraftRosterRail = [
     "choice-select",
     "initial-draft",
@@ -7318,7 +7786,7 @@ export const RoguelikeMode = ({
                   slot={slot}
                     index={index}
                     ownedPlayerIds={runOwnedPlayerIds}
-                    trainedPlayerIds={run.trainedPlayerIds ?? []}
+                    trainedPlayerIds={runDisplayTrainedPlayerIds}
                     coachTeamKey={runCoachTeamKey}
                     allStarBonusBadges={runAllStarBonusBadges}
                   focusMetrics={challengeReviewFocusMetrics}
@@ -7706,7 +8174,7 @@ export const RoguelikeMode = ({
                   <Shield size={14} className="text-emerald-200" />
                   Staff Perks
                 </div>
-                <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                <div className="mt-4 grid gap-4 xl:grid-cols-3">
                   <div className="rounded-[28px] border border-emerald-200/18 bg-[linear-gradient(135deg,rgba(12,74,50,0.28),rgba(7,24,18,0.94))] p-5">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -7728,6 +8196,52 @@ export const RoguelikeMode = ({
                       >
                         Choose Player
                       </button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[28px] border border-cyan-200/18 bg-[linear-gradient(135deg,rgba(14,116,144,0.24),rgba(7,20,32,0.94))] p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2 text-xl font-semibold text-white">
+                          <PillBottle size={20} className="text-cyan-100" />
+                          Special Stuff
+                        </div>
+                        <div className="mt-3 text-sm leading-7 text-slate-300">
+                          Buy now, apply later. When used, 1 player gets +{SPECIAL_STUFF_BOOST_AMOUNT} OVR for the next boss battle only.
+                        </div>
+                      </div>
+                      <div className="rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                        {getLockerRoomItemPrice("special-stuff")} Cash
+                      </div>
+                    </div>
+                    <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+                      <div className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                        {run.activeSpecialStuffPlayerId
+                          ? `Active: ${getPlayerById(run.activeSpecialStuffPlayerId)?.name ?? "selected player"}`
+                          : run.specialStuffInventoryCount > 0
+                            ? `Owned: ${run.specialStuffInventoryCount}`
+                          : nextBossNode
+                            ? `Next boss: ${nextBossNode.title}`
+                            : "No upcoming boss"}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={buyLockerRoomSpecialStuff}
+                          disabled={!nextBossNode || run.lockerRoomCash < getLockerRoomItemPrice("special-stuff")}
+                          className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48"
+                        >
+                          Buy
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openLockerRoomSelection(LOCKER_ROOM_SPECIAL_STUFF_NODE)}
+                          disabled={!nextBossNode || (run.specialStuffInventoryCount <= 0 && !run.activeSpecialStuffPlayerId)}
+                          className="rounded-full border border-white/14 bg-white/6 px-5 py-2.5 text-sm font-semibold text-white transition hover:scale-[1.02] hover:bg-white/10 disabled:cursor-not-allowed disabled:border-white/8 disabled:bg-white/5 disabled:text-white/38"
+                        >
+                          {run.activeSpecialStuffPlayerId ? "Change Player" : "Apply"}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -7932,6 +8446,7 @@ export const RoguelikeMode = ({
                       compact
                       compactScale={0.46}
                       draftedPlayerIds={runOwnedPlayerIds}
+                      playerTypeBadgesOverride={getRunPlayerTypeBadgeOverrides(player, runAllStarBonusBadges)}
                       enableTeamChemistryPreview
                       coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
                     />
@@ -7953,6 +8468,26 @@ export const RoguelikeMode = ({
                 Boss team: {activeNode.opponentTeamName ?? "Starting Five"}.
                 The total of all five matchup win probabilities decides the winner.
               </div>
+              {(run.specialStuffInventoryCount > 0 || run.activeSpecialStuffPlayerId) && (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-cyan-200/18 bg-cyan-300/8 px-4 py-4 text-sm text-slate-100">
+                  <div>
+                    <div className="font-semibold text-cyan-50">Special Stuff</div>
+                    <div className="mt-1 text-slate-300">
+                      {run.activeSpecialStuffPlayerId
+                        ? `${getPlayerById(run.activeSpecialStuffPlayerId)?.name ?? "Selected player"} is boosted +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for this boss game.`
+                        : `${run.specialStuffInventoryCount} owned. Apply one before tipoff to give a player +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for this boss game.`}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openSpecialStuffSelection}
+                    disabled={!canApplySpecialStuff}
+                    className="rounded-full border border-cyan-100/24 bg-cyan-100/12 px-5 py-2.5 text-sm font-semibold text-cyan-50 transition hover:scale-[1.02] hover:bg-cyan-100/18 disabled:cursor-not-allowed disabled:border-white/8 disabled:bg-white/5 disabled:text-white/38"
+                  >
+                    {run.activeSpecialStuffPlayerId ? "Change Player" : "Apply"}
+                  </button>
+                </div>
+              )}
               <div className="mt-5 grid gap-3">
                 {startingFive.map((slot, index) => (
                   <div key={`${slot.slot}-${index}`} className="rounded-[24px] border border-white/10 bg-black/18 p-3">
@@ -7969,7 +8504,7 @@ export const RoguelikeMode = ({
                         slot={slot}
                         slotLabel={`Your ${slot.slot}`}
                         ownedPlayerIds={runOwnedPlayerIds}
-                        trainedPlayerIds={run.trainedPlayerIds ?? []}
+                        trainedPlayerIds={runDisplayTrainedPlayerIds}
                         coachTeamKey={runCoachTeamKey}
                         allStarBonusBadges={runAllStarBonusBadges}
                       />
@@ -8145,6 +8680,7 @@ export const RoguelikeMode = ({
                     compact
                     compactScale={trainingSelectionCardScale}
                     draftedPlayerIds={runOwnedPlayerIds}
+                    playerTypeBadgesOverride={getRunPlayerTypeBadgeOverrides(player, runAllStarBonusBadges)}
                     enableTeamChemistryPreview
                     coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
                     actionLabel={lockerRoomTrainingSelectionCopy.actionLabel}
@@ -8183,16 +8719,21 @@ export const RoguelikeMode = ({
                       Cut Slot {slotIndex + 1}
                     </div>
                     {player ? (
-                      <div className="mt-4 flex items-center justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="truncate text-lg font-semibold text-white">{player.name}</div>
-                          <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-300">
-                            {[player.primaryPosition, ...player.secondaryPositions].join(" / ")}
-                          </div>
-                          <div className="mt-2 inline-flex rounded-full border border-rose-200/18 bg-rose-300/10 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-rose-100">
+                      <div className="mt-4 space-y-3">
+                        <RunRosterPlayerCard
+                          player={player}
+                          displayPlayer={player}
+                          draftedPlayerIds={runOwnedPlayerIds}
+                          scale={0.74}
+                          enableTeamChemistry
+                          coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
+                          badgesOverride={getRoguelikePlayerTypeBadges(player, runAllStarBonusBadges)}
+                          className="border-rose-200/40 bg-rose-500/10 shadow-[0_0_26px_rgba(244,63,94,0.12)]"
+                        />
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="inline-flex rounded-full border border-rose-200/18 bg-rose-300/10 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-rose-100">
                             Selected to cut
                           </div>
-                        </div>
                         <button
                           type="button"
                           onClick={() => removeCutSlotSelection(slotIndex)}
@@ -8200,6 +8741,7 @@ export const RoguelikeMode = ({
                         >
                           Remove
                         </button>
+                        </div>
                       </div>
                     ) : (
                       <div className="mt-4 text-sm leading-6 text-slate-300">
@@ -8337,33 +8879,33 @@ export const RoguelikeMode = ({
 
           {run.stage === "all-star-select" && activeNode && (
             <div className="glass-panel rounded-[30px] p-6 shadow-card">
-              <div className="text-xs uppercase tracking-[0.24em] text-slate-400">All-Star Saturday</div>
+              <div className="text-xs uppercase tracking-[0.24em] text-slate-400">All-Star Weekend</div>
               <h2 className="mt-2 font-display text-3xl text-white">{activeNode.title}</h2>
               <p className="mt-3 text-sm leading-7 text-slate-300">
-                Assign one player to each event. Dunk Contest adds a Slasher badge, 3PT Contest adds a Sniper badge, and Skills Challenge adds a Playmaker badge for the rest of the run.
+                Drag players from your Run Roster into each event slot. Every event awards its listed player-type badge for the rest of the run.
               </p>
-              <div className="mt-6 grid gap-5 xl:grid-cols-3">
-                {[
-                  {
-                    key: "dunkContest" as const,
-                    title: "Dunk Contest",
-                    stat: "Slasher badge",
-                    badgeType: "slasher" as PlayerTypeBadge,
-                  },
-                  {
-                    key: "threePointContest" as const,
-                    title: "3PT Contest",
-                    stat: "Sniper badge",
-                    badgeType: "sniper" as PlayerTypeBadge,
-                  },
-                  {
-                    key: "skillsChallenge" as const,
-                    title: "Skills Challenge",
-                    stat: "Playmaker badge",
-                    badgeType: "playmaker" as PlayerTypeBadge,
-                  },
-                ].map((eventCard) => (
-                  <div key={eventCard.key} className="rounded-[24px] border border-white/10 bg-black/18 p-5">
+              <div className="mt-5 rounded-[22px] border border-violet-200/14 bg-violet-300/8 px-4 py-4 text-sm leading-6 text-slate-100">
+                Each player can only enter one event. Dropping the same player into a new event will move them from their previous slot.
+              </div>
+              <div className="mt-6 grid gap-4 md:grid-cols-2 2xl:grid-cols-5">
+                {ALL_STAR_EVENT_CARDS.map((eventCard) => {
+                  const assignedPlayer = getAllStarAssignedPlayer(eventCard.key);
+                  const selected = Boolean(assignedPlayer);
+                  const highlighted = allStarDropTargetKey === eventCard.key;
+
+                  return (
+                  <div
+                    key={eventCard.key}
+                    data-all-star-event-key={eventCard.key}
+                    className={clsx(
+                      "min-h-[238px] rounded-[24px] border border-dashed p-4 transition",
+                      highlighted
+                        ? "border-violet-200/70 bg-violet-400/18 shadow-[0_0_30px_rgba(167,139,250,0.2)]"
+                        : selected
+                          ? "border-violet-200/34 bg-violet-500/12 shadow-[0_16px_36px_rgba(0,0,0,0.24)]"
+                          : "border-white/14 bg-white/6",
+                    )}
+                  >
                     <div className="flex items-center gap-3">
                       <div
                         className={clsx(
@@ -8378,46 +8920,46 @@ export const RoguelikeMode = ({
                         <div className="mt-1 text-sm font-semibold text-white">{eventCard.stat}</div>
                       </div>
                     </div>
-                    <div className="mt-4 space-y-3">
-                      {runOwnedDisplayPlayers.map((player) => {
-                        const selected = run.allStarAssignments[eventCard.key] === player.id;
-                        const alreadyUsedInAnotherEvent = Object.entries(run.allStarAssignments).some(
-                          ([assignmentKey, playerId]) => assignmentKey !== eventCard.key && playerId === player.id,
-                        );
-
-                        return (
-                          <AllStarPlayerOptionCard
-                            key={`${eventCard.key}-${player.id}`}
-                            player={player}
-                            selected={selected}
-                            disabled={alreadyUsedInAnotherEvent}
-                            onSelect={() => assignAllStarPlayer(eventCard.key, player)}
-                          />
-                        );
-                      })}
+                    <div className="mt-4">
+                      {assignedPlayer ? (
+                        <div className="space-y-3">
+                          <AllStarEventPlayerCard player={assignedPlayer} />
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="rounded-full border border-violet-200/18 bg-violet-300/10 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-violet-100">
+                              Assigned
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeAllStarAssignment(eventCard.key)}
+                              className="rounded-full border border-white/12 bg-white/6 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-white/10"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="rounded-[20px] border border-dashed border-white/14 bg-black/16 px-4 py-8 text-center text-sm leading-6 text-slate-300">
+                          Drag a roster card here.
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="mt-8 flex flex-wrap gap-3">
                 <button
                   type="button"
                   onClick={runAllStarSaturday}
-                  disabled={
-                    !run.allStarAssignments.dunkContest ||
-                    !run.allStarAssignments.threePointContest ||
-                    !run.allStarAssignments.skillsChallenge
-                  }
+                  disabled={!allStarAssignmentsComplete({ ...DEFAULT_ALL_STAR_ASSIGNMENTS, ...run.allStarAssignments })}
                   className={clsx(
                     "inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition",
-                    run.allStarAssignments.dunkContest &&
-                    run.allStarAssignments.threePointContest &&
-                    run.allStarAssignments.skillsChallenge
+                    allStarAssignmentsComplete({ ...DEFAULT_ALL_STAR_ASSIGNMENTS, ...run.allStarAssignments })
                       ? "bg-white text-slate-900 hover:scale-[1.02]"
                       : "cursor-not-allowed bg-white/10 text-slate-500",
                   )}
                 >
-                  Run All-Star Saturday
+                  Begin All-Star Weekend
                   <ArrowRight size={16} />
                 </button>
                 <BackToRunLadderButton onClick={backToRunLadder} className="" />
@@ -8455,6 +8997,7 @@ export const RoguelikeMode = ({
                     compact
                     compactScale={rewardReplaceCardScale}
                     draftedPlayerIds={runOwnedPlayerIds}
+                    playerTypeBadgesOverride={getRunPlayerTypeBadgeOverrides(player, runAllStarBonusBadges)}
                     enableTeamChemistryPreview
                     coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
                     actionLabel="Replace this player"
@@ -8527,6 +9070,7 @@ export const RoguelikeMode = ({
                     compact
                     compactScale={0.52}
                     draftedPlayerIds={runOwnedPlayerIds}
+                    playerTypeBadgesOverride={getRunPlayerTypeBadgeOverrides(player, runAllStarBonusBadges)}
                     enableTeamChemistryPreview
                     coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
                     actionLabel="Trade this player"
@@ -8556,6 +9100,10 @@ export const RoguelikeMode = ({
                     compact
                     compactScale={0.52}
                     draftedPlayerIds={runOwnedPlayerIds}
+                    playerTypeBadgesOverride={getRunPlayerTypeBadgeOverrides(
+                      runOwnedDisplayPlayerById.get(option.currentPlayer.id) ?? option.currentPlayer,
+                      runAllStarBonusBadges,
+                    )}
                     enableTeamChemistryPreview
                     coachConnectionActive={getCoachBoostForPlayer(option.currentPlayer, runCoachTeamKey) > 0}
                     actionLabel={`Evolve to ${option.nextPlayer.overall} OVR`}
@@ -8825,7 +9373,7 @@ export const RoguelikeMode = ({
                               key={`${matchup.slot}-${matchup.userPlayer?.id ?? "empty"}-${matchup.opponentPlayer?.id ?? "boss"}`}
                               matchup={matchup}
                               ownedPlayerIds={runOwnedPlayerIds}
-                              trainedPlayerIds={run.trainedPlayerIds ?? []}
+                              trainedPlayerIds={runDisplayTrainedPlayerIds}
                               coachTeamKey={runCoachTeamKey}
                               allStarBonusBadges={runAllStarBonusBadges}
                             />
@@ -8878,6 +9426,7 @@ export const RoguelikeMode = ({
                         compact
                         compactScale={compactScale}
                         draftedPlayerIds={runOwnedPlayerIds}
+                        playerTypeBadgesOverride={getRunPlayerTypeBadgeOverrides(player, runAllStarBonusBadges)}
                         enableTeamChemistryPreview
                         coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
                       />
@@ -8942,7 +9491,7 @@ export const RoguelikeMode = ({
                         key={`${matchup.slot}-${matchup.userPlayer?.id ?? "empty"}-${matchup.opponentPlayer?.id ?? "boss"}`}
                           matchup={matchup}
                           ownedPlayerIds={runOwnedPlayerIds}
-                          trainedPlayerIds={run.trainedPlayerIds ?? []}
+                          trainedPlayerIds={runDisplayTrainedPlayerIds}
                           coachTeamKey={runCoachTeamKey}
                           allStarBonusBadges={runAllStarBonusBadges}
                         />
@@ -9223,7 +9772,7 @@ export const RoguelikeMode = ({
             slot={displayedRun.lineup[draggingIndex]}
               index={draggingIndex}
               ownedPlayerIds={runOwnedPlayerIds}
-              trainedPlayerIds={run.trainedPlayerIds ?? []}
+              trainedPlayerIds={runDisplayTrainedPlayerIds}
               coachTeamKey={runCoachTeamKey}
               allStarBonusBadges={runAllStarBonusBadges}
             dragged={false}
@@ -9400,7 +9949,7 @@ export const RoguelikeMode = ({
                           slot={slot}
                           player={slot.player}
                           ownedPlayerIds={runOwnedPlayerIds}
-                          trainedPlayerIds={run.trainedPlayerIds ?? []}
+                          trainedPlayerIds={runDisplayTrainedPlayerIds}
                           coachTeamKey={runCoachTeamKey}
                           allStarBonusBadges={runAllStarBonusBadges}
                         />

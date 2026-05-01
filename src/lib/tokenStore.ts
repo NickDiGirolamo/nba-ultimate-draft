@@ -64,6 +64,11 @@ const roundToNearestThousand = (value: number) => Math.round(value / 1_000) * 1_
 const TOKEN_STORE_GALAXY_PRICE_FLOOR = 600_000;
 const TOKEN_STORE_GALAXY_PRICE_CEILING = 950_000;
 const TOKEN_STORE_MICHAEL_JORDAN_PRICE = 1_000_000;
+const TOKEN_STORE_GALAXY_PRICE_SWAPS: [string, string][] = [
+  ["Steph Curry", "Hakeem Olajuwon"],
+  ["Kareem Abdul-Jabbar (Lakers)", "Kobe Bryant (#24)"],
+  ["Kobe Bryant (#8)", "Kevin Durant (Warriors)"],
+];
 
 export const getTokenStoreSPlayers = () =>
   allPlayers
@@ -99,17 +104,18 @@ export const getTokenStorePlayerPriceMap = () => {
     priceMap.set(cheapestPlayer.id, TOKEN_STORE_GALAXY_PRICE_FLOOR);
   }
 
-  const stephCurry = sTierPlayers.find((player) => player.name === "Steph Curry");
-  const hakeemOlajuwon = sTierPlayers.find((player) => player.name === "Hakeem Olajuwon");
-  if (stephCurry && hakeemOlajuwon) {
-    const stephPrice = priceMap.get(stephCurry.id);
-    const hakeemPrice = priceMap.get(hakeemOlajuwon.id);
+  TOKEN_STORE_GALAXY_PRICE_SWAPS.forEach(([firstName, secondName]) => {
+    const firstPlayer = sTierPlayers.find((player) => player.name === firstName);
+    const secondPlayer = sTierPlayers.find((player) => player.name === secondName);
+    if (!firstPlayer || !secondPlayer) return;
 
-    if (stephPrice !== undefined && hakeemPrice !== undefined) {
-      priceMap.set(stephCurry.id, hakeemPrice);
-      priceMap.set(hakeemOlajuwon.id, stephPrice);
-    }
-  }
+    const firstPrice = priceMap.get(firstPlayer.id);
+    const secondPrice = priceMap.get(secondPlayer.id);
+    if (firstPrice === undefined || secondPrice === undefined) return;
+
+    priceMap.set(firstPlayer.id, secondPrice);
+    priceMap.set(secondPlayer.id, firstPrice);
+  });
 
   return priceMap;
 };

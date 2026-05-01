@@ -4,8 +4,6 @@ export type PlayerBadgeType =
   | "dynamic-duo"
   | "big-3"
   | "rival"
-  | "role-player"
-  | "centerpiece"
   | "team-chemistry";
 
 export interface PlayerBadgeDefinition {
@@ -37,20 +35,6 @@ const duoStatBoost = {
   athleticism: 1,
   intangibles: 2,
   ballDominance: 1,
-  interiorDefense: 1,
-  perimeterDefense: 1,
-} as const;
-
-const rolePlayerStatBoost = {
-  overall: 1,
-  offense: 1,
-  defense: 1,
-  playmaking: 1,
-  shooting: 1,
-  rebounding: 1,
-  athleticism: 0,
-  intangibles: 1,
-  ballDominance: 0,
   interiorDefense: 1,
   perimeterDefense: 1,
 } as const;
@@ -180,7 +164,8 @@ export const rivalBadges: PlayerBadgeDefinition[] = [
   },
 ];
 
-export const rolePlayerPairs: RolePlayerPairDefinition[] = [
+// Preserved for a possible future selective reimplementation. These pairs are no longer active badges or boosts.
+export const archivedRolePlayerPairs: RolePlayerPairDefinition[] = [
   { id: "lamar-kobe", title: "Lakers Support Cast: Lamar Odom + Kobe Bryant (#24)", rolePlayer: "lamar-odom", centerpiece: "kobe-bryant-24" },
   { id: "artest-kobe", title: "Lakers Support Cast: Ron Artest + Kobe Bryant (#24)", rolePlayer: "ron-artest", centerpiece: "kobe-bryant-24" },
   { id: "ariza-kobe", title: "Lakers Support Cast: Trevor Ariza + Kobe Bryant (#24)", rolePlayer: "trevor-ariza", centerpiece: "kobe-bryant-24" },
@@ -258,86 +243,19 @@ export const rolePlayerPairs: RolePlayerPairDefinition[] = [
   { id: "dell-glen", title: "Hornets Support Cast: Dell Curry + Glen Rice", rolePlayer: "dell-curry", centerpiece: "glen-rice" },
 ];
 
-export const rolePlayerBadges: PlayerBadgeDefinition[] = rolePlayerPairs.map((pair) => ({
-  id: `${pair.id}-role-player`,
-  title: `Role Player: ${pair.title}`,
-  type: "role-player",
-  players: [pair.rolePlayer, pair.centerpiece],
-}));
-
-export const centerpieceBadges: PlayerBadgeDefinition[] = rolePlayerPairs.map((pair) => ({
-  id: `${pair.id}-centerpiece`,
-  title: `Centerpiece: ${pair.title}`,
-  type: "centerpiece",
-  players: [pair.rolePlayer, pair.centerpiece],
-}));
-
 export const teamChemistryGroups: TeamChemistryGroupDefinition[] = [
   {
-    id: "we-believe-warriors",
-    displayName: "Team Chemistry: We Believe",
-    teamName: "Golden State Warriors",
-    season: "2007",
-    nickname: "We Believe",
-    eligiblePlayers: [
-      "baron-davis",
-      "stephen-jackson",
-      "jason-richardson",
-      "monta-ellis",
-      "andris-biedri-s",
-    ],
-    bonusType: "team-chemistry",
-    bonusValue: 1,
-    iconReference: "five-player-network",
-  },
-  {
-    id: "grit-and-grind-grizzlies",
-    displayName: "Team Chemistry: Grit and Grind",
-    teamName: "Memphis Grizzlies",
-    season: "2011",
-    nickname: "Grit and Grind",
-    eligiblePlayers: [
-      "mike-conley",
-      "tony-allen",
-      "rudy-gay",
-      "zach-randolph",
-      "marc-gasol",
-      "o-j-mayo",
-    ],
-    bonusType: "team-chemistry",
-    bonusValue: 1,
-    iconReference: "five-player-network",
-  },
-  {
     id: "sixty-win-hawks",
-    displayName: "Team Chemistry: 60-Win Hawks",
+    displayName: "Team Chemistry: 60 Win Hawks",
     teamName: "Atlanta Hawks",
-    season: "2015",
-    nickname: "60-Win Hawks",
+    season: "60 Win Hawks",
+    nickname: "60 Win Hawks",
     eligiblePlayers: [
-      "joe-johnson",
       "jeff-teague",
+      "al-horford-hawks",
+      "paul-millsap",
       "kyle-korver",
       "demarre-carroll",
-      "paul-millsap",
-      "al-horford-hawks",
-    ],
-    bonusType: "team-chemistry",
-    bonusValue: 1,
-    iconReference: "five-player-network",
-  },
-  {
-    id: "going-to-work-pistons",
-    displayName: "Team Chemistry: Going to Work",
-    teamName: "Detroit Pistons",
-    season: "2004",
-    nickname: "Going to Work",
-    eligiblePlayers: [
-      "chauncey-billups",
-      "rip-hamilton",
-      "tayshaun-prince",
-      "rasheed-wallace",
-      "ben-wallace",
     ],
     bonusType: "team-chemistry",
     bonusValue: 1,
@@ -345,17 +263,159 @@ export const teamChemistryGroups: TeamChemistryGroupDefinition[] = [
   },
   {
     id: "championship-celtics-2008",
-    displayName: "Team Chemistry: 2008 Celtics",
+    displayName: "Team Chemistry: 08 Champs",
     teamName: "Boston Celtics",
-    season: "2008",
-    nickname: "2008 Celtics",
+    season: "08 Champs",
+    nickname: "08 Champs",
     eligiblePlayers: [
-      "rajon-rondo",
       "kevin-garnett-celtics",
+      "paul-pierce",
       "ray-allen-celtics",
+      "rajon-rondo",
       "kendrick-perkins",
       "glen-davis",
-      "paul-pierce",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "nets-finals-2002-2003",
+    displayName: "Team Chemistry: 02+03 Finals",
+    teamName: "Brooklyn Nets",
+    season: "02+03 Finals",
+    nickname: "02+03 Finals",
+    eligiblePlayers: [
+      "jason-kidd",
+      "richard-jefferson",
+      "keith-van-horn",
+      "kenyon-martin",
+      "kerry-kittles",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "sixty-win-bulls",
+    displayName: "Team Chemistry: 60 Win Bulls",
+    teamName: "Chicago Bulls",
+    season: "60 Win Bulls",
+    nickname: "60 Win Bulls",
+    eligiblePlayers: [
+      "derrick-rose",
+      "luol-deng",
+      "joakim-noah",
+      "carlos-boozer-bulls",
+      "kyle-korver-bulls",
+      "taj-gibson",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "cavaliers-2016-champs",
+    displayName: "Team Chemistry: 16 Champs",
+    teamName: "Cleveland Cavaliers",
+    season: "16 Champs",
+    nickname: "16 Champs",
+    eligiblePlayers: [
+      "lebron-james-14-18",
+      "kyrie-irving-cavs",
+      "kevin-love-cavs",
+      "matthew-dellavedova",
+      "tristan-thompson",
+      "j-r-smith",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "mavericks-2011-champs",
+    displayName: "Team Chemistry: 11 Champs",
+    teamName: "Dallas Mavericks",
+    season: "11 Champs",
+    nickname: "11 Champs",
+    eligiblePlayers: [
+      "dirk-nowitzki",
+      "jason-kidd-mavericks",
+      "jason-terry",
+      "shawn-marion-mavs",
+      "tyson-chandler",
+      "caron-butler-mavs",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "pistons-2004-champs",
+    displayName: "Team Chemistry: 04 Champs",
+    teamName: "Detroit Pistons",
+    season: "04 Champs",
+    nickname: "04 Champs",
+    eligiblePlayers: [
+      "rip-hamilton",
+      "chauncey-billups",
+      "tayshaun-prince",
+      "ben-wallace",
+      "rasheed-wallace",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "seventy-three-win-warriors",
+    displayName: "Team Chemistry: 73 Win Warriors",
+    teamName: "Golden State Warriors",
+    season: "73 Win Warriors",
+    nickname: "73 Win Warriors",
+    eligiblePlayers: [
+      "steph-curry",
+      "klay-thompson",
+      "draymond-green",
+      "harrison-barnes-warriors",
+      "andre-iguodala-warriors",
+      "andrew-bogut",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "we-believe-warriors",
+    displayName: "Team Chemistry: We Believe Warriors",
+    teamName: "Golden State Warriors",
+    season: "We Believe Warriors",
+    nickname: "We Believe Warriors",
+    eligiblePlayers: [
+      "baron-davis",
+      "stephen-jackson",
+      "andris-biedri-s",
+      "jason-richardson",
+      "monta-ellis",
+      "al-harrington-warriors",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "sixty-five-win-rockets",
+    displayName: "Team Chemistry: 65 Win Rockets",
+    teamName: "Houston Rockets",
+    season: "65 Win Rockets",
+    nickname: "65 Win Rockets",
+    eligiblePlayers: [
+      "james-harden-rockets",
+      "chris-paul-rockets",
+      "clint-capela",
+      "eric-gordon",
+      "trevor-ariza-rockets",
+      "p-j-tucker",
     ],
     bonusType: "team-chemistry",
     bonusValue: 1,
@@ -363,32 +423,266 @@ export const teamChemistryGroups: TeamChemistryGroupDefinition[] = [
   },
   {
     id: "lob-city-clippers",
-    displayName: "Team Chemistry: Lob City Clippers",
+    displayName: "Team Chemistry: Lob City",
     teamName: "Los Angeles Clippers",
-    season: "2010s",
+    season: "Lob City",
     nickname: "Lob City",
     eligiblePlayers: [
-      "deandre-jordan",
       "chris-paul-clippers",
       "blake-griffin",
-      "lou-williams",
+      "deandre-jordan",
       "jamal-crawford",
+      "j-j-redick-clippers",
+      "matt-barnes-clippers",
     ],
     bonusType: "team-chemistry",
     bonusValue: 1,
     iconReference: "five-player-network",
   },
   {
-    id: "bad-boy-pistons",
-    displayName: "Team Chemistry: Bad Boy Pistons",
-    teamName: "Detroit Pistons",
-    season: "Late 1980s",
-    nickname: "Bad Boy Pistons",
+    id: "lakers-2009-champs",
+    displayName: "Team Chemistry: 09 Champs",
+    teamName: "Los Angeles Lakers",
+    season: "09 Champs",
+    nickname: "09 Champs",
     eligiblePlayers: [
-      "isiah-thomas",
-      "dennis-rodman-pistons",
-      "bill-laimbeer",
-      "joe-dumars",
+      "kobe-bryant-24",
+      "pau-gasol",
+      "lamar-odom",
+      "ron-artest",
+      "andrew-bynum",
+      "derek-fisher",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "grit-and-grind-grizzlies",
+    displayName: "Team Chemistry: Grit N Grind",
+    teamName: "Memphis Grizzlies",
+    season: "Grit N Grind",
+    nickname: "Grit N Grind",
+    eligiblePlayers: [
+      "mike-conley",
+      "tony-allen",
+      "rudy-gay",
+      "o-j-mayo",
+      "marc-gasol",
+      "zach-randolph",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "heatles",
+    displayName: "Team Chemistry: Heatles",
+    teamName: "Miami Heat",
+    season: "Heatles",
+    nickname: "Heatles",
+    eligiblePlayers: [
+      "lebron-james-heat",
+      "dwayne-wade-10-14",
+      "chris-bosh-heat",
+      "ray-allen-heat",
+      "mario-chalmers",
+      "shane-battier-heat",
+      "udonis-haslem",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "fifty-six-win-hornets",
+    displayName: "Team Chemistry: 56 Win Hornets",
+    teamName: "New Orleans Pelicans",
+    season: "56 Win Hornets",
+    nickname: "56 Win Hornets",
+    eligiblePlayers: [
+      "chris-paul-hornets",
+      "david-west",
+      "peja-stojakovic-hornets",
+      "tyson-chandler-hornets",
+      "morris-peterson-hornets",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "fifty-win-knicks",
+    displayName: "Team Chemistry: 50 Win Knicks",
+    teamName: "New York Knicks",
+    season: "50 Win Knicks",
+    nickname: "50 Win Knicks",
+    eligiblePlayers: [
+      "allan-houston",
+      "latrell-sprewell",
+      "patrick-ewing-2000-knicks",
+      "larry-johnson",
+      "charlie-ward-knicks",
+      "marcus-camby-knicks",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "sonics-1997",
+    displayName: "Team Chemistry: 97 Sonics",
+    teamName: "Oklahoma City Thunder",
+    season: "97 Sonics",
+    nickname: "97 Sonics",
+    eligiblePlayers: [
+      "gary-payton",
+      "shawn-kemp",
+      "detlef-schrempf",
+      "hersey-hawkins",
+      "sam-perkins-sonics",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "magic-2009-finals",
+    displayName: "Team Chemistry: 09 Finals",
+    teamName: "Orlando Magic",
+    season: "09 Finals",
+    nickname: "09 Finals",
+    eligiblePlayers: [
+      "dwight-howard",
+      "hedo-turkoglu",
+      "rashard-lewis",
+      "jameer-nelson",
+      "j-j-redick",
+      "courtney-lee-magic",
+      "rafer-alston",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "sixers-2001-finals",
+    displayName: "Team Chemistry: 01 Finals",
+    teamName: "Philadelphia 76ers",
+    season: "01 Finals",
+    nickname: "01 Finals",
+    eligiblePlayers: [
+      "allen-iverson-76ers",
+      "anthony-mckie-76ers",
+      "dikembe-mutombo",
+      "eric-snow-76ers",
+      "theo-ratliff-76ers",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "seven-seconds-or-less-suns",
+    displayName: "Team Chemistry: 7 Seconds or Less",
+    teamName: "Phoenix Suns",
+    season: "7 Seconds or Less",
+    nickname: "7 Seconds or Less",
+    eligiblePlayers: [
+      "steve-nash",
+      "amar-e-stoudemire-suns",
+      "boris-diaw",
+      "leandro-barbosa-suns",
+      "raja-bell-suns",
+      "shawn-marion",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "sixty-win-kings",
+    displayName: "Team Chemistry: 60 Win Kings",
+    teamName: "Sacramento Kings",
+    season: "60 Win Kings",
+    nickname: "60 Win Kings",
+    eligiblePlayers: [
+      "chris-webber",
+      "mike-bibby",
+      "peja-stojakovic",
+      "doug-christie",
+      "vlade-divac",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "spurs-2007-champs",
+    displayName: "Team Chemistry: 07 Champs",
+    teamName: "San Antonio Spurs",
+    season: "07 Champs",
+    nickname: "07 Champs",
+    eligiblePlayers: [
+      "tim-duncan",
+      "manu-ginobili",
+      "tony-parker",
+      "bruce-bowen",
+      "danny-green",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "raptors-2019-champs",
+    displayName: "Team Chemistry: 19 Champs",
+    teamName: "Toronto Raptors",
+    season: "19 Champs",
+    nickname: "19 Champs",
+    eligiblePlayers: [
+      "kawhi-leonard-raptors",
+      "kyle-lowry-raptors",
+      "pascal-siakam-raptors",
+      "serge-ibaka-raptors",
+      "fred-van-vleet-raptors",
+      "danny-green-raptors",
+      "og-anunoby-raptors",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "fifty-four-win-jazz",
+    displayName: "Team Chemistry: 54 Win Jazz",
+    teamName: "Utah Jazz",
+    season: "54 Win Jazz",
+    nickname: "54 Win Jazz",
+    eligiblePlayers: [
+      "deron-williams",
+      "carlos-boozer",
+      "mehmet-okur",
+      "andrei-kirilenko",
+      "kyle-korver",
+      "ronnie-brewer-jazz",
+    ],
+    bonusType: "team-chemistry",
+    bonusValue: 1,
+    iconReference: "five-player-network",
+  },
+  {
+    id: "wizards-2014",
+    displayName: "Team Chemistry: 14 Wizards",
+    teamName: "Washington Wizards",
+    season: "14 Wizards",
+    nickname: "14 Wizards",
+    eligiblePlayers: [
+      "bradley-beal",
+      "otto-porter-jr",
+      "nene",
+      "marcin-gortat",
+      "trevor-ariza-wizards",
     ],
     bonusType: "team-chemistry",
     bonusValue: 1,
@@ -408,8 +702,6 @@ export const playerBadges: PlayerBadgeDefinition[] = [
   ...bigThrees,
   ...rivalBadges,
   ...teamChemistryBadges,
-  ...rolePlayerBadges,
-  ...centerpieceBadges,
 ];
 
 const teamChemistryGroupById = new Map(teamChemistryGroups.map((group) => [group.id, group]));
@@ -452,13 +744,11 @@ export const getPlayerBadgeStates = (playerId: string, playerIds: string[]) => {
   const owned = new Set(playerIds);
   const badges = playerBadges.filter((badge) => {
     if (!badge.players.includes(playerId)) return false;
-    if (badge.type === "role-player") return badge.players[0] === playerId;
-    if (badge.type === "centerpiece") return badge.players[1] === playerId;
     return true;
   });
 
   const standardBadges = badges
-    .filter((badge) => badge.type !== "centerpiece" && badge.type !== "dynamic-duo")
+    .filter((badge) => badge.type !== "dynamic-duo")
     .map((definition) => {
       if (definition.type === "team-chemistry") {
         const group = getTeamChemistryGroupById(definition.id);
@@ -523,29 +813,7 @@ export const getPlayerBadgeStates = (playerId: string, playerIds: string[]) => {
             }];
           })();
 
-  const centerpieceLinks = badges.filter((badge) => badge.type === "centerpiece");
-  if (centerpieceLinks.length === 0) {
-    return [...dynamicDuoBadges, ...standardBadges];
-  }
-
-  const rolePlayers = centerpieceLinks.map((badge) => badge.players[0]);
-  const activeRolePlayers = rolePlayers.filter((rolePlayerId) => owned.has(rolePlayerId));
-
-  return [
-    ...dynamicDuoBadges,
-    ...standardBadges,
-    {
-      definition: {
-        id: `centerpiece-${playerId}`,
-        title: "Centerpiece",
-        type: "centerpiece" as const,
-        players: rolePlayers,
-      },
-      active: activeRolePlayers.length > 0,
-      previewActive: activeRolePlayers.length > 0,
-      tooltipPlayers: activeRolePlayers.length > 0 ? activeRolePlayers : rolePlayers,
-    },
-  ];
+  return [...dynamicDuoBadges, ...standardBadges];
 };
 
 export const isDynamicDuoActiveForPlayer = (playerId: string, playerIds: string[]) =>
@@ -565,7 +833,6 @@ const applyBoost = (
   players: Player[],
   activeGroups: PlayerBadgeDefinition[],
   boost:
-    | typeof rolePlayerStatBoost
     | typeof duoStatBoost
     | typeof bigThreeStatBoost
     | typeof teamChemistryStatBoost,
@@ -594,23 +861,31 @@ const applyBoost = (
   );
 };
 
-export const getActiveRolePlayerPairs = (playerIds: string[]) =>
-  rolePlayerPairs.filter(({ rolePlayer, centerpiece }) => {
-    const owned = new Set(playerIds);
-    return owned.has(rolePlayer) && owned.has(centerpiece);
-  });
+export const getPreviewBadgeOverallBonusForPlayer = (
+  playerId: string,
+  playerIds: string[],
+) => {
+  const owned = new Set(playerIds);
+  const previewOwnedIds = owned.has(playerId) ? playerIds : [...playerIds, playerId];
 
-export const applyRolePlayerBonuses = (players: Player[]) =>
-  applyBoost(
-    players,
-    getActiveRolePlayerPairs(players.map((player) => player.id)).map((pair) => ({
-      id: pair.id,
-      title: pair.title,
-      type: "role-player" as const,
-      players: [pair.rolePlayer, pair.centerpiece],
-    })),
-    rolePlayerStatBoost,
-  );
+  let overallBonus = 0;
+
+  overallBonus +=
+    getActiveDynamicDuos(previewOwnedIds).filter((duo) => duo.players.includes(playerId)).length * duoStatBoost.overall;
+
+  overallBonus +=
+    getActiveBigThrees(previewOwnedIds).filter((group) => group.players.includes(playerId)).length * bigThreeStatBoost.overall;
+
+  overallBonus +=
+    getActiveRivalBadges(previewOwnedIds).filter((group) => group.players.includes(playerId)).length * 0;
+
+  overallBonus +=
+    getActiveTeamChemistryGroups(previewOwnedIds).filter((group) =>
+      group.eligiblePlayers.includes(playerId),
+    ).length * teamChemistryStatBoost.overall;
+
+  return overallBonus;
+};
 
 export const applyDynamicDuoBonuses = (players: Player[]) =>
   applyBoost(players, getActiveDynamicDuos(players.map((player) => player.id)), duoStatBoost);
@@ -633,6 +908,6 @@ export const applyTeamChemistryBonuses = (players: Player[]) =>
 export const applySynergyBonuses = (players: Player[]) =>
   applyBigThreeBonuses(
     applyDynamicDuoBonuses(
-      applyRolePlayerBonuses(applyTeamChemistryBonuses(players)),
+      applyTeamChemistryBonuses(players),
     ),
   );

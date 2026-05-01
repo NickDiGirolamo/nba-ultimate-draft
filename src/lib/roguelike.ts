@@ -4,7 +4,6 @@ import {
   getActiveBigThrees,
   getActiveDynamicDuos,
   getActiveRivalBadges,
-  getActiveRolePlayerPairs,
   getActiveTeamChemistryGroups,
 } from "./dynamicDuos";
 import {
@@ -367,7 +366,7 @@ export const roguelikeBundles: RoguelikeBundle[] = [
   {
     id: "synergy-hunters",
     title: "Synergy Hunters",
-    description: "Adds more combo-heavy players who can help you light up Duo, Big 3, Centerpiece, and Role Player paths.",
+    description: "Adds more combo-heavy players who can help you light up Duo, Big 3, Rival, and Team Chemistry paths.",
   },
   {
     id: "frontcourt-pressure",
@@ -1829,20 +1828,6 @@ const ROGUELIKE_DUO_BOOST = {
   perimeterDefense: 2,
 } as const;
 
-const ROGUELIKE_ROLE_PAIR_BOOST = {
-  overall: 1,
-  offense: 1,
-  defense: 1,
-  playmaking: 1,
-  shooting: 1,
-  rebounding: 1,
-  athleticism: 0,
-  intangibles: 1,
-  ballDominance: 1,
-  interiorDefense: 1,
-  perimeterDefense: 1,
-} as const;
-
 const ROGUELIKE_BIG_THREE_BOOST = {
   overall: 3,
   offense: 3,
@@ -1894,17 +1879,6 @@ const getRoguelikeDynamicDuoBoost = (
   return getActiveDynamicDuos(playerIds).filter((duo) => duo.players.includes(player.id)).length * ROGUELIKE_DUO_BOOST[stat];
 };
 
-const getRoguelikeRolePairBoost = (
-  player: Player | null,
-  playerIds: string[] = [],
-  stat: keyof typeof ROGUELIKE_ROLE_PAIR_BOOST = "overall",
-) => {
-  if (!player || playerIds.length === 0) return 0;
-  return getActiveRolePlayerPairs(playerIds).filter(
-    (pair) => pair.rolePlayer === player.id || pair.centerpiece === player.id,
-  ).length * ROGUELIKE_ROLE_PAIR_BOOST[stat];
-};
-
 const getRoguelikeBigThreeBoost = (
   player: Player | null,
   playerIds: string[] = [],
@@ -1945,6 +1919,27 @@ const getRoguelikeTrainingBoost = (
   return trainingCount * ROGUELIKE_TRAINING_BOOST[stat];
 };
 
+export const getRoguelikeDisplayOverallBonus = (
+  player: Player | null,
+  playerIds: string[] = [],
+  trainedPlayerIds: string[] = [],
+  coachTeamKey: string | null = null,
+) => {
+  if (!player) return 0;
+
+  const coachBoost = coachTeamKey && getPlayerTeamKey(player) === coachTeamKey ? 1 : 0;
+
+  return (
+    coachBoost +
+    getRoguelikeTeamChemistryBoost(player, playerIds) +
+    getSameTeamChemistryBonusForPlayer(player, playerIds) +
+    getRoguelikeDynamicDuoBoost(player, playerIds, "overall") +
+    getRoguelikeBigThreeBoost(player, playerIds, "overall") +
+    getRoguelikeRivalBoost(player, playerIds, "overall") +
+    getRoguelikeTrainingBoost(player, trainedPlayerIds, "overall")
+  );
+};
+
 const getRoguelikeAdjustedRatingForSlot = (
   player: Player | null,
   slot: RosterSlot,
@@ -1961,7 +1956,6 @@ const getRoguelikeAdjustedRatingForSlot = (
     selector(player) +
     getRoguelikeTeamChemistryBoost(player, playerIds, boostStat === "overall" ? "overall" : "other") +
     getRoguelikeDynamicDuoBoost(player, playerIds, boostStat) +
-    getRoguelikeRolePairBoost(player, playerIds, boostStat) +
     getRoguelikeBigThreeBoost(player, playerIds, boostStat) +
     getRoguelikeRivalBoost(player, playerIds, boostStat) +
     getRoguelikeTrainingBoost(player, trainedPlayerIds, boostStat);
@@ -2039,18 +2033,10 @@ export const getRoguelikeAdjustedOverallForSlot = (
   coachTeamKey: string | null = null,
 ) => {
   if (!player) return 0;
-  const coachBoost = coachTeamKey && getPlayerTeamKey(player) === coachTeamKey ? 1 : 0;
   return Math.max(
     0,
     player.overall +
-      coachBoost +
-      getRoguelikeTeamChemistryBoost(player, playerIds) +
-      getSameTeamChemistryBonusForPlayer(player, playerIds) +
-      getRoguelikeDynamicDuoBoost(player, playerIds, "overall") +
-      getRoguelikeRolePairBoost(player, playerIds, "overall") +
-      getRoguelikeBigThreeBoost(player, playerIds, "overall") +
-      getRoguelikeRivalBoost(player, playerIds, "overall") +
-      getRoguelikeTrainingBoost(player, trainedPlayerIds, "overall") -
+      getRoguelikeDisplayOverallBonus(player, playerIds, trainedPlayerIds, coachTeamKey) -
       getRoguelikeSlotPenalty(player, slot),
   );
 };
@@ -2243,7 +2229,6 @@ const wouldActivateBossLineupLinkBoost = (
 
   return (
     getActiveDynamicDuos(proposedIds).length > 0 ||
-    getActiveRolePlayerPairs(proposedIds).length > 0 ||
     getActiveBigThrees(proposedIds).length > 0 ||
     getActiveRivalBadges(proposedIds).length > 0 ||
     getActiveTeamChemistryGroups(proposedIds).length > 0

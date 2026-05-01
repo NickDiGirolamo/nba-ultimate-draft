@@ -72,7 +72,7 @@ const categoryCards = [
     icon: Target,
     tone: "text-fuchsia-100 bg-fuchsia-300/12 border-fuchsia-200/15",
     description:
-      "Spacing gravity and perimeter shotmaking. Great shooting opens the floor for stars and role players alike.",
+      "Spacing gravity and perimeter shotmaking. Great shooting opens the floor for stars and supporting pieces alike.",
   },
   {
     label: "Rebounding",
@@ -107,14 +107,9 @@ const badgeCards = [
       "High-friction player history. Rivals can change the way a roster feels and add interesting tension to lineup building.",
   },
   {
-    label: "Role Player",
+    label: "Team Chemistry",
     description:
-      "A supporting piece tied to a specific centerpiece star. These help complete identity builds and make certain stars feel more intentional to draft around.",
-  },
-  {
-    label: "Centerpiece",
-    description:
-      "A star who gets stronger when the right supporting role players are already on your roster. If this badge glows, drafting that star would cash in on work you've already done.",
+      "A historical team-group badge. Draft at least two players from the same listed team group and every matching group member gets the Team Chem boost.",
   },
 ];
 

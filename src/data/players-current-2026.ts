@@ -51,6 +51,7 @@ const currentSeasonPositionOverrides: Record<string, Position[]> = {
   "ryan-rollins-2025-26": ["SG"],
   "reed-sheppard-2025-26": ["PG"],
   "jalen-suggs-2025-26": ["SG"],
+  "cedric-coward-2025-26": ["PG"],
   "collin-gillespie-2025-26": ["SG"],
   "collin-sexton-2025-26": ["PG"],
   "austin-reaves-2025-26": ["PG", "SF"],

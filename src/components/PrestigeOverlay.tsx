@@ -13,11 +13,11 @@ import {
 } from "../lib/meta";
 import { getCategoryChallengeTarget } from "../lib/simulate";
 import { allPlayers } from "../data/players";
-import { bigThrees, dynamicDuos, rivalBadges, rolePlayerPairs } from "../lib/dynamicDuos";
+import { bigThrees, dynamicDuos, rivalBadges, teamChemistryGroups } from "../lib/dynamicDuos";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 
 type PrestigeView = "overview" | "challenges" | "rewards" | "collection";
-type CollectionFamilyId = "dynamic-duos" | "big-threes" | "rivals" | "centerpieces";
+type CollectionFamilyId = "dynamic-duos" | "big-threes" | "rivals" | "team-chemistry";
 type ChallengeDifficultyTab = "rookie" | "role-player" | "starter" | "all-star" | "superstar" | "goat";
 
 interface CollectionFamilyDefinition {
@@ -32,6 +32,7 @@ interface CollectionEntry {
   id: string;
   title: string;
   playerIds: string[];
+  requiredCount?: number;
 }
 
 const challengeDifficultyTabs: Array<{
@@ -48,8 +49,8 @@ const challengeDifficultyTabs: Array<{
   },
   {
     id: "role-player",
-    label: "Role Player",
-    description: "Slightly trickier environment twists that still let newer players build confidence.",
+    label: "Team Builder",
+    description: "Slightly trickier environment twists that reward cleaner roster identity and chemistry.",
     toneClass: "bg-sky-300/14 text-sky-100",
   },
   {
@@ -103,10 +104,10 @@ const collectionFamilies: CollectionFamilyDefinition[] = [
     toneClass: "border-rose-300/20 bg-rose-300/10",
   },
   {
-    id: "centerpieces",
-    title: "Centerpiece Trophy",
-    description: "Pair every centerpiece star with all of their key support pieces.",
-    rewardText: "Unlocks once every Centerpiece pair has been collected.",
+    id: "team-chemistry",
+    title: "Team Chemistry Trophy",
+    description: "Activate every historical Team Chemistry group by drafting at least two members from each group.",
+    rewardText: "Unlocks once every Team Chemistry group has been activated.",
     toneClass: "border-amber-300/20 bg-amber-300/10",
   },
 ];
@@ -131,11 +132,12 @@ const getCollectionEntries = (familyId: CollectionFamilyId): CollectionEntry[] =
         title: entry.title.replace("Rivals: ", ""),
         playerIds: entry.players,
       }));
-    case "centerpieces":
-      return rolePlayerPairs.map((entry) => ({
+    case "team-chemistry":
+      return teamChemistryGroups.map((entry) => ({
         id: entry.id,
-        title: entry.title.replace(/^[^:]+:\s*/, ""),
-        playerIds: [entry.rolePlayer, entry.centerpiece],
+        title: `${entry.nickname} (${entry.teamName})`,
+        playerIds: entry.eligiblePlayers,
+        requiredCount: 2,
       }));
   }
 };
@@ -238,8 +240,9 @@ export const PrestigeOverlay = ({
       collectionFamilies.map((family) => {
         const entries = getCollectionEntries(family.id);
         const items = entries.map((entry) => {
+          const requiredCount = entry.requiredCount ?? entry.playerIds.length;
           const collected = rosterHistorySets.some((runSet) =>
-            entry.playerIds.every((playerId) => runSet.has(playerId)),
+            entry.playerIds.filter((playerId) => runSet.has(playerId)).length >= requiredCount,
           );
 
           return { ...entry, collected };
