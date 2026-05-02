@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { FormEvent } from "react";
 import { LockKeyhole, LogIn, Trophy, UserPlus } from "lucide-react";
 
 interface LoginPageProps {
@@ -22,7 +23,9 @@ export const LoginPage = ({
   const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const submit = async () => {
+  const submit = async (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+
     if (!email.trim() || !password) {
       setNotice("Enter your email and password to continue.");
       return;
@@ -43,8 +46,8 @@ export const LoginPage = ({
   };
 
   return (
-    <main className="arena-shell min-h-screen text-white">
-      <div className="mx-auto flex min-h-screen max-w-[1180px] items-center px-5 py-8">
+    <main className="arena-shell isolate min-h-screen text-white">
+      <div className="relative z-10 mx-auto flex min-h-screen max-w-[1180px] items-center px-5 py-8">
         <div className="grid w-full gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
           <section className="rounded-[28px] border border-white/12 bg-black/36 p-7 shadow-[0_24px_70px_rgba(0,0,0,0.42)] backdrop-blur md:p-9">
             <div className="inline-flex items-center gap-3 rounded-full border border-amber-200/18 bg-amber-300/10 px-4 py-2 text-amber-100">
@@ -77,16 +80,18 @@ export const LoginPage = ({
                 Supabase is not configured yet. Add your project URL and anon key to continue.
               </div>
             ) : (
-              <div className="mt-7 space-y-4">
+              <form className="mt-7 space-y-4" onSubmit={submit}>
                 <label className="block text-sm font-semibold text-slate-200">
                   Email
                   <input
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    className="mt-2 w-full rounded-2xl border border-white/12 bg-black/36 px-4 py-3 text-base text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-200/45 focus:bg-black/48"
+                    className="pointer-events-auto mt-2 w-full rounded-2xl border border-white/12 bg-black/36 px-4 py-3 text-base text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-200/45 focus:bg-black/48"
                     type="email"
                     autoComplete="email"
                     placeholder="you@example.com"
+                    disabled={submitting}
+                    autoFocus
                   />
                 </label>
                 <label className="block text-sm font-semibold text-slate-200">
@@ -94,10 +99,11 @@ export const LoginPage = ({
                   <input
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    className="mt-2 w-full rounded-2xl border border-white/12 bg-black/36 px-4 py-3 text-base text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-200/45 focus:bg-black/48"
+                    className="pointer-events-auto mt-2 w-full rounded-2xl border border-white/12 bg-black/36 px-4 py-3 text-base text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-200/45 focus:bg-black/48"
                     type="password"
                     autoComplete={mode === "login" ? "current-password" : "new-password"}
                     placeholder="Password"
+                    disabled={submitting}
                   />
                 </label>
 
@@ -109,8 +115,7 @@ export const LoginPage = ({
 
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <button
-                    type="button"
-                    onClick={submit}
+                    type="submit"
                     disabled={loading || submitting}
                     className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-950 transition hover:scale-[1.015] disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -128,7 +133,7 @@ export const LoginPage = ({
                     {mode === "login" ? "Create Account" : "Use Login"}
                   </button>
                 </div>
-              </div>
+              </form>
             )}
           </section>
         </div>

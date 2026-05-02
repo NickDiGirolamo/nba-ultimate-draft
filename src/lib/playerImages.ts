@@ -580,7 +580,7 @@ const directImageOverrides: Record<string, string> = {
   "peja-stojakovic":
     "https://cdn.nba.com/teams/legacy/www.nba.com/kings/sites/kings/files/9_24.jpg",
   "peja-stojakovic-hornets":
-    "https://cdn.nba.com/teams/legacy/www.nba.com/kings/sites/kings/files/9_24.jpg",
+    "https://tomaskaki.wordpress.com/wp-content/uploads/2012/12/peja_stojakovic_hornets-886.jpg?w=224&h=300",
   "reggie-miller":
     "https://www.tuscaloosanews.com/gcdn/authoring/2007/08/09/NTTN/ghows-DA-956c6365-614f-4280-8405-f5e1f84e025e-1569fd9a.jpeg?width=1200&disable=upscale&format=pjpg&auto=webp",
   "robert-parish":
