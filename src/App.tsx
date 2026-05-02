@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookOpen, Coins, Crown, Flag, Sparkles, Swords, Target, Trophy } from "lucide-react";
+import { AccountPanel } from "./components/AccountPanel";
 import { DraftBriefing } from "./components/DraftBriefing";
 import { DraftPlayerCard } from "./components/DraftPlayerCard";
 import { LandingHub } from "./components/LandingHub";
 import { LearnOverlay } from "./components/LearnOverlay";
 import { LineupReorderScreen } from "./components/LineupReorderScreen";
+import { LoginPage } from "./components/LoginPage";
 import { PrestigeLevelUpModal } from "./components/PrestigeLevelUpModal";
 import { PrestigeOverlay } from "./components/PrestigeOverlay";
 import { ProgressHeader } from "./components/ProgressHeader";
@@ -14,6 +16,13 @@ import { RosterSidebar } from "./components/RosterSidebar";
 import { SimulationScreen } from "./components/SimulationScreen";
 import { TokenStoreOverlay } from "./components/TokenStoreOverlay";
 import { useDraftGame } from "./hooks/useDraftGame";
+import { useSupabaseAuth } from "./hooks/useSupabaseAuth";
+import {
+  deleteActiveRogueRun,
+  fetchActiveRogueRun,
+  syncTokenBalance,
+  upsertActiveRogueRun,
+} from "./lib/cloudSave";
 import { getCategoryChallengeTarget } from "./lib/simulate";
 import { tokenStoreUtilityItems, type TokenStoreUtilityItem } from "./lib/tokenStore";
 
@@ -53,6 +62,7 @@ const categoryStrategyMap: Record<string, string> = {
 };
 
 function App() {
+  const auth = useSupabaseAuth();
   const {
     state,
     metaProgress,
@@ -99,6 +109,7 @@ function App() {
   const [prestigeInitialView, setPrestigeInitialView] = useState<"overview" | "challenges" | "rewards" | "collection">("overview");
   const [learnOpen, setLearnOpen] = useState(false);
   const [tokenStoreOpen, setTokenStoreOpen] = useState(false);
+  const [cloudSavedRogueRun, setCloudSavedRogueRun] = useState<unknown | null>(null);
   const [showPrestigeLevelUp, setShowPrestigeLevelUp] = useState(false);
   const [showExtraPickIntro, setShowExtraPickIntro] = useState(false);
   const [isNarrowViewport, setIsNarrowViewport] = useState(() =>
@@ -196,6 +207,40 @@ function App() {
   );
 
   useEffect(() => {
+    if (!auth.user) {
+      setCloudSavedRogueRun(null);
+      return;
+    }
+
+    let cancelled = false;
+    fetchActiveRogueRun(auth.user.id).then((runData) => {
+      if (!cancelled) {
+        setCloudSavedRogueRun(runData);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.user?.id]);
+
+  useEffect(() => {
+    if (!auth.user) return;
+    void syncTokenBalance(auth.user.id, metaProgress.tokens.balance);
+  }, [auth.user?.id, metaProgress.tokens.balance]);
+
+  const saveCloudRogueRun = useCallback((runData: unknown) => {
+    if (!auth.user) return;
+    void upsertActiveRogueRun(auth.user.id, runData);
+  }, [auth.user?.id]);
+
+  const deleteCloudRogueRun = useCallback(() => {
+    if (!auth.user) return;
+    setCloudSavedRogueRun(null);
+    void deleteActiveRogueRun(auth.user.id);
+  }, [auth.user?.id]);
+
+  useEffect(() => {
     if (state.screen !== "draft") {
       setVisibleChoiceCount(state.currentChoices.length);
       return;
@@ -257,6 +302,29 @@ function App() {
     if (typeof window === "undefined") return;
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [state.screen, roguelikeOpen, prestigeOpen, tokenStoreOpen, learnOpen, showPrestigeLevelUp]);
+
+  if (!auth.loading && !auth.user) {
+    return (
+      <LoginPage
+        configured={auth.configured}
+        loading={auth.loading}
+        authError={auth.authError}
+        onSignIn={auth.signIn}
+        onSignUp={auth.signUp}
+      />
+    );
+  }
+
+  if (auth.loading) {
+    return (
+      <div className="arena-shell flex min-h-screen items-center justify-center px-5 text-white">
+        <div className="rounded-[28px] border border-white/12 bg-black/36 px-7 py-6 text-center shadow-[0_24px_70px_rgba(0,0,0,0.42)]">
+          <div className="text-xs uppercase tracking-[0.24em] text-slate-400">NBA Ultimate Draft</div>
+          <div className="mt-2 font-display text-3xl text-white">Checking your session...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="arena-shell text-white">
@@ -369,6 +437,18 @@ function App() {
           </div>
         </div>
 
+        <div className="mb-4">
+          <AccountPanel
+            configured={auth.configured}
+            loading={auth.loading}
+            userEmail={auth.user?.email}
+            authError={auth.authError}
+            onSignIn={auth.signIn}
+            onSignUp={auth.signUp}
+            onSignOut={auth.signOut}
+          />
+        </div>
+
         {roguelikeOpen && (
           <RoguelikeMode
             activeRogueStarId={state.activeRogueStarId}
@@ -385,6 +465,9 @@ function App() {
             onUseSilverStarterPack={useSilverStarterPack}
             onUseGoldStarterPack={useGoldStarterPack}
             onUsePlatinumStarterPack={usePlatinumStarterPack}
+            cloudSavedRunData={cloudSavedRogueRun}
+            onCloudSaveRun={saveCloudRogueRun}
+            onCloudDeleteRun={deleteCloudRogueRun}
             onLeaveRun={() => {
               setRoguelikeOpen(false);
               resetDraft();

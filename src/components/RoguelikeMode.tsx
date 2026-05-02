@@ -277,6 +277,9 @@ interface RoguelikeModeProps {
   onUseSilverStarterPack: () => boolean;
   onUseGoldStarterPack: () => boolean;
   onUsePlatinumStarterPack: () => boolean;
+  cloudSavedRunData?: unknown | null;
+  onCloudSaveRun?: (run: RoguelikeRun) => void;
+  onCloudDeleteRun?: () => void;
 }
 
 const ROGUELIKE_STORAGE_KEY = "legends-draft-roguelike-run-v1";
@@ -3791,6 +3794,9 @@ export const RoguelikeMode = ({
   onUseSilverStarterPack,
   onUseGoldStarterPack,
   onUsePlatinumStarterPack,
+  cloudSavedRunData,
+  onCloudSaveRun,
+  onCloudDeleteRun,
 }: RoguelikeModeProps) => {
   const [run, setRun] = useState<RoguelikeRun | null>(() => {
     if (typeof window === "undefined") return null;
@@ -3830,6 +3836,7 @@ export const RoguelikeMode = ({
     ownedPlatinumStarterPacks,
   });
   const previousBestStarterPackUpgradeRef = useRef<StarterPackUpgrade>(bestOwnedStarterPackUpgrade);
+  const cloudSavedRunAppliedRef = useRef(false);
   const [selectedStarterPackUpgrade, setSelectedStarterPackUpgrade] = useState<StarterPackUpgrade>(
     () => bestOwnedStarterPackUpgrade,
   );
@@ -4169,17 +4176,15 @@ export const RoguelikeMode = ({
       return;
     }
 
-    setRun({
-      ...run,
-      stage: "locker-room",
-      activeNode: null,
-      activeOpponentPlayerIds: null,
-      nodeResult: null,
-      selectedCutPlayerIds: [],
-      selectedNaturalPositionPlayerId: null,
-      selectedNaturalPosition: null,
-      allStarAssignments: { ...DEFAULT_ALL_STAR_ASSIGNMENTS },
-    });
+    setRun(
+      restoreUtilityReturnState({
+        ...run,
+        selectedCutPlayerIds: [],
+        selectedNaturalPositionPlayerId: null,
+        selectedNaturalPosition: null,
+        allStarAssignments: { ...DEFAULT_ALL_STAR_ASSIGNMENTS },
+      }),
+    );
   };
 
   const revealStarterCard = (playerId: string) => {
@@ -6214,7 +6219,21 @@ export const RoguelikeMode = ({
     }
 
     window.localStorage.setItem(ROGUELIKE_STORAGE_KEY, JSON.stringify(run));
-  }, [run]);
+    onCloudSaveRun?.(run);
+  }, [onCloudSaveRun, run]);
+
+  useEffect(() => {
+    if (cloudSavedRunAppliedRef.current || run || !cloudSavedRunData) return;
+
+    const normalizedCloudRun = normalizeStoredRun(
+      cloudSavedRunData as Partial<RoguelikeRun>,
+      activeRogueStarId,
+    );
+    if (!normalizedCloudRun) return;
+
+    cloudSavedRunAppliedRef.current = true;
+    setRun(normalizedCloudRun);
+  }, [activeRogueStarId, cloudSavedRunData, run]);
 
   useEffect(() => {
     const shouldOpen =
@@ -6479,6 +6498,7 @@ export const RoguelikeMode = ({
       window.localStorage.removeItem(ROGUELIKE_STORAGE_KEY);
       window.localStorage.removeItem(ROGUELIKE_PARKED_STORAGE_KEY);
     }
+    onCloudDeleteRun?.();
     setRun(null);
     setShowRunSettingsScreen(true);
     setShowPackSelectionHub(false);
@@ -6517,6 +6537,7 @@ export const RoguelikeMode = ({
       window.localStorage.removeItem(ROGUELIKE_STORAGE_KEY);
       window.localStorage.removeItem(ROGUELIKE_PARKED_STORAGE_KEY);
     }
+    onCloudDeleteRun?.();
     setShowOutcomeOverlay(false);
     setDraggingIndex(null);
     setDropTargetIndex(null);
@@ -7596,7 +7617,9 @@ export const RoguelikeMode = ({
     !["initial-draft", "reward-draft", "training-select", "trade-offer", "trade-select", "evolution-select", "faceoff-game", "node-result", "run-over", "run-cleared"].includes(run.stage);
   const utilityBackLabel =
     activeNode && isLockerRoomSelectionNode(activeNode) && run.utilityReturnState
-      ? "Back to Locker Room"
+      ? run.utilityReturnState.stage === "locker-room"
+        ? "Back to Locker Room"
+        : "Back to Game"
       : "Back to Run Ladder";
   const utilityBackAction =
     activeNode && isLockerRoomSelectionNode(activeNode) && run.utilityReturnState
@@ -9025,7 +9048,7 @@ export const RoguelikeMode = ({
               <p className="mt-3 text-sm leading-7 text-slate-300">
                 {isChoiceTradePath
                   ? "You chose the Trade path. If you move 1 player, your 5 replacement choices will be limited to similar-caliber options so this stays a reshape, not a power spike."
-                  : "It&apos;s Trade Deadline day. If you trade 1 player away, your 5 replacement choices will be limited to players of similar caliber."}
+                  : "It's Trade Deadline day. If you trade 1 player away, your 5 replacement choices will be limited to players of similar caliber."}
               </p>
               <div className="mt-5 rounded-[22px] border border-amber-200/14 bg-amber-300/8 px-4 py-4 text-sm text-slate-100">
                 Trading is optional. If you go through with it, the replacement board will only include players within 1 OVR of the player you send away. If you pass, you keep your roster intact and continue deeper into the run.
@@ -9056,7 +9079,7 @@ export const RoguelikeMode = ({
               <div className="text-xs uppercase tracking-[0.24em] text-slate-400">{isChoiceTradePath ? "Choice Node" : "Trade Node"}</div>
               <h2 className="mt-2 font-display text-3xl text-white">{tradeSelectionTitle}</h2>
               <p className="mt-3 text-sm leading-7 text-slate-300">
-                Select 1 player from your run roster to trade away. After that, you&apos;ll get to draft 1 replacement from 5 players whose OVR is within 1 point of the player you moved.
+                Select 1 player from your run roster to trade away. After that, you'll get to draft 1 replacement from 5 players whose OVR is within 1 point of the player you moved.
               </p>
               <div className="mt-5 rounded-[22px] border border-rose-200/14 bg-rose-300/8 px-4 py-4 text-sm text-slate-100">
                 The selected player leaves your run immediately, so this is a true swap instead of a free add. Think of it as a same-tier reshuffle, not a way to jump up in power.
