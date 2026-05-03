@@ -1,9 +1,15 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Coins, Crown, Handshake, Package2, ShieldPlus, Sparkles, Ticket, X } from "lucide-react";
-import { MetaProgress } from "../types";
+import { ArrowLeft, CheckCircle2, Coins, Crown, Handshake, Medal, Package2, ShieldPlus, Sparkles, Ticket, Users2, X } from "lucide-react";
+import { MetaProgress, Player } from "../types";
+import { allPlayers } from "../data/players";
 import { getTokenStorePlayerPrice, getTokenStorePlayerPriceMap, getTokenStoreSPlayers, tokenStoreUtilityItems } from "../lib/tokenStore";
 import { usePlayerImage } from "../hooks/usePlayerImage";
+import {
+  COLLECTION_REWARD_TOKENS,
+  buildCollectionProgress,
+  type CollectionFamilyId,
+} from "../lib/collections";
 
 interface TokenStoreOverlayProps {
   meta: MetaProgress;
@@ -15,6 +21,8 @@ interface TokenStoreOverlayProps {
   ownedCoachRecruitment: number;
   ownedRogueStarIds: string[];
   activeRogueStarId: string | null;
+  rogueCollectedCollectionEntryIds: string[];
+  claimedCollectionRewardIds: string[];
   onBuyTrainingCampTicket: () => void;
   onBuyTradePhone: () => void;
   onBuySilverStarterPack: () => void;
@@ -23,10 +31,39 @@ interface TokenStoreOverlayProps {
   onBuyCoachRecruitment: () => void;
   onBuyRogueStar: (playerId: string, price: number) => void;
   onSetActiveRogueStar: (playerId: string | null) => void;
+  onClaimCollectionReward: (familyId: CollectionFamilyId) => boolean;
   onClose: () => void;
 }
 
 const formatNumber = (value: number) => value.toLocaleString();
+const playersById = new Map(allPlayers.map((player) => [player.id, player]));
+
+const SmallCollectionPlayerCard = ({ player }: { player: Player }) => {
+  const imageUrl = usePlayerImage(player);
+
+  return (
+    <div className="w-[84px] shrink-0 rounded-[16px] border border-white/10 bg-black/25 p-1.5">
+      <div className="overflow-hidden rounded-[12px] border border-white/10 bg-black/20">
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={player.name}
+            className="h-[94px] w-full object-cover object-top"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="flex h-[94px] items-center justify-center bg-gradient-to-br from-slate-700 to-slate-900 font-display text-xl text-white/70">
+            {player.name.charAt(0)}
+          </div>
+        )}
+      </div>
+      <div className="mt-1.5 text-[10px] font-semibold leading-3 text-white">
+        {player.name}
+      </div>
+    </div>
+  );
+};
 
 const StorePlayerCard = ({
   playerId,
@@ -125,6 +162,8 @@ export const TokenStoreOverlay = ({
   ownedCoachRecruitment,
   ownedRogueStarIds,
   activeRogueStarId,
+  rogueCollectedCollectionEntryIds,
+  claimedCollectionRewardIds,
   onBuyTrainingCampTicket,
   onBuyTradePhone,
   onBuySilverStarterPack,
@@ -133,10 +172,24 @@ export const TokenStoreOverlay = ({
   onBuyCoachRecruitment,
   onBuyRogueStar,
   onSetActiveRogueStar,
+  onClaimCollectionReward,
   onClose,
 }: TokenStoreOverlayProps) => {
+  const [view, setView] = useState<"store" | "collections">("store");
+  const [selectedCollectionFamily, setSelectedCollectionFamily] = useState<CollectionFamilyId | null>(null);
   const sTierPlayers = useMemo(() => getTokenStoreSPlayers(), []);
   const playerPriceMap = useMemo(() => getTokenStorePlayerPriceMap(), []);
+  const collectionProgress = useMemo(
+    () => buildCollectionProgress(rogueCollectedCollectionEntryIds),
+    [rogueCollectedCollectionEntryIds],
+  );
+  const claimedRewardIds = useMemo(
+    () => new Set(claimedCollectionRewardIds),
+    [claimedCollectionRewardIds],
+  );
+  const selectedCollection = selectedCollectionFamily
+    ? collectionProgress.find((entry) => entry.family.id === selectedCollectionFamily) ?? null
+    : null;
   const utilityCards = [
     {
       item: tokenStoreUtilityItems[0],
@@ -262,6 +315,77 @@ export const TokenStoreOverlay = ({
           </div>
         </div>
 
+        <div className="mt-7 rounded-[28px] border border-white/12 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(15,23,42,0.42),rgba(5,8,14,0.72))] p-2 shadow-[0_18px_50px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.08)]">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => {
+                setView("store");
+                setSelectedCollectionFamily(null);
+              }}
+              className={`group flex min-h-[86px] items-center justify-between gap-4 rounded-[22px] border px-5 py-4 text-left transition ${
+                view === "store"
+                  ? "border-amber-100/38 bg-[linear-gradient(135deg,rgba(251,191,36,0.22),rgba(120,53,15,0.28),rgba(15,23,42,0.72))] shadow-[0_14px_34px_rgba(245,158,11,0.14),inset_0_1px_0_rgba(255,255,255,0.12)]"
+                  : "border-white/8 bg-black/20 hover:border-amber-100/24 hover:bg-amber-300/8"
+              }`}
+            >
+              <span className="flex items-center gap-4">
+                <span className={`grid h-12 w-12 place-items-center rounded-2xl border ${
+                  view === "store"
+                    ? "border-amber-100/30 bg-amber-200/16 text-amber-100"
+                    : "border-white/10 bg-white/6 text-slate-300 group-hover:text-amber-100"
+                }`}>
+                  <Package2 size={20} />
+                </span>
+                <span>
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Token Store</span>
+                  <span className="mt-1 block text-2xl font-semibold text-white">Store</span>
+                </span>
+              </span>
+              <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                view === "store"
+                  ? "border-amber-100/30 bg-amber-200/14 text-amber-100"
+                  : "border-white/10 bg-white/6 text-slate-400"
+              }`}>
+                {view === "store" ? "Active" : "Open"}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setView("collections")}
+              className={`group flex min-h-[86px] items-center justify-between gap-4 rounded-[22px] border px-5 py-4 text-left transition ${
+                view === "collections"
+                  ? "border-emerald-100/38 bg-[linear-gradient(135deg,rgba(52,211,153,0.22),rgba(6,78,59,0.3),rgba(15,23,42,0.72))] shadow-[0_14px_34px_rgba(16,185,129,0.14),inset_0_1px_0_rgba(255,255,255,0.12)]"
+                  : "border-white/8 bg-black/20 hover:border-emerald-100/24 hover:bg-emerald-300/8"
+              }`}
+            >
+              <span className="flex items-center gap-4">
+                <span className={`grid h-12 w-12 place-items-center rounded-2xl border ${
+                  view === "collections"
+                    ? "border-emerald-100/30 bg-emerald-200/16 text-emerald-100"
+                    : "border-white/10 bg-white/6 text-slate-300 group-hover:text-emerald-100"
+                }`}>
+                  <Medal size={20} />
+                </span>
+                <span>
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Token Rewards</span>
+                  <span className="mt-1 block text-2xl font-semibold text-white">Collections</span>
+                </span>
+              </span>
+              <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                view === "collections"
+                  ? "border-emerald-100/30 bg-emerald-200/14 text-emerald-100"
+                  : "border-white/10 bg-white/6 text-slate-400"
+              }`}>
+                {view === "collections" ? "Active" : "Open"}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {view === "store" ? (
+          <>
         <div className="mt-8">
           <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
             <Sparkles size={14} className="text-sky-200" />
@@ -419,6 +543,195 @@ export const TokenStoreOverlay = ({
             })}
           </div>
         </div>
+          </>
+        ) : (
+          <div className="mt-8 space-y-8">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-[24px] border border-emerald-300/14 bg-emerald-300/8 p-5">
+                <div className="text-xs uppercase tracking-[0.22em] text-emerald-100/70">Collection Sets</div>
+                <div className="mt-2 text-3xl font-semibold text-white">{collectionProgress.length}</div>
+                <div className="mt-2 text-sm text-slate-200">
+                  Each completed Rogue collection can pay out {formatNumber(COLLECTION_REWARD_TOKENS)} Tokens.
+                </div>
+              </div>
+              <div className="rounded-[24px] border border-sky-300/14 bg-sky-300/8 p-5">
+                <div className="text-xs uppercase tracking-[0.22em] text-sky-100/70">Rewards Claimed</div>
+                <div className="mt-2 text-3xl font-semibold text-white">
+                  {claimedRewardIds.size} / {collectionProgress.length}
+                </div>
+                <div className="mt-2 text-sm text-slate-200">
+                  Claimed rewards are permanent token-bank bonuses.
+                </div>
+              </div>
+              <div className="rounded-[24px] border border-amber-200/14 bg-amber-300/8 p-5">
+                <div className="text-xs uppercase tracking-[0.22em] text-amber-100/70">Entries Collected</div>
+                <div className="mt-2 text-3xl font-semibold text-white">
+                  {collectionProgress.reduce((sum, entry) => sum + entry.collectedCount, 0)} / {collectionProgress.reduce((sum, entry) => sum + entry.totalCount, 0)}
+                </div>
+                <div className="mt-2 text-sm text-slate-200">
+                  Draft a combo together in Rogue Mode and it immediately counts as collected.
+                </div>
+              </div>
+            </div>
+
+            {selectedCollection ? (
+              <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCollectionFamily(null)}
+                      className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300 transition hover:text-white"
+                    >
+                      <ArrowLeft size={14} />
+                      Back To Collections
+                    </button>
+                    <div className="mt-4 text-xs uppercase tracking-[0.24em] text-slate-400">
+                      {selectedCollection.family.title}
+                    </div>
+                    <h3 className="mt-2 font-display text-3xl text-white">
+                      {selectedCollection.collectedCount} / {selectedCollection.totalCount} collected
+                    </h3>
+                    <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300">
+                      {selectedCollection.family.description}
+                    </p>
+                  </div>
+                  <div className={`rounded-[22px] border px-5 py-4 ${selectedCollection.family.toneClass}`}>
+                    <div className="text-xs uppercase tracking-[0.2em] text-slate-200/80">Reward Status</div>
+                    <div className="mt-2 text-lg font-semibold text-white">
+                      {claimedRewardIds.has(selectedCollection.family.id)
+                        ? "Claimed"
+                        : selectedCollection.unlocked
+                          ? "Ready To Claim"
+                          : "In Progress"}
+                    </div>
+                    <div className="mt-1 text-sm text-slate-200/90">
+                      {formatNumber(COLLECTION_REWARD_TOKENS)} Tokens
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                  {selectedCollection.items.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className={`rounded-[22px] border p-4 ${
+                        entry.collected
+                          ? "border-emerald-300/20 bg-emerald-300/10"
+                          : "border-white/10 bg-black/20"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="line-clamp-2 text-base font-semibold leading-6 text-white">{entry.title}</div>
+                        </div>
+                        <div className={`shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+                          entry.collected
+                            ? "border-emerald-300/18 bg-emerald-300/12 text-emerald-100"
+                            : "border-white/10 bg-white/6 text-slate-300"
+                        }`}>
+                          {entry.collected ? "Collected" : "Not Collected"}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {entry.playerIds
+                          .map((playerId) => playersById.get(playerId))
+                          .filter((player): player is Player => Boolean(player))
+                          .map((player) => (
+                            <SmallCollectionPlayerCard key={player.id} player={player} />
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-5 lg:grid-cols-2">
+                {collectionProgress.map((entry) => {
+                  const claimed = claimedRewardIds.has(entry.family.id);
+                  const canClaim = entry.unlocked && !claimed;
+
+                  return (
+                    <button
+                      key={entry.family.id}
+                      type="button"
+                      onClick={() => setSelectedCollectionFamily(entry.family.id)}
+                      className={`rounded-[28px] border p-6 text-left transition hover:scale-[1.01] ${entry.family.toneClass}`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <div className="rounded-2xl border border-white/12 bg-black/20 p-3 text-white">
+                              <Medal size={22} />
+                            </div>
+                            <div>
+                              <div className="text-xs uppercase tracking-[0.22em] text-slate-300/80">Rogue Collection</div>
+                              <div className="mt-1 text-2xl font-semibold text-white">{entry.family.title}</div>
+                            </div>
+                          </div>
+                          <p className="mt-4 text-sm leading-7 text-slate-100/88">{entry.family.description}</p>
+                        </div>
+                        <div className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${
+                          claimed
+                            ? "border border-emerald-300/18 bg-emerald-300/12 text-emerald-100"
+                            : entry.unlocked
+                              ? "border border-amber-200/24 bg-amber-300/12 text-amber-100"
+                              : "border border-white/10 bg-black/20 text-slate-300"
+                        }`}>
+                          {claimed ? "Claimed" : entry.unlocked ? "Complete" : "Locked"}
+                        </div>
+                      </div>
+
+                      <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Progress</div>
+                          <div className="mt-2 text-3xl font-semibold text-white">
+                            {entry.collectedCount} / {entry.totalCount}
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-3 sm:items-end">
+                          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white">
+                            Open Set
+                            <Users2 size={14} />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onClaimCollectionReward(entry.family.id);
+                            }}
+                            disabled={!canClaim}
+                            className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.16em] text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/18 disabled:text-white/46"
+                          >
+                            {claimed ? (
+                              <>
+                                <CheckCircle2 size={14} />
+                                Claimed
+                              </>
+                            ) : canClaim ? (
+                              `Claim ${formatNumber(COLLECTION_REWARD_TOKENS)}`
+                            ) : (
+                              "Locked"
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-emerald-300 via-sky-300 to-amber-200"
+                          style={{ width: `${entry.totalCount === 0 ? 0 : Math.max(6, Math.round((entry.collectedCount / entry.totalCount) * 100))}%` }}
+                        />
+                      </div>
+                      <div className="mt-3 text-sm text-slate-200/90">{entry.family.rewardText}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

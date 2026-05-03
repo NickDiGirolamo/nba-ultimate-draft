@@ -54,7 +54,9 @@ const directImageOverrides: Record<string, string> = {
   "btg-james-harden-thunder":
     "https://www.oklahoman.com/gcdn/authoring/2010/01/05/NOKL/ghnewsok-OK-3429678-983faaec.jpeg",
   "caron-butler":
-    "https://cdn.bleacherreport.net/images_root/slides/photos/000/613/179/107627939_original.jpg?1294177883",
+    "https://legacymedia.sportsplatform.io/images_root/slides/photos/000/987/062/107627939_display_image.jpg?1307086307",
+  "courtney-lee-magic":
+    "https://i.pinimg.com/736x/55/5b/4a/555b4af6107b37f31098c12b5b788630.jpg",
   "btg-russell-westbrook":
     "https://cdn.nba.com/teams/legacy/www.nba.com/thunder/sites/thunder/files/25_russell_extension_160804.jpg",
   "btg-damian-lillard":
@@ -80,6 +82,8 @@ const directImageOverrides: Record<string, string> = {
   "btg-giannis-antetokounmpo":
     "https://fadeawayworld.net/wp-content/uploads/2021/07/giannis-antetokounmpos-blog-post-from-2013-is-truly-inspiring-i-was-wondering-if-they-would-send-me-to-the-d-league-1536x1024.jpg",
   "btg-nikola-jokic":
+    "https://legacymedia.sportsplatform.io/img/images/photos/003/572/968/hi-res-801cc84855b4e46871f0c2c4a70bece3_crop_north.jpg?1455038631&w=630&h=420",
+  "nikola-jokic-2023":
     "https://legacymedia.sportsplatform.io/img/images/photos/003/572/968/hi-res-801cc84855b4e46871f0c2c4a70bece3_crop_north.jpg?1455038631&w=630&h=420",
   "btg-anthony-davis":
     "https://platform.sbnation.com/wp-content/uploads/sites/2/chorus/uploads/chorus_asset/file/14212085/20130119_tjg_ah6_069.0.1358814165.jpg?quality=90&strip=all&crop=0.012500000000003%2C0%2C99.975%2C100&w=2400",
@@ -352,7 +356,7 @@ const directImageOverrides: Record<string, string> = {
   "jason-kidd":
     "https://www.si.com/.image/t_share/MTY4MjU5ODQ5Nzc5MjI2NDk3/image-placeholder-title.jpg",
   "jason-kidd-mavericks":
-    "https://www.si.com/.image/t_share/MTY4MjU5ODQ5Nzc5MjI2NDk3/image-placeholder-title.jpg",
+    "https://www.investors.com/wp-content/uploads/2016/04/KIDD-LS-040616-newscom.jpg",
   "jason-richardson":
     "https://s.hdnux.com/photos/42/27/47/9009620/4/1920x0.jpg",
   "j-r-smith":
@@ -460,7 +464,7 @@ const directImageOverrides: Record<string, string> = {
   "larry-johnson":
     "https://cdn.nba.com/teams/legacy/www.nba.com/hornets/sites/hornets/files/johnson_24.jpg",
   "larry-johnson-knicks":
-    "https://cdn.nba.com/teams/legacy/www.nba.com/hornets/sites/hornets/files/johnson_24.jpg",
+    "https://knickaholic.wordpress.com/wp-content/uploads/2012/03/larryjohnson.jpg",
   "luka-doncic":
     "https://media.about.nike.com/img/c287f478-579c-4c31-a5da-3a92411694e9/luka-doncic-enlarge2-2.jpg?m=eyJlZGl0cyI6eyJqcGVnIjp7InF1YWxpdHkiOjEwMH0sIndlYnAiOnsicXVhbGl0eSI6MTAwfSwiZXh0cmFjdCI6eyJsZWZ0Ijo3OTQsInRvcCI6MTAsIndpZHRoIjoxMjc1LCJoZWlnaHQiOjIxMjN9LCJyZXNpemUiOnsid2lkdGgiOjM4NDB9fX0%3D&s=383fe9bab9113f62527527c9c79a8719d45edbdf7d0213113a9373d21d927848",
   "luka-doncic-mavs":
@@ -527,6 +531,8 @@ const directImageOverrides: Record<string, string> = {
     "https://legacymedia.sportsplatform.io/img/images/photos/003/647/141/ee95d67ca7a8afeca79d93afec516857_crop_north.jpg?1481914896&w=630&h=420",
   "mo-williams":
     "https://content.wkyc.com/photo/2015/07/10/635721301186971570-109082014_1262224_ver1.0.jpg",
+  "morris-peterson-hornets":
+    "https://alchetron.com/cdn/morris-peterson-52d1a9cf-5181-483b-84a7-3e50120490d-resize-750.jpeg",
   "mitch-richmond":
     "https://cdn.nba.com/teams/legacy/www.nba.com/warriors/sites/warriors/files/legacy/photos/Richmond_Rock.jpg",
   "nene":
@@ -553,6 +559,8 @@ const directImageOverrides: Record<string, string> = {
     "https://external-preview.redd.it/photo-of-the-day-the-big-o-tested-veteran-point-guard-oscar-v0-2fl5SvnfW1U1dIitlWSKsU6kdL0rxSqrcQ2eXvNmkPA.jpg?width=640&crop=smart&auto=webp&s=16b2f8c129b2d02506dbc40c8a621489e7f48f29",
   "o-j-mayo":
     "https://cdn.nba.com/teams/legacy/www.nba.com/grizzlies/sites/grizzlies/files/legacy/main_photo/mayo-081013-jm131-300.jpg",
+  "otto-porter-jr":
+    "https://s.yimg.com/ny/api/res/1.2/OOz7JtS9E3sokbK8kvJcQA--/YXBwaWQ9aGlnaGxhbmRlcjt3PTY0MDtoPTQzMjtjZj13ZWJw/https://media.zenfs.com/en/homerun/feed_manager_auto_publish_494/8eeb2dfca9d56743d4cd1086273f7813",
   "pau-gasol":
     "https://static.wikia.nocookie.net/nbasports/images/9/91/San_Antonio_Spurs_v_Los_Angeles_Lakers_Game_0_MoFFLaWuhl.jpg/revision/latest/scale-to-width-down/323?cb=20130705212405",
   "paul-george":
@@ -591,6 +599,8 @@ const directImageOverrides: Record<string, string> = {
     "https://oneway77jc.com/cdn/shop/products/ROBERT.jpg?v=1666502059",
   "richard-jefferson":
     "https://netswire.usatoday.com/gcdn/authoring/images/smg/2024/12/28/SNET/77289195007-9-8521.jpeg",
+  "ronnie-brewer-jazz":
+    "https://www.legendsofbasketball.com/wp-content/uploads/2020/11/ronnie-brewer-jr-scaled.jpeg",
   "russell-westbrook":
     "https://pbs.twimg.com/media/GxcIsZZXsAAWwst.jpg",
   "ray-allen":

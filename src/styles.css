@@ -39,6 +39,36 @@ textarea {
   font: inherit;
 }
 
+.login-auth-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: rgba(0, 0, 0, 0.46) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #67e8f9 !important;
+  color-scheme: dark;
+  opacity: 1 !important;
+}
+
+.login-auth-input::placeholder {
+  color: rgba(148, 163, 184, 0.82) !important;
+  -webkit-text-fill-color: rgba(148, 163, 184, 0.82) !important;
+}
+
+.login-auth-input:focus {
+  background-color: rgba(0, 0, 0, 0.62) !important;
+}
+
+.login-auth-input:-webkit-autofill,
+.login-auth-input:-webkit-autofill:hover,
+.login-auth-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.82) inset !important;
+  box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.82) inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #67e8f9 !important;
+  transition: background-color 9999s ease-out;
+}
+
 .glass-panel {
   background: linear-gradient(180deg, rgba(10, 14, 20, 0.82), rgba(6, 8, 12, 0.92));
   border: 1px solid rgba(255, 244, 229, 0.14);

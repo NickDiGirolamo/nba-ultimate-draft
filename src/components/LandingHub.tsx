@@ -3,18 +3,16 @@ import { MetaProgress, RunHistoryEntry } from "../types";
 
 interface LandingHubProps {
   onOpenPrestige: () => void;
-  onOpenChallenges: () => void;
-  onOpenCollection: () => void;
   onOpenRoguelike: () => void;
+  onRestartTutorial: () => void;
   history: RunHistoryEntry[];
   meta: MetaProgress;
 }
 
 export const LandingHub = ({
   onOpenPrestige,
-  onOpenChallenges,
-  onOpenCollection,
   onOpenRoguelike,
+  onRestartTutorial,
   history,
   meta,
 }: LandingHubProps) => {
@@ -37,6 +35,7 @@ export const LandingHub = ({
           <div className="mt-10 flex flex-wrap gap-4">
             <button
               type="button"
+              data-tutorial-id="home-enter-rogue"
               onClick={onOpenRoguelike}
               className="inline-flex items-center gap-2 rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-slate-900 transition hover:scale-[1.02]"
             >
@@ -49,6 +48,14 @@ export const LandingHub = ({
               className="inline-flex items-center gap-2 rounded-full border border-fuchsia-200/18 bg-fuchsia-300/10 px-8 py-3.5 text-sm font-semibold text-fuchsia-100 transition hover:scale-[1.02] hover:bg-fuchsia-300/14"
             >
               View Meta Progress
+              <ChevronRight size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={onRestartTutorial}
+              className="inline-flex items-center gap-2 rounded-full border border-amber-200/22 bg-amber-300/10 px-8 py-3.5 text-sm font-semibold text-amber-100 transition hover:scale-[1.02] hover:bg-amber-300/14"
+            >
+              Replay Tutorial
               <ChevronRight size={18} />
             </button>
           </div>
@@ -181,7 +188,7 @@ export const LandingHub = ({
                   Level {meta.prestige.level} | {meta.prestige.title}
                 </h2>
                 <p className="mt-2 text-sm leading-7 text-slate-300">
-                  Rogue runs now drive the home page, but your long-term prestige still tracks the whole account.
+                  Rogue runs now drive the home page and are the only way to earn long-term Prestige.
                 </p>
               </div>
 
@@ -283,11 +290,7 @@ export const LandingHub = ({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={onOpenCollection}
-          className="glass-panel rounded-[30px] p-6 text-left shadow-card transition hover:border-amber-200/24 hover:bg-white/7"
-        >
+        <div className="glass-panel rounded-[30px] p-6 text-left shadow-card">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl bg-amber-300/14 p-3 text-amber-200">
               <Medal size={20} />
@@ -295,6 +298,7 @@ export const LandingHub = ({
             <div>
               <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Collection + Trophies</p>
               <h2 className="mt-1 font-display text-2xl text-white">Long-Term Chase</h2>
+              <p className="mt-1 text-xs text-slate-400">Rogue collection rewards now live in the Token Store.</p>
             </div>
           </div>
 
@@ -336,7 +340,7 @@ export const LandingHub = ({
               </div>
             ))}
           </div>
-        </button>
+        </div>
 
         <div className="glass-panel rounded-[30px] border border-sky-200/12 p-6 shadow-card">
           <div className="flex items-center gap-3">
@@ -344,20 +348,20 @@ export const LandingHub = ({
               <Sparkles size={20} />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Side Mode</p>
-              <h2 className="mt-1 font-display text-2xl text-white">Draft Challenges</h2>
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Rogue Prestige</p>
+              <h2 className="mt-1 font-display text-2xl text-white">Main Progress Path</h2>
             </div>
           </div>
 
           <p className="mt-6 text-sm leading-7 text-slate-300">
-            Draft Challenges are still available, but they now sit beside NBA Rogue Mode as a lighter side feature for focused roster experiments.
+            Prestige now belongs fully to NBA Rogue Mode. Climb floors, clear bosses, survive hard runs, and bank the rewards that move your account forward.
           </p>
 
           <div className="mt-6 space-y-3">
             {[
-              "Category-focus routes",
-              "Classic 10-pick draft flow",
-              "Prestige and collection support",
+              "Rogue floor rewards",
+              "Boss battle payouts",
+              "Failure rewards that still move the account",
             ].map((item) => (
               <div key={item} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
                 {item}
@@ -367,10 +371,10 @@ export const LandingHub = ({
 
           <button
             type="button"
-            onClick={onOpenChallenges}
+            onClick={onOpenRoguelike}
             className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full border border-sky-200/18 bg-sky-300/10 px-5 py-3 text-sm font-semibold text-sky-100 transition hover:bg-sky-300/14"
           >
-            Open Draft Challenges
+            Enter Rogue Mode
             <ChevronRight size={16} />
           </button>
         </div>

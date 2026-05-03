@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BookOpen, Coins, Crown, Flag, Sparkles, Swords, Target, Trophy } from "lucide-react";
-import { AccountPanel } from "./components/AccountPanel";
+import { BookOpen, Coins, Crown, Flag, LogOut, Sparkles, Swords, Target, Trophy, UserRound } from "lucide-react";
 import { DraftBriefing } from "./components/DraftBriefing";
 import { DraftPlayerCard } from "./components/DraftPlayerCard";
+import { GuidedTutorialOverlay, type GuidedTutorialStep } from "./components/GuidedTutorialOverlay";
 import { LandingHub } from "./components/LandingHub";
 import { LearnOverlay } from "./components/LearnOverlay";
 import { LineupReorderScreen } from "./components/LineupReorderScreen";
@@ -29,6 +29,7 @@ import { tokenStoreUtilityItems, type TokenStoreUtilityItem } from "./lib/tokenS
 const ROGUELIKE_UI_STORAGE_KEY = "legends-draft-roguelike-ui-v1";
 const ROGUELIKE_RUN_STORAGE_KEY = "legends-draft-roguelike-run-v1";
 const ROGUELIKE_PARKED_STORAGE_KEY = "legends-draft-roguelike-parked-v1";
+const FIRST_RUN_TUTORIAL_STORAGE_KEY = "nba-ultimate-draft-first-run-tutorial-v1";
 
 const getTokenStoreUtilityPrice = (id: TokenStoreUtilityItem["id"]) =>
   tokenStoreUtilityItems.find((item) => item.id === id)?.price ?? 0;
@@ -79,7 +80,6 @@ function App() {
     setDraftChallengeSelection,
     setRareEventSelection,
     setCategoryChallengeSelection,
-    applyRunPreset,
     beginDraftFromBriefing,
     awardRogueFailureRewards,
     updateRoguePersonalBests,
@@ -91,6 +91,8 @@ function App() {
     purchaseCoachRecruitment,
     purchaseRogueStar,
     setActiveRogueStar,
+    recordRogueCollectionEntries,
+    claimCollectionReward,
     useTrainingCampTicket,
     useTradePhone,
     useSilverStarterPack,
@@ -106,9 +108,16 @@ function App() {
     state.currentChoices.length,
   );
   const [prestigeOpen, setPrestigeOpen] = useState(false);
-  const [prestigeInitialView, setPrestigeInitialView] = useState<"overview" | "challenges" | "rewards" | "collection">("overview");
+  const [prestigeInitialView, setPrestigeInitialView] = useState<"overview" | "rewards">("overview");
   const [learnOpen, setLearnOpen] = useState(false);
   const [tokenStoreOpen, setTokenStoreOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+
+    return window.localStorage.getItem(FIRST_RUN_TUTORIAL_STORAGE_KEY) !== "complete";
+  });
+  const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
   const [cloudSavedRogueRun, setCloudSavedRogueRun] = useState<unknown | null>(null);
   const [showPrestigeLevelUp, setShowPrestigeLevelUp] = useState(false);
   const [showExtraPickIntro, setShowExtraPickIntro] = useState(false);
@@ -127,6 +136,83 @@ function App() {
       return false;
     }
   });
+  const tutorialSteps = useMemo<GuidedTutorialStep[]>(
+    () => [
+      {
+        id: "tokens",
+        targetId: "app-token-store",
+        title: "Your account power lives here",
+        body: "The Token Store holds permanent Rogue upgrades, utility items, Galaxy stars, and collection rewards. You can come back here between runs.",
+        placement: "bottom",
+      },
+      {
+        id: "enter-rogue",
+        targetId: "home-enter-rogue",
+        title: "Start with NBA Rogue Mode",
+        body: "This is the main experience. Click this button to enter the run setup and begin the guided path.",
+        placement: "bottom",
+        advanceOnTargetClick: true,
+      },
+      {
+        id: "run-settings",
+        targetId: "rogue-settings-continue",
+        spotlightTargetId: "rogue-settings-screen",
+        title: "Set the rules for the run",
+        body: "These settings control the player pool, coaches, pack upgrades, and ladder shape. The defaults are safe, so continue when you are ready.",
+        placement: "top",
+        advanceOnTargetClick: true,
+      },
+      {
+        id: "starter-pack",
+        targetId: "rogue-starter-pack-choice",
+        title: "Choose your opener",
+        body: "Starter packs set the first three players of the run. Pick the direction that feels best for this climb.",
+        placement: "top",
+        advanceOnTargetClick: true,
+      },
+      {
+        id: "starter-reveal",
+        targetId: "rogue-starter-proceed",
+        spotlightTargetId: "rogue-starter-reveal-cards",
+        title: "Reveal your first core",
+        body: "Once all three starter cards are flipped, use this button to move to the ladder.",
+        waitingTitle: "Reveal the starter cards",
+        waitingBody: "Click the three starter cards. When the proceed button appears, I will highlight it for you.",
+        placement: "right",
+        advanceOnTargetClick: true,
+      },
+      {
+        id: "ladder-go",
+        targetId: "rogue-ladder-go",
+        title: "Press Go on the current floor",
+        body: "The highlighted node is your next decision. This button starts the floor and moves the run forward.",
+        placement: "top",
+        advanceOnTargetClick: true,
+      },
+    ],
+    [],
+  );
+
+  const completeTutorial = useCallback(() => {
+    setTutorialOpen(false);
+    setTutorialStepIndex(0);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(FIRST_RUN_TUTORIAL_STORAGE_KEY, "complete");
+    }
+  }, []);
+
+  const restartTutorial = useCallback(() => {
+    setProfileMenuOpen(false);
+    setTokenStoreOpen(false);
+    setPrestigeOpen(false);
+    setLearnOpen(false);
+    setTutorialStepIndex(0);
+    setTutorialOpen(true);
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(FIRST_RUN_TUTORIAL_STORAGE_KEY);
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, []);
   const draftIntel = useMemo(() => {
     const cards = [
       {
@@ -354,7 +440,7 @@ function App() {
             </div>
           </button>
 
-          <div className="col-span-3 grid grid-cols-3 gap-2 lg:flex lg:justify-end lg:gap-3">
+          <div className="col-span-3 grid grid-cols-4 gap-2 lg:flex lg:justify-end lg:gap-3">
             <button
               type="button"
               onClick={() => setLearnOpen(true)}
@@ -379,6 +465,7 @@ function App() {
             </button>
             <button
               type="button"
+              data-tutorial-id="app-token-store"
               onClick={() => setTokenStoreOpen(true)}
               className="glass-panel min-h-[54px] w-full rounded-2xl px-2 py-1.5 text-left transition hover:border-amber-200/24 hover:bg-white/10 sm:min-w-0 lg:min-h-[70px] lg:min-w-[200px] lg:px-3.5 lg:py-2"
             >
@@ -434,19 +521,55 @@ function App() {
               </div>
               <div className="mt-1 h-0.5" />
             </button>
+            <div className="relative flex justify-end">
+              <button
+                type="button"
+                onClick={() => setProfileMenuOpen((open) => !open)}
+                aria-label="Open user profile menu"
+                className="glass-panel grid h-[54px] w-[54px] place-items-center rounded-full border border-cyan-100/18 bg-[radial-gradient(circle_at_top,rgba(103,232,249,0.18),rgba(15,23,42,0.92))] text-cyan-50 shadow-[0_14px_30px_rgba(8,47,73,0.24)] transition hover:scale-[1.03] hover:border-cyan-100/34 hover:bg-cyan-300/12 lg:h-[70px] lg:w-[70px]"
+              >
+                <UserRound size={20} className="lg:hidden" />
+                <UserRound size={24} className="hidden lg:block" />
+              </button>
+              {profileMenuOpen ? (
+                <div className="absolute right-0 top-[calc(100%+10px)] z-[80] w-[min(320px,calc(100vw-24px))] rounded-2xl border border-white/12 bg-[#070b12]/98 p-4 text-left shadow-[0_24px_70px_rgba(0,0,0,0.48)] backdrop-blur-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-11 w-11 place-items-center rounded-full border border-cyan-100/20 bg-cyan-300/12 text-cyan-100">
+                      <UserRound size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Profile</div>
+                      <div className="mt-1 truncate text-sm font-semibold text-white">
+                        {auth.user?.email ?? "Signed in"}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 rounded-xl border border-white/10 bg-white/6 px-3 py-3 text-xs leading-5 text-slate-300">
+                    Profile editing is coming soon. Your account currently manages login, cloud tokens, and Rogue saves.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={restartTutorial}
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-amber-100/20 bg-amber-300/10 px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.16em] text-amber-50 transition hover:bg-amber-300/16"
+                  >
+                    <BookOpen size={14} />
+                    Restart Tutorial
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setProfileMenuOpen(false);
+                      await auth.signOut();
+                    }}
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-rose-100/20 bg-rose-400/12 px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.16em] text-rose-50 transition hover:bg-rose-400/18"
+                  >
+                    <LogOut size={14} />
+                    Log Out
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
-        </div>
-
-        <div className="mb-4">
-          <AccountPanel
-            configured={auth.configured}
-            loading={auth.loading}
-            userEmail={auth.user?.email}
-            authError={auth.authError}
-            onSignIn={auth.signIn}
-            onSignUp={auth.signUp}
-            onSignOut={auth.signOut}
-          />
         </div>
 
         {roguelikeOpen && (
@@ -465,6 +588,7 @@ function App() {
             onUseSilverStarterPack={useSilverStarterPack}
             onUseGoldStarterPack={useGoldStarterPack}
             onUsePlatinumStarterPack={usePlatinumStarterPack}
+            onRecordCollectionEntries={recordRogueCollectionEntries}
             cloudSavedRunData={cloudSavedRogueRun}
             onCloudSaveRun={saveCloudRogueRun}
             onCloudDeleteRun={deleteCloudRogueRun}
@@ -485,15 +609,8 @@ function App() {
               setPrestigeInitialView("overview");
               setPrestigeOpen(true);
             }}
-            onOpenChallenges={() => {
-              setPrestigeInitialView("challenges");
-              setPrestigeOpen(true);
-            }}
-            onOpenCollection={() => {
-              setPrestigeInitialView("collection");
-              setPrestigeOpen(true);
-            }}
             onOpenRoguelike={() => setRoguelikeOpen(true)}
+            onRestartTutorial={restartTutorial}
             history={state.history}
             meta={metaProgress}
           />
@@ -623,6 +740,7 @@ function App() {
                                 draftedPlayerIds={state.draftedPlayerIds}
                                 compact
                                 compactScale={0.42}
+                                fitToContainer
                               />
                             </div>
                           </div>
@@ -702,6 +820,7 @@ function App() {
                               draftedPlayerIds={state.draftedPlayerIds}
                               compact={isNarrowViewport}
                               compactScale={0.42}
+                              fitToContainer={isNarrowViewport}
                             />
                           </div>
                         </div>
@@ -832,7 +951,7 @@ function App() {
             onDraftAgain={startDraft}
             onBackToHome={resetDraft}
             onBackToChallenges={() => {
-              setPrestigeInitialView("challenges");
+              setPrestigeInitialView("overview");
               setPrestigeOpen(true);
             }}
             meta={metaProgress}
@@ -846,7 +965,6 @@ function App() {
           meta={metaProgress}
           history={state.history}
           initialView={prestigeInitialView}
-          onApplyChallengePreset={applyRunPreset}
           onClose={() => setPrestigeOpen(false)}
         />
       )}
@@ -862,6 +980,8 @@ function App() {
           ownedCoachRecruitment={state.ownedCoachRecruitment}
           ownedRogueStarIds={state.ownedRogueStarIds}
           activeRogueStarId={state.activeRogueStarId}
+          rogueCollectedCollectionEntryIds={state.rogueCollectedCollectionEntryIds}
+          claimedCollectionRewardIds={state.claimedCollectionRewardIds}
           onBuyTrainingCampTicket={() => purchaseTrainingCampTicket(getTokenStoreUtilityPrice("training-camp-ticket"))}
           onBuyTradePhone={() => purchaseTradePhone(getTokenStoreUtilityPrice("trade-phone"))}
           onBuySilverStarterPack={() => purchaseSilverStarterPack(getTokenStoreUtilityPrice("silver-starter-pack"))}
@@ -870,6 +990,7 @@ function App() {
           onBuyCoachRecruitment={() => purchaseCoachRecruitment(getTokenStoreUtilityPrice("coach-recruitment"))}
           onBuyRogueStar={purchaseRogueStar}
           onSetActiveRogueStar={setActiveRogueStar}
+          onClaimCollectionReward={claimCollectionReward}
           onClose={() => setTokenStoreOpen(false)}
         />
       )}
@@ -882,6 +1003,17 @@ function App() {
           onClose={() => setShowPrestigeLevelUp(false)}
         />
       )}
+
+      {tutorialOpen && !auth.loading ? (
+        <GuidedTutorialOverlay
+          steps={tutorialSteps}
+          activeStepIndex={tutorialStepIndex}
+          onNext={() => setTutorialStepIndex((index) => Math.min(tutorialSteps.length - 1, index + 1))}
+          onBack={() => setTutorialStepIndex((index) => Math.max(0, index - 1))}
+          onSkip={completeTutorial}
+          onFinish={completeTutorial}
+        />
+      ) : null}
     </div>
   );
 }

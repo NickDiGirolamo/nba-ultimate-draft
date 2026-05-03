@@ -82,6 +82,7 @@ interface DraftPlayerCardProps {
   surfaceClassNameOverride?: string;
   holoOverlay?: boolean;
   holoVariant?: CardHoloVariant;
+  fitToContainer?: boolean;
 }
 
 export const DraftPlayerCard = ({
@@ -101,6 +102,7 @@ export const DraftPlayerCard = ({
   surfaceClassNameOverride,
   holoOverlay = false,
   holoVariant = "prism",
+  fitToContainer = false,
 }: DraftPlayerCardProps) => {
   const shellRef = useRef<HTMLDivElement | null>(null);
   const imageUrl = usePlayerImage(player);
@@ -170,7 +172,7 @@ export const DraftPlayerCard = ({
       disabled={disabled}
       className={clsx(
         "group relative block text-left transition",
-        compact ? "w-auto shrink-0" : "w-full",
+        compact ? (fitToContainer ? "h-full w-full" : "w-auto shrink-0") : "w-full",
         disabled ? "cursor-default opacity-70" : "hover:-translate-y-1 hover:scale-[1.01]",
       )}
     >
@@ -178,9 +180,9 @@ export const DraftPlayerCard = ({
         ref={shellRef}
         className="relative mx-auto overflow-hidden"
         style={{
-          width: compact ? `${shellWidth}px` : "100%",
+          width: compact && !fitToContainer ? `${shellWidth}px` : "100%",
           maxWidth: `${shellWidth}px`,
-          height: `${shellHeight}px`,
+          height: fitToContainer ? "100%" : `${shellHeight}px`,
         }}
       >
         <div

@@ -22,6 +22,12 @@ import {
   standardRareEvent,
 } from "../lib/meta";
 import { mulberry32 } from "../lib/random";
+import {
+  COLLECTION_REWARD_TOKENS,
+  buildCollectionProgress,
+  getRogueCollectionEntryIdsForRoster,
+  type CollectionFamilyId,
+} from "../lib/collections";
 
 const HISTORY_LIMIT = 24;
 const DEFAULT_METRICS = {
@@ -315,6 +321,8 @@ const createInitialState = (): DraftState => {
     ownedCoachRecruitment: 0,
     ownedRogueStarIds: [],
     activeRogueStarId: null,
+    rogueCollectedCollectionEntryIds: [],
+    claimedCollectionRewardIds: [],
     seed,
   };
 };
@@ -386,6 +394,12 @@ const normalizeState = (value: DraftState): DraftState => {
       typeof value.activeRogueStarId === "string"
         ? LEGACY_PLAYER_ID_MIGRATIONS[value.activeRogueStarId] ?? value.activeRogueStarId
         : null,
+    rogueCollectedCollectionEntryIds: Array.isArray(value.rogueCollectedCollectionEntryIds)
+      ? value.rogueCollectedCollectionEntryIds.filter((entryId): entryId is string => typeof entryId === "string")
+      : [],
+    claimedCollectionRewardIds: Array.isArray(value.claimedCollectionRewardIds)
+      ? value.claimedCollectionRewardIds.filter((entryId): entryId is string => typeof entryId === "string")
+      : [],
     seed,
   };
 };
@@ -418,11 +432,26 @@ export const useDraftGame = () => {
         ...boostedMeta,
         tokens: {
           ...boostedMeta.tokens,
-          balance: Math.max(0, boostedMeta.tokens.balance - state.spentTokens),
+          lifetimeEarned:
+            boostedMeta.tokens.lifetimeEarned +
+            state.claimedCollectionRewardIds.length * COLLECTION_REWARD_TOKENS,
+          balance: Math.max(
+            0,
+            boostedMeta.tokens.balance +
+              state.claimedCollectionRewardIds.length * COLLECTION_REWARD_TOKENS -
+              state.spentTokens,
+          ),
         },
       };
     },
-    [state.history, state.unlockedPlayerIds, state.roguePersonalBests, state.rogueBonusPrestigeXp, state.spentTokens],
+    [
+      state.history,
+      state.unlockedPlayerIds,
+      state.roguePersonalBests,
+      state.rogueBonusPrestigeXp,
+      state.claimedCollectionRewardIds.length,
+      state.spentTokens,
+    ],
   );
   const teamAverage = useMemo(() => {
     const players = state.roster.map((slot) => slot.player).filter(Boolean) as Player[];
@@ -851,15 +880,17 @@ export const useDraftGame = () => {
       bonusPickUsed: false,
       bonusPickActive: false,
       rogueBonusPrestigeXp: state.rogueBonusPrestigeXp,
-        spentTokens: state.spentTokens,
-        ownedTrainingCampTickets: state.ownedTrainingCampTickets,
-        ownedTradePhones: state.ownedTradePhones,
-        ownedSilverStarterPacks: state.ownedSilverStarterPacks,
-        ownedGoldStarterPacks: state.ownedGoldStarterPacks,
-        ownedPlatinumStarterPacks: state.ownedPlatinumStarterPacks,
-        ownedCoachRecruitment: state.ownedCoachRecruitment,
-        ownedRogueStarIds: state.ownedRogueStarIds,
+      spentTokens: state.spentTokens,
+      ownedTrainingCampTickets: state.ownedTrainingCampTickets,
+      ownedTradePhones: state.ownedTradePhones,
+      ownedSilverStarterPacks: state.ownedSilverStarterPacks,
+      ownedGoldStarterPacks: state.ownedGoldStarterPacks,
+      ownedPlatinumStarterPacks: state.ownedPlatinumStarterPacks,
+      ownedCoachRecruitment: state.ownedCoachRecruitment,
+      ownedRogueStarIds: state.ownedRogueStarIds,
       activeRogueStarId: state.activeRogueStarId,
+      rogueCollectedCollectionEntryIds: state.rogueCollectedCollectionEntryIds,
+      claimedCollectionRewardIds: state.claimedCollectionRewardIds,
       screen: "landing",
     });
   };
@@ -983,15 +1014,17 @@ export const useDraftGame = () => {
         bonusPickUsed: false,
         bonusPickActive: false,
         rogueBonusPrestigeXp: current.rogueBonusPrestigeXp,
-          spentTokens: current.spentTokens,
-          ownedTrainingCampTickets: current.ownedTrainingCampTickets,
-          ownedTradePhones: current.ownedTradePhones,
-          ownedSilverStarterPacks: current.ownedSilverStarterPacks,
-          ownedGoldStarterPacks: current.ownedGoldStarterPacks,
-          ownedPlatinumStarterPacks: current.ownedPlatinumStarterPacks,
-          ownedCoachRecruitment: current.ownedCoachRecruitment,
-          ownedRogueStarIds: current.ownedRogueStarIds,
+        spentTokens: current.spentTokens,
+        ownedTrainingCampTickets: current.ownedTrainingCampTickets,
+        ownedTradePhones: current.ownedTradePhones,
+        ownedSilverStarterPacks: current.ownedSilverStarterPacks,
+        ownedGoldStarterPacks: current.ownedGoldStarterPacks,
+        ownedPlatinumStarterPacks: current.ownedPlatinumStarterPacks,
+        ownedCoachRecruitment: current.ownedCoachRecruitment,
+        ownedRogueStarIds: current.ownedRogueStarIds,
         activeRogueStarId: current.activeRogueStarId,
+        rogueCollectedCollectionEntryIds: current.rogueCollectedCollectionEntryIds,
+        claimedCollectionRewardIds: current.claimedCollectionRewardIds,
         seed,
         roster,
         currentChoices: generateChoices(roster, [], seed, 1),
@@ -1132,6 +1165,45 @@ export const useDraftGame = () => {
     }));
   };
 
+  const recordRogueCollectionEntries = (playerIds: string[]) => {
+    const entryIds = getRogueCollectionEntryIdsForRoster(normalizePlayerIds(playerIds));
+    if (entryIds.length === 0) return;
+
+    setState((current) => {
+      const mergedEntryIds = Array.from(
+        new Set([...current.rogueCollectedCollectionEntryIds, ...entryIds]),
+      );
+
+      if (mergedEntryIds.length === current.rogueCollectedCollectionEntryIds.length) {
+        return current;
+      }
+
+      return {
+        ...current,
+        rogueCollectedCollectionEntryIds: mergedEntryIds,
+      };
+    });
+  };
+
+  const claimCollectionReward = (familyId: CollectionFamilyId) => {
+    if (state.claimedCollectionRewardIds.includes(familyId)) return false;
+
+    const collection = buildCollectionProgress(state.rogueCollectedCollectionEntryIds).find(
+      (entry) => entry.family.id === familyId,
+    );
+    if (!collection?.unlocked) return false;
+
+    setState((current) => {
+      if (current.claimedCollectionRewardIds.includes(familyId)) return current;
+
+      return {
+        ...current,
+        claimedCollectionRewardIds: [...current.claimedCollectionRewardIds, familyId],
+      };
+    });
+    return true;
+  };
+
   const useTrainingCampTicket = () => {
     if (state.ownedTrainingCampTickets <= 0) return false;
 
@@ -1196,6 +1268,8 @@ export const useDraftGame = () => {
     purchaseCoachRecruitment,
     purchaseRogueStar,
     setActiveRogueStar,
+    recordRogueCollectionEntries,
+    claimCollectionReward,
     useTrainingCampTicket,
     useTradePhone,
     useSilverStarterPack,

@@ -86,7 +86,7 @@ export const LoginPage = ({
                   <input
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    className="pointer-events-auto mt-2 w-full rounded-2xl border border-white/12 bg-black/36 px-4 py-3 text-base text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-200/45 focus:bg-black/48"
+                    className="login-auth-input pointer-events-auto mt-2 w-full rounded-2xl border border-white/12 px-4 py-3 text-base outline-none transition placeholder:text-slate-500 focus:border-cyan-200/45"
                     type="email"
                     autoComplete="email"
                     placeholder="you@example.com"
@@ -99,7 +99,7 @@ export const LoginPage = ({
                   <input
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    className="pointer-events-auto mt-2 w-full rounded-2xl border border-white/12 bg-black/36 px-4 py-3 text-base text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-200/45 focus:bg-black/48"
+                    className="login-auth-input pointer-events-auto mt-2 w-full rounded-2xl border border-white/12 px-4 py-3 text-base outline-none transition placeholder:text-slate-500 focus:border-cyan-200/45"
                     type="password"
                     autoComplete={mode === "login" ? "current-password" : "new-password"}
                     placeholder="Password"

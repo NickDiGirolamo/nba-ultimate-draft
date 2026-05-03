@@ -3,6 +3,7 @@
 
 create table if not exists public.user_profiles (
   id uuid primary key references auth.users(id) on delete cascade,
+  email text,
   username text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -17,12 +18,31 @@ create table if not exists public.user_token_balances (
 create table if not exists public.saved_rogue_runs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
+  user_email text,
+  username text,
   run_data jsonb not null,
   status text not null default 'active',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, status)
 );
+
+alter table public.user_profiles
+add column if not exists email text;
+
+alter table public.saved_rogue_runs
+add column if not exists user_email text;
+
+alter table public.saved_rogue_runs
+add column if not exists username text;
+
+alter table public.saved_rogue_runs
+add column if not exists current_floor integer
+generated always as (((run_data ->> 'floorIndex')::integer + 1)) stored;
+
+alter table public.saved_rogue_runs
+add column if not exists run_stage text
+generated always as (run_data ->> 'stage') stored;
 
 alter table public.user_profiles enable row level security;
 alter table public.user_token_balances enable row level security;
@@ -54,10 +74,11 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.user_profiles (id, username)
-  values (new.id, split_part(new.email, '@', 1))
+  insert into public.user_profiles (id, email, username)
+  values (new.id, new.email, split_part(new.email, '@', 1))
   on conflict (id) do update
   set
+    email = excluded.email,
     username = coalesce(public.user_profiles.username, excluded.username),
     updated_at = now();
 
@@ -74,6 +95,14 @@ insert into public.user_profiles (id, username)
 select id, split_part(email, '@', 1)
 from auth.users
 on conflict (id) do nothing;
+
+update public.user_profiles profile
+set
+  email = auth_user.email,
+  username = coalesce(profile.username, split_part(auth_user.email, '@', 1)),
+  updated_at = now()
+from auth.users auth_user
+where profile.id = auth_user.id;
 
 drop policy if exists "Users can select own token balance" on public.user_token_balances;
 create policy "Users can select own token balance"
@@ -152,16 +181,35 @@ begin
     raise exception 'Authentication required';
   end if;
 
-  insert into public.saved_rogue_runs (user_id, run_data, status, updated_at)
-  values (auth.uid(), next_run_data, 'active', now())
+  insert into public.saved_rogue_runs (user_id, user_email, username, run_data, status, updated_at)
+  select
+    auth.uid(),
+    auth_user.email,
+    coalesce(profile.username, split_part(auth_user.email, '@', 1)),
+    next_run_data,
+    'active',
+    now()
+  from auth.users auth_user
+  left join public.user_profiles profile on profile.id = auth_user.id
+  where auth_user.id = auth.uid()
   on conflict (user_id, status) do update
   set
+    user_email = excluded.user_email,
+    username = excluded.username,
     run_data = excluded.run_data,
     updated_at = now();
 end;
 $$;
 
 grant execute on function public.sync_active_rogue_run(jsonb) to authenticated;
+
+update public.saved_rogue_runs saved_run
+set
+  user_email = auth_user.email,
+  username = coalesce(profile.username, split_part(auth_user.email, '@', 1))
+from auth.users auth_user
+left join public.user_profiles profile on profile.id = auth_user.id
+where saved_run.user_id = auth_user.id;
 
 drop policy if exists "Users can select own saved runs" on public.saved_rogue_runs;
 create policy "Users can select own saved runs"
@@ -187,3 +235,19 @@ create policy "Users can delete own saved runs"
 on public.saved_rogue_runs for delete
 to authenticated
 using (user_id = auth.uid());
+
+drop view if exists public.saved_rogue_run_overview;
+create view public.saved_rogue_run_overview
+with (security_invoker = true)
+as
+select
+  username,
+  user_email,
+  id,
+  user_id,
+  current_floor,
+  run_stage,
+  status,
+  created_at,
+  updated_at
+from public.saved_rogue_runs;

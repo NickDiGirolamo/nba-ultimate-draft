@@ -12,6 +12,7 @@ interface PlayerTypeBadgesProps {
   className?: string;
   badgesOverride?: PlayerTypeBadgeDefinition[];
   limit?: number;
+  noWrap?: boolean;
 }
 
 export const playerTypeBadgeStyleClass: Record<PlayerTypeBadge, string> = {
@@ -100,6 +101,7 @@ export const PlayerTypeBadges = ({
   className,
   badgesOverride,
   limit,
+  noWrap = false,
 }: PlayerTypeBadgesProps) => {
   const badges = (badgesOverride ?? getPlayerTypeBadges(player)).slice(0, limit);
   if (badges.length === 0) return null;
@@ -107,7 +109,8 @@ export const PlayerTypeBadges = ({
   return (
     <div
       className={clsx(
-        "flex flex-wrap gap-2",
+        "flex gap-2",
+        noWrap ? "flex-nowrap" : "flex-wrap",
         align === "center" ? "justify-center" : "justify-start",
         className,
       )}

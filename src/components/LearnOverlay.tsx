@@ -116,7 +116,7 @@ const badgeCards = [
 const gameplayNotes = [
   "You draft 10 players total. Each pick is permanent unless a Prestige reward gives you a special bonus pick later.",
   "Your lineup order matters. Starters carry more sim weight than bench roles, so the reorder screen is important.",
-  "Challenges are now the main source of Prestige XP. Clearing new routes is the fastest way to level up.",
+  "NBA Rogue Mode is the only source of Prestige XP. Climb floors, clear bosses, and bank run rewards to level up.",
   "Category-focus challenges grade you on one target metric, but balanced rosters still matter because weak spots can drag the team down elsewhere.",
 ];
 

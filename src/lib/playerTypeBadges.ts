@@ -64,6 +64,7 @@ const badgeCountByTier: Record<PlayerTier, number> = {
 const manualBadgeOrderOverrides: Partial<Record<string, PlayerTypeBadge[]>> = {
   "santi-aldama-2025-26": ["slasher", "sniper"],
   "isaiah-hartenstein-2025-26": ["board-man", "playmaker"],
+  "ajay-mitchell-2025-26": ["playmaker", "slasher"],
   "andre-iguodala": ["slasher", "lockdown"],
   "ben-wallace": ["lockdown", "board-man"],
   "chris-bosh-heat": ["sniper", "board-man"],
@@ -75,6 +76,7 @@ const manualBadgeOrderOverrides: Partial<Record<string, PlayerTypeBadge[]>> = {
   "jamal-crawford": ["sniper", "playmaker"],
   "jalen-rose": ["lockdown", "slasher"],
   "jalen-green-2025-26": ["sniper", "slasher"],
+  "brandon-ingram-2025-26": ["sniper", "slasher", "playmaker"],
   "kevin-durant-2025-26": ["sniper", "slasher", "playmaker"],
   "luka-doncic-2025-26": ["sniper", "playmaker", "slasher", "board-man"],
   "tony-allen": ["lockdown", "slasher"],

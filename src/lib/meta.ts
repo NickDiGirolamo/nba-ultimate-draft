@@ -261,61 +261,7 @@ export const buildPrestigeChallengeId = (
 ) =>
   [draftChallengeId, rareEventId, categoryChallengeId ?? "disabled"].join("__");
 
-export const prestigeChallengeDefinitions: PrestigeChallengeDefinition[] = draftChallenges.flatMap(
-  (challenge) => {
-    if (challenge.id === "classic") {
-      return [
-          {
-            id: buildPrestigeChallengeId(challenge.id, standardRareEvent.id, null),
-            order: 0,
-            title: challenge.title,
-            description:
-              "Run a pure season-and-playoffs sim with no extra modifiers and prove your base roster-building strength.",
-            goal: prestigeChallengeGoal(null),
-            reward: prestigeChallengeReward(challenge, standardRareEvent.id, null),
-            difficulty: getPrestigeChallengeDifficulty(challenge.id, standardRareEvent.id, null),
-            draftChallengeId: challenge.id,
-            rareEventId: standardRareEvent.id,
-            categoryChallengeId: null,
-          },
-      ];
-    }
-
-    const eventPool = [standardRareEvent, ...rareEvents];
-    const categoryPool = [null, ...categoryChallenges];
-
-    return eventPool.flatMap((event) =>
-      categoryPool.map((category) => ({
-        id: buildPrestigeChallengeId(challenge.id, event.id, category?.id ?? null),
-        order: 0,
-        title: [
-          challenge.title,
-          event.id === standardRareEvent.id ? "Standard Environment" : event.title,
-          category ? category.metricLabel : "No Category Focus",
-        ].join(" • "),
-        description: `${challenge.description} ${
-          event.id === standardRareEvent.id
-            ? "No rare-event modifier is active."
-            : event.description
-          } ${
-            category
-              ? `Category target: maximize ${category.metricLabel.toLowerCase()}.`
-              : "No category-focus objective is active."
-          }`,
-          goal: prestigeChallengeGoal(category?.id ?? null),
-          reward: prestigeChallengeReward(challenge, event.id, category?.id ?? null),
-          difficulty: getPrestigeChallengeDifficulty(challenge.id, event.id, category?.id ?? null),
-          draftChallengeId: challenge.id,
-          rareEventId: event.id,
-          categoryChallengeId: category?.id ?? null,
-        })),
-      );
-    },
-  );
-
-prestigeChallengeDefinitions.forEach((challenge, index) => {
-  challenge.order = index + 1;
-});
+export const prestigeChallengeDefinitions: PrestigeChallengeDefinition[] = [];
 
 const chemistryDefinitions = [
   {
@@ -851,62 +797,23 @@ const computePrestigeScore = (
   history: RunHistoryEntry[],
   collection: CollectionGoals,
 ) => {
-  const seasonHistory = seasonRunsOnly(history);
-  const titles = seasonHistory.filter((run) => run.playoffFinish === "NBA Champion").length;
-  const finals = seasonHistory.filter((run) => run.playoffFinish === "NBA Finals Loss").length;
-  const conferenceFinals = seasonHistory.filter((run) => run.playoffFinish === "Conference Finals").length;
-  const sixtyWinRuns = seasonHistory.filter((run) => run.wins >= 60).length;
-  const challengeCompletions = history.filter((run) => run.challengeCompleted).length;
-  const completedChallengeRoutes = new Set(
-    history
-      .filter((run) => run.prestigeChallengeCleared)
-      .map((run) => run.prestigeChallengeId)
-      .filter((value): value is string => Boolean(value)),
-  );
-  const challengeRoutePrestige = prestigeChallengeDefinitions
-    .filter((challenge) => completedChallengeRoutes.has(challenge.id))
-    .reduce((sum, challenge) => sum + challenge.reward, 0);
-  const averageLegacy =
-    history.length > 0
-      ? history.reduce((sum, run) => sum + run.legacyScore, 0) / history.length
-      : 0;
-
-  const completedRunsPrestige = history.length * 1;
-  const championshipPrestige = titles * 3;
-  const deepRunPrestige = finals * 1 + conferenceFinals * 1;
-  const sixtyWinPrestige = sixtyWinRuns * 1;
-  const challengeCompletionPrestige = challengeCompletions * 1;
-  const collectionPrestige = Math.floor(collection.draftedPlayers / 20);
-  const legacyQualityPrestige = Math.round(averageLegacy * 0.004);
-
-  const score = Math.round(
-    completedRunsPrestige +
-      championshipPrestige +
-      deepRunPrestige +
-      sixtyWinPrestige +
-      challengeCompletionPrestige +
-      challengeRoutePrestige +
-      collectionPrestige +
-      legacyQualityPrestige,
-  );
-
   return {
-    score,
-    titles,
-    finals,
-    conferenceFinals,
-    sixtyWinRuns,
-    challengeCompletions,
-    completedChallengeRoutes,
-    challengeRoutePrestige,
-    averageLegacy,
-    completedRunsPrestige,
-    championshipPrestige,
-    deepRunPrestige,
-    sixtyWinPrestige,
-    challengeCompletionPrestige,
-    collectionPrestige,
-    legacyQualityPrestige,
+    score: 0,
+    titles: 0,
+    finals: 0,
+    conferenceFinals: 0,
+    sixtyWinRuns: 0,
+    challengeCompletions: 0,
+    completedChallengeRoutes: new Set<string>(),
+    challengeRoutePrestige: 0,
+    averageLegacy: 0,
+    completedRunsPrestige: 0,
+    championshipPrestige: 0,
+    deepRunPrestige: 0,
+    sixtyWinPrestige: 0,
+    challengeCompletionPrestige: 0,
+    collectionPrestige: 0,
+    legacyQualityPrestige: 0,
   };
 };
 
@@ -915,15 +822,9 @@ export const calculateRunEconomyRewards = (
   nextHistory: RunHistoryEntry[],
   unlockedPlayerIds: string[],
 ) => {
-  const collection = buildCollectionGoals(unlockedPlayerIds);
-  const previousScore = computePrestigeScore(previousHistory, collection).score;
-  const nextScore = computePrestigeScore(nextHistory, collection).score;
-  const prestigeXpAward = Math.max(0, nextScore - previousScore);
-  const tokenReward = prestigeXpAward * 10;
-
   return {
-    prestigeXpAward,
-    tokenReward,
+    prestigeXpAward: 0,
+    tokenReward: 0,
   };
 };
 
@@ -941,60 +842,10 @@ export const buildPrestigeProgress = (
 ): PrestigeProgress => {
   const {
     score,
-    titles,
     completedChallengeRoutes,
-    challengeRoutePrestige,
-    completedRunsPrestige,
-    championshipPrestige,
-    deepRunPrestige,
-    sixtyWinPrestige,
-    challengeCompletionPrestige,
-    collectionPrestige,
-    legacyQualityPrestige,
   } = computePrestigeScore(history, collection);
 
-  const breakdown = [
-    {
-      label: "Completed Runs",
-      value: completedRunsPrestige,
-      description: `${history.length} finished runs add a tiny baseline so failed attempts still move you forward a little.`,
-    },
-    {
-      label: "Championship Banners",
-      value: championshipPrestige,
-      description: `${titles} titles help, but they are only a small bonus compared with route clears.`,
-    },
-    {
-      label: "Deep Playoff Runs",
-      value: deepRunPrestige,
-      description: "Deep runs are now light supporting bonuses, not major Prestige drivers.",
-    },
-    {
-      label: "60-Win Seasons",
-      value: sixtyWinPrestige,
-      description: "Dominant regular seasons add a tiny extra push, but challenge mastery matters much more.",
-    },
-    {
-      label: "Challenge Clears",
-      value: challengeCompletionPrestige,
-      description: "Finishing challenge runs adds a very small extra push on top of the route reward itself.",
-    },
-    {
-      label: "Challenge Routes",
-      value: challengeRoutePrestige,
-      description: "Unique route clears are the main source of Prestige. The challenge map is now the real leveling track.",
-    },
-    {
-      label: "Collection Growth",
-      value: collectionPrestige,
-      description: "Collection growth is now only a very small background bonus.",
-    },
-    {
-      label: "Legacy Quality Bonus",
-      value: legacyQualityPrestige,
-      description: "Better average run quality still helps a little, but challenge routes should drive almost all of your progress.",
-    },
-  ];
+  const breakdown: PrestigeProgress["breakdown"] = [];
 
   const level = getPrestigeLevelFromScore(score);
   const currentLevelFloor = getPrestigeLevelFloor(level);

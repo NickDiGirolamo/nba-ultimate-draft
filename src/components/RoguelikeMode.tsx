@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { cloneElement, isValidElement, useEffect, useMemo, useState, type ReactElement, type ReactNode } from "react";
 import clsx from "clsx";
 import { useRef } from "react";
 import {
@@ -277,6 +277,7 @@ interface RoguelikeModeProps {
   onUseSilverStarterPack: () => boolean;
   onUseGoldStarterPack: () => boolean;
   onUsePlatinumStarterPack: () => boolean;
+  onRecordCollectionEntries: (playerIds: string[]) => void;
   cloudSavedRunData?: unknown | null;
   onCloudSaveRun?: (run: RoguelikeRun) => void;
   onCloudDeleteRun?: () => void;
@@ -876,8 +877,16 @@ const sortDisplayPlayersByOverallAsc = (players: Player[]) =>
     (left, right) => left.overall - right.overall || left.name.localeCompare(right.name),
   );
 
-const getSingleRowDraftCardScale = (count: number) =>
-  count >= 10 ? 0.39 : count >= 8 ? 0.42 : count >= 6 ? 0.46 : 0.52;
+const getSingleRowDraftCardScale = (count: number, mobile = false) => {
+  if (mobile) {
+    return count >= 10 ? 0.24 : count >= 8 ? 0.28 : count >= 6 ? 0.32 : count >= 5 ? 0.36 : count >= 4 ? 0.42 : 0.5;
+  }
+
+  return count >= 10 ? 0.39 : count >= 8 ? 0.42 : count >= 6 ? 0.46 : 0.52;
+};
+
+const getMobileChoiceBoardCardScale = (count: number) =>
+  count >= 5 ? 0.34 : count >= 4 ? 0.39 : count >= 3 ? 0.46 : 0.56;
 
 const getEarlyRunRosterState = (run: RoguelikeRun) => {
   const starterPlayers = getRevealedStarterPlayers(run);
@@ -1828,7 +1837,15 @@ const getAverageAdjustedRebounding = (
 const getFaceoffFinalScore = (faceoffResult: RoguelikeFaceoffResult) => {
   const averageEdge =
     Math.abs(faceoffResult.userTeamWinProbability - faceoffResult.opponentTeamWinProbability) / 5;
-  const scoreMargin = Math.max(3, Math.min(22, Math.round(averageEdge / 3) + 3));
+  const scoreMargin = Math.round(
+    averageEdge < 18
+      ? 3 + averageEdge * 0.35
+      : averageEdge < 40
+        ? 9 + (averageEdge - 18) * 0.55
+        : averageEdge < 70
+          ? 21 + (averageEdge - 40) * 0.5
+          : 36 + (averageEdge - 70) * 0.35,
+  );
   const paceScore = Math.max(
     92,
     Math.min(
@@ -1843,14 +1860,14 @@ const getFaceoffFinalScore = (faceoffResult: RoguelikeFaceoffResult) => {
 
   if (faceoffResult.userTeamWinProbability >= faceoffResult.opponentTeamWinProbability) {
     return {
-      userScore: Math.min(132, paceScore + Math.ceil(scoreMargin / 2)),
-      opponentScore: Math.max(78, paceScore - Math.floor(scoreMargin / 2)),
+      userScore: Math.min(145, paceScore + Math.ceil(scoreMargin / 2)),
+      opponentScore: Math.max(68, paceScore - Math.floor(scoreMargin / 2)),
     };
   }
 
   return {
-    userScore: Math.max(78, paceScore - Math.floor(scoreMargin / 2)),
-    opponentScore: Math.min(132, paceScore + Math.ceil(scoreMargin / 2)),
+    userScore: Math.max(68, paceScore - Math.floor(scoreMargin / 2)),
+    opponentScore: Math.min(145, paceScore + Math.ceil(scoreMargin / 2)),
   };
 };
 
@@ -3361,11 +3378,20 @@ const DraftChoiceRevealCard = ({
     };
   }, [compactScale]);
 
+  const renderedChild = isValidElement(children)
+    ? cloneElement(children as ReactElement<{ fitToContainer?: boolean }>, {
+        fitToContainer: true,
+      })
+    : children;
+
   return (
     <div
       ref={shellRef}
       className="w-full justify-self-center [perspective:1600px]"
-      style={{ maxWidth: `${Math.round(380 * compactScale)}px`, height: `${cardHeight}px` }}
+      style={{
+        maxWidth: `${Math.round(380 * compactScale)}px`,
+        aspectRatio: "380 / 920",
+      }}
     >
       <div
         className="relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d]"
@@ -3396,7 +3422,7 @@ const DraftChoiceRevealCard = ({
             !revealed && "pointer-events-none",
           )}
         >
-          {children}
+          {renderedChild}
         </div>
       </div>
     </div>
@@ -3794,6 +3820,7 @@ export const RoguelikeMode = ({
   onUseSilverStarterPack,
   onUseGoldStarterPack,
   onUsePlatinumStarterPack,
+  onRecordCollectionEntries,
   cloudSavedRunData,
   onCloudSaveRun,
   onCloudDeleteRun,
@@ -3826,6 +3853,7 @@ export const RoguelikeMode = ({
   const [simulationPlaying, setSimulationPlaying] = useState(false);
   const [simulationSpeed, setSimulationSpeed] = useState<1 | 2 | 4>(1);
   const [showSimulationBoxScore, setShowSimulationBoxScore] = useState(false);
+  const [showCoachSelectRoster, setShowCoachSelectRoster] = useState(false);
   const [showCoachChangeRoster, setShowCoachChangeRoster] = useState(false);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const [cutDropTargetIndex, setCutDropTargetIndex] = useState<number | null>(null);
@@ -6223,6 +6251,12 @@ export const RoguelikeMode = ({
   }, [onCloudSaveRun, run]);
 
   useEffect(() => {
+    if (!run) return;
+
+    onRecordCollectionEntries(getRunOwnedPlayers(run).map((player) => player.id));
+  }, [onRecordCollectionEntries, run]);
+
+  useEffect(() => {
     if (cloudSavedRunAppliedRef.current || run || !cloudSavedRunData) return;
 
     const normalizedCloudRun = normalizeStoredRun(
@@ -6670,7 +6704,7 @@ export const RoguelikeMode = ({
           ) : null}
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div data-tutorial-id="rogue-settings-screen" className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="glass-panel rounded-[30px] border border-white/14 bg-[linear-gradient(180deg,rgba(15,23,42,0.78),rgba(6,10,18,0.9))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.05)] lg:p-6">
             <div className="grid gap-5">
               <div className="rounded-[24px] border border-sky-200/12 bg-[linear-gradient(135deg,rgba(14,35,58,0.54),rgba(9,13,22,0.82))] p-4 shadow-[0_16px_36px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.05)]">
@@ -6907,6 +6941,7 @@ export const RoguelikeMode = ({
             <div className="mt-6 flex flex-col gap-3">
               <button
                 type="button"
+                data-tutorial-id="rogue-settings-continue"
                 onClick={continueToStarterPacks}
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.01]"
               >
@@ -7043,6 +7078,7 @@ export const RoguelikeMode = ({
                 <button
                   key={item.id}
                   type="button"
+                  data-tutorial-id={index === 0 ? "rogue-starter-pack-choice" : undefined}
                   onClick={() => startRun(item.id)}
                   className={clsx(
                     "group relative overflow-hidden rounded-[28px] border bg-gradient-to-b p-3 text-left transition duration-300 hover:-translate-y-1 hover:scale-[1.01]",
@@ -7110,7 +7146,7 @@ export const RoguelikeMode = ({
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
             Reveal all three to see which players are starting this run before you move on to the Run Ladder.
           </p>
-          <div className="mt-5 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:justify-center sm:gap-5">
+          <div data-tutorial-id="rogue-starter-reveal-cards" className="mt-5 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:justify-center sm:gap-5">
             {run.starterRevealPlayers.map((player, index) => {
               const revealed = run.revealedStarterIds.includes(player.id);
 
@@ -7130,6 +7166,7 @@ export const RoguelikeMode = ({
             <div className="mt-5 flex justify-center">
               <button
                 type="button"
+                data-tutorial-id="rogue-starter-proceed"
                 onClick={proceedToRunLadder}
                 className="inline-flex items-center gap-3 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:scale-[1.02]"
               >
@@ -7144,28 +7181,99 @@ export const RoguelikeMode = ({
     }
 
     if (run.stage === "coach-select") {
+      const coachSelectRun = getHydratedRun(run, runNodes);
+      const coachSelectOwnedPlayers = getRunOwnedPlayers(coachSelectRun);
+      const coachSelectOwnedPlayerIds = coachSelectOwnedPlayers.map((player) => player.id);
+      const coachSelectFurthestOccupiedSlotIndex = coachSelectRun.lineup.reduce(
+        (furthestIndex, slot, index) => (slot.player ? index : furthestIndex),
+        -1,
+      );
+      const coachSelectVisibleRosterSlotCount = Math.min(
+        10,
+        Math.max(5, coachSelectOwnedPlayers.length, coachSelectFurthestOccupiedSlotIndex + 1),
+      );
+      const coachSelectVisibleLineup = coachSelectRun.lineup.slice(0, coachSelectVisibleRosterSlotCount);
+
       return (
-        <section className="space-y-5">
-          <div className="rounded-[30px] border border-white/14 bg-[linear-gradient(180deg,rgba(9,13,21,0.98),rgba(12,18,28,0.99))] p-6 shadow-card">
-            <div className="max-w-4xl">
-              <div className="text-xs uppercase tracking-[0.24em] text-emerald-100/80">Hire a Coach</div>
-              <h1 className="mt-2 font-display text-4xl text-white">Choose 1 coach for this run</h1>
-              <p className="mt-3 text-sm leading-7 text-slate-300">
-                Your coach gives all players from their NBA team +1 overall for the rest of this Rogue run. Pick the team boost that best matches the run you want to build.
-              </p>
-              <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-4 py-2 text-[11px] uppercase tracking-[0.18em] text-slate-200">
-                <Shield size={14} className="text-emerald-100" />
-                Applies to every future player you add from that team
+        <>
+          <section className="space-y-5">
+            <div className="rounded-[30px] border border-white/14 bg-[linear-gradient(180deg,rgba(9,13,21,0.98),rgba(12,18,28,0.99))] p-6 shadow-card">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="max-w-4xl">
+                  <div className="text-xs uppercase tracking-[0.24em] text-emerald-100/80">Hire a Coach</div>
+                  <h1 className="mt-2 font-display text-4xl text-white">Choose 1 coach for this run</h1>
+                  <p className="mt-3 text-sm leading-7 text-slate-300">
+                    Your coach gives all players from their NBA team +1 overall for the rest of this Rogue run. Pick the team boost that best matches the run you want to build.
+                  </p>
+                  <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-4 py-2 text-[11px] uppercase tracking-[0.18em] text-slate-200">
+                    <Shield size={14} className="text-emerald-100" />
+                    Applies to every future player you add from that team
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCoachSelectRoster(true)}
+                  className="inline-flex items-center gap-2 rounded-full border border-cyan-100/22 bg-cyan-300/10 px-5 py-3 text-sm font-semibold text-cyan-50 transition hover:scale-[1.02] hover:border-cyan-100/34 hover:bg-cyan-300/16"
+                >
+                  <Users size={16} />
+                  See Run Roster
+                </button>
               </div>
             </div>
-          </div>
 
-          <div className="grid gap-5 xl:grid-cols-5 md:grid-cols-2">
-            {run.coachChoices.map((coach) => (
-              <CoachChoiceCard key={coach.id} coach={coach} onHire={() => hireCoach(coach.id)} />
-            ))}
-          </div>
-        </section>
+            <div className="grid gap-5 xl:grid-cols-5 md:grid-cols-2">
+              {run.coachChoices.map((coach) => (
+                <CoachChoiceCard key={coach.id} coach={coach} onHire={() => hireCoach(coach.id)} />
+              ))}
+            </div>
+          </section>
+          {showCoachSelectRoster ? (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/72 p-4 backdrop-blur-sm">
+              <div className="max-h-[calc(100vh-48px)] w-full max-w-5xl overflow-y-auto rounded-[30px] border border-white/14 bg-[#070b12]/98 shadow-[0_28px_90px_rgba(0,0,0,0.55)]">
+                <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-white/12 bg-[linear-gradient(180deg,#070b12,#050913)] px-5 py-4 shadow-[0_18px_34px_rgba(0,0,0,0.62)]">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/78">Run Roster</div>
+                    <div className="mt-1 font-display text-2xl text-white">Your starter reveal</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCoachSelectRoster(false)}
+                    className="rounded-full border border-white/12 bg-white/6 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+                  >
+                    Close
+                  </button>
+                </div>
+                <div className="p-5">
+                  <div className="space-y-3">
+                    {coachSelectVisibleLineup.map((slot, index) => (
+                      <div key={`${slot.slot}-${index}`}>
+                        {index === 5 ? (
+                          <div className="mb-5 mt-7">
+                            <div className="h-px w-full bg-gradient-to-r from-transparent via-white/18 to-transparent" />
+                            <div className="mt-2 text-center text-[10px] uppercase tracking-[0.24em] text-slate-500">
+                              Bench Unit
+                            </div>
+                          </div>
+                        ) : null}
+                        <div className="rounded-[24px] border border-dashed border-white/12 bg-black/12 p-1.5">
+                          <RogueRosterSlotCard
+                            slot={slot}
+                            index={index}
+                            ownedPlayerIds={coachSelectOwnedPlayerIds}
+                            trainedPlayerIds={run.trainedPlayerIds ?? []}
+                            coachTeamKey={null}
+                            allStarBonusBadges={run.allStarBonusBadges ?? []}
+                            dragged={false}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </>
       );
     }
 
@@ -7282,7 +7390,7 @@ export const RoguelikeMode = ({
           {showCoachChangeRoster ? (
             <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/72 p-4 backdrop-blur-sm">
               <div className="max-h-[calc(100vh-48px)] w-full max-w-5xl overflow-y-auto rounded-[30px] border border-white/14 bg-[#070b12]/98 shadow-[0_28px_90px_rgba(0,0,0,0.55)]">
-                <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#070b12]/96 px-5 py-4 backdrop-blur-xl">
+                <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-white/12 bg-[linear-gradient(180deg,#070b12,#050913)] px-5 py-4 shadow-[0_18px_34px_rgba(0,0,0,0.62)]">
                   <div>
                     <div className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/78">Run Roster</div>
                     <div className="mt-1 font-display text-2xl text-white">Check your team before choosing</div>
@@ -7749,15 +7857,18 @@ export const RoguelikeMode = ({
       ? "failure"
       : "success";
   const rewardReplaceDisplayPlayers = sortDisplayPlayersByOverallAsc(runOwnedDisplayPlayers);
-  const rewardReplaceCardScale = getSingleRowDraftCardScale(
-    rewardReplaceDisplayPlayers.length,
-  );
+    const rewardReplaceCardScale = getSingleRowDraftCardScale(
+      rewardReplaceDisplayPlayers.length,
+      isMobileViewport,
+    );
   const trainingSelectionDisplayPlayers = sortDisplayPlayersByOverallAsc(
     runOwnedDisplayPlayers,
   );
-  const trainingSelectionCardScale = getSingleRowDraftCardScale(
-    trainingSelectionDisplayPlayers.length,
-  );
+    const trainingSelectionCardScale = getSingleRowDraftCardScale(
+      trainingSelectionDisplayPlayers.length,
+      isMobileViewport,
+    );
+    const mobileChoiceBoardCardScale = getMobileChoiceBoardCardScale(run.choices.length);
   const selectedCutSlotPlayers = [0, 1].map((slotIndex) => {
     const playerId = run.selectedCutPlayerIds[slotIndex];
     return playerId ? runOwnedDisplayPlayers.find((player) => player.id === playerId) ?? null : null;
@@ -8054,10 +8165,13 @@ export const RoguelikeMode = ({
                               {isCurrent ? (
                                 <button
                                   type="button"
+                                  data-tutorial-id={isCurrent ? "rogue-ladder-go" : undefined}
                                   onClick={startOpeningDraft}
-                                  className="rounded-full bg-white px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-900 transition hover:scale-[1.02]"
+                                  className="group relative inline-flex shrink-0 items-center gap-2 overflow-hidden rounded-full border border-amber-100/70 bg-[linear-gradient(135deg,#ffffff,#fef3c7,#f59e0b)] px-6 py-3 text-xs font-extrabold uppercase tracking-[0.18em] text-slate-950 shadow-[0_0_0_1px_rgba(251,191,36,0.35),0_0_30px_rgba(251,191,36,0.45),0_18px_34px_rgba(0,0,0,0.32)] transition hover:scale-[1.04] hover:shadow-[0_0_0_1px_rgba(254,243,199,0.65),0_0_44px_rgba(251,191,36,0.62),0_20px_38px_rgba(0,0,0,0.34)]"
                                 >
-                                  {node.battleMode === "starting-five-faceoff" ? "Set Lineup" : "Go"}
+                                  <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_20%,rgba(255,255,255,0.58)_45%,transparent_70%)] opacity-0 transition group-hover:translate-x-full group-hover:opacity-100" />
+                                  <span className="relative">{node.battleMode === "starting-five-faceoff" ? "Set Lineup" : "Go"}</span>
+                                  <ArrowRight size={15} className="relative transition group-hover:translate-x-0.5" />
                                 </button>
                               ) : (
                                 <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-300">
@@ -8460,14 +8574,14 @@ export const RoguelikeMode = ({
                   <DraftChoiceRevealCard
                     key={`${draftChoiceRevealKey}-${player.id}`}
                     index={index}
-                    compactScale={0.46}
+                    compactScale={isMobileViewport ? mobileChoiceBoardCardScale : 0.46}
                     revealKey={draftChoiceRevealKey}
                   >
                     <DraftPlayerCard
                       player={player}
                       onSelect={draftChoice}
                       compact
-                      compactScale={0.46}
+                      compactScale={isMobileViewport ? mobileChoiceBoardCardScale : 0.46}
                       draftedPlayerIds={runOwnedPlayerIds}
                       playerTypeBadgesOverride={getRunPlayerTypeBadgeOverrides(player, runAllStarBonusBadges)}
                       enableTeamChemistryPreview
@@ -9434,7 +9548,11 @@ export const RoguelikeMode = ({
                 style={isMobileViewport ? { gridTemplateColumns: `repeat(${run.choices.length}, minmax(0, 1fr))` } : undefined}
               >
                 {run.choices.map((player, index) => {
-                  const compactScale = run.choices.length >= 5 ? 0.46 : 0.59;
+                  const compactScale = isMobileViewport
+                    ? mobileChoiceBoardCardScale
+                    : run.choices.length >= 5
+                      ? 0.46
+                      : 0.59;
 
                   return (
                     <DraftChoiceRevealCard

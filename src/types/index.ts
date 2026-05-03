@@ -430,5 +430,7 @@ export interface DraftState {
   ownedCoachRecruitment: number;
   ownedRogueStarIds: string[];
   activeRogueStarId: string | null;
+  rogueCollectedCollectionEntryIds: string[];
+  claimedCollectionRewardIds: string[];
   seed: number;
 }

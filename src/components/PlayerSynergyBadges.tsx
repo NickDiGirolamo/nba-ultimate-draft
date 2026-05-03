@@ -17,6 +17,7 @@ interface PlayerSynergyBadgesProps {
   className?: string;
   excludeTypes?: PlayerBadgeType[];
   previewEligible?: boolean;
+  noWrap?: boolean;
 }
 
 const RivalIcon = ({ compact = false }: { compact?: boolean }) => (
@@ -145,6 +146,7 @@ export const PlayerSynergyBadges = ({
   className,
   excludeTypes = [],
   previewEligible = true,
+  noWrap = false,
 }: PlayerSynergyBadgesProps) => {
   const badges = getPlayerBadgeStates(playerId, draftedPlayerIds).filter(
     ({ definition }) => !excludeTypes.includes(definition.type),
@@ -154,7 +156,8 @@ export const PlayerSynergyBadges = ({
   return (
     <div
       className={clsx(
-        "flex flex-wrap gap-2",
+        "flex gap-2",
+        noWrap ? "flex-nowrap" : "flex-wrap",
         align === "center" ? "justify-center" : "justify-start",
         className,
       )}

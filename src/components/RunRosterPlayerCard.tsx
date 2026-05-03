@@ -8,6 +8,7 @@ import type { PlayerTypeBadgeDefinition } from "../lib/playerTypeBadges";
 import { getPlayerTier, playerTierRunRosterSurfaceStyles } from "../lib/playerTier";
 import { isSameTeamChemistryActiveForPlayer } from "../lib/teamChemistry";
 import { Player } from "../types";
+import { HoverTooltip } from "./HoverTooltip";
 import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import { PlayerTypeBadges } from "./PlayerTypeBadges";
 
@@ -73,17 +74,27 @@ export const RunRosterPlayerCard = ({
       ? isSameTeamChemistryActiveForPlayer(resolvedPlayer, draftedPlayerIds)
       : false;
   const nameClassName =
-    name.length >= 30
-      ? "text-[calc(9px*var(--run-roster-scale))]"
-      : name.length >= 26
-        ? "text-[calc(10px*var(--run-roster-scale))]"
+    name.length >= 28
+      ? "text-[calc(11px*var(--run-roster-scale))]"
+      : name.length >= 24
+        ? "text-[calc(12px*var(--run-roster-scale))]"
       : name.length >= 22
-          ? "text-[calc(11.2px*var(--run-roster-scale))]"
+          ? "text-[calc(13px*var(--run-roster-scale))]"
         : name.length >= 18
-          ? "text-[calc(12.8px*var(--run-roster-scale))]"
+          ? "text-[calc(14.2px*var(--run-roster-scale))]"
         : "text-[calc(17px*var(--run-roster-scale))]";
   const cardStyle = {
     [runRosterScaleVar]: scale,
+  } as CSSProperties;
+  const rightSideStyle = {
+    gridTemplateColumns: [
+      team?.logo ? `calc(52px * ${scale})` : null,
+      "184px",
+      "60px",
+      showHandle ? `calc(28px * ${scale})` : null,
+    ]
+      .filter(Boolean)
+      .join(" "),
   } as CSSProperties;
 
   return (
@@ -102,7 +113,7 @@ export const RunRosterPlayerCard = ({
       >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_28%),linear-gradient(180deg,transparent,rgba(2,6,23,0.14)_60%,rgba(2,6,23,0.36))]" />
         <div className="relative flex w-full items-center gap-[calc(8px*var(--run-roster-scale))]">
-          <div className="h-[calc(64px*var(--run-roster-scale))] w-[calc(64px*var(--run-roster-scale))] shrink-0 overflow-hidden rounded-[calc(18px*var(--run-roster-scale))] border border-white/10 bg-black/25">
+          <div className="h-[calc(74px*var(--run-roster-scale))] w-[calc(74px*var(--run-roster-scale))] shrink-0 overflow-hidden rounded-[calc(18px*var(--run-roster-scale))] border border-white/10 bg-black/25">
             {player && imageUrl ? (
               <img
                 src={imageUrl}
@@ -122,8 +133,8 @@ export const RunRosterPlayerCard = ({
             )}
           </div>
 
-          <div className="min-w-[calc(120px*var(--run-roster-scale))] flex-[0_1_auto]">
-            <div className="flex w-fit min-w-[calc(150px*var(--run-roster-scale))] max-w-[calc(300px*var(--run-roster-scale))] flex-col rounded-[calc(18px*var(--run-roster-scale))] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.68),rgba(4,8,18,0.84))] px-[calc(10px*var(--run-roster-scale))] py-[calc(8px*var(--run-roster-scale))] shadow-[0_12px_26px_rgba(0,0,0,0.28)] backdrop-blur-[4px]">
+          <div className="min-w-0 flex-1">
+            <div className="flex w-full flex-col rounded-[calc(18px*var(--run-roster-scale))] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.68),rgba(4,8,18,0.84))] px-[calc(10px*var(--run-roster-scale))] py-[calc(8px*var(--run-roster-scale))] shadow-[0_12px_26px_rgba(0,0,0,0.28)] backdrop-blur-[4px]">
               <div className="flex min-w-0 flex-wrap items-center gap-[calc(6px*var(--run-roster-scale))]">
                 <div className={clsx("text-[calc(11px*var(--run-roster-scale))] font-semibold uppercase tracking-[0.24em] text-slate-400", eyebrowToneClassName)}>
                   {eyebrow ?? resolvedPlayer?.primaryPosition ?? "OPEN"}
@@ -153,7 +164,10 @@ export const RunRosterPlayerCard = ({
             </div>
           </div>
 
-          <div className="flex min-w-0 shrink items-center gap-[calc(8px*var(--run-roster-scale))]">
+          <div
+            className="grid min-w-0 shrink-0 items-center gap-[calc(8px*var(--run-roster-scale))]"
+            style={rightSideStyle}
+          >
             {team?.logo ? (
               <div
                 className={clsx(
@@ -173,10 +187,10 @@ export const RunRosterPlayerCard = ({
               </div>
             ) : null}
 
-            <div className="flex min-w-[calc(116px*var(--run-roster-scale))] max-w-[calc(176px*var(--run-roster-scale))] shrink flex-col items-start justify-center gap-[calc(6px*var(--run-roster-scale))] rounded-[calc(18px*var(--run-roster-scale))] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.66),rgba(4,8,18,0.82))] px-[calc(8px*var(--run-roster-scale))] py-[calc(8px*var(--run-roster-scale))] shadow-[0_12px_26px_rgba(0,0,0,0.26)] backdrop-blur-[4px]">
+            <div className="flex w-[184px] shrink-0 flex-col items-start justify-center gap-[calc(6px*var(--run-roster-scale))] rounded-[calc(18px*var(--run-roster-scale))] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.66),rgba(4,8,18,0.82))] px-[calc(8px*var(--run-roster-scale))] py-[calc(8px*var(--run-roster-scale))] shadow-[0_12px_26px_rgba(0,0,0,0.26)] backdrop-blur-[4px]">
               {player ? (
                 <>
-                  <div className="flex max-w-full flex-wrap items-center gap-[calc(6px*var(--run-roster-scale))]">
+                  <div className="flex max-w-full flex-col items-start gap-[calc(6px*var(--run-roster-scale))]">
                     <PlayerTypeBadges
                       player={resolvedPlayer ?? player}
                       badgesOverride={badgesOverride}
@@ -184,24 +198,30 @@ export const RunRosterPlayerCard = ({
                       iconOnly
                       className="justify-start"
                       align="center"
+                      noWrap
                     />
-                    <PlayerSynergyBadges
-                      playerId={player.id}
-                      draftedPlayerIds={draftedPlayerIds}
-                      compact
-                      dense
-                      align="center"
-                      className="justify-start"
-                      previewEligible={false}
-                    />
-                    {coachConnectionActive ? (
-                      <div
-                        title="Coach Link active: player matches the coach's associated team"
-                        className="inline-flex h-[calc(28px*var(--run-roster-scale))] w-[calc(28px*var(--run-roster-scale))] items-center justify-center rounded-full border border-lime-300/70 bg-lime-300/18 text-lime-200 shadow-[0_0_18px_rgba(163,230,53,0.45)]"
-                      >
-                        <Handshake size={13 * scale} strokeWidth={2.3} />
-                      </div>
-                    ) : null}
+                    <div className="flex max-w-full flex-nowrap items-center gap-2">
+                      <PlayerSynergyBadges
+                        playerId={player.id}
+                        draftedPlayerIds={draftedPlayerIds}
+                        compact
+                        dense
+                        align="center"
+                        className="justify-start"
+                        previewEligible={false}
+                        noWrap
+                      />
+                      {coachConnectionActive ? (
+                        <HoverTooltip
+                          content="Coach Link: this player matches your coach's NBA team and receives +1 OVR during the run."
+                          className="inline-flex"
+                        >
+                          <div className="inline-flex h-[calc(28px*var(--run-roster-scale))] w-[calc(28px*var(--run-roster-scale))] items-center justify-center rounded-full border border-lime-300/70 bg-lime-300/18 text-lime-200 shadow-[0_0_18px_rgba(163,230,53,0.45)]">
+                            <Handshake size={13 * scale} strokeWidth={2.3} />
+                          </div>
+                        </HoverTooltip>
+                      ) : null}
+                    </div>
                   </div>
                   {metricChips.length > 0 ? (
                     <div className="flex max-w-[calc(124px*var(--run-roster-scale))] flex-wrap items-center gap-[calc(6px*var(--run-roster-scale))]">
@@ -226,8 +246,8 @@ export const RunRosterPlayerCard = ({
               )}
             </div>
 
-            <div className="flex min-w-[calc(60px*var(--run-roster-scale))] flex-col items-center justify-center rounded-[calc(18px*var(--run-roster-scale))] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.68),rgba(4,8,18,0.84))] px-[calc(8px*var(--run-roster-scale))] py-[calc(8px*var(--run-roster-scale))] text-center shadow-[0_12px_26px_rgba(0,0,0,0.26)] backdrop-blur-[4px]">
-              <div className="font-display text-[calc(28px*var(--run-roster-scale))] font-semibold leading-none text-white">{overallValue}</div>
+            <div className="flex w-[60px] flex-col items-center justify-center rounded-[calc(18px*var(--run-roster-scale))] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.68),rgba(4,8,18,0.84))] px-[calc(8px*var(--run-roster-scale))] py-[calc(8px*var(--run-roster-scale))] text-center shadow-[0_12px_26px_rgba(0,0,0,0.26)] backdrop-blur-[4px]">
+              <div className="font-display text-[calc(30px*var(--run-roster-scale))] font-semibold leading-none text-white">{overallValue}</div>
               <div className="mt-[calc(-2px*var(--run-roster-scale))] text-[calc(10px*var(--run-roster-scale))] font-semibold uppercase tracking-[0.18em] text-slate-300">OVR</div>
             </div>
 
