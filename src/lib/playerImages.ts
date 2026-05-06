@@ -211,6 +211,8 @@ const directImageOverrides: Record<string, string> = {
     "https://pbs.twimg.com/media/GQELzVYaQAQS6Rn.jpg",
   "reggie-evans":
     "https://static.ffx.io/images/w_744%2Ch_419%2Cc_fill%2Cg_auto:faces/q_86%2Cf_auto/2a027bd7c691c156c4357bd623a2a0cd2db725c1",
+  "ricky-rubio":
+    "https://www.usatoday.com/gcdn/media/USATODAY/USATODAY/2013/03/13/2013-03-13-ricky-rubio-4_3.jpg",
   "dennis-rodman-pistons":
     "https://res.cloudinary.com/ybmedia/image/upload/c_crop,h_2000,w_1358,x_0,y_0/c_scale,f_auto,q_auto,w_700/v1/m/f/4/f467f1fe94bb4e70abf58cfe4132f4035fd188ca/drafted-detroit-pistons.jpg",
   "dennis-rodman-bulls":

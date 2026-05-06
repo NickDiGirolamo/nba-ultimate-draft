@@ -833,7 +833,7 @@ const AiGeneratedPlayerCard = ({
       <div className="absolute right-1 top-1 z-20 flex flex-col items-center gap-1.5">
         {team?.logo ? (
           <div
-            className="flex h-14 w-14 items-center justify-center rounded-[14px] border border-white/15 bg-black/62 p-2 shadow-[0_10px_22px_rgba(0,0,0,0.38)] backdrop-blur-[2px]"
+            className="flex h-[5.5rem] w-[5.5rem] items-center justify-center rounded-bl-[18px] border border-white/15 bg-black/62 p-3 shadow-[0_12px_28px_rgba(0,0,0,0.4)] backdrop-blur-[2px]"
             title={`${team.name} logo: team identity for chemistry and coach links.`}
           >
             <img src={team.logo} alt={`${team.name} logo`} className="h-full w-full object-contain" loading="lazy" />
