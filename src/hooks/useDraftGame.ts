@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CategoryChallengeSelection, DraftChallengeSelection, DraftState, Player, PrestigeChallengeDefinition, RareEventSelection, RoguePersonalBests, RunHistoryEntry, Screen } from "../types";
 import { STORAGE_KEY, assignPlayerToRoster, createSeed, generateChoices, rosterTemplate } from "../lib/draft";
 import { allPlayers } from "../data/players";
@@ -341,6 +341,7 @@ const createInitialState = (): DraftState => {
     rogueBonusPrestigeXp: 0,
     roguePersonalBests: DEFAULT_ROGUE_PERSONAL_BESTS,
     spentTokens: 0,
+    purchasedTokens: 0,
     ownedTrainingCampTickets: 0,
     ownedTradePhones: 0,
     ownedSilverStarterPacks: 0,
@@ -419,6 +420,7 @@ const normalizeState = (value: DraftState): DraftState => {
       ...(value.roguePersonalBests ?? {}),
     },
     spentTokens: value.spentTokens ?? 0,
+    purchasedTokens: value.purchasedTokens ?? 0,
     ownedTrainingCampTickets: value.ownedTrainingCampTickets ?? 0,
     ownedTradePhones: value.ownedTradePhones ?? 0,
     ownedSilverStarterPacks: value.ownedSilverStarterPacks ?? 0,
@@ -447,6 +449,22 @@ const normalizeState = (value: DraftState): DraftState => {
       : [],
     seed,
   };
+};
+
+const getDisplayedTokenBalanceForState = (draftState: DraftState) => {
+  const boostedMeta = applyMetaProgressBonus(
+    buildMetaProgress(draftState.history, draftState.unlockedPlayerIds, draftState.roguePersonalBests),
+    draftState.rogueBonusPrestigeXp,
+  );
+
+  return Math.max(
+    0,
+    boostedMeta.tokens.balance +
+      draftState.claimedCollectionRewardIds.length * COLLECTION_REWARD_TOKENS -
+      draftState.spentTokens +
+      draftState.purchasedTokens +
+      getClaimedRogueChallengeRewardTotal(draftState.claimedRogueChallengeIds),
+  );
 };
 
 export const useDraftGame = () => {
@@ -479,6 +497,7 @@ export const useDraftGame = () => {
           ...boostedMeta.tokens,
           lifetimeEarned:
             boostedMeta.tokens.lifetimeEarned +
+            state.purchasedTokens +
             state.claimedCollectionRewardIds.length * COLLECTION_REWARD_TOKENS +
             getClaimedRogueChallengeRewardTotal(state.claimedRogueChallengeIds),
           balance: Math.max(
@@ -486,6 +505,7 @@ export const useDraftGame = () => {
             boostedMeta.tokens.balance +
               state.claimedCollectionRewardIds.length * COLLECTION_REWARD_TOKENS -
               state.spentTokens +
+              state.purchasedTokens +
               getClaimedRogueChallengeRewardTotal(state.claimedRogueChallengeIds),
           ),
         },
@@ -496,6 +516,7 @@ export const useDraftGame = () => {
       state.unlockedPlayerIds,
       state.roguePersonalBests,
       state.rogueBonusPrestigeXp,
+      state.purchasedTokens,
       state.claimedCollectionRewardIds.length,
       state.claimedRogueChallengeIds,
       state.spentTokens,
@@ -929,6 +950,7 @@ export const useDraftGame = () => {
       bonusPickActive: false,
       rogueBonusPrestigeXp: state.rogueBonusPrestigeXp,
       spentTokens: state.spentTokens,
+      purchasedTokens: state.purchasedTokens,
       ownedTrainingCampTickets: state.ownedTrainingCampTickets,
       ownedTradePhones: state.ownedTradePhones,
       ownedSilverStarterPacks: state.ownedSilverStarterPacks,
@@ -1068,6 +1090,7 @@ export const useDraftGame = () => {
         bonusPickActive: false,
         rogueBonusPrestigeXp: current.rogueBonusPrestigeXp,
         spentTokens: current.spentTokens,
+        purchasedTokens: current.purchasedTokens,
         ownedTrainingCampTickets: current.ownedTrainingCampTickets,
         ownedTradePhones: current.ownedTradePhones,
         ownedSilverStarterPacks: current.ownedSilverStarterPacks,
@@ -1103,6 +1126,23 @@ export const useDraftGame = () => {
       rogueBonusPrestigeXp: current.rogueBonusPrestigeXp + prestigeXpAward,
     }));
   };
+
+  const absorbCloudTokenBalance = useCallback((cloudTokenBalance: number | null) => {
+    if (cloudTokenBalance === null || !Number.isFinite(cloudTokenBalance)) return;
+
+    setState((current) => {
+      const normalizedCloudBalance = Math.max(0, Math.floor(cloudTokenBalance));
+      const displayedBalance = getDisplayedTokenBalanceForState(current);
+      const purchasedTokenDelta = normalizedCloudBalance - displayedBalance;
+
+      if (purchasedTokenDelta <= 0) return current;
+
+      return {
+        ...current,
+        purchasedTokens: current.purchasedTokens + purchasedTokenDelta,
+      };
+    });
+  }, []);
 
   const updateRoguePersonalBests = (nextValues: Partial<RoguePersonalBests>) => {
     setState((current) => ({
@@ -1412,6 +1452,7 @@ export const useDraftGame = () => {
     applyRunPreset,
     awardRogueFailureRewards,
     updateRoguePersonalBests,
+    absorbCloudTokenBalance,
     purchaseTrainingCampTicket,
     purchaseTradePhone,
     purchaseSilverStarterPack,

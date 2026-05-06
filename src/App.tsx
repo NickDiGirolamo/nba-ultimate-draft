@@ -20,6 +20,7 @@ import { useSupabaseAuth } from "./hooks/useSupabaseAuth";
 import {
   deleteActiveRogueRun,
   fetchActiveRogueRun,
+  fetchTokenBalance,
   syncTokenBalance,
   upsertActiveRogueRun,
 } from "./lib/cloudSave";
@@ -85,6 +86,7 @@ function App() {
     beginDraftFromBriefing,
     awardRogueFailureRewards,
     updateRoguePersonalBests,
+    absorbCloudTokenBalance,
     purchaseTrainingCampTicket,
     purchaseTradePhone,
     purchaseSilverStarterPack,
@@ -118,7 +120,7 @@ function App() {
   const [prestigeInitialView, setPrestigeInitialView] = useState<"overview" | "rewards">("overview");
   const [learnOpen, setLearnOpen] = useState(false);
   const [tokenStoreOpen, setTokenStoreOpen] = useState(false);
-  const [tokenStoreInitialView, setTokenStoreInitialView] = useState<"store" | "collections" | "challenges">("store");
+  const [tokenStoreInitialView, setTokenStoreInitialView] = useState<"store" | "tokens" | "collections" | "challenges">("store");
   const [guestMode, setGuestMode] = useState(false);
   const [rogueChallengeSetupRequest, setRogueChallengeSetupRequest] = useState<{
     challengeId: string;
@@ -133,6 +135,7 @@ function App() {
   });
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
   const [cloudSavedRogueRun, setCloudSavedRogueRun] = useState<unknown | null>(null);
+  const [cloudTokenBalanceLoaded, setCloudTokenBalanceLoaded] = useState(false);
   const [showPrestigeLevelUp, setShowPrestigeLevelUp] = useState(false);
   const [showExtraPickIntro, setShowExtraPickIntro] = useState(false);
   const [isNarrowViewport, setIsNarrowViewport] = useState(() =>
@@ -385,9 +388,57 @@ function App() {
   }, [auth.user?.id]);
 
   useEffect(() => {
-    if (!auth.user) return;
-    void syncTokenBalance(auth.user.id, metaProgress.tokens.balance);
-  }, [auth.user?.id, metaProgress.tokens.balance]);
+    if (!auth.user) {
+      setCloudTokenBalanceLoaded(false);
+      return;
+    }
+
+    let cancelled = false;
+    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    const returningFromCheckout = params?.get("checkout") === "success";
+    const maxAttempts = returningFromCheckout ? 8 : 1;
+    const userId = auth.user.id;
+
+    const refreshTokenBalance = async () => {
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const cloudBalance = await fetchTokenBalance(userId);
+        if (cancelled) return;
+
+        absorbCloudTokenBalance(cloudBalance);
+        setCloudTokenBalanceLoaded(true);
+
+        if (!returningFromCheckout || (cloudBalance !== null && cloudBalance > metaProgress.tokens.balance)) return;
+
+        await new Promise((resolve) => window.setTimeout(resolve, 1000));
+      }
+    };
+
+    void refreshTokenBalance();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [absorbCloudTokenBalance, auth.user?.id]);
+
+  useEffect(() => {
+    if (!auth.user || !cloudTokenBalanceLoaded) return;
+    void syncTokenBalance(auth.user.id, metaProgress.tokens.balance, {
+      source: "local_balance_sync",
+      description: "Synced token balance from local game progress.",
+      metadata: {
+        lifetimeEarned: metaProgress.tokens.lifetimeEarned,
+        spentTokens: state.spentTokens,
+        purchasedTokens: state.purchasedTokens,
+      },
+    });
+  }, [
+    auth.user?.id,
+    cloudTokenBalanceLoaded,
+    metaProgress.tokens.balance,
+    metaProgress.tokens.lifetimeEarned,
+    state.purchasedTokens,
+    state.spentTokens,
+  ]);
 
   const saveCloudRogueRun = useCallback((runData: unknown) => {
     if (!auth.user) return;

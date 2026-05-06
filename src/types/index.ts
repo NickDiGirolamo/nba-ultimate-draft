@@ -424,6 +424,7 @@ export interface DraftState {
   rogueBonusPrestigeXp: number;
   roguePersonalBests: RoguePersonalBests;
   spentTokens: number;
+  purchasedTokens: number;
   ownedTrainingCampTickets: number;
   ownedTradePhones: number;
   ownedSilverStarterPacks: number;

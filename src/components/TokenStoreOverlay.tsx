@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, CheckCircle2, Coins, Crown, Handshake, Medal, Package2, RefreshCcw, ShieldPlus, Sparkles, Ticket, Trophy, Users2, WalletCards, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Coins, CreditCard, Crown, Handshake, Medal, Package2, RefreshCcw, ShieldPlus, Sparkles, Ticket, Trophy, Users2, WalletCards, X } from "lucide-react";
 import { MetaProgress, Player } from "../types";
 import { allPlayers } from "../data/players";
+import { createTokenPackCheckoutSession, fetchActiveTokenPacks } from "../lib/cloudSave";
 import { getTokenStorePlayerPrice, getTokenStorePlayerPriceMap, getTokenStoreSPlayers, tokenStoreUtilityItems } from "../lib/tokenStore";
+import { defaultTokenPackProducts, type TokenPackProduct } from "../lib/tokenPacks";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import {
   COLLECTION_REWARD_TOKENS,
@@ -29,7 +31,7 @@ interface TokenStoreOverlayProps {
   claimedCollectionRewardIds: string[];
   completedRogueChallengeIds: string[];
   claimedRogueChallengeIds: string[];
-  initialView?: "store" | "collections" | "challenges";
+  initialView?: TokenStoreView;
   onBuyTrainingCampTicket: () => void;
   onBuyTradePhone: () => void;
   onBuySilverStarterPack: () => void;
@@ -47,7 +49,14 @@ interface TokenStoreOverlayProps {
   onClose: () => void;
 }
 
+type TokenStoreView = "store" | "tokens" | "collections" | "challenges";
+
 const formatNumber = (value: number) => value.toLocaleString();
+const formatCurrency = (usdCents: number, currency = "usd") =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency.toUpperCase(),
+  }).format(usdCents / 100);
 const playersById = new Map(allPlayers.map((player) => [player.id, player]));
 
 const SmallCollectionPlayerCard = ({ player }: { player: Player }) => {
@@ -164,6 +173,70 @@ const StorePlayerCard = ({
   );
 };
 
+const TokenPackCard = ({
+  pack,
+  busy,
+  onCheckout,
+}: {
+  pack: TokenPackProduct;
+  busy: boolean;
+  onCheckout: () => void;
+}) => {
+  const popular = pack.metadata.popular === true;
+  const checkoutReady = Boolean(pack.stripePriceId);
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-[28px] border p-5 shadow-[0_18px_44px_rgba(0,0,0,0.3)] ${
+        popular
+          ? "border-amber-200/34 bg-[linear-gradient(135deg,rgba(251,191,36,0.2),rgba(88,28,135,0.18),rgba(7,11,20,0.96))]"
+          : "border-white/12 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(7,11,20,0.96))]"
+      }`}
+    >
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_30%_0%,rgba(254,243,199,0.22),transparent_58%)]" />
+      <div className="relative flex items-start justify-between gap-4">
+        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-amber-100/20 bg-amber-300/12 text-amber-100">
+          <Coins size={24} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-100/72">Token Pack</div>
+            {popular ? (
+              <div className="rounded-full border border-amber-100/24 bg-amber-200/14 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-amber-100">
+                Popular
+              </div>
+            ) : null}
+          </div>
+          <div className="mt-1 text-2xl font-semibold text-white">{pack.name}</div>
+          <p className="mt-3 text-sm leading-7 text-slate-200/88">{pack.description}</p>
+        </div>
+      </div>
+
+      <div className="relative mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-[20px] border border-white/10 bg-black/22 p-4">
+          <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Tokens</div>
+          <div className="mt-2 text-3xl font-semibold text-white">{formatNumber(pack.tokenAmount)}</div>
+        </div>
+        <div className="rounded-[20px] border border-white/10 bg-black/22 p-4">
+          <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Price</div>
+          <div className="mt-2 text-3xl font-semibold text-white">{formatCurrency(pack.usdCents, pack.currency)}</div>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={onCheckout}
+        disabled={!checkoutReady || busy}
+        className="relative mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48"
+        title={checkoutReady ? "Open Stripe Checkout for this token pack." : "Add a Stripe Price ID before this pack can be sold."}
+      >
+        <CreditCard size={16} />
+        {!checkoutReady ? "Stripe Setup Needed" : busy ? "Opening Checkout..." : "Buy With Stripe"}
+      </button>
+    </div>
+  );
+};
+
 export const TokenStoreOverlay = ({
   meta,
   ownedTrainingCampTickets,
@@ -198,8 +271,11 @@ export const TokenStoreOverlay = ({
   onRunRogueChallenge,
   onClose,
 }: TokenStoreOverlayProps) => {
-  const [view, setView] = useState<"store" | "collections" | "challenges">(initialView);
+  const [view, setView] = useState<TokenStoreView>(initialView);
   const [selectedCollectionFamily, setSelectedCollectionFamily] = useState<CollectionFamilyId | null>(null);
+  const [tokenPacks, setTokenPacks] = useState<TokenPackProduct[]>(defaultTokenPackProducts);
+  const [checkoutBusySlug, setCheckoutBusySlug] = useState<string | null>(null);
+  const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
   const sTierPlayers = useMemo(() => getTokenStoreSPlayers(), []);
   const playerPriceMap = useMemo(() => getTokenStorePlayerPriceMap(), []);
   const collectionProgress = useMemo(
@@ -226,12 +302,41 @@ export const TokenStoreOverlay = ({
     [],
   );
 
+  const startTokenPackCheckout = async (pack: TokenPackProduct) => {
+    setCheckoutMessage(null);
+    setCheckoutBusySlug(pack.slug);
+
+    const { checkoutUrl, error } = await createTokenPackCheckoutSession(pack.slug);
+
+    if (checkoutUrl) {
+      window.location.assign(checkoutUrl);
+      return;
+    }
+
+    setCheckoutBusySlug(null);
+    setCheckoutMessage(error ?? "Unable to open Stripe Checkout.");
+  };
+
   useEffect(() => {
     setView(initialView);
     if (initialView !== "collections") {
       setSelectedCollectionFamily(null);
     }
   }, [initialView]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchActiveTokenPacks().then((packs) => {
+      if (!cancelled) {
+        setTokenPacks(packs);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const utilityCards = [
     {
       item: tokenStoreUtilityItems[0],
@@ -421,7 +526,7 @@ export const TokenStoreOverlay = ({
         </div>
 
         <div className="mt-7 rounded-[28px] border border-white/12 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(15,23,42,0.42),rgba(5,8,14,0.72))] p-2 shadow-[0_18px_50px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.08)]">
-          <div className="grid gap-2 lg:grid-cols-3">
+          <div className="grid gap-2 lg:grid-cols-4">
             <button
               type="button"
               onClick={() => {
@@ -453,6 +558,40 @@ export const TokenStoreOverlay = ({
                   : "border-white/10 bg-white/6 text-slate-400"
               }`}>
                 {view === "store" ? "Active" : "Open"}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setView("tokens");
+                setSelectedCollectionFamily(null);
+              }}
+              className={`group flex min-h-[86px] items-center justify-between gap-4 rounded-[22px] border px-5 py-4 text-left transition ${
+                view === "tokens"
+                  ? "border-yellow-100/42 bg-[linear-gradient(135deg,rgba(250,204,21,0.24),rgba(21,94,117,0.22),rgba(15,23,42,0.72))] shadow-[0_14px_34px_rgba(250,204,21,0.14),inset_0_1px_0_rgba(255,255,255,0.12)]"
+                  : "border-white/8 bg-black/20 hover:border-yellow-100/24 hover:bg-yellow-300/8"
+              }`}
+            >
+              <span className="flex items-center gap-4">
+                <span className={`grid h-12 w-12 place-items-center rounded-2xl border ${
+                  view === "tokens"
+                    ? "border-yellow-100/30 bg-yellow-200/16 text-yellow-100"
+                    : "border-white/10 bg-white/6 text-slate-300 group-hover:text-yellow-100"
+                }`}>
+                  <CreditCard size={20} />
+                </span>
+                <span>
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Buy Tokens</span>
+                  <span className="mt-1 block text-2xl font-semibold text-white">Tokens</span>
+                </span>
+              </span>
+              <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                view === "tokens"
+                  ? "border-yellow-100/30 bg-yellow-200/14 text-yellow-100"
+                  : "border-white/10 bg-white/6 text-slate-400"
+              }`}>
+                {view === "tokens" ? "Active" : "Open"}
               </span>
             </button>
 
@@ -684,6 +823,43 @@ export const TokenStoreOverlay = ({
           </div>
         </div>
           </>
+        ) : view === "tokens" ? (
+          <div className="mt-8 space-y-6">
+            <div className="rounded-[28px] border border-yellow-200/18 bg-[linear-gradient(135deg,rgba(250,204,21,0.14),rgba(8,13,24,0.94))] p-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-yellow-100/74">
+                    <CreditCard size={15} />
+                    Buy Tokens
+                  </div>
+                  <h3 className="mt-3 font-display text-3xl text-white">Token packs are ready for checkout wiring</h3>
+                  <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-200/88">
+                    These packs are loaded from the Supabase token catalog. Stripe Checkout handles the payment page, and tokens are credited after the payment webhook confirms the purchase.
+                  </p>
+                  {checkoutMessage ? (
+                    <div className="mt-4 rounded-2xl border border-rose-300/18 bg-rose-300/10 px-4 py-3 text-sm font-semibold text-rose-100">
+                      {checkoutMessage}
+                    </div>
+                  ) : null}
+                </div>
+                <div className="rounded-[22px] border border-white/10 bg-black/24 px-5 py-4">
+                  <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Available Packs</div>
+                  <div className="mt-1 text-3xl font-semibold text-white">{tokenPacks.length}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {tokenPacks.map((pack) => (
+                <TokenPackCard
+                  key={pack.slug}
+                  pack={pack}
+                  busy={checkoutBusySlug === pack.slug}
+                  onCheckout={() => void startTokenPackCheckout(pack)}
+                />
+              ))}
+            </div>
+          </div>
         ) : view === "collections" ? (
           <div className="mt-8 space-y-8">
             <div className="grid gap-4 md:grid-cols-3">
