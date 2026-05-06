@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { LockKeyhole, LogIn, Trophy, UserPlus } from "lucide-react";
+import { ArrowRight, LockKeyhole, LogIn, Trophy, UserPlus } from "lucide-react";
 
 interface LoginPageProps {
   configured: boolean;
@@ -8,6 +8,7 @@ interface LoginPageProps {
   authError: string | null;
   onSignIn: (email: string, password: string) => Promise<boolean>;
   onSignUp: (email: string, password: string) => Promise<boolean>;
+  onContinueAsGuest: () => void;
 }
 
 export const LoginPage = ({
@@ -16,6 +17,7 @@ export const LoginPage = ({
   authError,
   onSignIn,
   onSignUp,
+  onContinueAsGuest,
 }: LoginPageProps) => {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -60,6 +62,9 @@ export const LoginPage = ({
             <p className="mt-5 max-w-xl text-base leading-7 text-slate-300">
               Sign in to access your token bank, saved Rogue runs, unlocks, and account progress.
             </p>
+            <div className="mt-5 rounded-[22px] border border-sky-200/14 bg-sky-300/8 px-4 py-3 text-sm leading-6 text-sky-50/82">
+              Just checking things out? You can enter without signing in, but your progress will not be cloud saved.
+            </div>
           </section>
 
           <section className="rounded-[28px] border border-white/14 bg-[linear-gradient(145deg,rgba(5,10,20,0.94),rgba(12,24,42,0.9))] p-6 shadow-[0_24px_70px_rgba(0,0,0,0.45)] md:p-8">
@@ -135,6 +140,20 @@ export const LoginPage = ({
                 </div>
               </form>
             )}
+
+            <div className="mt-5 border-t border-white/10 pt-5">
+              <button
+                type="button"
+                onClick={onContinueAsGuest}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-sky-200/22 bg-sky-300/10 px-5 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-sky-50 transition hover:scale-[1.01] hover:bg-sky-300/16"
+              >
+                Continue Without Progress Save
+                <ArrowRight size={15} />
+              </button>
+              <p className="mt-3 text-center text-xs leading-5 text-slate-400">
+                Guest play stays local to this browser and is not tied to an account.
+              </p>
+            </div>
           </section>
         </div>
       </div>

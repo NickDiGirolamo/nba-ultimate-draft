@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, CheckCircle2, Coins, Crown, Handshake, Medal, Package2, ShieldPlus, Sparkles, Ticket, Users2, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Coins, Crown, Handshake, Medal, Package2, RefreshCcw, ShieldPlus, Sparkles, Ticket, Trophy, Users2, WalletCards, X } from "lucide-react";
 import { MetaProgress, Player } from "../types";
 import { allPlayers } from "../data/players";
 import { getTokenStorePlayerPrice, getTokenStorePlayerPriceMap, getTokenStoreSPlayers, tokenStoreUtilityItems } from "../lib/tokenStore";
@@ -10,6 +10,7 @@ import {
   buildCollectionProgress,
   type CollectionFamilyId,
 } from "../lib/collections";
+import { ROGUE_CHALLENGES } from "../lib/rogueChallenges";
 
 interface TokenStoreOverlayProps {
   meta: MetaProgress;
@@ -19,19 +20,30 @@ interface TokenStoreOverlayProps {
   ownedGoldStarterPacks: number;
   ownedPlatinumStarterPacks: number;
   ownedCoachRecruitment: number;
+  ownedOpeningLockerCashTier: number;
+  ownedExtraDraftShuffle: number;
+  ownedStarterPackChoicePlus: number;
   ownedRogueStarIds: string[];
   activeRogueStarId: string | null;
   rogueCollectedCollectionEntryIds: string[];
   claimedCollectionRewardIds: string[];
+  completedRogueChallengeIds: string[];
+  claimedRogueChallengeIds: string[];
+  initialView?: "store" | "collections" | "challenges";
   onBuyTrainingCampTicket: () => void;
   onBuyTradePhone: () => void;
   onBuySilverStarterPack: () => void;
   onBuyGoldStarterPack: () => void;
   onBuyPlatinumStarterPack: () => void;
   onBuyCoachRecruitment: () => void;
+  onBuyOpeningLockerCashUpgrade: (tier: number, price: number) => void;
+  onBuyExtraDraftShuffle: () => void;
+  onBuyStarterPackChoicePlus: () => void;
   onBuyRogueStar: (playerId: string, price: number) => void;
   onSetActiveRogueStar: (playerId: string | null) => void;
   onClaimCollectionReward: (familyId: CollectionFamilyId) => boolean;
+  onClaimRogueChallengeReward: (challengeId: string) => boolean;
+  onRunRogueChallenge: (challengeId: string) => void;
   onClose: () => void;
 }
 
@@ -160,22 +172,33 @@ export const TokenStoreOverlay = ({
   ownedGoldStarterPacks,
   ownedPlatinumStarterPacks,
   ownedCoachRecruitment,
+  ownedOpeningLockerCashTier,
+  ownedExtraDraftShuffle,
+  ownedStarterPackChoicePlus,
   ownedRogueStarIds,
   activeRogueStarId,
   rogueCollectedCollectionEntryIds,
   claimedCollectionRewardIds,
+  completedRogueChallengeIds,
+  claimedRogueChallengeIds,
+  initialView = "store",
   onBuyTrainingCampTicket,
   onBuyTradePhone,
   onBuySilverStarterPack,
   onBuyGoldStarterPack,
   onBuyPlatinumStarterPack,
   onBuyCoachRecruitment,
+  onBuyOpeningLockerCashUpgrade,
+  onBuyExtraDraftShuffle,
+  onBuyStarterPackChoicePlus,
   onBuyRogueStar,
   onSetActiveRogueStar,
   onClaimCollectionReward,
+  onClaimRogueChallengeReward,
+  onRunRogueChallenge,
   onClose,
 }: TokenStoreOverlayProps) => {
-  const [view, setView] = useState<"store" | "collections">("store");
+  const [view, setView] = useState<"store" | "collections" | "challenges">(initialView);
   const [selectedCollectionFamily, setSelectedCollectionFamily] = useState<CollectionFamilyId | null>(null);
   const sTierPlayers = useMemo(() => getTokenStoreSPlayers(), []);
   const playerPriceMap = useMemo(() => getTokenStorePlayerPriceMap(), []);
@@ -187,9 +210,28 @@ export const TokenStoreOverlay = ({
     () => new Set(claimedCollectionRewardIds),
     [claimedCollectionRewardIds],
   );
+  const completedChallengeIds = useMemo(
+    () => new Set(completedRogueChallengeIds),
+    [completedRogueChallengeIds],
+  );
+  const claimedChallengeIds = useMemo(
+    () => new Set(claimedRogueChallengeIds),
+    [claimedRogueChallengeIds],
+  );
   const selectedCollection = selectedCollectionFamily
     ? collectionProgress.find((entry) => entry.family.id === selectedCollectionFamily) ?? null
     : null;
+  const tokenStoreItemById = useMemo(
+    () => new Map(tokenStoreUtilityItems.map((item) => [item.id, item])),
+    [],
+  );
+
+  useEffect(() => {
+    setView(initialView);
+    if (initialView !== "collections") {
+      setSelectedCollectionFamily(null);
+    }
+  }, [initialView]);
   const utilityCards = [
     {
       item: tokenStoreUtilityItems[0],
@@ -251,7 +293,7 @@ export const TokenStoreOverlay = ({
   ];
   const rogueUpgradeCards = [
     {
-      item: tokenStoreUtilityItems[5],
+      item: tokenStoreItemById.get("coach-recruitment")!,
       owned: ownedCoachRecruitment,
       onBuy: onBuyCoachRecruitment,
       icon: Handshake,
@@ -260,7 +302,70 @@ export const TokenStoreOverlay = ({
       badgeClass:
         "border-emerald-200/20 bg-emerald-300/10 text-emerald-100",
       iconClass: "text-emerald-200",
-      uplift: "Coach-Team Node",
+      uplift: "Coach-Team Floor",
+    },
+    {
+      item: tokenStoreItemById.get("opening-locker-cash-1")!,
+      owned: ownedOpeningLockerCashTier,
+      requiredTier: 1,
+      onBuy: () => onBuyOpeningLockerCashUpgrade(1, tokenStoreItemById.get("opening-locker-cash-1")!.price),
+      icon: WalletCards,
+      cardClass:
+        "border-lime-200/18 bg-[linear-gradient(135deg,rgba(63,98,18,0.3),rgba(9,13,24,0.92))]",
+      badgeClass:
+        "border-lime-200/20 bg-lime-300/10 text-lime-100",
+      iconClass: "text-lime-200",
+      uplift: "+3 Starting Cash",
+    },
+    {
+      item: tokenStoreItemById.get("opening-locker-cash-2")!,
+      owned: ownedOpeningLockerCashTier,
+      requiredTier: 2,
+      onBuy: () => onBuyOpeningLockerCashUpgrade(2, tokenStoreItemById.get("opening-locker-cash-2")!.price),
+      icon: WalletCards,
+      cardClass:
+        "border-lime-200/18 bg-[linear-gradient(135deg,rgba(77,124,15,0.34),rgba(9,13,24,0.92))]",
+      badgeClass:
+        "border-lime-200/20 bg-lime-300/10 text-lime-100",
+      iconClass: "text-lime-200",
+      uplift: "+6 Starting Cash",
+    },
+    {
+      item: tokenStoreItemById.get("opening-locker-cash-3")!,
+      owned: ownedOpeningLockerCashTier,
+      requiredTier: 3,
+      onBuy: () => onBuyOpeningLockerCashUpgrade(3, tokenStoreItemById.get("opening-locker-cash-3")!.price),
+      icon: WalletCards,
+      cardClass:
+        "border-lime-200/18 bg-[linear-gradient(135deg,rgba(101,163,13,0.34),rgba(9,13,24,0.92))]",
+      badgeClass:
+        "border-lime-200/20 bg-lime-300/10 text-lime-100",
+      iconClass: "text-lime-200",
+      uplift: "+10 Starting Cash",
+    },
+    {
+      item: tokenStoreItemById.get("extra-draft-shuffle")!,
+      owned: ownedExtraDraftShuffle,
+      onBuy: onBuyExtraDraftShuffle,
+      icon: RefreshCcw,
+      cardClass:
+        "border-violet-200/18 bg-[linear-gradient(135deg,rgba(91,33,182,0.3),rgba(9,13,24,0.92))]",
+      badgeClass:
+        "border-violet-200/20 bg-violet-300/10 text-violet-100",
+      iconClass: "text-violet-200",
+      uplift: "+1 Run Shuffle",
+    },
+    {
+      item: tokenStoreItemById.get("starter-pack-choice-plus")!,
+      owned: ownedStarterPackChoicePlus,
+      onBuy: onBuyStarterPackChoicePlus,
+      icon: Package2,
+      cardClass:
+        "border-amber-200/18 bg-[linear-gradient(135deg,rgba(146,64,14,0.32),rgba(9,13,24,0.92))]",
+      badgeClass:
+        "border-amber-200/20 bg-amber-300/10 text-amber-100",
+      iconClass: "text-amber-200",
+      uplift: "Reveal 4, Keep 3",
     },
   ];
   const orderedStarPlayers = useMemo(
@@ -316,7 +421,7 @@ export const TokenStoreOverlay = ({
         </div>
 
         <div className="mt-7 rounded-[28px] border border-white/12 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(15,23,42,0.42),rgba(5,8,14,0.72))] p-2 shadow-[0_18px_50px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.08)]">
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 lg:grid-cols-3">
             <button
               type="button"
               onClick={() => {
@@ -381,6 +486,40 @@ export const TokenStoreOverlay = ({
                 {view === "collections" ? "Active" : "Open"}
               </span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setView("challenges");
+                setSelectedCollectionFamily(null);
+              }}
+              className={`group flex min-h-[86px] items-center justify-between gap-4 rounded-[22px] border px-5 py-4 text-left transition ${
+                view === "challenges"
+                  ? "border-sky-100/38 bg-[linear-gradient(135deg,rgba(56,189,248,0.2),rgba(30,64,175,0.26),rgba(15,23,42,0.72))] shadow-[0_14px_34px_rgba(56,189,248,0.13),inset_0_1px_0_rgba(255,255,255,0.12)]"
+                  : "border-white/8 bg-black/20 hover:border-sky-100/24 hover:bg-sky-300/8"
+              }`}
+            >
+              <span className="flex items-center gap-4">
+                <span className={`grid h-12 w-12 place-items-center rounded-2xl border ${
+                  view === "challenges"
+                    ? "border-sky-100/30 bg-sky-200/16 text-sky-100"
+                    : "border-white/10 bg-white/6 text-slate-300 group-hover:text-sky-100"
+                }`}>
+                  <Trophy size={20} />
+                </span>
+                <span>
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Rogue Rewards</span>
+                  <span className="mt-1 block text-2xl font-semibold text-white">Challenges</span>
+                </span>
+              </span>
+              <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                view === "challenges"
+                  ? "border-sky-100/30 bg-sky-200/14 text-sky-100"
+                  : "border-white/10 bg-white/6 text-slate-400"
+              }`}>
+                {view === "challenges" ? "Active" : "Open"}
+              </span>
+            </button>
           </div>
         </div>
 
@@ -431,8 +570,9 @@ export const TokenStoreOverlay = ({
             Unlock run-shaping systems that become available when a new Rogue run starts.
           </div>
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {rogueUpgradeCards.map(({ item, owned, onBuy, icon: Icon, cardClass, badgeClass, iconClass, uplift }) => {
-              const unlocked = owned > 0;
+            {rogueUpgradeCards.map(({ item, owned, requiredTier, onBuy, icon: Icon, cardClass, badgeClass, iconClass, uplift }) => {
+              const unlocked = typeof requiredTier === "number" ? owned >= requiredTier : owned > 0;
+              const prerequisiteLocked = typeof requiredTier === "number" && owned !== requiredTier - 1 && !unlocked;
 
               return (
                 <div key={item.id} className={`rounded-[28px] border p-5 ${cardClass}`}>
@@ -447,8 +587,8 @@ export const TokenStoreOverlay = ({
                       </div>
                       <div className="mt-3 text-sm leading-7 text-slate-300">{item.description}</div>
                     </div>
-                    <div className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${badgeClass}`}>
-                      {unlocked ? "Owned" : "Locked"}
+                  <div className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${badgeClass}`}>
+                      {unlocked ? "Owned" : prerequisiteLocked ? "Tier Locked" : "Locked"}
                     </div>
                   </div>
                   <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -456,10 +596,10 @@ export const TokenStoreOverlay = ({
                     <button
                       type="button"
                       onClick={onBuy}
-                      disabled={unlocked || meta.tokens.balance < item.price}
+                      disabled={unlocked || prerequisiteLocked || meta.tokens.balance < item.price}
                       className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48 sm:w-auto sm:py-2.5"
                     >
-                      {unlocked ? "Owned" : "Unlock"}
+                      {unlocked ? "Owned" : prerequisiteLocked ? "Unlock Previous Tier" : "Unlock"}
                     </button>
                   </div>
                 </div>
@@ -544,7 +684,7 @@ export const TokenStoreOverlay = ({
           </div>
         </div>
           </>
-        ) : (
+        ) : view === "collections" ? (
           <div className="mt-8 space-y-8">
             <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-[24px] border border-emerald-300/14 bg-emerald-300/8 p-5">
@@ -730,6 +870,122 @@ export const TokenStoreOverlay = ({
                 })}
               </div>
             )}
+          </div>
+        ) : (
+          <div className="mt-8 space-y-6">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-[24px] border border-sky-300/14 bg-sky-300/8 p-5">
+                <div className="text-xs uppercase tracking-[0.22em] text-sky-100/70">Rogue Challenges</div>
+                <div className="mt-2 text-3xl font-semibold text-white">{ROGUE_CHALLENGES.length}</div>
+                <div className="mt-2 text-sm text-slate-200">
+                  One-time Rogue achievements that can be completed naturally during runs.
+                </div>
+              </div>
+              <div className="rounded-[24px] border border-emerald-300/14 bg-emerald-300/8 p-5">
+                <div className="text-xs uppercase tracking-[0.22em] text-emerald-100/70">Completed</div>
+                <div className="mt-2 text-3xl font-semibold text-white">
+                  {completedChallengeIds.size} / {ROGUE_CHALLENGES.length}
+                </div>
+                <div className="mt-2 text-sm text-slate-200">
+                  Completed challenges stay ready until their reward is claimed.
+                </div>
+              </div>
+              <div className="rounded-[24px] border border-amber-200/14 bg-amber-300/8 p-5">
+                <div className="text-xs uppercase tracking-[0.22em] text-amber-100/70">Claimed Rewards</div>
+                <div className="mt-2 text-3xl font-semibold text-white">
+                  {claimedChallengeIds.size} / {ROGUE_CHALLENGES.length}
+                </div>
+                <div className="mt-2 text-sm text-slate-200">
+                  Claimed challenge rewards are permanent token-bank bonuses.
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-2">
+              {ROGUE_CHALLENGES.map((challenge) => {
+                const completed = completedChallengeIds.has(challenge.id);
+                const claimed = claimedChallengeIds.has(challenge.id);
+                const canClaim = completed && !claimed;
+
+                return (
+                  <div
+                    key={challenge.id}
+                    className={`rounded-[28px] border p-6 ${
+                      claimed
+                        ? "border-emerald-300/18 bg-emerald-300/8"
+                        : completed
+                          ? "border-amber-200/24 bg-amber-300/10 shadow-[0_16px_42px_rgba(245,158,11,0.12)]"
+                          : "border-white/10 bg-white/5"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3">
+                        <div className={`rounded-2xl border p-3 ${
+                          completed
+                            ? "border-amber-200/24 bg-amber-300/12 text-amber-100"
+                            : "border-white/12 bg-black/20 text-slate-300"
+                        }`}>
+                          <Trophy size={22} />
+                        </div>
+                        <div>
+                          <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Rogue Challenge</div>
+                          <div className="mt-1 text-2xl font-semibold text-white">{challenge.title}</div>
+                        </div>
+                      </div>
+                      <div className={`shrink-0 rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${
+                        claimed
+                          ? "border-emerald-300/18 bg-emerald-300/12 text-emerald-100"
+                          : completed
+                            ? "border-amber-200/24 bg-amber-300/12 text-amber-100"
+                            : "border-white/10 bg-black/20 text-slate-300"
+                      }`}>
+                        {claimed ? "Claimed" : completed ? "Complete" : "Locked"}
+                      </div>
+                    </div>
+
+                    <p className="mt-4 text-sm leading-7 text-slate-100/88">{challenge.description}</p>
+                    <div className="mt-4 rounded-[20px] border border-white/10 bg-black/18 px-4 py-3">
+                      <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Requirement</div>
+                      <div className="mt-1 text-sm font-semibold text-white">{challenge.requirement}</div>
+                    </div>
+
+                    <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Reward</div>
+                        <div className="mt-1 text-3xl font-semibold text-white">{formatNumber(challenge.reward)}</div>
+                      </div>
+                      <div className="flex flex-col gap-2 sm:items-end">
+                        <button
+                          type="button"
+                          onClick={() => onRunRogueChallenge(challenge.id)}
+                          className="inline-flex items-center justify-center gap-2 rounded-full border border-sky-200/28 bg-sky-300/12 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-sky-50 transition hover:scale-[1.02] hover:bg-sky-300/18"
+                        >
+                          Run Challenge
+                          <ArrowLeft size={14} className="rotate-180" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onClaimRogueChallengeReward(challenge.id)}
+                          disabled={!canClaim}
+                          className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/18 disabled:text-white/46"
+                        >
+                          {claimed ? (
+                            <>
+                              <CheckCircle2 size={14} />
+                              Claimed
+                            </>
+                          ) : canClaim ? (
+                            `Claim ${formatNumber(challenge.reward)}`
+                          ) : (
+                            "Locked"
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

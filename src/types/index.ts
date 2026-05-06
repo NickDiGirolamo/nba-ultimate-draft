@@ -328,6 +328,8 @@ export interface RoguePersonalBests {
   offense: number;
   defense: number;
   chemistry: number;
+  hardestDifficulty: string;
+  hardestDifficultyFloor: number;
 }
 
 export interface LeaderboardEntry {
@@ -428,9 +430,14 @@ export interface DraftState {
   ownedGoldStarterPacks: number;
   ownedPlatinumStarterPacks: number;
   ownedCoachRecruitment: number;
+  ownedOpeningLockerCashTier: number;
+  ownedExtraDraftShuffle: number;
+  ownedStarterPackChoicePlus: number;
   ownedRogueStarIds: string[];
   activeRogueStarId: string | null;
   rogueCollectedCollectionEntryIds: string[];
   claimedCollectionRewardIds: string[];
+  completedRogueChallengeIds: string[];
+  claimedRogueChallengeIds: string[];
   seed: number;
 }

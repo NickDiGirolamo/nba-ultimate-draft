@@ -3,6 +3,7 @@ import { ArrowLeft, Check, ClipboardCheck, Handshake, ShieldCheck, Sparkles, Use
 import { CardLabAltPlayerCardV1 } from "./CardLabAltPlayerCardV1";
 import { CardLabAltPlayerCardV2 } from "./CardLabAltPlayerCardV2";
 import { CardLabAltPlayerCardV3 } from "./CardLabAltPlayerCard";
+import { CardLabAiArtCards } from "./CardLabAiArtCards";
 import { CardLabCoachCard } from "./CardLabCoachCard";
 import { CardLabCoachRunRosterCard } from "./CardLabCoachRunRosterCard";
 import { CardLabRunRosterCard } from "./CardLabRunRosterCard";
@@ -20,7 +21,7 @@ import { LegacyPlayerTier, PlayerTier } from "../types";
 import { PlayerTypeBadge } from "../lib/playerTypeBadges";
 
 type LabRarity = PlayerTier | LegacyPlayerTier | "Pink Smoke" | "Neon Paint" | "Black/Gold Marble";
-type CardLabLine = "main-sandbox" | "before-the-glory" | "coaches";
+type CardLabLine = "main-sandbox" | "before-the-glory" | "coaches" | "ai-art-cards";
 
 const rarityOptions: LabRarity[] = [
   "S",
@@ -147,7 +148,9 @@ export const CardLabPage = () => {
       ? controlledCard.label
       : activeLine === "before-the-glory"
         ? "Before the Glory"
-        : "Coaches";
+        : activeLine === "coaches"
+          ? "Coaches"
+          : "AI Art Cards";
   const currentFocusDetail =
     activeLine === "main-sandbox"
       ? `${badgeTypeOptions.find((option) => option.value === badgeType)?.label} | ${badgeCount} badge${
@@ -155,7 +158,9 @@ export const CardLabPage = () => {
         } | ${isSpecialRarityLabel(rarity) ? rarity : `${rarity}-Tier`}`
       : activeLine === "before-the-glory"
         ? `${beforeTheGloryCards.length} BTG cards`
-        : `${coachCards.length} Rogue coach cards`;
+        : activeLine === "coaches"
+          ? `${coachCards.length} Rogue coach cards`
+          : "Isolated full-art sandbox";
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.12),transparent_28%),linear-gradient(180deg,#08111f_0%,#0f172a_38%,#020617_100%)] text-white">
@@ -273,6 +278,17 @@ export const CardLabPage = () => {
                       }`}
                     >
                       Coaches
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveLine("ai-art-cards")}
+                      className={`rounded-2xl border px-3 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] transition ${
+                        activeLine === "ai-art-cards"
+                          ? "border-white/20 bg-white text-slate-950"
+                          : "border-white/12 bg-white/6 text-slate-300 hover:bg-white/10"
+                      }`}
+                    >
+                      AI Art Cards
                     </button>
                   </div>
                 </div>
@@ -399,10 +415,14 @@ export const CardLabPage = () => {
                           Dedicated preview page for the full <span className="font-semibold text-white">Before the Glory</span> line.
                           All cards below use the current live card design so we can approve the whole set before launch.
                         </>
-                      ) : (
+                      ) : activeLine === "coaches" ? (
                         <>
                           Dedicated preview page for all <span className="font-semibold text-white">Rogue coach cards</span>.
-                          These use the same list as the opening Rogue coach node so we can tune the full line before launch.
+                          These use the same list as the opening Rogue coach floor so we can tune the full line before launch.
+                        </>
+                      ) : (
+                        <>
+                          Isolated <span className="font-semibold text-white">AI Art Cards</span> sandbox for testing generated full-art images without changing the existing card system.
                         </>
                       )}
                     </div>
@@ -540,7 +560,7 @@ export const CardLabPage = () => {
                     ))}
                   </div>
                 </>
-              ) : (
+              ) : activeLine === "coaches" ? (
                 <>
                   <div className="flex items-center justify-between gap-4">
                     <div>
@@ -554,7 +574,7 @@ export const CardLabPage = () => {
                   <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-300">
                     {showRunRoster
                       ? "Run-roster coach rows for the persistent coach card that will sit at the top of the Rogue roster during a run."
-                      : "The full 30-card coach line based on the exact same coaches used at the opening Rogue coach node, so we can tune the whole set before launch."}
+                      : "The full 30-card coach line based on the exact same coaches used at the opening Rogue coach floor, so we can tune the whole set before launch."}
                   </p>
                   <div className="mt-6 rounded-[26px] border border-white/10 bg-black/18 p-4">
                     <div className="flex flex-wrap items-end justify-between gap-3">
@@ -645,6 +665,8 @@ export const CardLabPage = () => {
                     ))}
                   </div>
                 </>
+              ) : (
+                <CardLabAiArtCards />
               )}
             </section>
           </div>

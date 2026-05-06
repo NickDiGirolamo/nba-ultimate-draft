@@ -10,6 +10,7 @@ import { usePlayerImage } from "../hooks/usePlayerImage";
 import { getNbaTeamByName } from "../data/nbaTeams";
 import { isSameTeamChemistryPreviewActiveForPlayer } from "../lib/teamChemistry";
 import { isCurrentSeasonCard } from "../lib/playerCardLine";
+import { capRoguelikeOverall } from "../lib/roguelike";
 import {
   getPlayerTier,
   getPlayerTierLabelFromTier,
@@ -126,8 +127,10 @@ export const DraftPlayerCard = ({
     coachConnectionActive && !draftedPlayerIds.includes(player.id) ? 1 : 0;
   const previewBadgeOverallBonus =
     !draftedPlayerIds.includes(player.id) ? getPreviewBadgeOverallBonusForPlayer(player.id, draftedPlayerIds) : 0;
-  const displayOverall =
+  const uncappedDisplayOverall =
     player.overall + previewTeamChemistryBonus + previewCoachConnectionBonus + previewBadgeOverallBonus;
+  const displayOverall = capRoguelikeOverall(uncappedDisplayOverall);
+  const displayOverallCapped = displayOverall < uncappedDisplayOverall;
   const nameClassName =
     fullNameLength >= 24
       ? "text-[1rem]"
@@ -205,7 +208,12 @@ export const DraftPlayerCard = ({
           <div className="relative flex h-full flex-col">
             <div className="grid grid-cols-[auto_1fr_auto] items-start gap-3">
               <div className="rounded-[24px] border border-white/12 bg-black/45 px-5 py-3.5 shadow-[0_12px_28px_rgba(0,0,0,0.16)] backdrop-blur-[2px]">
-                <div className="text-center font-display text-[3rem] font-semibold leading-none text-white">{displayOverall}</div>
+                <div
+                  className="text-center font-display text-[3rem] font-semibold leading-none text-white"
+                  title={displayOverallCapped ? "Rogue overall cap: 99 max" : undefined}
+                >
+                  {displayOverall}
+                </div>
                 <div className="mt-2.5 text-center text-[13px] font-semibold uppercase leading-tight tracking-[0.18em] text-slate-50">
                   {naturalPositions}
                 </div>

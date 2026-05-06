@@ -208,6 +208,7 @@ export interface RoguelikeBonusBadgeAssignment {
 const VERSION_SUFFIX_PATTERN = /\s\([^)]*\)$/;
 const STARTING_FIVE_POSITIONS: Position[] = ["PG", "SG", "SF", "PF", "C"];
 const DEFAULT_FACEOFF_TARGET_AVERAGE = 84;
+export const ROGUELIKE_MAX_OVERALL = 99;
 const BOSS_AVERAGE_OVERRIDES_BY_FLOOR: Partial<Record<number, number>> = {
   4: 79,
   6: 81,
@@ -226,6 +227,9 @@ const BOSS_AVERAGE_OVERRIDES_BY_FLOOR: Partial<Record<number, number>> = {
   61: 95,
   63: 96,
 };
+
+export const capRoguelikeOverall = (overall: number) =>
+  Math.min(ROGUELIKE_MAX_OVERALL, Math.max(0, overall));
 
 export const getRoguelikeFailureRewards = (floorIndex: number): RoguelikeFailureRewards => {
   const prestigeXpAward = Math.max(2, Math.min(8, floorIndex + 1));
@@ -2033,8 +2037,7 @@ export const getRoguelikeAdjustedOverallForSlot = (
   coachTeamKey: string | null = null,
 ) => {
   if (!player) return 0;
-  return Math.max(
-    0,
+  return capRoguelikeOverall(
     player.overall +
       getRoguelikeDisplayOverallBonus(player, playerIds, trainedPlayerIds, coachTeamKey) -
       getRoguelikeSlotPenalty(player, slot),
@@ -2356,10 +2359,10 @@ export const evaluateRoguelikeRoster = (
 
     return {
       overall: average((player) =>
-        player.overall +
-        (coachTeamKey && getPlayerTeamKey(player) === coachTeamKey ? 1 : 0) +
-        getSameTeamChemistryBonusForPlayer(player, ownedPlayerIds) +
-        getRoguelikeTrainingBoost(player, trainedPlayerIds, "overall"),
+        capRoguelikeOverall(
+          player.overall +
+          getRoguelikeDisplayOverallBonus(player, ownedPlayerIds, trainedPlayerIds, coachTeamKey),
+        ),
       ),
     offense: average((player) => player.offense + getRoguelikeTrainingBoost(player, trainedPlayerIds, "offense")),
     defense: average((player) => player.defense + getRoguelikeTrainingBoost(player, trainedPlayerIds, "defense")),

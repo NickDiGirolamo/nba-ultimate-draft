@@ -28,6 +28,11 @@ import {
   getRogueCollectionEntryIdsForRoster,
   type CollectionFamilyId,
 } from "../lib/collections";
+import {
+  getClaimedRogueChallengeRewardTotal,
+  getRogueChallengeById,
+  isValidRogueChallengeId,
+} from "../lib/rogueChallenges";
 
 const HISTORY_LIMIT = 24;
 const DEFAULT_METRICS = {
@@ -54,6 +59,29 @@ const DEFAULT_ROGUE_PERSONAL_BESTS: RoguePersonalBests = {
   offense: 0,
   defense: 0,
   chemistry: 0,
+  hardestDifficulty: "normal",
+  hardestDifficultyFloor: 0,
+};
+
+const ROGUE_DIFFICULTY_RANK: Record<string, number> = {
+  normal: 0,
+  "all-star": 1,
+  superstar: 2,
+  "all-time": 3,
+  goat: 4,
+};
+
+const shouldReplaceRogueDifficultyBest = (
+  currentDifficulty: string | undefined,
+  currentFloor: number | undefined,
+  nextDifficulty: string | undefined,
+  nextFloor: number | undefined,
+) => {
+  const currentRank = ROGUE_DIFFICULTY_RANK[currentDifficulty ?? "normal"] ?? 0;
+  const nextRank = ROGUE_DIFFICULTY_RANK[nextDifficulty ?? "normal"] ?? 0;
+
+  if (nextRank !== currentRank) return nextRank > currentRank;
+  return (nextFloor ?? 0) > (currentFloor ?? 0);
 };
 
 const LEGACY_PLAYER_ID_MIGRATIONS: Record<string, string> = {
@@ -319,10 +347,15 @@ const createInitialState = (): DraftState => {
     ownedGoldStarterPacks: 0,
     ownedPlatinumStarterPacks: 0,
     ownedCoachRecruitment: 0,
+    ownedOpeningLockerCashTier: 0,
+    ownedExtraDraftShuffle: 0,
+    ownedStarterPackChoicePlus: 0,
     ownedRogueStarIds: [],
     activeRogueStarId: null,
     rogueCollectedCollectionEntryIds: [],
     claimedCollectionRewardIds: [],
+    completedRogueChallengeIds: [],
+    claimedRogueChallengeIds: [],
     seed,
   };
 };
@@ -381,7 +414,10 @@ const normalizeState = (value: DraftState): DraftState => {
     bonusPickUsed: value.bonusPickUsed ?? false,
     bonusPickActive: value.bonusPickActive ?? false,
     rogueBonusPrestigeXp: value.rogueBonusPrestigeXp ?? 0,
-    roguePersonalBests: value.roguePersonalBests ?? DEFAULT_ROGUE_PERSONAL_BESTS,
+    roguePersonalBests: {
+      ...DEFAULT_ROGUE_PERSONAL_BESTS,
+      ...(value.roguePersonalBests ?? {}),
+    },
     spentTokens: value.spentTokens ?? 0,
     ownedTrainingCampTickets: value.ownedTrainingCampTickets ?? 0,
     ownedTradePhones: value.ownedTradePhones ?? 0,
@@ -389,6 +425,9 @@ const normalizeState = (value: DraftState): DraftState => {
     ownedGoldStarterPacks: value.ownedGoldStarterPacks ?? 0,
     ownedPlatinumStarterPacks: value.ownedPlatinumStarterPacks ?? 0,
     ownedCoachRecruitment: value.ownedCoachRecruitment ?? 0,
+    ownedOpeningLockerCashTier: Math.min(3, Math.max(0, value.ownedOpeningLockerCashTier ?? 0)),
+    ownedExtraDraftShuffle: value.ownedExtraDraftShuffle ?? 0,
+    ownedStarterPackChoicePlus: value.ownedStarterPackChoicePlus ?? 0,
     ownedRogueStarIds: Array.isArray(value.ownedRogueStarIds) ? normalizePlayerIds(value.ownedRogueStarIds) : [],
     activeRogueStarId:
       typeof value.activeRogueStarId === "string"
@@ -399,6 +438,12 @@ const normalizeState = (value: DraftState): DraftState => {
       : [],
     claimedCollectionRewardIds: Array.isArray(value.claimedCollectionRewardIds)
       ? value.claimedCollectionRewardIds.filter((entryId): entryId is string => typeof entryId === "string")
+      : [],
+    completedRogueChallengeIds: Array.isArray(value.completedRogueChallengeIds)
+      ? value.completedRogueChallengeIds.filter((challengeId): challengeId is string => typeof challengeId === "string" && isValidRogueChallengeId(challengeId))
+      : [],
+    claimedRogueChallengeIds: Array.isArray(value.claimedRogueChallengeIds)
+      ? value.claimedRogueChallengeIds.filter((challengeId): challengeId is string => typeof challengeId === "string" && isValidRogueChallengeId(challengeId))
       : [],
     seed,
   };
@@ -434,12 +479,14 @@ export const useDraftGame = () => {
           ...boostedMeta.tokens,
           lifetimeEarned:
             boostedMeta.tokens.lifetimeEarned +
-            state.claimedCollectionRewardIds.length * COLLECTION_REWARD_TOKENS,
+            state.claimedCollectionRewardIds.length * COLLECTION_REWARD_TOKENS +
+            getClaimedRogueChallengeRewardTotal(state.claimedRogueChallengeIds),
           balance: Math.max(
             0,
             boostedMeta.tokens.balance +
               state.claimedCollectionRewardIds.length * COLLECTION_REWARD_TOKENS -
-              state.spentTokens,
+              state.spentTokens +
+              getClaimedRogueChallengeRewardTotal(state.claimedRogueChallengeIds),
           ),
         },
       };
@@ -450,6 +497,7 @@ export const useDraftGame = () => {
       state.roguePersonalBests,
       state.rogueBonusPrestigeXp,
       state.claimedCollectionRewardIds.length,
+      state.claimedRogueChallengeIds,
       state.spentTokens,
     ],
   );
@@ -887,10 +935,15 @@ export const useDraftGame = () => {
       ownedGoldStarterPacks: state.ownedGoldStarterPacks,
       ownedPlatinumStarterPacks: state.ownedPlatinumStarterPacks,
       ownedCoachRecruitment: state.ownedCoachRecruitment,
+      ownedOpeningLockerCashTier: state.ownedOpeningLockerCashTier,
+      ownedExtraDraftShuffle: state.ownedExtraDraftShuffle,
+      ownedStarterPackChoicePlus: state.ownedStarterPackChoicePlus,
       ownedRogueStarIds: state.ownedRogueStarIds,
       activeRogueStarId: state.activeRogueStarId,
       rogueCollectedCollectionEntryIds: state.rogueCollectedCollectionEntryIds,
       claimedCollectionRewardIds: state.claimedCollectionRewardIds,
+      completedRogueChallengeIds: state.completedRogueChallengeIds,
+      claimedRogueChallengeIds: state.claimedRogueChallengeIds,
       screen: "landing",
     });
   };
@@ -1021,10 +1074,15 @@ export const useDraftGame = () => {
         ownedGoldStarterPacks: current.ownedGoldStarterPacks,
         ownedPlatinumStarterPacks: current.ownedPlatinumStarterPacks,
         ownedCoachRecruitment: current.ownedCoachRecruitment,
+        ownedOpeningLockerCashTier: current.ownedOpeningLockerCashTier,
+        ownedExtraDraftShuffle: current.ownedExtraDraftShuffle,
+        ownedStarterPackChoicePlus: current.ownedStarterPackChoicePlus,
         ownedRogueStarIds: current.ownedRogueStarIds,
         activeRogueStarId: current.activeRogueStarId,
         rogueCollectedCollectionEntryIds: current.rogueCollectedCollectionEntryIds,
         claimedCollectionRewardIds: current.claimedCollectionRewardIds,
+        completedRogueChallengeIds: current.completedRogueChallengeIds,
+        claimedRogueChallengeIds: current.claimedRogueChallengeIds,
         seed,
         roster,
         currentChoices: generateChoices(roster, [], seed, 1),
@@ -1049,28 +1107,47 @@ export const useDraftGame = () => {
   const updateRoguePersonalBests = (nextValues: Partial<RoguePersonalBests>) => {
     setState((current) => ({
       ...current,
-      roguePersonalBests: {
+      roguePersonalBests: (() => {
+        const currentBests = {
+          ...DEFAULT_ROGUE_PERSONAL_BESTS,
+          ...(current.roguePersonalBests ?? {}),
+        };
+        const replaceDifficultyBest = shouldReplaceRogueDifficultyBest(
+          currentBests.hardestDifficulty,
+          currentBests.hardestDifficultyFloor,
+          nextValues.hardestDifficulty,
+          nextValues.hardestDifficultyFloor,
+        );
+
+        return {
         furthestFloor: Math.max(
-          current.roguePersonalBests?.furthestFloor ?? 0,
+          currentBests.furthestFloor,
           nextValues.furthestFloor ?? 0,
         ),
         overall: Math.max(
-          current.roguePersonalBests?.overall ?? 0,
+          currentBests.overall,
           nextValues.overall ?? 0,
         ),
         offense: Math.max(
-          current.roguePersonalBests?.offense ?? 0,
+          currentBests.offense,
           nextValues.offense ?? 0,
         ),
         defense: Math.max(
-          current.roguePersonalBests?.defense ?? 0,
+          currentBests.defense,
           nextValues.defense ?? 0,
         ),
         chemistry: Math.max(
-          current.roguePersonalBests?.chemistry ?? 0,
+          currentBests.chemistry,
           nextValues.chemistry ?? 0,
         ),
-      },
+          hardestDifficulty: replaceDifficultyBest
+            ? nextValues.hardestDifficulty ?? currentBests.hardestDifficulty
+            : currentBests.hardestDifficulty,
+          hardestDifficultyFloor: replaceDifficultyBest
+            ? nextValues.hardestDifficultyFloor ?? currentBests.hardestDifficultyFloor
+            : currentBests.hardestDifficultyFloor,
+        };
+      })(),
     }));
   };
 
@@ -1144,6 +1221,44 @@ export const useDraftGame = () => {
     return true;
   };
 
+  const purchaseOpeningLockerCashUpgrade = (price: number, tier: number) => {
+    if (metaProgress.tokens.balance < price) return false;
+    if (tier < 1 || tier > 3) return false;
+    if (state.ownedOpeningLockerCashTier >= tier) return false;
+    if (state.ownedOpeningLockerCashTier !== tier - 1) return false;
+
+    setState((current) => ({
+      ...current,
+      spentTokens: current.spentTokens + price,
+      ownedOpeningLockerCashTier: tier,
+    }));
+    return true;
+  };
+
+  const purchaseExtraDraftShuffle = (price: number) => {
+    if (metaProgress.tokens.balance < price) return false;
+    if (state.ownedExtraDraftShuffle > 0) return false;
+
+    setState((current) => ({
+      ...current,
+      spentTokens: current.spentTokens + price,
+      ownedExtraDraftShuffle: 1,
+    }));
+    return true;
+  };
+
+  const purchaseStarterPackChoicePlus = (price: number) => {
+    if (metaProgress.tokens.balance < price) return false;
+    if (state.ownedStarterPackChoicePlus > 0) return false;
+
+    setState((current) => ({
+      ...current,
+      spentTokens: current.spentTokens + price,
+      ownedStarterPackChoicePlus: 1,
+    }));
+    return true;
+  };
+
   const purchaseRogueStar = (playerId: string, price: number) => {
     if (metaProgress.tokens.balance < price) return false;
     if (state.ownedRogueStarIds.includes(playerId)) return false;
@@ -1199,6 +1314,43 @@ export const useDraftGame = () => {
       return {
         ...current,
         claimedCollectionRewardIds: [...current.claimedCollectionRewardIds, familyId],
+      };
+    });
+    return true;
+  };
+
+  const recordRogueChallengeCompletions = (challengeIds: string[]) => {
+    const validChallengeIds = challengeIds.filter(isValidRogueChallengeId);
+    if (validChallengeIds.length === 0) return;
+
+    setState((current) => {
+      const mergedChallengeIds = Array.from(
+        new Set([...current.completedRogueChallengeIds, ...validChallengeIds]),
+      );
+
+      if (mergedChallengeIds.length === current.completedRogueChallengeIds.length) {
+        return current;
+      }
+
+      return {
+        ...current,
+        completedRogueChallengeIds: mergedChallengeIds,
+      };
+    });
+  };
+
+  const claimRogueChallengeReward = (challengeId: string) => {
+    if (state.claimedRogueChallengeIds.includes(challengeId)) return false;
+    if (!state.completedRogueChallengeIds.includes(challengeId)) return false;
+    if (!getRogueChallengeById(challengeId)) return false;
+
+    setState((current) => {
+      if (current.claimedRogueChallengeIds.includes(challengeId)) return current;
+      if (!current.completedRogueChallengeIds.includes(challengeId)) return current;
+
+      return {
+        ...current,
+        claimedRogueChallengeIds: [...current.claimedRogueChallengeIds, challengeId],
       };
     });
     return true;
@@ -1266,10 +1418,15 @@ export const useDraftGame = () => {
     purchaseGoldStarterPack,
     purchasePlatinumStarterPack,
     purchaseCoachRecruitment,
+    purchaseOpeningLockerCashUpgrade,
+    purchaseExtraDraftShuffle,
+    purchaseStarterPackChoicePlus,
     purchaseRogueStar,
     setActiveRogueStar,
     recordRogueCollectionEntries,
     claimCollectionReward,
+    recordRogueChallengeCompletions,
+    claimRogueChallengeReward,
     useTrainingCampTicket,
     useTradePhone,
     useSilverStarterPack,

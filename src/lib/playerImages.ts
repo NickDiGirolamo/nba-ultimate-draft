@@ -179,8 +179,6 @@ const directImageOverrides: Record<string, string> = {
     "https://platform.raptorshq.com/wp-content/uploads/sites/130/chorus/uploads/chorus_asset/file/8606403/646053072.jpg?quality=90&strip=all&crop=0,3.9250814332248,100,69.706840390879",
   "steve-francis":
     "https://platform.thedreamshake.com/wp-content/uploads/sites/160/chorus/uploads/chorus_asset/file/23060422/1296004841.jpg?quality=90&strip=all&crop=0,0,100,100",
-  "trae-young":
-    "https://a.espncdn.com/photo/2024/1128/r1420742_1296x729_16-9.jpg",
   "kevin-durant-thunder":
     "https://i.ebayimg.com/images/g/h1oAAOSwTaBm-OO0/s-l400.jpg",
   "kevin-durant-warriors":
@@ -468,7 +466,7 @@ const directImageOverrides: Record<string, string> = {
   "luka-doncic":
     "https://media.about.nike.com/img/c287f478-579c-4c31-a5da-3a92411694e9/luka-doncic-enlarge2-2.jpg?m=eyJlZGl0cyI6eyJqcGVnIjp7InF1YWxpdHkiOjEwMH0sIndlYnAiOnsicXVhbGl0eSI6MTAwfSwiZXh0cmFjdCI6eyJsZWZ0Ijo3OTQsInRvcCI6MTAsIndpZHRoIjoxMjc1LCJoZWlnaHQiOjIxMjN9LCJyZXNpemUiOnsid2lkdGgiOjM4NDB9fX0%3D&s=383fe9bab9113f62527527c9c79a8719d45edbdf7d0213113a9373d21d927848",
   "luka-doncic-mavs":
-    "https://media.about.nike.com/img/c287f478-579c-4c31-a5da-3a92411694e9/luka-doncic-enlarge2-2.jpg?m=eyJlZGl0cyI6eyJqcGVnIjp7InF1YWxpdHkiOjEwMH0sIndlYnAiOnsicXVhbGl0eSI6MTAwfSwiZXh0cmFjdCI6eyJsZWZ0Ijo3OTQsInRvcCI6MTAsIndpZHRoIjoxMjc1LCJoZWlnaHQiOjIxMjN9LCJyZXNpemUiOnsid2lkdGgiOjM4NDB9fX0%3D&s=383fe9bab9113f62527527c9c79a8719d45edbdf7d0213113a9373d21d927848",
+    "https://www.backsportspage.com/wp-content/uploads/2022/04/1231385418.0.jpg",
   "luol-deng":
     "https://s.yimg.com/ny/api/res/1.2/GEAryxjoxksW27QRWzM0Zg--/YXBwaWQ9aGlnaGxhbmRlcjt3PTQyMDtoPTEyMTA7Y2Y9d2VicA--/https://s.yimg.com/os/en_US/Sports/USA_Today/20130422_ajl_aw8_068-c6ede438b04fba0c579c583e4f962544",
   "lou-williams":
@@ -561,6 +559,8 @@ const directImageOverrides: Record<string, string> = {
     "https://cdn.nba.com/teams/legacy/www.nba.com/grizzlies/sites/grizzlies/files/legacy/main_photo/mayo-081013-jm131-300.jpg",
   "otto-porter-jr":
     "https://s.yimg.com/ny/api/res/1.2/OOz7JtS9E3sokbK8kvJcQA--/YXBwaWQ9aGlnaGxhbmRlcjt3PTY0MDtoPTQzMjtjZj13ZWJw/https://media.zenfs.com/en/homerun/feed_manager_auto_publish_494/8eeb2dfca9d56743d4cd1086273f7813",
+  "og-anunoby-raptors":
+    "https://legacymedia.sportsplatform.io/image/upload/x_34,y_51,w_1598,h_1063,c_crop/v1703959327/xppmmanzncqroic0fgqk.jpg",
   "pau-gasol":
     "https://static.wikia.nocookie.net/nbasports/images/9/91/San_Antonio_Spurs_v_Los_Angeles_Lakers_Game_0_MoFFLaWuhl.jpg/revision/latest/scale-to-width-down/323?cb=20130705212405",
   "paul-george":
@@ -769,6 +769,8 @@ const directImageOverrides: Record<string, string> = {
     "https://cdn.hoopsrumors.com/files/2017/07/Tyreke-Evans-vertical.jpg",
   "tony-allen":
     "https://platform.sbnation.com/wp-content/uploads/sites/2/chorus/uploads/chorus_asset/file/15740149/GettyImages-515120984.0.1458748708.jpg?quality=90&strip=all&crop=16.662978535074,0,66.674042929852,100",
+  "tom-heinsohn":
+    "https://news.cgtn.com/news/2020-11-11/NBA-Boston-Celtics-legend-Tommy-Heinsohn-dies-at-86-league-mourns-VkCVGXu2TC/img/032cf925459143bbb12ee1bce02cd49f/032cf925459143bbb12ee1bce02cd49f.jpeg",
   "tony-parker":
     "https://www.bostonherald.com/wp-content/uploads/migration/2014/10/28/05nba_parker.jpg?w=1024&h=670",
   "yao-ming":
@@ -810,12 +812,22 @@ const getImageLookupName = (player: Player) =>
     .replace(/Ã©/g, "e")
     .replace(/Ã±/g, "n");
 
+const toPlayerImageId = (value: string) =>
+  value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+const getBasePlayerImageId = (player: Player) =>
+  toPlayerImageId(player.name.replace(/\s*\([^)]*\)\s*$/, "").trim());
+
+const getDirectImageOverride = (player: Player) =>
+  currentSeasonHeadshotUrls[player.id] ??
+  directImageOverrides[player.id] ??
+  directImageOverrides[getBasePlayerImageId(player)];
+
 const getWikiTitle = (player: Player) =>
   wikiTitleOverrides[player.id] ?? encodeURIComponent(getImageLookupName(player));
 
 export const getCachedPlayerImage = (player: Player) => {
-  const directOverride =
-    currentSeasonHeadshotUrls[player.id] ?? directImageOverrides[player.id];
+  const directOverride = getDirectImageOverride(player);
   if (directOverride) {
     runtimeCache.set(player.id, directOverride);
     const storageCache = getStorageCache();
@@ -836,8 +848,7 @@ export const getCachedPlayerImage = (player: Player) => {
 };
 
 export const fetchPlayerImage = async (player: Player) => {
-  const directOverride =
-    currentSeasonHeadshotUrls[player.id] ?? directImageOverrides[player.id];
+  const directOverride = getDirectImageOverride(player);
   if (directOverride) {
     runtimeCache.set(player.id, directOverride);
     const storageCache = getStorageCache();

@@ -585,6 +585,8 @@ const defaultRogueBests = (): RoguePersonalBests => ({
   offense: 0,
   defense: 0,
   chemistry: 0,
+  hardestDifficulty: "normal",
+  hardestDifficultyFloor: 0,
 });
 
 export const buildPersonalBests = (history: RunHistoryEntry[]): PersonalBests => {
@@ -880,7 +882,10 @@ export const buildMetaProgress = (
     prestige,
     tokens: buildTokenProgress(prestige.score),
     personalBests: buildPersonalBests(history),
-    roguePersonalBests,
+    roguePersonalBests: {
+      ...defaultRogueBests(),
+      ...roguePersonalBests,
+    },
     leaderboards: buildLeaderboards(history),
     trophies: buildTrophies(history, collection),
     streaks: buildStreaks(history),

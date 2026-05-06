@@ -3,11 +3,14 @@ import { Shield } from "lucide-react";
 import { getNbaTeamByName } from "../data/nbaTeams";
 import { PlayerTier } from "../types";
 import { CardHoloOverlay, type CardHoloVariant } from "./CardHoloOverlay";
+import { HoverTooltip } from "./HoverTooltip";
 
 const BASE_CARD_WIDTH = 380;
 const BASE_CARD_HEIGHT = 920;
 export const COACH_CARD_BACKGROUND_IMAGE_URL =
   "https://www.shutterstock.com/image-photo/hand-draw-strategy-game-plan-600nw-2711322611.jpg";
+const TEAM_BOOST_TOOLTIP = "Team Boost: this coach's NBA team is the group of players eligible for the coach run boost.";
+const MATCHING_PLAYERS_TOOLTIP = "Coach Boost: players from this coach's NBA team receive +1 OVR during this Rogue run.";
 
 export const coachImageOverrides: Record<string, string> = {
   "billy-cunningham": "https://www.the-sun.com/wp-content/uploads/sites/6/2023/09/philadelphia-76ers-head-coach-billy-844774340.jpg?quality=80&strip=all&w=673",
@@ -174,12 +177,24 @@ export const CardLabCoachCard = ({
                 Team Boost
               </div>
               <div className="mt-3 flex min-h-[74px] flex-col items-center justify-center gap-3">
-                <div className="rounded-full border border-white/12 bg-black/34 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/88">
-                  {coach.teamName}
-                </div>
-                <div className="rounded-full border border-emerald-300/22 bg-emerald-300/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-100">
-                  +1 OVR to matching players
-                </div>
+                <HoverTooltip content={TEAM_BOOST_TOOLTIP} className="inline-flex">
+                  <div
+                    tabIndex={0}
+                    title={TEAM_BOOST_TOOLTIP}
+                    className="rounded-full border border-white/12 bg-black/34 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/88 outline-none transition focus-visible:border-white/40 focus-visible:shadow-[0_0_0_3px_rgba(255,255,255,0.12)]"
+                  >
+                    {coach.teamName}
+                  </div>
+                </HoverTooltip>
+                <HoverTooltip content={MATCHING_PLAYERS_TOOLTIP} className="inline-flex">
+                  <div
+                    tabIndex={0}
+                    title={MATCHING_PLAYERS_TOOLTIP}
+                    className="rounded-full border border-emerald-300/22 bg-emerald-300/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-100 outline-none transition focus-visible:border-emerald-100/50 focus-visible:shadow-[0_0_0_3px_rgba(110,231,183,0.16)]"
+                  >
+                    +1 OVR to matching players
+                  </div>
+                </HoverTooltip>
               </div>
             </div>
           </div>

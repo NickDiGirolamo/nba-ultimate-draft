@@ -1374,7 +1374,7 @@ export const coachCardSections: CardLabCoachPreviewSection[] = [
   {
     id: "east-coaches",
     title: "Eastern Conference",
-    description: "The same coach pool used in the Rogue opening coach node for Eastern Conference runs.",
+    description: "The same coach pool used in the Rogue opening coach floor for Eastern Conference runs.",
     cards: roguelikeCoaches
       .filter((coach) => coach.conference === "east")
       .map((coach) => ({
@@ -1387,7 +1387,7 @@ export const coachCardSections: CardLabCoachPreviewSection[] = [
   {
     id: "west-coaches",
     title: "Western Conference",
-    description: "The same coach pool used in the Rogue opening coach node for Western Conference runs.",
+    description: "The same coach pool used in the Rogue opening coach floor for Western Conference runs.",
     cards: roguelikeCoaches
       .filter((coach) => coach.conference === "west")
       .map((coach) => ({

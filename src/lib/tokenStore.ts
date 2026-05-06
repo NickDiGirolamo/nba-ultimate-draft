@@ -9,7 +9,12 @@ export interface TokenStoreUtilityItem {
     | "silver-starter-pack"
     | "gold-starter-pack"
     | "platinum-starter-pack"
-    | "coach-recruitment";
+    | "coach-recruitment"
+    | "opening-locker-cash-1"
+    | "opening-locker-cash-2"
+    | "opening-locker-cash-3"
+    | "extra-draft-shuffle"
+    | "starter-pack-choice-plus";
   title: string;
   description: string;
   price: number;
@@ -55,8 +60,43 @@ export const tokenStoreUtilityItems: TokenStoreUtilityItem[] = [
     id: "coach-recruitment",
     title: "Coach Recruitment",
     description:
-      "Permanently adds a Coach Recruitment node after your opening five, giving you a 1-of-5 board from your coach's NBA team.",
+      "Permanently adds a Coach Recruitment floor after your opening five, giving you a 1-of-5 board from your coach's NBA team.",
     price: 35_000,
+  },
+  {
+    id: "opening-locker-cash-1",
+    title: "Opening Locker Cash I",
+    description:
+      "Permanently start every Rogue run with 3 Locker Cash already banked.",
+    price: 25_000,
+  },
+  {
+    id: "opening-locker-cash-2",
+    title: "Opening Locker Cash II",
+    description:
+      "Permanently start every Rogue run with 6 Locker Cash already banked.",
+    price: 55_000,
+  },
+  {
+    id: "opening-locker-cash-3",
+    title: "Opening Locker Cash III",
+    description:
+      "Permanently start every Rogue run with 10 Locker Cash already banked.",
+    price: 90_000,
+  },
+  {
+    id: "extra-draft-shuffle",
+    title: "Extra Draft Shuffle",
+    description:
+      "Permanently start every Rogue run with 1 Draft Shuffle ready to rescue a bad board.",
+    price: 35_000,
+  },
+  {
+    id: "starter-pack-choice-plus",
+    title: "Starter Pack Choice+",
+    description:
+      "Permanently reveal 4 starter cards at the beginning of each Rogue run and keep your favorite 3.",
+    price: 120_000,
   },
 ];
 

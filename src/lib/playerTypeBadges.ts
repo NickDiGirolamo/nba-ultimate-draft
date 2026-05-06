@@ -65,6 +65,7 @@ const manualBadgeOrderOverrides: Partial<Record<string, PlayerTypeBadge[]>> = {
   "santi-aldama-2025-26": ["slasher", "sniper"],
   "isaiah-hartenstein-2025-26": ["board-man", "playmaker"],
   "ajay-mitchell-2025-26": ["playmaker", "slasher"],
+  "demar-derozan-2025-26": ["slasher", "playmaker", "lockdown"],
   "andre-iguodala": ["slasher", "lockdown"],
   "ben-wallace": ["lockdown", "board-man"],
   "chris-bosh-heat": ["sniper", "board-man"],

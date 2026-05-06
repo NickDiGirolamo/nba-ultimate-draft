@@ -23,6 +23,8 @@ import {
   syncTokenBalance,
   upsertActiveRogueRun,
 } from "./lib/cloudSave";
+import { getRogueChallengeRunSettingsPreset } from "./lib/rogueChallenges";
+import type { RoguelikeRunSettings } from "./lib/roguelike";
 import { getCategoryChallengeTarget } from "./lib/simulate";
 import { tokenStoreUtilityItems, type TokenStoreUtilityItem } from "./lib/tokenStore";
 
@@ -89,10 +91,15 @@ function App() {
     purchaseGoldStarterPack,
     purchasePlatinumStarterPack,
     purchaseCoachRecruitment,
+    purchaseOpeningLockerCashUpgrade,
+    purchaseExtraDraftShuffle,
+    purchaseStarterPackChoicePlus,
     purchaseRogueStar,
     setActiveRogueStar,
     recordRogueCollectionEntries,
     claimCollectionReward,
+    recordRogueChallengeCompletions,
+    claimRogueChallengeReward,
     useTrainingCampTicket,
     useTradePhone,
     useSilverStarterPack,
@@ -111,6 +118,13 @@ function App() {
   const [prestigeInitialView, setPrestigeInitialView] = useState<"overview" | "rewards">("overview");
   const [learnOpen, setLearnOpen] = useState(false);
   const [tokenStoreOpen, setTokenStoreOpen] = useState(false);
+  const [tokenStoreInitialView, setTokenStoreInitialView] = useState<"store" | "collections" | "challenges">("store");
+  const [guestMode, setGuestMode] = useState(false);
+  const [rogueChallengeSetupRequest, setRogueChallengeSetupRequest] = useState<{
+    challengeId: string;
+    settings: Partial<RoguelikeRunSettings>;
+    requestId: number;
+  } | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -143,6 +157,27 @@ function App() {
         targetId: "app-token-store",
         title: "Your account power lives here",
         body: "The Token Store holds permanent Rogue upgrades, utility items, Galaxy stars, and collection rewards. You can come back here between runs.",
+        placement: "bottom",
+      },
+      {
+        id: "learn",
+        targetId: "app-learn",
+        title: "Use Learn whenever something feels unclear",
+        body: "The Learn guide explains Rogue cards, badges, boss battles, locker room cash, and the main run systems without needing to leave the game.",
+        placement: "bottom",
+      },
+      {
+        id: "prestige",
+        targetId: "app-prestige",
+        title: "Track your long-term progress",
+        body: "Prestige shows your account level and Rogue progression. Runs, rewards, and big clears all help move this forward over time.",
+        placement: "bottom",
+      },
+      {
+        id: "account",
+        targetId: "app-account",
+        title: "Manage your account here",
+        body: "The account button opens profile actions like restarting this tutorial or logging out. Cloud tokens and Rogue saves are tied to your signed-in account.",
         placement: "bottom",
       },
       {
@@ -185,7 +220,7 @@ function App() {
         id: "ladder-go",
         targetId: "rogue-ladder-go",
         title: "Press Go on the current floor",
-        body: "The highlighted node is your next decision. This button starts the floor and moves the run forward.",
+        body: "The highlighted floor is your next decision. This button starts the floor and moves the run forward.",
         placement: "top",
         advanceOnTargetClick: true,
       },
@@ -210,6 +245,45 @@ function App() {
     setTutorialOpen(true);
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(FIRST_RUN_TUTORIAL_STORAGE_KEY);
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, []);
+  const continueAsGuest = useCallback(() => {
+    setGuestMode(true);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, []);
+  const exitGuestMode = useCallback(() => {
+    setProfileMenuOpen(false);
+    setGuestMode(false);
+    setRoguelikeOpen(false);
+    resetDraft();
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, [resetDraft]);
+  const runRogueChallenge = useCallback((challengeId: string) => {
+    const preset = getRogueChallengeRunSettingsPreset(challengeId);
+
+    setRogueChallengeSetupRequest({
+      ...preset,
+      requestId: Date.now(),
+    });
+    setTokenStoreOpen(false);
+    setPrestigeOpen(false);
+    setLearnOpen(false);
+    setRoguelikeOpen(true);
+
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, []);
+  const openRogueChallenges = useCallback(() => {
+    setTokenStoreInitialView("challenges");
+    setTokenStoreOpen(true);
+
+    if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
   }, []);
@@ -389,7 +463,7 @@ function App() {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [state.screen, roguelikeOpen, prestigeOpen, tokenStoreOpen, learnOpen, showPrestigeLevelUp]);
 
-  if (!auth.loading && !auth.user) {
+  if (!auth.loading && !auth.user && !guestMode) {
     return (
       <LoginPage
         configured={auth.configured}
@@ -397,6 +471,7 @@ function App() {
         authError={auth.authError}
         onSignIn={auth.signIn}
         onSignUp={auth.signUp}
+        onContinueAsGuest={continueAsGuest}
       />
     );
   }
@@ -443,6 +518,7 @@ function App() {
           <div className="col-span-3 grid grid-cols-4 gap-2 lg:flex lg:justify-end lg:gap-3">
             <button
               type="button"
+              data-tutorial-id="app-learn"
               onClick={() => setLearnOpen(true)}
               className="glass-panel group min-h-[54px] w-full rounded-2xl border border-sky-200/12 bg-[linear-gradient(135deg,rgba(9,18,34,0.96),rgba(16,26,46,0.92))] px-2 py-1.5 text-left shadow-[0_16px_32px_rgba(0,0,0,0.24)] transition hover:border-sky-200/28 hover:bg-[linear-gradient(135deg,rgba(12,24,44,0.98),rgba(20,34,58,0.94))] hover:shadow-[0_18px_36px_rgba(56,189,248,0.14)] sm:min-w-0 lg:min-h-[70px] lg:min-w-[230px] lg:px-3.5 lg:py-2"
             >
@@ -460,13 +536,16 @@ function App() {
                 </span>
               </div>
 	              <div className="mt-2 hidden text-[0.78rem] font-medium leading-4 text-slate-300 lg:block">
-	                Learn categories, badges, and draft tips
+	                Learn Rogue cards, bosses, and run systems
 	              </div>
             </button>
             <button
               type="button"
               data-tutorial-id="app-token-store"
-              onClick={() => setTokenStoreOpen(true)}
+              onClick={() => {
+                setTokenStoreInitialView("store");
+                setTokenStoreOpen(true);
+              }}
               className="glass-panel min-h-[54px] w-full rounded-2xl px-2 py-1.5 text-left transition hover:border-amber-200/24 hover:bg-white/10 sm:min-w-0 lg:min-h-[70px] lg:min-w-[200px] lg:px-3.5 lg:py-2"
             >
               <div className="flex items-center justify-center gap-1 text-[9px] uppercase tracking-[0.12em] text-slate-400 lg:justify-start lg:gap-1.5 lg:text-[10px] lg:tracking-[0.17em]">
@@ -486,6 +565,7 @@ function App() {
             </button>
             <button
               type="button"
+              data-tutorial-id="app-prestige"
               onClick={() => {
                 setPrestigeInitialView("overview");
                 setPrestigeOpen(true);
@@ -524,6 +604,7 @@ function App() {
             <div className="relative flex justify-end">
               <button
                 type="button"
+                data-tutorial-id="app-account"
                 onClick={() => setProfileMenuOpen((open) => !open)}
                 aria-label="Open user profile menu"
                 className="glass-panel grid h-[54px] w-[54px] place-items-center rounded-full border border-cyan-100/18 bg-[radial-gradient(circle_at_top,rgba(103,232,249,0.18),rgba(15,23,42,0.92))] text-cyan-50 shadow-[0_14px_30px_rgba(8,47,73,0.24)] transition hover:scale-[1.03] hover:border-cyan-100/34 hover:bg-cyan-300/12 lg:h-[70px] lg:w-[70px]"
@@ -540,12 +621,14 @@ function App() {
                     <div className="min-w-0">
                       <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Profile</div>
                       <div className="mt-1 truncate text-sm font-semibold text-white">
-                        {auth.user?.email ?? "Signed in"}
+                        {guestMode ? "Guest Mode" : auth.user?.email ?? "Signed in"}
                       </div>
                     </div>
                   </div>
                   <div className="mt-4 rounded-xl border border-white/10 bg-white/6 px-3 py-3 text-xs leading-5 text-slate-300">
-                    Profile editing is coming soon. Your account currently manages login, cloud tokens, and Rogue saves.
+                    {guestMode
+                      ? "You are exploring without cloud progress save. Sign in to save tokens, unlocks, and Rogue runs to your account."
+                      : "Profile editing is coming soon. Your account currently manages login, cloud tokens, and Rogue saves."}
                   </div>
                   <button
                     type="button"
@@ -559,12 +642,16 @@ function App() {
                     type="button"
                     onClick={async () => {
                       setProfileMenuOpen(false);
+                      if (guestMode) {
+                        exitGuestMode();
+                        return;
+                      }
                       await auth.signOut();
                     }}
                     className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-rose-100/20 bg-rose-400/12 px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.16em] text-rose-50 transition hover:bg-rose-400/18"
                   >
                     <LogOut size={14} />
-                    Log Out
+                    {guestMode ? "Sign In" : "Log Out"}
                   </button>
                 </div>
               ) : null}
@@ -581,6 +668,9 @@ function App() {
             ownedGoldStarterPacks={state.ownedGoldStarterPacks}
             ownedPlatinumStarterPacks={state.ownedPlatinumStarterPacks}
             ownedCoachRecruitment={state.ownedCoachRecruitment}
+            ownedOpeningLockerCashTier={state.ownedOpeningLockerCashTier}
+            ownedExtraDraftShuffle={state.ownedExtraDraftShuffle}
+            ownedStarterPackChoicePlus={state.ownedStarterPackChoicePlus}
             onAwardFailureRewards={awardRogueFailureRewards}
             onUpdatePersonalBests={updateRoguePersonalBests}
             onUseTrainingCampTicket={useTrainingCampTicket}
@@ -589,6 +679,8 @@ function App() {
             onUseGoldStarterPack={useGoldStarterPack}
             onUsePlatinumStarterPack={usePlatinumStarterPack}
             onRecordCollectionEntries={recordRogueCollectionEntries}
+            onRecordRogueChallengeCompletions={recordRogueChallengeCompletions}
+            challengeSetupRequest={rogueChallengeSetupRequest}
             cloudSavedRunData={cloudSavedRogueRun}
             onCloudSaveRun={saveCloudRogueRun}
             onCloudDeleteRun={deleteCloudRogueRun}
@@ -610,6 +702,7 @@ function App() {
               setPrestigeOpen(true);
             }}
             onOpenRoguelike={() => setRoguelikeOpen(true)}
+            onOpenRogueChallenges={openRogueChallenges}
             onRestartTutorial={restartTutorial}
             history={state.history}
             meta={metaProgress}
@@ -978,19 +1071,30 @@ function App() {
           ownedGoldStarterPacks={state.ownedGoldStarterPacks}
           ownedPlatinumStarterPacks={state.ownedPlatinumStarterPacks}
           ownedCoachRecruitment={state.ownedCoachRecruitment}
+          ownedOpeningLockerCashTier={state.ownedOpeningLockerCashTier}
+          ownedExtraDraftShuffle={state.ownedExtraDraftShuffle}
+          ownedStarterPackChoicePlus={state.ownedStarterPackChoicePlus}
           ownedRogueStarIds={state.ownedRogueStarIds}
           activeRogueStarId={state.activeRogueStarId}
           rogueCollectedCollectionEntryIds={state.rogueCollectedCollectionEntryIds}
           claimedCollectionRewardIds={state.claimedCollectionRewardIds}
+          completedRogueChallengeIds={state.completedRogueChallengeIds}
+          claimedRogueChallengeIds={state.claimedRogueChallengeIds}
+          initialView={tokenStoreInitialView}
           onBuyTrainingCampTicket={() => purchaseTrainingCampTicket(getTokenStoreUtilityPrice("training-camp-ticket"))}
           onBuyTradePhone={() => purchaseTradePhone(getTokenStoreUtilityPrice("trade-phone"))}
           onBuySilverStarterPack={() => purchaseSilverStarterPack(getTokenStoreUtilityPrice("silver-starter-pack"))}
           onBuyGoldStarterPack={() => purchaseGoldStarterPack(getTokenStoreUtilityPrice("gold-starter-pack"))}
           onBuyPlatinumStarterPack={() => purchasePlatinumStarterPack(getTokenStoreUtilityPrice("platinum-starter-pack"))}
           onBuyCoachRecruitment={() => purchaseCoachRecruitment(getTokenStoreUtilityPrice("coach-recruitment"))}
+          onBuyOpeningLockerCashUpgrade={(tier, price) => purchaseOpeningLockerCashUpgrade(price, tier)}
+          onBuyExtraDraftShuffle={() => purchaseExtraDraftShuffle(getTokenStoreUtilityPrice("extra-draft-shuffle"))}
+          onBuyStarterPackChoicePlus={() => purchaseStarterPackChoicePlus(getTokenStoreUtilityPrice("starter-pack-choice-plus"))}
           onBuyRogueStar={purchaseRogueStar}
           onSetActiveRogueStar={setActiveRogueStar}
           onClaimCollectionReward={claimCollectionReward}
+          onClaimRogueChallengeReward={claimRogueChallengeReward}
+          onRunRogueChallenge={runRogueChallenge}
           onClose={() => setTokenStoreOpen(false)}
         />
       )}
