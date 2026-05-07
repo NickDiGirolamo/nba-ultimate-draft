@@ -1307,7 +1307,6 @@ export const useDraftGame = () => {
       ...current,
       spentTokens: current.spentTokens + price,
       ownedRogueStarIds: [...current.ownedRogueStarIds, playerId],
-      activeRogueStarId: current.activeRogueStarId ?? playerId,
     }));
     return true;
   };

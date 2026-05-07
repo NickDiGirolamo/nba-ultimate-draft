@@ -1,5 +1,5 @@
 import { allPlayers } from "../data/players";
-import { Player } from "../types";
+import type { Player, PlayerTier } from "../types";
 import { getPlayerTier } from "./playerTier";
 
 export interface TokenStoreUtilityItem {
@@ -101,21 +101,161 @@ export const tokenStoreUtilityItems: TokenStoreUtilityItem[] = [
 ];
 
 const roundToNearestThousand = (value: number) => Math.round(value / 1_000) * 1_000;
+export type StarterVaultTier = Exclude<PlayerTier, "Galaxy">;
+
+export interface StarterVaultPlayerEntry {
+  player: Player;
+  tier: StarterVaultTier;
+  price: number;
+}
+
+export const STARTER_VAULT_TIERS: StarterVaultTier[] = [
+  "Emerald",
+  "Sapphire",
+  "Ruby",
+  "Amethyst",
+];
+
+export const STARTER_VAULT_REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+
+const STARTER_VAULT_EPOCH_UTC_MS = Date.UTC(2026, 0, 5, 8);
+const STARTER_VAULT_TIER_MIN_OVERALL: Record<StarterVaultTier, number> = {
+  Emerald: 70,
+  Sapphire: 80,
+  Ruby: 86,
+  Amethyst: 91,
+};
+const STARTER_VAULT_TIER_BASE_PRICE: Record<StarterVaultTier, number> = {
+  Emerald: 10_000,
+  Sapphire: 28_000,
+  Ruby: 80_000,
+  Amethyst: 175_000,
+};
+const STARTER_VAULT_TIER_OVR_PRICE_STEP: Record<StarterVaultTier, number> = {
+  Emerald: 1_500,
+  Sapphire: 3_000,
+  Ruby: 8_000,
+  Amethyst: 18_000,
+};
+
+const hashString = (value: string) => {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+};
+
+const getVaultIdentityKey = (player: Player) =>
+  player.name.replace(/\s*\([^)]*\)\s*/g, "").trim().toLowerCase();
+
+const getStarterVaultSortScore = (player: Player, tier: StarterVaultTier, rotationIndex: number) =>
+  hashString(`${tier}:${rotationIndex}:${player.id}:${player.name}`);
+
+const getStarterVaultPrice = (player: Player, tier: StarterVaultTier) =>
+  roundToNearestThousand(
+    STARTER_VAULT_TIER_BASE_PRICE[tier] +
+      Math.max(0, player.overall - STARTER_VAULT_TIER_MIN_OVERALL[tier]) *
+        STARTER_VAULT_TIER_OVR_PRICE_STEP[tier],
+  );
+
+export const getStarterVaultRotation = (nowMs = Date.now()) => {
+  const elapsedMs = Math.max(0, nowMs - STARTER_VAULT_EPOCH_UTC_MS);
+  const rotationIndex = Math.floor(elapsedMs / STARTER_VAULT_REFRESH_INTERVAL_MS);
+  const startsAt = STARTER_VAULT_EPOCH_UTC_MS + rotationIndex * STARTER_VAULT_REFRESH_INTERVAL_MS;
+
+  return {
+    rotationIndex,
+    startsAt,
+    endsAt: startsAt + STARTER_VAULT_REFRESH_INTERVAL_MS,
+  };
+};
+
+export const getWeeklyStarterVaultCards = (nowMs = Date.now()) => {
+  const { rotationIndex } = getStarterVaultRotation(nowMs);
+
+  return STARTER_VAULT_TIERS.reduce<Record<StarterVaultTier, StarterVaultPlayerEntry[]>>(
+    (vaultCards, tier) => {
+      const seenIdentityKeys = new Set<string>();
+      const tierPlayers = allPlayers
+        .filter((player) => getPlayerTier(player) === tier)
+        .sort((a, b) => {
+          const scoreDelta =
+            getStarterVaultSortScore(a, tier, rotationIndex) -
+            getStarterVaultSortScore(b, tier, rotationIndex);
+          if (scoreDelta !== 0) return scoreDelta;
+          return a.name.localeCompare(b.name);
+        });
+
+      vaultCards[tier] = tierPlayers
+        .filter((player) => {
+          const identityKey = getVaultIdentityKey(player);
+          if (seenIdentityKeys.has(identityKey)) return false;
+          seenIdentityKeys.add(identityKey);
+          return true;
+        })
+        .slice(0, 5)
+        .map((player) => ({
+          player,
+          tier,
+          price: getStarterVaultPrice(player, tier),
+        }));
+
+      return vaultCards;
+    },
+    {
+      Emerald: [],
+      Sapphire: [],
+      Ruby: [],
+      Amethyst: [],
+    },
+  );
+};
+
 const TOKEN_STORE_GALAXY_PRICE_FLOOR = 600_000;
 const TOKEN_STORE_GALAXY_PRICE_CEILING = 950_000;
 const TOKEN_STORE_MICHAEL_JORDAN_PRICE = 1_000_000;
-const TOKEN_STORE_GALAXY_PRICE_SWAPS: [string, string][] = [
-  ["Steph Curry", "Hakeem Olajuwon"],
-  ["Kareem Abdul-Jabbar (Lakers)", "Kobe Bryant (#24)"],
-  ["Kobe Bryant (#8)", "Kevin Durant (Warriors)"],
+
+const TOKEN_STORE_CUSTOM_GALAXY_PRICING: Array<{ name: string; price: number }> = [
+  { name: "Michael Jordan", price: 1_000_000 },
+  { name: "Kobe Bryant (#24)", price: 950_000 },
+  { name: "LeBron James ('14 - '18)", price: 925_000 },
+  { name: "Steph Curry", price: 900_000 },
+  { name: "Shaquille O'Neal (Lakers)", price: 900_000 },
+  { name: "Kareem Abdul-Jabbar (Bucks)", price: 875_000 },
+  { name: "Kobe Bryant (#8)", price: 875_000 },
+  { name: "Kevin Durant (Warriors)", price: 850_000 },
+  { name: "Magic Johnson", price: 825_000 },
+  { name: "Larry Bird", price: 825_000 },
+  { name: "Tim Duncan", price: 825_000 },
+  { name: "Wilt Chamberlain", price: 825_000 },
+  { name: "Bill Russell", price: 825_000 },
+  { name: "Hakeem Olajuwon", price: 800_000 },
+  { name: "Nikola Jokic (2023)", price: 800_000 },
+  { name: "LeBron James (Heat)", price: 800_000 },
+  { name: "Kareem Abdul-Jabbar (Lakers)", price: 775_000 },
 ];
+
+const TOKEN_STORE_CUSTOM_GALAXY_PRICE_MAP = new Map(
+  TOKEN_STORE_CUSTOM_GALAXY_PRICING.map((entry) => [entry.name, entry.price]),
+);
+
+const TOKEN_STORE_CUSTOM_GALAXY_ORDER_MAP = new Map(
+  TOKEN_STORE_CUSTOM_GALAXY_PRICING.map((entry, index) => [entry.name, index]),
+);
 
 export const getTokenStoreSPlayers = () =>
   allPlayers
     .filter((player) => getPlayerTier(player) === "Galaxy")
     .sort((a, b) => {
-      if (a.name === "Michael Jordan") return -1;
-      if (b.name === "Michael Jordan") return 1;
+      const aCustomOrder = TOKEN_STORE_CUSTOM_GALAXY_ORDER_MAP.get(a.name);
+      const bCustomOrder = TOKEN_STORE_CUSTOM_GALAXY_ORDER_MAP.get(b.name);
+      if (aCustomOrder !== undefined && bCustomOrder !== undefined) {
+        return aCustomOrder - bCustomOrder;
+      }
+      if (aCustomOrder !== undefined) return -1;
+      if (bCustomOrder !== undefined) return 1;
       return b.overall - a.overall || a.name.localeCompare(b.name);
     });
 
@@ -126,6 +266,12 @@ export const getTokenStorePlayerPriceMap = () => {
   const priceMap = new Map<string, number>();
 
   sTierPlayers.forEach((player, index) => {
+    const customPrice = TOKEN_STORE_CUSTOM_GALAXY_PRICE_MAP.get(player.name);
+    if (customPrice !== undefined) {
+      priceMap.set(player.id, customPrice);
+      return;
+    }
+
     if (player.name === "Michael Jordan") {
       priceMap.set(player.id, TOKEN_STORE_MICHAEL_JORDAN_PRICE);
       return;
@@ -144,21 +290,11 @@ export const getTokenStorePlayerPriceMap = () => {
     priceMap.set(cheapestPlayer.id, TOKEN_STORE_GALAXY_PRICE_FLOOR);
   }
 
-  TOKEN_STORE_GALAXY_PRICE_SWAPS.forEach(([firstName, secondName]) => {
-    const firstPlayer = sTierPlayers.find((player) => player.name === firstName);
-    const secondPlayer = sTierPlayers.find((player) => player.name === secondName);
-    if (!firstPlayer || !secondPlayer) return;
-
-    const firstPrice = priceMap.get(firstPlayer.id);
-    const secondPrice = priceMap.get(secondPlayer.id);
-    if (firstPrice === undefined || secondPrice === undefined) return;
-
-    priceMap.set(firstPlayer.id, secondPrice);
-    priceMap.set(secondPlayer.id, firstPrice);
-  });
-
   return priceMap;
 };
 
 export const getTokenStorePlayerPrice = (player: Player, priceMap = getTokenStorePlayerPriceMap()) =>
   priceMap.get(player.id) ?? TOKEN_STORE_GALAXY_PRICE_FLOOR;
+
+export const getTokenStorePlayerOrder = (player: Player) =>
+  TOKEN_STORE_CUSTOM_GALAXY_ORDER_MAP.get(player.name) ?? Number.MAX_SAFE_INTEGER;

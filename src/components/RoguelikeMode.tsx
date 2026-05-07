@@ -33,7 +33,7 @@ import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import { RunRosterPlayerCard } from "./RunRosterPlayerCard";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { allPlayers } from "../data/players";
-import { getNbaTeamByName } from "../data/nbaTeams";
+import { getNbaTeamByName, nbaTeams } from "../data/nbaTeams";
 import { assignPlayerToRoster } from "../lib/draft";
 import { getPlayerDisplayLines } from "../lib/playerDisplay";
 import { getPlayerTier, getPlayerTierLabel, playerTierRunRosterSurfaceStyles } from "../lib/playerTier";
@@ -49,6 +49,7 @@ import {
   getRoguelikeFailureRewards,
   buildRoguelikeStarterLineup,
   DEFAULT_ROGUELIKE_RUN_SETTINGS,
+  getRoguelikeDifficultyTokenMultiplier,
   drawRoguelikeStarterRevealPlayers,
   drawRoguelikeCoachChoices,
   drawRoguelikeChoices,
@@ -72,6 +73,7 @@ import {
   getRoguelikePlayerTypeBadges,
   getRoguelikeCoachById,
   getRoguelikeCoachTeamKey,
+  ROGUELIKE_MAX_OVERALL,
   RoguelikeClearRewards,
   RoguelikeBonusBadgeAssignment,
   RoguelikeCoach,
@@ -88,6 +90,7 @@ import {
 import { Player, PlayerTier, Position, RosterSlot } from "../types";
 import type { PlayerTypeBadge } from "../lib/playerTypeBadges";
 import type { RoguePersonalBests } from "../types";
+import { trackAnalyticsEventSoon } from "../lib/analytics";
 
 type RoguelikeStage =
   | "package-select"
@@ -104,6 +107,7 @@ type RoguelikeStage =
   | "training-select"
   | "trade-offer"
   | "trade-select"
+  | "chance-spin"
   | "reward-replace-select"
   | "evolution-select"
   | "faceoff-setup"
@@ -204,6 +208,7 @@ interface RoguelikeRun {
   availablePool: Player[];
   seenChoicePlayerIds: string[];
   choices: Player[];
+  chanceWheelTeamName?: string | null;
   starterRevealPlayers: Player[];
   starterKeptIds?: string[];
   coachChoices: RoguelikeCoach[];
@@ -265,6 +270,7 @@ interface RoguelikeRun {
 
 interface RoguelikeModeProps {
   activeRogueStarId: string | null;
+  ownedRogueStarIds: string[];
   ownedTrainingCampTickets: number;
   ownedTradePhones: number;
   ownedSilverStarterPacks: number;
@@ -297,7 +303,7 @@ interface RoguelikeModeProps {
 
 const ROGUELIKE_STORAGE_KEY = "legends-draft-roguelike-run-v1";
 const ROGUELIKE_PARKED_STORAGE_KEY = "legends-draft-roguelike-parked-v1";
-const CURRENT_ROGUELIKE_LADDER_VERSION = 4;
+const CURRENT_ROGUELIKE_LADDER_VERSION = 5;
 
 const createSeed = () => Math.floor(Date.now() % 1_000_000) + Math.floor(Math.random() * 1000);
 
@@ -417,13 +423,21 @@ const LOCKER_ROOM_SPECIAL_STUFF_NODE: RoguelikeNode = {
   act: 0,
   type: "training",
   title: "Special Stuff",
-  description: "Choose 1 player to gain +3 OVR for the next boss battle only.",
+  description: "Choose 1 player to gain +3 OVR for one boss game in this run.",
   rewardBundleId: "elite-closers",
   rewardChoices: 0,
-  targetLabel: "Select 1 player to gain +3 OVR for the next boss battle only",
+  targetLabel: "Select 1 player to gain +3 OVR for one boss game",
 };
 
 const SPECIAL_STUFF_BOOST_AMOUNT = 3;
+
+const getOverallBoostAmountForTrainingNode = (node: RoguelikeNode | null | undefined) => {
+  if (!node) return 0;
+  if (node.id === LOCKER_ROOM_SPECIAL_STUFF_NODE.id) return SPECIAL_STUFF_BOOST_AMOUNT;
+  if (node.id === STORE_TRAINING_NODE.id || node.id === LOCKER_ROOM_TRAINING_NODE.id) return 1;
+  if (node.type === "training" && !node.id.startsWith("locker-room-practice-")) return 1;
+  return 0;
+};
 
 const LOCKER_ROOM_ITEM_PRICES: Record<LockerRoomItemId, number> = {
   "advanced-scouting": 24,
@@ -458,6 +472,11 @@ const ROGUE_DIFFICULTY_OPTIONS: Array<{
   { value: "all-time", label: "All-Time", detail: "+3 boss average OVR" },
   { value: "goat", label: "GOAT", detail: "+4 boss average OVR" },
 ];
+
+const getDifficultyTokenRewardLabel = (difficulty: RoguelikeDifficulty) => {
+  const rewardBonusPercent = Math.round((getRoguelikeDifficultyTokenMultiplier(difficulty) - 1) * 100);
+  return rewardBonusPercent > 0 ? `+${rewardBonusPercent}% token reward` : "Base token reward";
+};
 
 const STARTER_PACK_UPGRADE_OPTIONS: Array<{
   value: StarterPackUpgrade;
@@ -550,6 +569,19 @@ const injectActiveRogueStarIntoReveal = (starterRevealPlayers: Player[], activeR
   return nextRevealPlayers;
 };
 
+const injectRogueStarterSlotsIntoReveal = (starterRevealPlayers: Player[], starterSlotPlayers: Player[]) => {
+  if (starterSlotPlayers.length === 0) return starterRevealPlayers;
+
+  const uniqueSlotPlayers = starterSlotPlayers.filter(
+    (player, index, players) => players.findIndex((candidate) => candidate.id === player.id) === index,
+  ).slice(0, 3);
+  const naturalPlayers = starterRevealPlayers.filter(
+    (player) => !uniqueSlotPlayers.some((slotPlayer) => slotPlayer.id === player.id),
+  );
+
+  return [...uniqueSlotPlayers, ...naturalPlayers].slice(0, 3);
+};
+
 const getStarterPackAverageForUpgrade = (upgrade: StarterPackUpgrade) => {
   if (upgrade === "silver") return 81;
   if (upgrade === "gold") return 82;
@@ -605,6 +637,7 @@ const getLegacyRoguelikeNodesForSettings = (
   enableCoachRecruitment: boolean,
 ) =>
   getRoguelikeNodesForSettings(settings, { enableCoachRecruitment })
+    .filter((node) => ladderVersion >= 5 || node.type !== "chance")
     .filter((node) => ladderVersion >= 4 || !node.requiresCoachRecruitment)
     .filter((node) => ladderVersion >= 3 || node.type !== "coaching-change")
     .filter((node) => ladderVersion >= 2 || node.type !== "locker-room")
@@ -702,6 +735,8 @@ const normalizeStoredRun = (parsed: Partial<RoguelikeRun>, activeRogueStarId: st
     availablePool: runPlayerUniverse,
     seenChoicePlayerIds: parsed.seenChoicePlayerIds ?? [],
     choices: parsed.choices ?? [],
+    chanceWheelTeamName:
+      typeof parsed.chanceWheelTeamName === "string" ? parsed.chanceWheelTeamName : null,
     starterRevealPlayers,
     coachChoices,
     hiredCoachId: parsed.hiredCoachId ?? null,
@@ -866,6 +901,21 @@ const getEffectiveBossTrainedPlayerIds = (run: Pick<RoguelikeRun, "trainedPlayer
   ...(run.trainedPlayerIds ?? []),
   ...getSpecialStuffTrainingIds(run.activeSpecialStuffPlayerId),
 ];
+
+const getUncappedRunDisplayOverall = (
+  player: Player,
+  ownedPlayerIds: string[] = [],
+  trainedPlayerIds: string[] = [],
+  coachTeamKey: string | null = null,
+) => player.overall + getRoguelikeDisplayOverallBonus(player, ownedPlayerIds, trainedPlayerIds, coachTeamKey);
+
+const canApplyRunOverallBoost = (
+  player: Player,
+  boostAmount: number,
+  ownedPlayerIds: string[] = [],
+  trainedPlayerIds: string[] = [],
+  coachTeamKey: string | null = null,
+) => getUncappedRunDisplayOverall(player, ownedPlayerIds, trainedPlayerIds, coachTeamKey) + boostAmount <= ROGUELIKE_MAX_OVERALL;
 
 const getCoachBoostForPlayer = (player: Player, coachTeamKey: string | null = null) =>
   coachTeamKey && getPlayerTeamKey(player) === coachTeamKey ? 1 : 0;
@@ -1223,6 +1273,62 @@ const getNodeChoiceTiers = (node: RoguelikeNode) => {
   return node.allowedRewardTiers;
 };
 
+const CHANCE_WHEEL_TEAMS = nbaTeams.map((team) => team.name);
+const CHANCE_WHEEL_SLICE_COLORS = [
+  "#ef4444",
+  "#2563eb",
+  "#22c55e",
+  "#f59e0b",
+  "#8b5cf6",
+  "#06b6d4",
+  "#dc2626",
+  "#16a34a",
+  "#f97316",
+  "#4f46e5",
+];
+const CHANCE_WHEEL_SPIN_DURATION_MS = 5600;
+const CHANCE_WHEEL_SPIN_ROTATIONS = 8;
+
+const chanceWheelBackground = `conic-gradient(${CHANCE_WHEEL_TEAMS.map((_, index) => {
+  const start = (index / CHANCE_WHEEL_TEAMS.length) * 100;
+  const end = ((index + 1) / CHANCE_WHEEL_TEAMS.length) * 100;
+  return `${CHANCE_WHEEL_SLICE_COLORS[index % CHANCE_WHEEL_SLICE_COLORS.length]} ${start}% ${end}%`;
+}).join(", ")})`;
+
+const getChanceWheelTeamLabel = (teamName: string) => {
+  const segments = teamName.split(" ");
+  return segments[segments.length - 1] ?? teamName;
+};
+
+const getChanceWheelTierLabel = (node: RoguelikeNode | null) => {
+  const tiers = node ? getNodeChoiceTiers(node) : null;
+  if (!tiers?.length) return "eligible";
+  return tiers.length === 1 ? tiers[0] : tiers.join("/");
+};
+
+const getChanceWheelTeamName = (run: RoguelikeRun, node: RoguelikeNode) => {
+  if (run.chanceWheelTeamName) return run.chanceWheelTeamName;
+
+  const rng = mulberry32(nextChoiceSeed(run.seed, 720 + run.floorIndex * 41 + node.id.length));
+  return CHANCE_WHEEL_TEAMS[Math.floor(rng() * CHANCE_WHEEL_TEAMS.length)] ?? CHANCE_WHEEL_TEAMS[0];
+};
+
+const getChanceWheelPlayerPool = (
+  teamName: string | null | undefined,
+  pool: Player[],
+  fallbackPool: Player[],
+) => {
+  if (!teamName) return [];
+
+  const seenIds = new Set<string>();
+  return [...pool, ...fallbackPool].filter((player) => {
+    if (seenIds.has(player.id)) return false;
+    if (getPlayerTeamKey(player) !== teamName) return false;
+    seenIds.add(player.id);
+    return true;
+  });
+};
+
 const getNodePlayerPool = (
   node: RoguelikeNode | null,
   pool: Player[],
@@ -1515,6 +1621,16 @@ const getRoguelikeNodeTypeTheme = (type: RoguelikeNode["type"]) => {
       summary:
         "border-amber-200/22 bg-[linear-gradient(135deg,rgba(245,158,11,0.18),rgba(15,23,42,0.86),rgba(146,64,14,0.16))] text-amber-50",
     },
+    chance: {
+      label: "Team Wheel",
+      Icon: Sparkles,
+      chip: "border-yellow-200/18 bg-yellow-300/10 text-yellow-100",
+      iconWrap: "border-yellow-200/22 bg-yellow-300/12",
+      iconColor: "text-yellow-100",
+      accentLine: "from-yellow-300/90 via-emerald-300/30 to-transparent",
+      summary:
+        "border-yellow-200/22 bg-[linear-gradient(135deg,rgba(250,204,21,0.16),rgba(15,23,42,0.86),rgba(16,185,129,0.14))] text-yellow-50",
+    },
     evolution: {
       label: "Evolution",
       Icon: Sparkles,
@@ -1578,6 +1694,7 @@ const drawRunChoices = (
   seed: number,
   allowedTiers?: PlayerTier[],
   strictPool = false,
+  relaxTierFallback = true,
 ) => {
   const seenChoicePlayerIds = run.seenChoicePlayerIds ?? [];
   let choices = drawRoguelikeChoices(
@@ -1604,7 +1721,7 @@ const drawRunChoices = (
     );
   }
 
-  if (choices.length < count) {
+  if (choices.length < count && relaxTierFallback) {
     choices = drawRoguelikeChoices(
       pool,
       roster,
@@ -1616,7 +1733,7 @@ const drawRunChoices = (
     );
   }
 
-  if (choices.length < count) {
+  if (choices.length < count && relaxTierFallback) {
     choices = drawRoguelikeChoices(
       pool,
       roster,
@@ -1646,10 +1763,18 @@ const getRewardDraftPool = (
       .filter((player) => getPlayerTier(player) === "Ruby");
   }
 
+  if (node.type === "chance") {
+    return getChanceWheelPlayerPool(run.chanceWheelTeamName, pool, fallbackPool);
+  }
+
   return getNodePlayerPool(node, pool, fallbackPool, getRoguelikeCoachTeamKey(run.hiredCoachId));
 };
 
 const getRewardDraftTitle = (node: RoguelikeNode) => {
+  if (node.type === "chance") {
+    return "Team Wheel board";
+  }
+
   if (node.id === "act-one-boss" || node.id === "act-one-boss-current") {
     return "Version player reward";
   }
@@ -1687,6 +1812,10 @@ const getRewardDraftDescription = (node: RoguelikeNode, choiceCount = node.rewar
       return "No eligible coach-team players are available for this board with the current run settings.";
     }
     return `Your coach's network is active. Choose 1 of ${choiceCount} ${tierLabel} players from your coach's NBA team.`;
+  }
+
+  if (node.type === "chance") {
+    return `Spin the 30-team wheel, then choose 1 of ${choiceCount} ${tierLabel} players from the team it lands on.`;
   }
 
   if (node.rewardChoices > 0) {
@@ -1729,6 +1858,13 @@ const getNodeCompletionRewardCopy = (node: RoguelikeNode) => {
     return {
       title: "Trade opportunity",
       description: "You may trade away 1 player and then choose 1 replacement from a fresh 5-player board limited to similar-caliber options.",
+    };
+  }
+
+  if (node.type === "chance") {
+    return {
+      title: "Team Wheel",
+      description: `Spin the NBA team wheel, then choose 1 ${getChanceWheelTierLabel(node)} player from the team it lands on.`,
     };
   }
 
@@ -3049,6 +3185,9 @@ const FaceoffStarterCard = ({
   coachTeamKey = null,
   allStarBonusBadges = [],
   align = "left",
+  boxScoreLine = null,
+  highlighted = false,
+  highlightLabel = "Matchup winner",
 }: {
   player: Player | null;
   slot: RosterSlot;
@@ -3058,6 +3197,9 @@ const FaceoffStarterCard = ({
   coachTeamKey?: string | null;
   allStarBonusBadges?: RoguelikeBonusBadgeAssignment[];
   align?: "left" | "right";
+  boxScoreLine?: string | null;
+  highlighted?: boolean;
+  highlightLabel?: string;
 }) => {
   const displayPlayer = player ? getRunDisplayPlayer(player, ownedPlayerIds, trainedPlayerIds, coachTeamKey) : null;
   const badgeOverrides = player
@@ -3076,7 +3218,17 @@ const FaceoffStarterCard = ({
   const displayName = displayPlayer ? displayPlayer.name.replace(/\s*\([^)]*\)\s*$/, "").trim() : "Open Slot";
 
   return (
-    <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3">
+    <div
+      className={clsx(
+        "relative overflow-hidden rounded-[20px] border px-4 py-3 transition",
+        highlighted
+          ? "border-emerald-200/40 bg-[linear-gradient(135deg,rgba(16,185,129,0.18),rgba(255,255,255,0.06),rgba(16,185,129,0.08))] shadow-[0_0_0_1px_rgba(110,231,183,0.16),0_18px_46px_rgba(16,185,129,0.16)]"
+          : "border-white/10 bg-white/5",
+      )}
+    >
+      {highlighted ? (
+        <div className="pointer-events-none absolute inset-y-3 left-0 w-[3px] rounded-full bg-emerald-300 shadow-[0_0_18px_rgba(52,211,153,0.5)]" />
+      ) : null}
       <div className={clsx("text-[10px] uppercase tracking-[0.18em] text-slate-400", align === "right" && "text-right")}>
         {slotLabel}
       </div>
@@ -3156,18 +3308,39 @@ const FaceoffStarterCard = ({
           Set a player in this slot
         </div>
       ) : null}
+      {player && boxScoreLine ? (
+        <div className={clsx(
+          "mt-3 rounded-[16px] border border-white/10 bg-black/18 px-3 py-2",
+          align === "right" ? "text-left" : "text-right",
+        )}>
+          <div className="text-[9px] uppercase tracking-[0.18em] text-slate-500">Box Score</div>
+          <div className="mt-1 text-sm font-semibold leading-5 text-white">{boxScoreLine}</div>
+        </div>
+      ) : null}
+      {highlighted ? (
+        <div
+          className={clsx(
+            "mt-3 inline-flex rounded-full border border-emerald-200/24 bg-emerald-300/12 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-100",
+            align === "right" ? "mr-auto" : "ml-auto",
+          )}
+        >
+          {highlightLabel}
+        </div>
+      ) : null}
     </div>
   );
 };
 
 const FaceoffMatchupRow = ({
   matchup,
+  playerStats = [],
   ownedPlayerIds = [],
   trainedPlayerIds = [],
   coachTeamKey = null,
   allStarBonusBadges = [],
 }: {
   matchup: RoguelikeFaceoffMatchup;
+  playerStats?: RoguelikeSimulationPlayerStat[];
   ownedPlayerIds?: string[];
   trainedPlayerIds?: string[];
   coachTeamKey?: string | null;
@@ -3177,6 +3350,7 @@ const FaceoffMatchupRow = ({
     const rounded = Math.round(value * 10) / 10;
     return `${rounded >= 0 ? "+" : ""}${rounded}`;
   };
+  const formatBreakdownScore = (value: number) => `${Math.round(value * 10) / 10}`;
   const bossSupport =
     matchup.opponentBreakdown.chemistrySupport +
     matchup.opponentBreakdown.teamProfileSupport +
@@ -3185,6 +3359,80 @@ const FaceoffMatchupRow = ({
     matchup.userBreakdown.chemistrySupport +
     matchup.userBreakdown.teamProfileSupport +
     matchup.userBreakdown.lineupBalanceBonus;
+  const projectedUserWins = matchup.userRating >= matchup.opponentRating;
+  const projectedWinnerName = projectedUserWins
+    ? matchup.userPlayer?.name ?? "Your player"
+    : matchup.opponentPlayer?.name ?? "Boss player";
+  const projectedEdgeLabel =
+    Math.abs(matchup.ratingDelta) >= 12
+      ? "Heavy Advantage"
+      : Math.abs(matchup.ratingDelta) >= 5
+        ? "Clear Advantage"
+        : Math.abs(matchup.ratingDelta) >= 1.5
+          ? "Slight Advantage"
+          : "Toss-Up";
+  const projectionReasonRows = [
+    {
+      label: "Talent",
+      userValue: matchup.userBreakdown.baseScore,
+      opponentValue: matchup.opponentBreakdown.baseScore,
+      signed: false,
+    },
+    {
+      label: "Team Help",
+      userValue: userSupport,
+      opponentValue: bossSupport,
+      signed: true,
+    },
+    {
+      label: "Badge Edge",
+      userValue: matchup.userBreakdown.badgeMatchupBonus,
+      opponentValue: matchup.opponentBreakdown.badgeMatchupBonus,
+      signed: true,
+    },
+    {
+      label: "Matchup Fit",
+      userValue: matchup.userBreakdown.headToHeadBonus,
+      opponentValue: matchup.opponentBreakdown.headToHeadBonus,
+      signed: true,
+    },
+  ];
+  const userStat = matchup.userPlayer
+    ? playerStats.find((stat) => stat.team === "user" && stat.playerId === matchup.userPlayer?.id)
+    : null;
+  const opponentStat = matchup.opponentPlayer
+    ? playerStats.find((stat) => stat.team === "opponent" && stat.playerId === matchup.opponentPlayer?.id)
+    : null;
+  const getDuelScore = (stat: RoguelikeSimulationPlayerStat | null | undefined) => {
+    if (!stat) return 0;
+    const efficiencyLift =
+      stat.fieldGoalsAttempted > 0
+        ? (stat.fieldGoalsMade / stat.fieldGoalsAttempted - 0.45) * 12
+        : 0;
+    return Math.round(
+      stat.points +
+        stat.assists * 1.7 +
+        stat.rebounds * 1.2 +
+        (stat.steals + stat.blocks) * 2.2 -
+        stat.turnovers * 1.6 +
+        efficiencyLift,
+    );
+  };
+  const userDuelScore = getDuelScore(userStat);
+  const opponentDuelScore = getDuelScore(opponentStat);
+  const hasActualDuel = Boolean(userStat && opponentStat);
+  const actualUserWins = userDuelScore >= opponentDuelScore;
+  const highlightedUserWins = hasActualDuel ? actualUserWins : projectedUserWins;
+  const winnerHighlightLabel = hasActualDuel ? "Won Matchup" : "Projected Edge";
+  const actualWinnerName = actualUserWins
+    ? matchup.userPlayer?.name ?? "Your player"
+    : matchup.opponentPlayer?.name ?? "Boss player";
+  const projectionMatchedActual = hasActualDuel && projectedUserWins === actualUserWins;
+  const matchupHeadline = hasActualDuel
+    ? `${actualWinnerName} Won Matchup`
+    : `${projectedWinnerName} Favored`;
+  const statLine = (stat: RoguelikeSimulationPlayerStat | null | undefined) =>
+    stat ? `${stat.points} PTS / ${stat.assists} AST / ${stat.rebounds} REB` : "No box score";
 
   return (
     <div className="rounded-[26px] border border-white/10 bg-black/18 p-4">
@@ -3199,17 +3447,46 @@ const FaceoffMatchupRow = ({
           }}
           slotLabel={`Boss ${matchup.slot}`}
           align="right"
+          boxScoreLine={opponentStat ? statLine(opponentStat) : null}
+          highlighted={!highlightedUserWins}
+          highlightLabel={winnerHighlightLabel}
         />
-        <div className="rounded-[22px] border border-fuchsia-200/16 bg-fuchsia-300/8 px-4 py-4 text-center">
+        <div className="w-full max-w-[360px] rounded-[22px] border border-fuchsia-200/16 bg-fuchsia-300/8 px-4 py-4 text-center xl:w-[360px]">
           <div className="text-[10px] uppercase tracking-[0.2em] text-fuchsia-100/80">
-            {matchup.slot} Matchup
+            {matchup.slot} {hasActualDuel ? "Actual Matchup" : "Projected Matchup"}
           </div>
-          <div className="mt-3 text-2xl font-semibold text-white">
-            {matchup.userWinProbability}%
+          <div className="mt-3 text-2xl font-semibold leading-tight text-white">
+            {matchupHeadline}
           </div>
-          <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400">
-            Your win chance
-          </div>
+          {hasActualDuel ? (
+            <div
+              className={clsx(
+                "mt-2 inline-flex rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]",
+                projectionMatchedActual
+                  ? "border-emerald-200/24 bg-emerald-300/12 text-emerald-100"
+                  : "border-amber-200/24 bg-amber-300/12 text-amber-100",
+              )}
+            >
+              {projectionMatchedActual ? "Projection Confirmed" : "Projection Upset"}
+            </div>
+          ) : (
+            <div
+              className={clsx(
+                "mt-2 inline-flex rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]",
+                projectedUserWins
+                  ? "border-emerald-200/24 bg-emerald-300/12 text-emerald-100"
+                  : "border-rose-200/24 bg-rose-300/12 text-rose-100",
+              )}
+            >
+              {projectedUserWins ? "Your Edge" : "Boss Edge"} / {projectedEdgeLabel}
+            </div>
+          )}
+          {hasActualDuel ? (
+            <div className="mt-3 rounded-[16px] border border-white/8 bg-black/16 px-3 py-2 text-xs leading-5 text-slate-300">
+              Projected: {projectedWinnerName} favored with {matchup.ratingDelta >= 0 ? "+" : ""}
+              {matchup.ratingDelta} edge / {matchup.userWinProbability}% chance.
+            </div>
+          ) : null}
           <div className="mt-3 flex items-center justify-center gap-3 text-xs">
             <span className="rounded-full border border-rose-200/18 bg-rose-300/10 px-3 py-1 text-rose-100">
               Boss {matchup.opponentRating}
@@ -3219,37 +3496,57 @@ const FaceoffMatchupRow = ({
               You {matchup.userRating}
             </span>
           </div>
-          <div
-            className={clsx(
-              "mt-3 text-sm",
-              matchup.ratingDelta >= 0 ? "text-emerald-100" : "text-rose-100",
-            )}
-          >
-            {matchup.ratingDelta >= 0 ? "+" : ""}
-            {matchup.ratingDelta} matchup edge
-          </div>
+          {!hasActualDuel ? (
+            <div
+              className={clsx(
+                "mt-3 text-sm font-semibold",
+                matchup.ratingDelta >= 0 ? "text-emerald-100" : "text-rose-100",
+              )}
+            >
+              {matchup.ratingDelta >= 0 ? "+" : ""}
+              {matchup.ratingDelta} projected edge / {matchup.userWinProbability}% chance
+            </div>
+          ) : null}
+          {hasActualDuel ? (
+            <div className={clsx(
+              "mt-4 rounded-[18px] border px-3 py-3 text-left",
+              actualUserWins
+                ? "border-emerald-200/18 bg-emerald-300/8"
+                : "border-rose-200/18 bg-rose-300/8",
+            )}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Box-Score Result</div>
+                  <div className="mt-1 text-sm font-semibold text-white">{actualWinnerName} had the better game</div>
+                  <div className="mt-1 text-xs text-slate-300">
+                    Matchup score: You {userDuelScore} / Boss {opponentDuelScore}
+                  </div>
+                </div>
+                <div className={clsx(
+                  "shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]",
+                  projectionMatchedActual
+                    ? "border-emerald-200/22 bg-emerald-300/12 text-emerald-100"
+                    : "border-amber-200/22 bg-amber-300/12 text-amber-100",
+                )}>
+                  {projectionMatchedActual ? "Confirmed" : "Upset"}
+                </div>
+              </div>
+            </div>
+          ) : null}
           <div className="mt-4 grid gap-2 rounded-[18px] border border-white/8 bg-black/16 px-3 py-3 text-left text-[11px] text-slate-200">
-            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
-              <span className="uppercase tracking-[0.16em] text-slate-400">Core</span>
-              <span className="h-px bg-white/8" />
-              <span>{matchup.opponentBreakdown.baseScore} vs {matchup.userBreakdown.baseScore}</span>
+            {projectionReasonRows.map((row) => {
+              const userWinsRow = row.userValue >= row.opponentValue;
+              return (
+                <div key={row.label} className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
+                  <span className="uppercase tracking-[0.16em] text-slate-400">{row.label}</span>
+                  <span className="h-px bg-white/8" />
+                  <span className={userWinsRow ? "text-emerald-100" : "text-rose-100"}>
+                    Boss {row.signed ? formatBreakdownValue(row.opponentValue) : formatBreakdownScore(row.opponentValue)} / You {row.signed ? formatBreakdownValue(row.userValue) : formatBreakdownScore(row.userValue)}
+                  </span>
+                </div>
+              );
+            })}
             </div>
-            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
-              <span className="uppercase tracking-[0.16em] text-slate-400">Lineup</span>
-              <span className="h-px bg-white/8" />
-              <span>{formatBreakdownValue(bossSupport)} vs {formatBreakdownValue(userSupport)}</span>
-            </div>
-            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
-              <span className="uppercase tracking-[0.16em] text-slate-400">Badges</span>
-              <span className="h-px bg-white/8" />
-              <span>{matchup.opponentBreakdown.badgeMatchupBonus >= 0 ? "+" : ""}{matchup.opponentBreakdown.badgeMatchupBonus} vs {matchup.userBreakdown.badgeMatchupBonus >= 0 ? "+" : ""}{matchup.userBreakdown.badgeMatchupBonus}</span>
-            </div>
-            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
-              <span className="uppercase tracking-[0.16em] text-slate-400">Head To Head</span>
-              <span className="h-px bg-white/8" />
-              <span>{matchup.opponentBreakdown.headToHeadBonus >= 0 ? "+" : ""}{matchup.opponentBreakdown.headToHeadBonus} vs {matchup.userBreakdown.headToHeadBonus >= 0 ? "+" : ""}{matchup.userBreakdown.headToHeadBonus}</span>
-            </div>
-          </div>
         </div>
         <FaceoffStarterCard
           player={matchup.userPlayer}
@@ -3264,6 +3561,9 @@ const FaceoffMatchupRow = ({
           trainedPlayerIds={trainedPlayerIds}
           coachTeamKey={coachTeamKey}
           allStarBonusBadges={allStarBonusBadges}
+          boxScoreLine={userStat ? statLine(userStat) : null}
+          highlighted={highlightedUserWins}
+          highlightLabel={winnerHighlightLabel}
         />
       </div>
     </div>
@@ -3403,6 +3703,129 @@ const StarterRevealCard = ({
         </div>
       </div>
     </div>
+  );
+};
+
+const FilledRogueStarterSlotPreview = ({
+  player,
+  slotNumber,
+  onClear,
+}: {
+  player: Player;
+  slotNumber: number;
+  onClear: () => void;
+}) => {
+  const imageUrl = usePlayerImage(player);
+
+  return (
+    <button
+      type="button"
+      onClick={onClear}
+      className="min-h-[148px] rounded-[24px] border border-amber-200/28 bg-[linear-gradient(135deg,rgba(251,191,36,0.16),rgba(9,13,24,0.86))] p-3 text-left transition hover:border-amber-100/42"
+    >
+      <div className="flex h-full items-center gap-3">
+        <div className="h-24 w-20 shrink-0 overflow-hidden rounded-[18px] border border-white/12 bg-black/24">
+          {imageUrl ? (
+            <img src={imageUrl} alt={player.name} className="h-full w-full object-cover object-top" loading="lazy" referrerPolicy="no-referrer" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center font-display text-2xl text-white/68">
+              {player.name.charAt(0)}
+            </div>
+          )}
+        </div>
+        <div className="min-w-0">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-amber-100/78">Starter Slot {slotNumber}</div>
+          <div className="mt-1 text-lg font-semibold leading-tight text-white">{player.name}</div>
+          <div className="mt-2 w-fit rounded-full border border-amber-100/18 bg-amber-200/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100">
+            {player.overall} OVR
+          </div>
+          <div className="mt-2 text-xs text-slate-300">Click to remove</div>
+        </div>
+      </div>
+    </button>
+  );
+};
+
+const RogueStarterSlotPreview = ({
+  player,
+  slotNumber,
+  onClear,
+}: {
+  player: Player | null;
+  slotNumber: number;
+  onClear: () => void;
+}) => {
+  if (player) {
+    return <FilledRogueStarterSlotPreview player={player} slotNumber={slotNumber} onClear={onClear} />;
+  }
+
+  return (
+    <button
+      type="button"
+      className="min-h-[148px] rounded-[24px] border border-dashed border-white/16 bg-white/5 p-3 text-left transition"
+    >
+      <div className="flex h-full min-h-[122px] flex-col items-center justify-center text-center">
+        <div className="grid h-12 w-12 place-items-center rounded-2xl border border-white/12 bg-white/6 text-white/70">
+          <Crown size={18} />
+        </div>
+        <div className="mt-3 text-[10px] uppercase tracking-[0.2em] text-slate-400">Starter Slot {slotNumber}</div>
+        <div className="mt-1 text-sm font-semibold text-white">Empty</div>
+      </div>
+    </button>
+  );
+};
+
+const OwnedRogueStarterOption = ({
+  player,
+  selected,
+  disabled,
+  onToggle,
+}: {
+  player: Player;
+  selected: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+}) => {
+  const imageUrl = usePlayerImage(player);
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={disabled}
+      className={clsx(
+        "rounded-[22px] border p-3 text-left transition",
+        selected
+          ? "border-emerald-200/36 bg-emerald-300/12 shadow-[0_16px_34px_rgba(16,185,129,0.12)]"
+          : disabled
+            ? "cursor-not-allowed border-white/8 bg-black/18 opacity-55"
+            : "border-white/12 bg-white/6 hover:border-amber-100/26 hover:bg-amber-300/8",
+      )}
+    >
+      <div className="flex items-center gap-3">
+        <div className="h-16 w-14 shrink-0 overflow-hidden rounded-[16px] border border-white/12 bg-black/24">
+          {imageUrl ? (
+            <img src={imageUrl} alt={player.name} className="h-full w-full object-cover object-top" loading="lazy" referrerPolicy="no-referrer" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center font-display text-xl text-white/68">
+              {player.name.charAt(0)}
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold text-white">{player.name}</div>
+          <div className="mt-1 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.14em]">
+            <span className="rounded-full border border-white/10 bg-black/20 px-2 py-1 text-slate-200">{player.overall} OVR</span>
+            <span className={clsx(
+              "rounded-full border px-2 py-1",
+              selected ? "border-emerald-200/22 bg-emerald-300/12 text-emerald-100" : "border-white/10 bg-white/6 text-slate-300",
+            )}>
+              {selected ? "Slotted" : disabled ? "Slots full" : "Add"}
+            </span>
+          </div>
+        </div>
+      </div>
+    </button>
   );
 };
 
@@ -3959,6 +4382,7 @@ const FinalVictoryStarterCard = ({
 
 export const RoguelikeMode = ({
   activeRogueStarId,
+  ownedRogueStarIds,
   ownedTrainingCampTickets,
   ownedTradePhones,
   ownedSilverStarterPacks,
@@ -4012,6 +4436,8 @@ export const RoguelikeMode = ({
   const [simulationPlaying, setSimulationPlaying] = useState(false);
   const [simulationSpeed, setSimulationSpeed] = useState<1 | 2 | 4>(1);
   const [showSimulationBoxScore, setShowSimulationBoxScore] = useState(false);
+  const [chanceWheelSpinning, setChanceWheelSpinning] = useState(false);
+  const [chanceWheelRotation, setChanceWheelRotation] = useState(0);
   const [showCoachSelectRoster, setShowCoachSelectRoster] = useState(false);
   const [showCoachChangeRoster, setShowCoachChangeRoster] = useState(false);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
@@ -4025,9 +4451,12 @@ export const RoguelikeMode = ({
   const previousBestStarterPackUpgradeRef = useRef<StarterPackUpgrade>(bestOwnedStarterPackUpgrade);
   const cloudSavedRunAppliedRef = useRef(false);
   const appliedChallengeSetupRequestRef = useRef<number | null>(null);
+  const trackedBossReachedKeysRef = useRef<Set<string>>(new Set());
+  const trackedRunEndKeysRef = useRef<Set<string>>(new Set());
   const [selectedStarterPackUpgrade, setSelectedStarterPackUpgrade] = useState<StarterPackUpgrade>(
     () => bestOwnedStarterPackUpgrade,
   );
+  const [selectedRogueStarterSlotIds, setSelectedRogueStarterSlotIds] = useState<(string | null)[]>([null, null, null]);
   const [selectedRunSettings, setSelectedRunSettings] = useState<RoguelikeRunSettings>(
     DEFAULT_ROGUELIKE_RUN_SETTINGS,
   );
@@ -4161,6 +4590,12 @@ export const RoguelikeMode = ({
   ]);
 
   useEffect(() => {
+    setSelectedRogueStarterSlotIds((currentSlots) =>
+      currentSlots.map((playerId) => playerId && ownedRogueStarIds.includes(playerId) ? playerId : null),
+    );
+  }, [ownedRogueStarIds]);
+
+  useEffect(() => {
     if (!run || run.stage !== "starter-reveal") return;
     if (run.starterRevealPlayers.length >= 3) return;
 
@@ -4236,6 +4671,61 @@ export const RoguelikeMode = ({
     onUpdatePersonalBests,
   ]);
 
+  useEffect(() => {
+    if (!run) return;
+
+    if (run.stage === "faceoff-setup" && run.activeNode?.type === "boss") {
+      const bossKey = `${run.seed}-${run.activeNode.id}-${run.floorIndex}`;
+      if (!trackedBossReachedKeysRef.current.has(bossKey)) {
+        trackedBossReachedKeysRef.current.add(bossKey);
+        trackAnalyticsEventSoon("boss_reached", {
+          runId: run.seed,
+          payload: {
+            floorIndex: run.floorIndex,
+            floorNumber: run.floorIndex + 1,
+            bossId: run.activeNode.id,
+            bossTitle: run.activeNode.title,
+            opponentTeamName: run.activeNode.opponentTeamName,
+            difficulty: run.settings.difficulty,
+            lives: run.lives,
+          },
+        });
+      }
+    }
+
+    if (run.stage === "run-cleared" || run.stage === "run-over") {
+      const runEndKey = `${run.seed}-${run.stage}`;
+      if (!trackedRunEndKeysRef.current.has(runEndKey)) {
+        trackedRunEndKeysRef.current.add(runEndKey);
+        trackAnalyticsEventSoon(run.stage === "run-cleared" ? "run_completed" : "run_failed", {
+          runId: run.seed,
+          payload: {
+            floorIndex: run.floorIndex,
+            floorNumber: run.floorIndex + 1,
+            difficulty: run.settings.difficulty,
+            packageId: run.packageId,
+            lives: run.lives,
+            resultTitle: run.nodeResult?.title,
+            resultPassed: run.nodeResult?.passed,
+          },
+        });
+      }
+    }
+  }, [
+    run?.activeNode?.id,
+    run?.activeNode?.opponentTeamName,
+    run?.activeNode?.title,
+    run?.activeNode?.type,
+    run?.floorIndex,
+    run?.lives,
+    run?.nodeResult?.passed,
+    run?.nodeResult?.title,
+    run?.packageId,
+    run?.seed,
+    run?.settings.difficulty,
+    run?.stage,
+  ]);
+
   const setParkedRunState = (parked: boolean) => {
     if (typeof window === "undefined") return;
 
@@ -4260,26 +4750,54 @@ export const RoguelikeMode = ({
 
     const seed = createSeed();
     const runSettings = settingsOverride ?? selectedRunSettings;
-    const activeRogueStar = getPlayerById(activeRogueStarId);
+    trackAnalyticsEventSoon("starter_pack_selected", {
+      runId: seed,
+      payload: {
+        packageId,
+        starterPackUpgrade: selectedStarterPackUpgrade,
+        difficulty: runSettings.difficulty,
+        rogueStarterSlotIds: selectedRogueStarterSlotIds.filter((playerId): playerId is string => Boolean(playerId)),
+      },
+    });
+    trackAnalyticsEventSoon("rogue_run_started", {
+      runId: seed,
+      payload: {
+        packageId,
+        starterPackUpgrade: selectedStarterPackUpgrade,
+        difficulty: runSettings.difficulty,
+        enableCoaches: runSettings.enableCoaches,
+        rogueStarterSlotIds: selectedRogueStarterSlotIds.filter((playerId): playerId is string => Boolean(playerId)),
+      },
+    });
+    const selectedRogueStarterPlayersForRun = selectedRogueStarterSlotIds
+      .map((playerId) => getPlayerById(playerId))
+      .filter((player): player is Player => player !== null)
+      .filter((player) => ownedRogueStarIds.includes(player.id))
+      .slice(0, 3);
     const playerUniverse = getRoguelikePlayerUniverse(runSettings);
-    const starterRevealSource = playerUniverse.filter((player) => player.id !== activeRogueStar?.id);
+    const selectedRogueStarterIdSetForRun = new Set(selectedRogueStarterPlayersForRun.map((player) => player.id));
+    const starterRevealSource = playerUniverse.filter((player) => !selectedRogueStarterIdSetForRun.has(player.id));
     const baseStarterRevealPlayers = ensureVisibleStarterRevealPlayers(
       packageId,
       seed,
       getStarterPackAverageForUpgrade(selectedStarterPackUpgrade),
-      activeRogueStar,
+      null,
       starterRevealSource,
+    );
+    const starterRevealPlayersWithRogueStars = injectRogueStarterSlotsIntoReveal(
+      baseStarterRevealPlayers,
+      selectedRogueStarterPlayersForRun,
     );
     const starterRevealPlayers =
       ownedStarterPackChoicePlus > 0
         ? addStarterChoicePlusOption(
-            baseStarterRevealPlayers,
+            starterRevealPlayersWithRogueStars,
             seed,
             getStarterPackAverageForUpgrade(selectedStarterPackUpgrade),
-            activeRogueStar,
+            null,
             starterRevealSource,
           )
-        : baseStarterRevealPlayers;
+        : starterRevealPlayersWithRogueStars;
     const lineup = buildRoguelikeStarterLineup([]);
     setSelectedStarterPackUpgrade(bestOwnedStarterPackUpgrade);
     setShowPackSelectionHub(false);
@@ -4307,6 +4825,7 @@ export const RoguelikeMode = ({
       availablePool: playerUniverse,
         seenChoicePlayerIds: [],
         choices: [],
+        chanceWheelTeamName: null,
         starterRevealPlayers,
         coachChoices: [],
         hiredCoachId: null,
@@ -4500,6 +5019,18 @@ export const RoguelikeMode = ({
 
   const hireCoach = (coachId: string) => {
     if (!run || run.stage !== "coach-select") return;
+    const selectedCoach = getRoguelikeCoachById(coachId);
+
+    trackAnalyticsEventSoon("coach_selected", {
+      runId: run.seed,
+      payload: {
+        coachId,
+        coachName: selectedCoach?.name,
+        coachTeamName: selectedCoach?.teamName,
+        floorIndex: run.floorIndex,
+        difficulty: run.settings.difficulty,
+      },
+    });
 
     setRun({
       ...run,
@@ -4553,6 +5084,7 @@ export const RoguelikeMode = ({
           roster: nextRoster,
           lineup: nextLineup,
           choices: [],
+          chanceWheelTeamName: null,
           nodeResult: null,
           pendingRewardPlayer: null,
           pendingTradeState: null,
@@ -4573,6 +5105,7 @@ export const RoguelikeMode = ({
       roster: nextRoster,
       lineup: nextLineup,
       choices: [],
+      chanceWheelTeamName: null,
       floorIndex: nextFloorIndex,
       stage: runNodes[nextFloorIndex] ? "ladder-overview" : "run-cleared",
       activeNode: null,
@@ -4648,6 +5181,11 @@ export const RoguelikeMode = ({
 
       if (currentNode.type === "trade") {
         setRun({ ...run, stage: "trade-offer" });
+        return;
+      }
+
+      if (currentNode.type === "chance") {
+        setRun({ ...run, stage: "chance-spin", nodeResult: null });
         return;
       }
 
@@ -4816,6 +5354,19 @@ export const RoguelikeMode = ({
       return;
     }
 
+    if (currentNode.type === "chance") {
+      setRun({
+        ...run,
+        activeNode: currentNode,
+        activeOpponentPlayerIds: null,
+        choices: [],
+        chanceWheelTeamName: null,
+        stage: "chance-spin",
+        nodeResult: null,
+      });
+      return;
+    }
+
     if (currentNode.type === "evolution") {
       const evolutionOptions = getRoguelikeEvolutionOptions(getRunOwnedPlayers(run));
 
@@ -4879,6 +5430,54 @@ export const RoguelikeMode = ({
         nodeResult: null,
       });
     }
+  };
+
+  const spinChanceWheel = () => {
+    if (!run || run.stage !== "chance-spin" || run.activeNode?.type !== "chance") return;
+    if (chanceWheelSpinning) return;
+
+    const node = run.activeNode;
+    const landedTeamName = getChanceWheelTeamName(run, node);
+    const landedTeamIndex = Math.max(0, CHANCE_WHEEL_TEAMS.indexOf(landedTeamName));
+    const teamPool = getChanceWheelPlayerPool(landedTeamName, run.availablePool, runPlayerUniverse);
+    const nextChoicesState = drawRunChoices(
+      run,
+      teamPool,
+      getRunOwnedPlayers(run),
+      node.rewardChoices,
+      nextChoiceSeed(run.seed, 740 + run.floorIndex * 43 + landedTeamIndex),
+      getNodeChoiceTiers(node) ? [...getNodeChoiceTiers(node)!] : undefined,
+      true,
+      false,
+    );
+    const landedTeam = getNbaTeamByName(landedTeamName);
+    const tierLabel = getChanceWheelTierLabel(node);
+    const choiceCount = nextChoicesState.choices.length;
+
+    setChanceWheelSpinning(true);
+    setChanceWheelRotation((currentRotation) => {
+      const sliceDegrees = 360 / CHANCE_WHEEL_TEAMS.length;
+      return currentRotation + CHANCE_WHEEL_SPIN_ROTATIONS * 360 + (360 - landedTeamIndex * sliceDegrees);
+    });
+
+    window.setTimeout(() => {
+      setChanceWheelSpinning(false);
+      setRun({
+        ...run,
+        chanceWheelTeamName: landedTeamName,
+        seenChoicePlayerIds: nextChoicesState.seenChoicePlayerIds,
+        choices: nextChoicesState.choices,
+        stage: "reward-draft",
+        nodeResult: {
+          title: `${landedTeam?.abbreviation.toUpperCase() ?? landedTeamName} board unlocked`,
+          detail:
+            choiceCount > 0
+              ? `The Team Wheel landed on ${landedTeamName}. Choose 1 of ${choiceCount} ${tierLabel} players from that team for your run roster.`
+              : `The Team Wheel landed on ${landedTeamName}, but no eligible ${tierLabel} players are available with the current run settings. You can skip this pick and continue the climb.`,
+          passed: true,
+        },
+      });
+    }, CHANCE_WHEEL_SPIN_DURATION_MS);
   };
 
   const draftChoice = (player: Player) => {
@@ -5715,6 +6314,21 @@ export const RoguelikeMode = ({
 
     const node = run.activeNode;
     const passed = Boolean(run.nodeResult.passed);
+    if (node.type === "boss") {
+      trackAnalyticsEventSoon(passed ? "boss_won" : "boss_lost", {
+        runId: run.seed,
+        payload: {
+          floorIndex: run.floorIndex,
+          floorNumber: run.floorIndex + 1,
+          bossId: node.id,
+          bossTitle: node.title,
+          opponentTeamName: node.opponentTeamName,
+          difficulty: run.settings.difficulty,
+          userTeamWinProbability: run.nodeResult.faceoffResult?.userTeamWinProbability,
+          opponentTeamWinProbability: run.nodeResult.faceoffResult?.opponentTeamWinProbability,
+        },
+      });
+    }
 
     if (!passed) {
       if (node.eliminationOnLoss) {
@@ -6002,13 +6616,25 @@ export const RoguelikeMode = ({
       specialStuffInventoryCount: nextInventoryCount,
       lockerRoomNotice: {
         title: "Special Stuff Purchased",
-        detail: `You banked Special Stuff for this run. Apply it to any player before ${nextBossNode.title} to give them +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for that boss game only.`,
+        detail: `You banked Special Stuff for this run. Save it for any future boss matchup, then apply it to give one player +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for that boss game only.`,
       },
     });
   };
 
   const sendPlayerToTraining = (player: Player) => {
     if (!run?.activeNode || run.stage !== "training-select") return;
+    const ownedPlayers = getRunOwnedPlayers(run);
+    const sourcePlayer = ownedPlayers.find((ownedPlayer) => ownedPlayer.id === player.id) ?? player;
+    const overallBoostAmount = getOverallBoostAmountForTrainingNode(run.activeNode);
+    const ownedPlayerIds = ownedPlayers.map((ownedPlayer) => ownedPlayer.id);
+    const coachTeamKey = getRoguelikeCoachTeamKey(run.hiredCoachId);
+
+    if (
+      overallBoostAmount > 0 &&
+      !canApplyRunOverallBoost(sourcePlayer, overallBoostAmount, ownedPlayerIds, run.trainedPlayerIds ?? [], coachTeamKey)
+    ) {
+      return;
+    }
 
     if (run.activeNode.id === STORE_TRAINING_NODE.id) {
       if (!onUseTrainingCampTicket()) return;
@@ -6062,7 +6688,7 @@ export const RoguelikeMode = ({
         specialStuffInventoryCount: nextSpecialStuffInventoryCount,
         lockerRoomNotice: {
           title: "Special Stuff Ready",
-          detail: `${player.name} will get +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for ${nextBossNode?.title ?? "the next boss battle"} only.`,
+          detail: `${player.name} will get +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for ${nextBossNode?.title ?? "the selected boss matchup"} only.`,
         },
       }, run.utilityReturnState?.stage ?? "locker-room"));
       return;
@@ -6245,6 +6871,8 @@ export const RoguelikeMode = ({
     if (run.choices.length === 0) return;
 
     const sourceNode = run.activeNode ?? runNodes[run.floorIndex] ?? null;
+    if (sourceNode?.type === "chance") return;
+
     const rerollPool =
       run.stage === "initial-draft"
         ? getNodePlayerPool(
@@ -6654,7 +7282,8 @@ export const RoguelikeMode = ({
             sourceNode.rewardChoices,
             nextChoiceSeed(run.seed, 900 + run.floorIndex * 37),
             getNodeChoiceTiers(sourceNode) ? [...getNodeChoiceTiers(sourceNode)!] : undefined,
-            shouldStrictlyUseNodePool(sourceNode),
+            sourceNode.type === "chance" ? true : shouldStrictlyUseNodePool(sourceNode),
+            sourceNode.type !== "chance",
           );
 
     if (repairedChoicesState.choices.length === 0) return;
@@ -6883,7 +7512,38 @@ export const RoguelikeMode = ({
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
   };
-  const activeRogueStar = getPlayerById(activeRogueStarId);
+  const ownedRogueStarPlayers = ownedRogueStarIds
+    .map((playerId) => getPlayerById(playerId))
+    .filter((player): player is Player => Boolean(player));
+  const selectedRogueStarterPlayers = selectedRogueStarterSlotIds
+    .map((playerId) => getPlayerById(playerId))
+    .filter((player): player is Player => Boolean(player));
+  const selectedRogueStarterIdSet = new Set(selectedRogueStarterPlayers.map((player) => player.id));
+  const assignRogueStarterSlot = (slotIndex: number, playerId: string | null) => {
+    setSelectedRogueStarterSlotIds((currentSlots) => {
+      const nextSlots = [...currentSlots];
+      if (playerId && nextSlots.includes(playerId)) {
+        return nextSlots.map((currentPlayerId) => currentPlayerId === playerId ? null : currentPlayerId);
+      }
+      nextSlots[slotIndex] = playerId;
+      return nextSlots;
+    });
+  };
+  const toggleRogueStarterPlayer = (playerId: string) => {
+    setSelectedRogueStarterSlotIds((currentSlots) => {
+      if (currentSlots.includes(playerId)) {
+        return currentSlots.map((currentPlayerId) => currentPlayerId === playerId ? null : currentPlayerId);
+      }
+
+      const emptySlotIndex = currentSlots.findIndex((currentPlayerId) => currentPlayerId === null);
+      if (emptySlotIndex === -1) return currentSlots;
+
+      const nextSlots = [...currentSlots];
+      nextSlots[emptySlotIndex] = playerId;
+      return nextSlots;
+    });
+  };
+  const clearRogueStarterSlots = () => setSelectedRogueStarterSlotIds([null, null, null]);
 
   if (showRunSettingsScreen) {
     return (
@@ -6943,11 +7603,11 @@ export const RoguelikeMode = ({
             ) : null}
           </div>
 
-          {activeRogueStar ? (
+          {ownedRogueStarPlayers.length > 0 ? (
             <div className="mt-4 inline-flex max-w-3xl flex-wrap items-center gap-3 rounded-[22px] border border-amber-200/18 bg-amber-300/10 px-4 py-2.5 text-sm text-amber-50">
-              <div className="text-[10px] uppercase tracking-[0.22em] text-amber-100/78">Active Rogue Star</div>
-              <div className="font-semibold text-white">{activeRogueStar.name}</div>
-              <div className="text-amber-100/76">{activeRogueStar.overall} OVR will replace one starter-pack card in this run.</div>
+              <div className="text-[10px] uppercase tracking-[0.22em] text-amber-100/78">Owned Starter Cards</div>
+              <div className="font-semibold text-white">{ownedRogueStarPlayers.length} available</div>
+              <div className="text-amber-100/76">Choose whether to slot them into this run on the starter-pack screen.</div>
             </div>
           ) : null}
         </div>
@@ -6982,6 +7642,16 @@ export const RoguelikeMode = ({
                       >
                         <div className="text-sm font-semibold">{option.label}</div>
                         <div className="mt-1 text-xs text-slate-300/78">{option.detail}</div>
+                        <div
+                          className={clsx(
+                            "mt-3 w-fit rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em]",
+                            selected
+                              ? "border-amber-100/28 bg-amber-200/14 text-amber-50"
+                              : "border-amber-200/14 bg-amber-300/8 text-amber-100/82",
+                          )}
+                        >
+                          {getDifficultyTokenRewardLabel(option.value)}
+                        </div>
                       </button>
                     );
                   })}
@@ -7210,6 +7880,7 @@ export const RoguelikeMode = ({
                   onClick={() => {
                     setSelectedRunSettings(DEFAULT_ROGUELIKE_RUN_SETTINGS);
                     setSelectedStarterPackUpgrade(bestOwnedStarterPackUpgrade);
+                    clearRogueStarterSlots();
                   }}
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-white/12 bg-white/6 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
               >
@@ -7276,14 +7947,64 @@ export const RoguelikeMode = ({
             ) : null}
           </div>
 
-          {activeRogueStar ? (
-            <div className="mt-3 inline-flex max-w-3xl flex-wrap items-center gap-3 rounded-[22px] border border-amber-200/18 bg-amber-300/10 px-4 py-2.5 text-sm text-amber-50">
-              <div className="text-[10px] uppercase tracking-[0.22em] text-amber-100/78">Active Rogue Star</div>
-              <div className="font-semibold text-white">{activeRogueStar.name}</div>
-              <div className="text-amber-100/76">{activeRogueStar.overall} OVR will replace one starter-pack card in this run.</div>
-            </div>
-          ) : null}
+        </div>
 
+        <div className="glass-panel rounded-[30px] border border-amber-200/14 bg-[linear-gradient(135deg,rgba(80,53,13,0.32),rgba(9,13,24,0.9))] p-4 shadow-card lg:p-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-amber-100/74">
+                <Crown size={15} />
+                Owned Starter Cards
+              </div>
+              <h2 className="mt-2 font-display text-2xl text-white">Optional starter inserts</h2>
+              <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-300">
+                Place owned starter cards into the slots below to force them into this run's starter reveal. Leave every slot empty to open a normal starter pack.
+              </p>
+            </div>
+            {selectedRogueStarterPlayers.length > 0 ? (
+              <button
+                type="button"
+                onClick={clearRogueStarterSlots}
+                className="w-fit rounded-full border border-white/12 bg-white/6 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-white/10"
+              >
+                Clear Slots
+              </button>
+            ) : null}
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            {selectedRogueStarterSlotIds.map((playerId, index) => (
+              <RogueStarterSlotPreview
+                key={`rogue-starter-slot-${index}`}
+                player={playerId ? getPlayerById(playerId) : null}
+                slotNumber={index + 1}
+                onClear={() => assignRogueStarterSlot(index, null)}
+              />
+            ))}
+          </div>
+
+          {ownedRogueStarPlayers.length > 0 ? (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {ownedRogueStarPlayers.map((player) => {
+                const selected = selectedRogueStarterIdSet.has(player.id);
+                const slotsFull = selectedRogueStarterPlayers.length >= 3;
+
+                return (
+                  <OwnedRogueStarterOption
+                    key={player.id}
+                    player={player}
+                    selected={selected}
+                    disabled={!selected && slotsFull}
+                    onToggle={() => toggleRogueStarterPlayer(player.id)}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <div className="mt-4 rounded-[22px] border border-white/10 bg-black/20 px-4 py-4 text-sm leading-6 text-slate-300">
+              You do not own any starter cards yet. Starter packs will use the normal card pool.
+            </div>
+          )}
         </div>
 
         <div className="glass-panel rounded-[30px] p-4 shadow-card lg:p-5">
@@ -7493,7 +8214,12 @@ export const RoguelikeMode = ({
               </div>
             </div>
 
-            <div className="grid gap-5 xl:grid-cols-5 md:grid-cols-2">
+            <div
+              className={clsx(
+                "gap-5",
+                isMobileViewport ? "grid grid-cols-5 gap-1.5" : "grid md:grid-cols-2 xl:grid-cols-5",
+              )}
+            >
               {run.coachChoices.map((coach) => (
                 <CoachChoiceCard key={coach.id} coach={coach} onHire={() => hireCoach(coach.id)} />
               ))}
@@ -7732,6 +8458,7 @@ export const RoguelikeMode = ({
   const runAllStarBonusBadges = run.allStarBonusBadges ?? [];
   const runOwnedPlayers = getRunOwnedPlayers(displayedRun);
   const runOwnedPlayerIds = runOwnedPlayers.map((player) => player.id);
+  const runOwnedPlayerById = new Map(runOwnedPlayers.map((player) => [player.id, player]));
   const runEffectiveBossTrainedPlayerIds = getEffectiveBossTrainedPlayerIds(run);
   const runDisplayTrainedPlayerIds =
     run.activeSpecialStuffPlayerId && ["locker-room", "faceoff-setup", "faceoff-game"].includes(run.stage)
@@ -7777,6 +8504,7 @@ export const RoguelikeMode = ({
   const canUseDraftShuffle =
     run.draftShuffleTickets > 0 &&
     (run.stage === "initial-draft" || run.stage === "reward-draft") &&
+    run.activeNode?.type !== "chance" &&
     run.choices.length > 0;
   const draftChoiceRevealKey = [
     run.stage,
@@ -7994,7 +8722,7 @@ export const RoguelikeMode = ({
   const formatVictoryMetric = (value: number) =>
     Number.isInteger(value) ? `${value}` : value.toFixed(1);
   const canUseStoreUtilities =
-    !["initial-draft", "reward-draft", "training-select", "trade-offer", "trade-select", "evolution-select", "faceoff-game", "node-result", "run-over", "run-cleared"].includes(run.stage);
+    !["initial-draft", "reward-draft", "training-select", "trade-offer", "trade-select", "chance-spin", "evolution-select", "faceoff-game", "node-result", "run-over", "run-cleared"].includes(run.stage);
   const utilityBackLabel =
     activeNode && isLockerRoomSelectionNode(activeNode) && run.utilityReturnState
       ? run.utilityReturnState.stage === "locker-room"
@@ -8015,6 +8743,11 @@ export const RoguelikeMode = ({
     activeNode?.type === "choice" && run.pendingChoiceSelection === "trade";
   const trainingSelectionTitle = isChoiceTrainingPath ? "Training Camp" : activeNode?.title ?? "";
   const tradeSelectionTitle = isChoiceTradePath ? "Trade Deadline" : activeNode?.title ?? "";
+  const activeTrainingOverallBoostAmount = getOverallBoostAmountForTrainingNode(activeNode);
+  const trainingCapReminder =
+    activeTrainingOverallBoostAmount > 0
+      ? ` Players who would pass ${ROGUELIKE_MAX_OVERALL} OVR are locked; choose another player.`
+      : "";
   const lockerRoomTrainingSelectionCopy =
     activeNode?.id === LOCKER_ROOM_TRAINING_NODE.id
       ? {
@@ -8061,10 +8794,10 @@ export const RoguelikeMode = ({
                 : activeNode?.id === LOCKER_ROOM_SPECIAL_STUFF_NODE.id
                   ? {
                       eyebrow: "Locker Room Boost",
-                      description: `Choose 1 player to gain +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for the upcoming boss battle only.`,
+                      description: `Choose 1 player to gain +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for one boss game in this run.`,
                       detail: run.activeSpecialStuffPlayerId
-                        ? "Changing the selected player will keep using the same purchased Special Stuff. The boost still expires after the next boss game."
-                        : "This consumes 1 owned Special Stuff, does not count as permanent training, and expires after the next boss game.",
+                        ? "Changing the selected player will keep using the same purchased Special Stuff. The boost still expires after the boss game where it is used."
+                        : "This consumes 1 owned Special Stuff, does not count as permanent training, and expires after the boss game where it is used.",
                       actionLabel: run.activeSpecialStuffPlayerId ? "Change Special Stuff target" : "Apply Special Stuff",
                     }
                   : isChoiceTrainingPath
@@ -8616,7 +9349,7 @@ export const RoguelikeMode = ({
                           Special Stuff
                         </div>
                         <div className="mt-3 text-sm leading-7 text-slate-300">
-                          Buy now, apply later. When used, 1 player gets +{SPECIAL_STUFF_BOOST_AMOUNT} OVR for the next boss battle only.
+                          Buy now, save it for any future boss matchup this run. When used, 1 player gets +{SPECIAL_STUFF_BOOST_AMOUNT} OVR for that boss game only.
                         </div>
                       </div>
                       <div className="rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
@@ -9079,22 +9812,43 @@ export const RoguelikeMode = ({
               </p>
               <div className="mt-5 rounded-[22px] border border-emerald-200/14 bg-emerald-300/8 px-4 py-4 text-sm text-slate-100">
                 {lockerRoomTrainingSelectionCopy.detail}
+                {trainingCapReminder}
               </div>
               <div className="mt-5 flex flex-wrap items-start justify-center gap-2 overflow-hidden">
-                {trainingSelectionDisplayPlayers.map((player) => (
-                  <DraftPlayerCard
-                    key={player.id}
-                    player={player}
-                    onSelect={sendPlayerToTraining}
-                    compact
-                    compactScale={trainingSelectionCardScale}
-                    draftedPlayerIds={runOwnedPlayerIds}
-                    playerTypeBadgesOverride={getRunPlayerTypeBadgeOverrides(player, runAllStarBonusBadges)}
-                    enableTeamChemistryPreview
-                    coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
-                    actionLabel={lockerRoomTrainingSelectionCopy.actionLabel}
-                  />
-                ))}
+                {trainingSelectionDisplayPlayers.map((player) => {
+                  const sourcePlayer = runOwnedPlayerById.get(player.id) ?? player;
+                  const trainingWouldExceedCap =
+                    activeTrainingOverallBoostAmount > 0 &&
+                    !canApplyRunOverallBoost(
+                      sourcePlayer,
+                      activeTrainingOverallBoostAmount,
+                      runOwnedPlayerIds,
+                      run.trainedPlayerIds ?? [],
+                      runCoachTeamKey,
+                    );
+
+                  return (
+                    <div key={player.id} className="flex flex-col items-center gap-2">
+                      <DraftPlayerCard
+                        player={player}
+                        onSelect={sendPlayerToTraining}
+                        disabled={trainingWouldExceedCap}
+                        compact
+                        compactScale={trainingSelectionCardScale}
+                        draftedPlayerIds={runOwnedPlayerIds}
+                        playerTypeBadgesOverride={getRunPlayerTypeBadgeOverrides(player, runAllStarBonusBadges)}
+                        enableTeamChemistryPreview
+                        coachConnectionActive={getCoachBoostForPlayer(player, runCoachTeamKey) > 0}
+                        actionLabel={lockerRoomTrainingSelectionCopy.actionLabel}
+                      />
+                      {trainingWouldExceedCap ? (
+                        <div className="max-w-[180px] rounded-full border border-amber-200/18 bg-amber-300/10 px-3 py-1 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-100">
+                          99 OVR cap
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
               <BackToRunLadderButton onClick={utilityBackAction} label={utilityBackLabel} />
             </div>
@@ -9527,7 +10281,7 @@ export const RoguelikeMode = ({
                           {activeNode.opponentTeamName ?? "Boss Battle"}
                         </h2>
                         <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-300">
-                          The result is locked in. Watch the precomputed game play out, then review the final box score and matchup breakdown.
+                          The result is locked in. Watch the precomputed game play out, then review the final box score and player matchup results.
                         </p>
                       </div>
                     </div>
@@ -9757,12 +10511,13 @@ export const RoguelikeMode = ({
 
                     {simulationComplete ? (
                       <div className="mt-6 rounded-[28px] border border-white/10 bg-white/5 p-5">
-                        <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Matchup Breakdown</div>
+                        <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Player Matchup Results</div>
                         <div className="mt-4 space-y-4">
                           {run.nodeResult.faceoffResult.matchups.map((matchup) => (
                             <FaceoffMatchupRow
                               key={`${matchup.slot}-${matchup.userPlayer?.id ?? "empty"}-${matchup.opponentPlayer?.id ?? "boss"}`}
                               matchup={matchup}
+                              playerStats={simulationResult.playerStats}
                               ownedPlayerIds={runOwnedPlayerIds}
                               trainedPlayerIds={runDisplayTrainedPlayerIds}
                               coachTeamKey={runCoachTeamKey}
@@ -9781,6 +10536,90 @@ export const RoguelikeMode = ({
                   <p className="mt-3 text-sm leading-7 text-slate-300">{run.nodeResult.detail}</p>
                 </div>
               )}
+            </div>
+          )}
+
+          {run.stage === "chance-spin" && activeNode?.type === "chance" && (
+            <div className="glass-panel overflow-hidden rounded-[30px] border border-yellow-200/16 bg-[radial-gradient(circle_at_24%_24%,rgba(250,204,21,0.16),transparent_32%),linear-gradient(135deg,rgba(8,13,22,0.98),rgba(12,20,31,0.96),rgba(4,9,16,0.98))] p-6 shadow-card">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.24em] text-yellow-100/70">Team Wheel</div>
+                  <h2 className="mt-2 font-display text-3xl text-white">Spin for your draft board</h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
+                    Land on one NBA team, then choose 1 of 5 {getChanceWheelTierLabel(activeNode)} players from that team.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={spinChanceWheel}
+                  disabled={chanceWheelSpinning}
+                  className={clsx(
+                    "inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition",
+                    chanceWheelSpinning
+                      ? "border border-white/10 bg-white/10 text-white/52"
+                      : "bg-white text-slate-950 hover:bg-yellow-100",
+                  )}
+                >
+                  <RefreshCcw size={16} className={clsx(chanceWheelSpinning && "animate-spin")} />
+                  {chanceWheelSpinning ? "Spinning..." : "Spin Team Wheel"}
+                </button>
+              </div>
+
+              <div className="mt-8 flex justify-center overflow-hidden">
+                <div className="relative flex aspect-square w-full max-w-[950px] items-center justify-center p-6">
+                  <div className="absolute left-[-6px] top-1/2 z-20 h-0 w-0 -translate-y-1/2 border-b-[17px] border-l-[28px] border-t-[17px] border-b-transparent border-l-white border-t-transparent drop-shadow-[0_8px_18px_rgba(255,255,255,0.2)]" />
+                  <div
+                    className="relative h-full w-full overflow-hidden rounded-full border-[7px] border-white/80 shadow-[0_24px_70px_rgba(0,0,0,0.38),inset_0_0_0_1px_rgba(255,255,255,0.44)] transition-transform duration-[5600ms] ease-[cubic-bezier(0.08,0.82,0.12,1)]"
+                    style={{
+                      background: chanceWheelBackground,
+                      transform: `rotate(${chanceWheelRotation}deg)`,
+                    }}
+                  >
+                    <div className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle_at_center,transparent_0_18%,rgba(255,255,255,0.2)_18.5%,transparent_19%),radial-gradient(circle_at_34%_28%,rgba(255,255,255,0.26),transparent_14%),radial-gradient(circle_at_center,transparent_0_64%,rgba(0,0,0,0.22)_100%)]" />
+                    {nbaTeams.map((team, index) => {
+                      const sliceDegrees = 360 / nbaTeams.length;
+                      const boundaryAngle = sliceDegrees * index;
+                      const centerAngle = boundaryAngle + sliceDegrees / 2;
+                      const markerAngle = centerAngle - 90;
+                      return (
+                        <div key={team.name}>
+                          <div
+                            className="absolute left-1/2 top-0 h-1/2 w-px origin-bottom bg-white/70"
+                            style={{ transform: `rotate(${boundaryAngle}deg)` }}
+                          />
+                          <div
+                            className="absolute left-1/2 top-1/2 flex h-9 w-[190px] -ml-[95px] -mt-[18px] items-center justify-end gap-2 pr-4 text-right text-[clamp(0.56rem,0.9vw,0.78rem)] font-black uppercase leading-none tracking-[0.02em] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.72)]"
+                            style={{
+                              transform: `rotate(${markerAngle}deg) translateX(min(30vw, 285px))`,
+                              transformOrigin: "50% 50%",
+                            }}
+                          >
+                            <span className="max-w-[118px] truncate">{getChanceWheelTeamLabel(team.name)}</span>
+                            {team.logo ? (
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/75 bg-white shadow-[0_2px_7px_rgba(0,0,0,0.32)]">
+                                <img
+                                  src={team.logo}
+                                  alt=""
+                                  className="h-5 w-5 object-contain"
+                                  loading="lazy"
+                                  referrerPolicy="no-referrer"
+                                />
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="absolute left-1/2 top-1/2 flex h-[clamp(7rem,16vw,12rem)] w-[clamp(7rem,16vw,12rem)] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[7px] border-white/85 bg-[linear-gradient(180deg,#ffffff,#dbeafe)] text-center shadow-[0_10px_24px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.85)]">
+                      <div>
+                        <div className="text-[clamp(0.7rem,1.1vw,0.95rem)] uppercase tracking-[0.2em] text-slate-500">NBA</div>
+                        <div className="mt-1 text-[clamp(2.1rem,4.2vw,4.8rem)] font-black leading-none text-slate-950">30</div>
+                        <div className="mt-1 text-[clamp(0.7rem,1.1vw,0.95rem)] uppercase tracking-[0.16em] text-slate-500">Teams</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -9966,6 +10805,7 @@ export const RoguelikeMode = ({
                     const isCurrent = run.floorIndex === index && (
                       run.stage === "node-preview" ||
                       run.stage === "reward-draft" ||
+                      run.stage === "chance-spin" ||
                       run.stage === "node-result" ||
                       run.stage === "challenge-setup" ||
                       run.stage === "faceoff-setup" ||

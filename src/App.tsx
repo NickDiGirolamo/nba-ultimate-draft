@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookOpen, Coins, Crown, Flag, LogOut, Sparkles, Swords, Target, Trophy, UserRound } from "lucide-react";
 import { DraftBriefing } from "./components/DraftBriefing";
 import { DraftPlayerCard } from "./components/DraftPlayerCard";
@@ -28,6 +28,7 @@ import { getRogueChallengeRunSettingsPreset } from "./lib/rogueChallenges";
 import type { RoguelikeRunSettings } from "./lib/roguelike";
 import { getCategoryChallengeTarget } from "./lib/simulate";
 import { tokenStoreUtilityItems, type TokenStoreUtilityItem } from "./lib/tokenStore";
+import { trackAnalyticsEventSoon } from "./lib/analytics";
 
 const ROGUELIKE_UI_STORAGE_KEY = "legends-draft-roguelike-ui-v1";
 const ROGUELIKE_RUN_STORAGE_KEY = "legends-draft-roguelike-run-v1";
@@ -120,7 +121,7 @@ function App() {
   const [prestigeInitialView, setPrestigeInitialView] = useState<"overview" | "rewards">("overview");
   const [learnOpen, setLearnOpen] = useState(false);
   const [tokenStoreOpen, setTokenStoreOpen] = useState(false);
-  const [tokenStoreInitialView, setTokenStoreInitialView] = useState<"store" | "tokens" | "collections" | "challenges">("store");
+  const [tokenStoreInitialView, setTokenStoreInitialView] = useState<"store" | "vault" | "tokens" | "collections" | "challenges">("store");
   const [guestMode, setGuestMode] = useState(false);
   const [rogueChallengeSetupRequest, setRogueChallengeSetupRequest] = useState<{
     challengeId: string;
@@ -138,6 +139,8 @@ function App() {
   const [cloudTokenBalanceLoaded, setCloudTokenBalanceLoaded] = useState(false);
   const [showPrestigeLevelUp, setShowPrestigeLevelUp] = useState(false);
   const [showExtraPickIntro, setShowExtraPickIntro] = useState(false);
+  const homeViewedTrackedRef = useRef(false);
+  const checkoutReturnTrackedRef = useRef(false);
   const [isNarrowViewport, setIsNarrowViewport] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth < 640 : false,
   );
@@ -159,7 +162,7 @@ function App() {
         id: "tokens",
         targetId: "app-token-store",
         title: "Your account power lives here",
-        body: "The Token Store holds permanent Rogue upgrades, utility items, Galaxy stars, and collection rewards. You can come back here between runs.",
+        body: "The Token Store holds permanent Rogue upgrades, utility items, rotating starter cards, token packs, and rewards. You can come back here between runs.",
         placement: "bottom",
       },
       {
@@ -266,6 +269,40 @@ function App() {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
   }, [resetDraft]);
+
+  const openRoguelike = useCallback((source: string) => {
+    trackAnalyticsEventSoon("rogue_start_clicked", {
+      payload: {
+        source,
+        isGuest: guestMode,
+        isLoggedIn: Boolean(auth.user),
+      },
+    });
+    setRoguelikeOpen(true);
+
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, [auth.user?.id, guestMode]);
+
+  const openTokenStore = useCallback((initialView: "store" | "vault" | "tokens" | "collections" | "challenges", source: string) => {
+    setTokenStoreInitialView(initialView);
+    setTokenStoreOpen(true);
+    trackAnalyticsEventSoon("token_store_opened", {
+      payload: {
+        initialView,
+        source,
+        isGuest: guestMode,
+        isLoggedIn: Boolean(auth.user),
+        tokenBalance: metaProgress.tokens.balance,
+      },
+    });
+
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, [auth.user?.id, guestMode, metaProgress.tokens.balance]);
+
   const runRogueChallenge = useCallback((challengeId: string) => {
     const preset = getRogueChallengeRunSettingsPreset(challengeId);
 
@@ -276,20 +313,15 @@ function App() {
     setTokenStoreOpen(false);
     setPrestigeOpen(false);
     setLearnOpen(false);
-    setRoguelikeOpen(true);
+    openRoguelike("rogue_challenge");
 
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
-  }, []);
+  }, [openRoguelike]);
   const openRogueChallenges = useCallback(() => {
-    setTokenStoreInitialView("challenges");
-    setTokenStoreOpen(true);
-
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-    }
-  }, []);
+    openTokenStore("challenges", "landing_rogue_challenges");
+  }, [openTokenStore]);
   const draftIntel = useMemo(() => {
     const cards = [
       {
@@ -370,6 +402,35 @@ function App() {
   );
 
   useEffect(() => {
+    if (homeViewedTrackedRef.current || auth.loading || roguelikeOpen || state.screen !== "landing") return;
+
+    homeViewedTrackedRef.current = true;
+    trackAnalyticsEventSoon("home_viewed", {
+      payload: {
+        isGuest: guestMode,
+        isLoggedIn: Boolean(auth.user),
+        tokenBalance: metaProgress.tokens.balance,
+      },
+    });
+  }, [auth.loading, auth.user?.id, guestMode, metaProgress.tokens.balance, roguelikeOpen, state.screen]);
+
+  useEffect(() => {
+    if (checkoutReturnTrackedRef.current || typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const checkoutStatus = params.get("checkout");
+    if (checkoutStatus !== "success" && checkoutStatus !== "cancelled") return;
+
+    checkoutReturnTrackedRef.current = true;
+    trackAnalyticsEventSoon("purchase_returned", {
+      payload: {
+        checkoutStatus,
+        isLoggedIn: Boolean(auth.user),
+      },
+    });
+  }, [auth.user?.id]);
+
+  useEffect(() => {
     if (!auth.user) {
       setCloudSavedRogueRun(null);
       return;
@@ -398,6 +459,7 @@ function App() {
     const returningFromCheckout = params?.get("checkout") === "success";
     const maxAttempts = returningFromCheckout ? 8 : 1;
     const userId = auth.user.id;
+    let trackedTokenBalanceSync = false;
 
     const refreshTokenBalance = async () => {
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
@@ -406,6 +468,17 @@ function App() {
 
         absorbCloudTokenBalance(cloudBalance);
         setCloudTokenBalanceLoaded(true);
+        if (!trackedTokenBalanceSync && cloudBalance !== null) {
+          trackedTokenBalanceSync = true;
+          trackAnalyticsEventSoon("token_balance_synced", {
+            payload: {
+              cloudBalance,
+              returningFromCheckout,
+              attempt: attempt + 1,
+              localBalanceBeforeSync: metaProgress.tokens.balance,
+            },
+          });
+        }
 
         if (!returningFromCheckout || (cloudBalance !== null && cloudBalance > metaProgress.tokens.balance)) return;
 
@@ -593,10 +666,7 @@ function App() {
             <button
               type="button"
               data-tutorial-id="app-token-store"
-              onClick={() => {
-                setTokenStoreInitialView("store");
-                setTokenStoreOpen(true);
-              }}
+              onClick={() => openTokenStore("store", "top_nav")}
               className="glass-panel min-h-[54px] w-full rounded-2xl px-2 py-1.5 text-left transition hover:border-amber-200/24 hover:bg-white/10 sm:min-w-0 lg:min-h-[70px] lg:min-w-[200px] lg:px-3.5 lg:py-2"
             >
               <div className="flex items-center justify-center gap-1 text-[9px] uppercase tracking-[0.12em] text-slate-400 lg:justify-start lg:gap-1.5 lg:text-[10px] lg:tracking-[0.17em]">
@@ -713,6 +783,7 @@ function App() {
         {roguelikeOpen && (
           <RoguelikeMode
             activeRogueStarId={state.activeRogueStarId}
+            ownedRogueStarIds={state.ownedRogueStarIds}
             ownedTrainingCampTickets={state.ownedTrainingCampTickets}
             ownedTradePhones={state.ownedTradePhones}
             ownedSilverStarterPacks={state.ownedSilverStarterPacks}
@@ -752,11 +823,15 @@ function App() {
               setPrestigeInitialView("overview");
               setPrestigeOpen(true);
             }}
-            onOpenRoguelike={() => setRoguelikeOpen(true)}
+            onOpenRoguelike={() => openRoguelike("landing")}
             onOpenRogueChallenges={openRogueChallenges}
+            onRunRogueChallenge={runRogueChallenge}
+            onClaimRogueChallengeReward={claimRogueChallengeReward}
             onRestartTutorial={restartTutorial}
             history={state.history}
             meta={metaProgress}
+            completedRogueChallengeIds={state.completedRogueChallengeIds}
+            claimedRogueChallengeIds={state.claimedRogueChallengeIds}
           />
         )}
 

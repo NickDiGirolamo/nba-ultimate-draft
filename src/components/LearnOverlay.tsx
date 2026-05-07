@@ -230,7 +230,7 @@ const sectionCards: Record<LearnTabId, LearnCard[]> = {
     {
       title: "Special Stuff",
       description:
-        "Special Stuff gives one player a temporary +3 OVR boost for the next boss battle only. It is best saved for scary matchup spikes.",
+        "Special Stuff can be bought early and saved for any future boss matchup in the run. When used, one player gets a temporary +3 OVR boost for that boss game only.",
       icon: Zap,
       tone: "border-sky-200/16 bg-sky-300/10 text-sky-100",
     },

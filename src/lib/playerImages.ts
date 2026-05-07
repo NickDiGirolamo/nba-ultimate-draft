@@ -89,6 +89,8 @@ const directImageOverrides: Record<string, string> = {
     "https://platform.sbnation.com/wp-content/uploads/sites/2/chorus/uploads/chorus_asset/file/14212085/20130119_tjg_ah6_069.0.1358814165.jpg?quality=90&strip=all&crop=0.012500000000003%2C0%2C99.975%2C100&w=2400",
   "cj-mccollum-blazers":
     "https://media.gq.com/photos/56fe0a4d42f1abb10ad77965/master/pass/CJ-McCollum-Flex.jpg",
+  "charlie-ward":
+    "https://www.cleveland.com/resizer/v2/SSQ6HYHIQ5HV5NGNYNQ3BN6VIY.jpg?auth=a9ecd8a9ac895430d51766511cc73f4179c3a4c37f1c0244fb60b3ad9bb0bace&width=1280&smart=true&quality=90",
   "kwame-brown":
     "https://fadeawayworld.net/wp-content/uploads/2021/06/12487470100.jpg",
   "btg-joel-embiid":
@@ -233,6 +235,8 @@ const directImageOverrides: Record<string, string> = {
     "https://s.yimg.com/ny/api/res/1.2/1URZLSMLOWz0JCnDcSJcJg--/YXBwaWQ9aGlnaGxhbmRlcjt3PTY0MDtoPTgwMDtjZj13ZWJw/https://s.yimg.com/os/en_us/News/Yahoo/ept_sports_nba_experts-811739762-1301064162.jpg",
   "dave-cowens":
     "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Dave_Cowens.jpeg/250px-Dave_Cowens.jpeg",
+  "dale-davis":
+    "https://www.indystar.com/gcdn/-mm-/ad3236dbb47605e675bd7ebd3fee85fdf9e62dd3/c=0-0-2327-3103/local/-/media/2015/06/03/Indianapolis/Indianapolis/635689350679682332-GettyImages-1483241.jpg?width=458&height=610&fit=crop&format=pjpg&auto=webp",
   "danny-green":
     "https://www.si.com/.image/c_fill,w_720,ar_16:9,f_auto,q_auto,g_auto/MTY4MDI3NTIwNzc0Nzc2MDgx/danny-green-spurs-leadjpg.jpg",
   "danny-green-raptors":
@@ -487,6 +491,10 @@ const directImageOverrides: Record<string, string> = {
     "https://hoopshallny.org/wp-content/uploads/2023/08/Jamal-Mashburn.jpg",
   "jamal-wilkes":
     "https://static.wikia.nocookie.net/nba/images/3/30/Jamaal_Wilkes.jpg/revision/latest?cb=20260223020926",
+  "jamal-tinsley":
+    "https://www.sportsnet.ca/wp-content/uploads/2009/11/tinsley_jamaal_big.jpg",
+  "josh-smith":
+    "https://i.redd.it/what-happened-to-josh-smith-v0-jtmtrfzismqd1.jpg?width=1346&format=pjpg&auto=webp&s=45d989dea0ca5546df6508ff36729658a061d339",
   "jay-williams":
     "https://www.the-sun.com/wp-content/uploads/sites/6/2023/09/user-expressly-acknowledges-agrees-downloading-846224676.jpg?strip=all&w=636",
   "jameer-nelson":
@@ -603,6 +611,8 @@ const directImageOverrides: Record<string, string> = {
     "https://netswire.usatoday.com/gcdn/authoring/images/smg/2024/12/28/SNET/77289195007-9-8521.jpeg",
   "ronnie-brewer-jazz":
     "https://www.legendsofbasketball.com/wp-content/uploads/2020/11/ronnie-brewer-jr-scaled.jpeg",
+  "ron-artest-pacers":
+    "https://images2.minutemediacdn.com/image/upload/c_fill,w_720,ar_16:9,f_auto,q_auto,g_auto/shape/cover/sport/29ea9a9e8bb87deea3280eabea12bdc0f18a9800e058dfaca1a49a44ccccab84.jpg",
   "russell-westbrook":
     "https://pbs.twimg.com/media/GxcIsZZXsAAWwst.jpg",
   "ray-allen":

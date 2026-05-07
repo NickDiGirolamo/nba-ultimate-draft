@@ -40,6 +40,7 @@ export type RoguelikeNodeType =
   | "locker-room"
   | "training"
   | "trade"
+  | "chance"
   | "choice"
   | "evolution"
   | "roster-cut"
@@ -277,9 +278,10 @@ export const getRoguelikeClearRewards = (
     const baseByType: Record<RoguelikeNodeType, number> = {
     draft: 2,
     "locker-room": 0,
-    training: 3,
-    trade: 3,
-    choice: 3,
+      training: 3,
+      trade: 3,
+      chance: 3,
+      choice: 3,
       evolution: 4,
       "roster-cut": 0,
       "add-position": 0,
@@ -306,7 +308,7 @@ export const getRoguelikeClearRewards = (
 };
 
 const getRegularBossNodes = () =>
-  roguelikeNodes.filter((node) => node.type === "boss" && node.floor !== 64);
+  roguelikeNodes.filter((node) => node.type === "boss" && node.id !== "the-goats");
 
 export const getRoguelikeLockerRoomCashReward = (
   node: Pick<RoguelikeNode, "id" | "floor" | "act" | "type">,
@@ -320,7 +322,7 @@ export const getRoguelikeLockerRoomCashReward = (
   }
 
   if (node.type === "boss") {
-    if (node.floor === 64) {
+    if (node.id === "the-goats") {
       return 40;
     }
 
@@ -489,6 +491,11 @@ const makeTrainingNode = (node: Omit<RoguelikeNode, "type" | "rewardChoices">): 
 const makeTradeNode = (node: Omit<RoguelikeNode, "type">): RoguelikeNode => ({
   ...node,
   type: "trade",
+});
+
+const makeChanceNode = (node: Omit<RoguelikeNode, "type">): RoguelikeNode => ({
+  ...node,
+  type: "chance",
 });
 
 const makeChoiceNode = (
@@ -823,6 +830,17 @@ export const roguelikeNodes: RoguelikeNode[] = [
     opponentTeamName: "Finals Opponent",
     allowedRewardTiers: ["Ruby"],
   }),
+  makeChanceNode({
+    id: "year-1-team-wheel",
+    floor: 24,
+    act: 1,
+    title: "Team Wheel",
+    description: "Spin the 30-team wheel, then draft 1 Sapphire player from the team it lands on.",
+    rewardBundleId: "balanced-floor",
+    rewardChoices: 5,
+    targetLabel: "Spin for an NBA team, then choose 1 of 5 Sapphire players from that team",
+    allowedRewardTiers: ["Sapphire"],
+  }),
   makeCoachingChangeNode({
     id: "year-1-coaching-change",
     floor: 24,
@@ -1076,6 +1094,17 @@ export const roguelikeNodes: RoguelikeNode[] = [
     targetLabel: "Choose 1 of 5 Amethyst players",
     allowedRewardTiers: ["Amethyst"],
   }),
+  makeChanceNode({
+    id: "year-2-team-wheel",
+    floor: 45,
+    act: 2,
+    title: "Team Wheel",
+    description: "Spin the 30-team wheel, then draft 1 Ruby player from the team it lands on.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 5,
+    targetLabel: "Spin for an NBA team, then choose 1 of 5 Ruby players from that team",
+    allowedRewardTiers: ["Ruby"],
+  }),
   makeTrainingNode({
     id: "year-3-offseason-training",
     floor: 45,
@@ -1287,6 +1316,17 @@ export const roguelikeNodes: RoguelikeNode[] = [
     opponentAverageOverall: 96,
     opponentTeamName: "Finals Opponent",
     allowedRewardTiers: ["Galaxy"],
+  }),
+  makeChanceNode({
+    id: "year-3-team-wheel",
+    floor: 64,
+    act: 3,
+    title: "Team Wheel",
+    description: "Spin the 30-team wheel, then draft 1 Amethyst player from the team it lands on.",
+    rewardBundleId: "elite-closers",
+    rewardChoices: 5,
+    targetLabel: "Spin for an NBA team, then choose 1 of 5 Amethyst players from that team",
+    allowedRewardTiers: ["Amethyst"],
   }),
   makeCoachingChangeNode({
     id: "year-3-coaching-change",
