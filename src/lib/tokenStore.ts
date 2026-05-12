@@ -102,6 +102,21 @@ export const tokenStoreUtilityItems: TokenStoreUtilityItem[] = [
 
 const roundToNearestThousand = (value: number) => Math.round(value / 1_000) * 1_000;
 export type StarterVaultTier = Exclude<PlayerTier, "Galaxy">;
+export type RoguePackTier = PlayerTier;
+
+export interface RogueTokenStorePack {
+  id: string;
+  name: string;
+  tier: RoguePackTier;
+  price: number;
+  wrapperImage: string;
+  playerImage: string;
+  cardCount: string;
+  description: string;
+  tintClass: string;
+  playerClass: string;
+  shadowClass: string;
+}
 
 export interface StarterVaultPlayerEntry {
   player: Player;
@@ -114,6 +129,74 @@ export const STARTER_VAULT_TIERS: StarterVaultTier[] = [
   "Sapphire",
   "Ruby",
   "Amethyst",
+];
+
+export const ROGUE_TOKEN_STORE_PACKS: RogueTokenStorePack[] = [
+  {
+    id: "emerald-pack",
+    name: "Emerald Pack",
+    tier: "Emerald",
+    price: 30_000,
+    wrapperImage: "/pack-art/emerald-pack-vivid-v1.png",
+    playerImage: "/ai-card-art/players/al-horford-cutout.png",
+    cardCount: "1",
+    description: "Opens immediately for one random Emerald player card.",
+    tintClass: "from-emerald-300/26 via-transparent to-emerald-950/42",
+    playerClass: "left-1/2 top-[92px] h-[490px] -translate-x-1/2",
+    shadowClass: "shadow-[0_28px_80px_rgba(16,185,129,0.32)]",
+  },
+  {
+    id: "sapphire-pack",
+    name: "Sapphire Pack",
+    tier: "Sapphire",
+    price: 50_000,
+    wrapperImage: "/pack-art/sapphire-pack-vivid-v1.png",
+    playerImage: "/pack-art/players/josh-hart-cutout.png",
+    cardCount: "1",
+    description: "Opens immediately for one random Sapphire player card.",
+    tintClass: "from-sky-300/28 via-transparent to-blue-950/44",
+    playerClass: "left-1/2 top-[88px] h-[482px] -translate-x-1/2",
+    shadowClass: "shadow-[0_28px_80px_rgba(37,99,235,0.34)]",
+  },
+  {
+    id: "ruby-pack",
+    name: "Ruby Pack",
+    tier: "Ruby",
+    price: 90_000,
+    wrapperImage: "/pack-art/ruby-pack-vivid-v1.png",
+    playerImage: "/pack-art/players/stephon-castle-cutout.png",
+    cardCount: "1",
+    description: "Opens immediately for one random Ruby player card.",
+    tintClass: "from-rose-300/28 via-transparent to-red-950/46",
+    playerClass: "left-1/2 top-[94px] h-[482px] -translate-x-1/2",
+    shadowClass: "shadow-[0_28px_80px_rgba(185,28,28,0.34)]",
+  },
+  {
+    id: "amethyst-pack",
+    name: "Amethyst Pack",
+    tier: "Amethyst",
+    price: 150_000,
+    wrapperImage: "/pack-art/amethyst-pack-vivid-v1.png",
+    playerImage: "/pack-art/players/victor-wembanyama-cutout.png",
+    cardCount: "1",
+    description: "Opens immediately for one random Amethyst player card.",
+    tintClass: "from-violet-300/30 via-transparent to-purple-950/48",
+    playerClass: "left-1/2 top-[36px] h-[552px] -translate-x-1/2",
+    shadowClass: "shadow-[0_30px_88px_rgba(126,34,206,0.34)]",
+  },
+  {
+    id: "galaxy-pack",
+    name: "Galaxy Pack",
+    tier: "Galaxy",
+    price: 250_000,
+    wrapperImage: "/pack-art/galaxy-pack-vivid-v1.png",
+    playerImage: "/pack-art/players/kobe-bryant-cutout.png",
+    cardCount: "1",
+    description: "Opens immediately for one random Galaxy player card.",
+    tintClass: "from-yellow-200/18 via-indigo-400/16 to-slate-950/54",
+    playerClass: "left-1/2 top-[82px] h-[490px] -translate-x-1/2",
+    shadowClass: "shadow-[0_30px_90px_rgba(148,163,184,0.34)]",
+  },
 ];
 
 export const STARTER_VAULT_REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -211,6 +294,21 @@ export const getWeeklyStarterVaultCards = (nowMs = Date.now()) => {
       Amethyst: [],
     },
   );
+};
+
+export const getRoguePackPlayerPool = (tier: RoguePackTier, ownedPlayerIds: string[] = []) => {
+  const ownedIds = new Set(ownedPlayerIds);
+  const seenIdentityKeys = new Set<string>();
+
+  return allPlayers
+    .filter((player) => getPlayerTier(player) === tier)
+    .filter((player) => {
+      const identityKey = getVaultIdentityKey(player);
+      if (seenIdentityKeys.has(identityKey)) return false;
+      seenIdentityKeys.add(identityKey);
+      return !ownedIds.has(player.id);
+    })
+    .sort((a, b) => b.overall - a.overall || a.name.localeCompare(b.name));
 };
 
 const TOKEN_STORE_GALAXY_PRICE_FLOOR = 600_000;

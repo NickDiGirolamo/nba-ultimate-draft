@@ -13,7 +13,7 @@ Tier:
 
 Visual direction:
 - realistic premium sports-card artwork
-- likeness based on a clear real reference image when this is a real player
+- likeness based on the player's existing in-game card image as the default real-player reference
 - clear face and jersey silhouette
 - accurate real-life team uniform: correct base color, trim colors, team wordmark, and jersey number
 - dynamic arena lighting

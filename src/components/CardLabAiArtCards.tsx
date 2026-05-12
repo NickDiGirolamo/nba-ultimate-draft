@@ -3,6 +3,14 @@ import { Handshake, Image, Link2, Orbit, Sparkles, Users } from "lucide-react";
 import { allPlayers } from "../data/players";
 import { getNbaTeamByName } from "../data/nbaTeams";
 import { playerTypeBadgeStyleClass, renderPlayerTypeBadgeIcon } from "./PlayerTypeBadges";
+import {
+  aiCardArtStatusDetails,
+  aiCardArtStatusLabels,
+  getAiCardArtRecord,
+  getAiCardArtStatus,
+  getAiCardGeneratedCutout,
+  getAiCardReferenceImage,
+} from "../lib/aiCardArt";
 import { getPlayerTier } from "../lib/playerTier";
 import { getPlayerTypeBadges } from "../lib/playerTypeBadges";
 import type { Player } from "../types";
@@ -105,11 +113,55 @@ const defaultBackgroundUrls: Record<AiArtTier, string> = {
   Galaxy: "/ai-card-art/backgrounds/galaxy-chatgpt-reference-bg.png",
 };
 
+const approvedReferenceCards = [
+  {
+    id: "steph-curry-amethyst-approved",
+    title: "Steph Curry",
+    subtitle: "Approved Amethyst Rogue card direction",
+    imageUrl: "/ai-card-art/references/steph-curry-amethyst-approved.png",
+    details: "93 OVR / PG-SG / Gravity Shooter / Sniper, Playmaker, Slasher",
+  },
+];
+
 const splitCardFaceName = (name: string) => (name.trim() || "AI Art Player").split(/\s+/).filter(Boolean);
 const getCleanPlayerName = (name: string) => name.replace(/\s*\([^)]*\)\s*$/, "").trim();
 
 const getFittedNameWordSize = (word: string, maxRem: number, minRem: number, scale: number) =>
   `${Math.max(minRem, Math.min(maxRem, scale / Math.max(word.length, 1))).toFixed(2)}rem`;
+
+const getAiCardLaunchPlayersByTier = () => {
+  const grouped = aiArtTiers.reduce(
+    (accumulator, tier) => ({
+      ...accumulator,
+      [tier]: [] as Player[],
+    }),
+    {} as Record<AiArtTier, Player[]>,
+  );
+
+  allPlayers.forEach((player) => {
+    const tier = getPlayerTier(player) as AiArtTier;
+    if (tier in grouped) grouped[tier].push(player);
+  });
+
+  const emeraldAndre = allPlayers.find((player) => player.id === "andre-jackson-jr-2025-26");
+
+  return aiArtTiers.reduce((accumulator, tier) => {
+    const sortedPlayers = [...grouped[tier]].sort((left, right) => {
+      if (right.overall !== left.overall) return right.overall - left.overall;
+      return getCleanPlayerName(left.name).localeCompare(getCleanPlayerName(right.name));
+    });
+
+    const tierPlayers =
+      tier === "Emerald" && emeraldAndre
+        ? [emeraldAndre, ...sortedPlayers.filter((player) => player.id !== emeraldAndre.id)]
+        : sortedPlayers;
+
+    return {
+      ...accumulator,
+      [tier]: tierPlayers.slice(0, 5),
+    };
+  }, {} as Record<AiArtTier, Player[]>);
+};
 
 const tierMineralBackgrounds: Record<
   AiArtTier,
@@ -556,10 +608,10 @@ const AiTierBackgroundCard = ({
           {testCardPositions}
         </div>
       </div>
-      <div className="absolute right-2 top-2 flex flex-col items-center gap-1.5">
+      <div className="absolute right-1 top-1 flex flex-col items-center gap-1.5">
         {team?.logo ? (
           <div
-            className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-white/15 bg-black/64 p-1.5 shadow-[0_8px_18px_rgba(0,0,0,0.36)] backdrop-blur-[2px]"
+            className="flex h-[5.5rem] w-[5.5rem] items-center justify-center rounded-bl-[18px] border border-white/15 bg-black/62 p-3 shadow-[0_12px_28px_rgba(0,0,0,0.4)] backdrop-blur-[2px]"
             title={`${team.name} logo: this card's team identity for chemistry and coach links.`}
           >
             <img
@@ -779,9 +831,11 @@ const AiArtPreviewCard = ({
 const AiGeneratedPlayerCard = ({
   player,
   artUrl,
+  scale = 1,
 }: {
   player: Player;
-  artUrl: string;
+  artUrl?: string;
+  scale?: number;
 }) => {
   const tier = getPlayerTier(player) as AiArtTier;
   const styles = tierStyles[tier];
@@ -795,14 +849,27 @@ const AiGeneratedPlayerCard = ({
   const playerTypeBadges = getPlayerTypeBadges(player);
   const backgroundUrl = defaultBackgroundUrls[tier] || defaultBackgroundUrls.Emerald;
   const frameColor = "rgba(251,191,36,0.68)";
+  const referenceImage = getAiCardReferenceImage(player);
+  const displayArtUrl = artUrl ?? referenceImage ?? "";
+  const hasGeneratedArt = Boolean(artUrl);
+  const cardWidth = 332;
+  const cardHeight = cardWidth / 0.645;
 
   return (
     <div
+      style={{
+        width: cardWidth * scale,
+        height: cardHeight * scale,
+      }}
+    >
+    <div
       className={`relative overflow-hidden rounded-[2px] border-2 bg-slate-950 ${styles.border} ${styles.glow}`}
       style={{
-        width: 332,
+        width: cardWidth,
         aspectRatio: "0.645",
         clipPath: "polygon(7% 0, 93% 0, 100% 5%, 100% 95%, 93% 100%, 7% 100%, 0 95%, 0 5%)",
+        transform: `scale(${scale})`,
+        transformOrigin: "top left",
       }}
     >
       <img
@@ -821,7 +888,7 @@ const AiGeneratedPlayerCard = ({
       />
       <div className="absolute inset-x-[12%] top-[5%] h-px" style={{ background: frameColor }} />
 
-      <div className="absolute left-0 top-0 z-20 rounded-br-[18px] bg-black/68 px-3.5 pb-2.5 pt-2.5 shadow-[0_12px_28px_rgba(0,0,0,0.4)] backdrop-blur-[2px]">
+      <div className="absolute left-4 top-0 z-20 rounded-b-[18px] bg-black/68 px-3.5 pb-2.5 pt-2.5 shadow-[0_12px_28px_rgba(0,0,0,0.4)] backdrop-blur-[2px]">
         <div className="text-center font-display text-[3.2rem] font-black leading-[0.82] text-white drop-shadow-[0_4px_0_rgba(0,0,0,0.45)]">
           {player.overall}
         </div>
@@ -830,7 +897,7 @@ const AiGeneratedPlayerCard = ({
         </div>
       </div>
 
-      <div className="absolute right-1 top-1 z-20 flex flex-col items-center gap-1.5">
+      <div className="absolute right-4 top-0 z-20 flex flex-col items-center gap-1.5">
         {team?.logo ? (
           <div
             className="flex h-[5.5rem] w-[5.5rem] items-center justify-center rounded-bl-[18px] border border-white/15 bg-black/62 p-3 shadow-[0_12px_28px_rgba(0,0,0,0.4)] backdrop-blur-[2px]"
@@ -847,13 +914,24 @@ const AiGeneratedPlayerCard = ({
         </div>
       </div>
 
-      <img
-        src={artUrl}
-        alt={`${displayName} AI-generated player art`}
-        className="absolute z-10 h-[70%] max-w-none object-contain drop-shadow-[0_18px_30px_rgba(0,0,0,0.52)]"
-        style={{ left: "-12%", bottom: "22%", width: "124%" }}
-        loading="lazy"
-      />
+      {displayArtUrl ? (
+        <img
+          src={displayArtUrl}
+          alt={`${displayName} ${hasGeneratedArt ? "AI-generated player art" : "reference player image"}`}
+          className={`absolute z-10 max-w-none object-contain drop-shadow-[0_18px_30px_rgba(0,0,0,0.52)] ${
+            hasGeneratedArt ? "h-[70%]" : "h-[58%] opacity-90 mix-blend-screen"
+          }`}
+          style={hasGeneratedArt ? { left: "-12%", bottom: "22%", width: "124%" } : { left: "3%", bottom: "32%", width: "94%" }}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        <div className="absolute inset-x-[23%] top-[24%] z-10 flex h-[36%] items-center justify-center rounded-t-full border border-white/10 bg-black/38 text-center text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-white/58 shadow-[0_18px_34px_rgba(0,0,0,0.36)] backdrop-blur-[2px]">
+          Art
+          <br />
+          Pending
+        </div>
+      )}
 
       <div className="absolute inset-x-4 bottom-[18%] z-30 rounded-[18px] border border-white/10 bg-black/72 px-4 py-3 text-center shadow-[0_14px_34px_rgba(0,0,0,0.48)] backdrop-blur-[2px]">
         <div className="absolute inset-x-3 top-[46%] h-[34%] -rotate-2 bg-black/80 blur-[2px]" />
@@ -890,6 +968,7 @@ const AiGeneratedPlayerCard = ({
         </div>
       </div>
     </div>
+    </div>
   );
 };
 
@@ -903,6 +982,20 @@ export const CardLabAiArtCards = () => {
   const [backgroundImageUrls] = useState<Record<AiArtTier, string>>(defaultBackgroundUrls);
   const andreJacksonPlayer = allPlayers.find((player) => player.id === "andre-jackson-jr-2025-26");
   const andreJacksonBadges = andreJacksonPlayer ? getPlayerTypeBadges(andreJacksonPlayer) : [];
+  const andreJacksonArtRecord = andreJacksonPlayer ? getAiCardArtRecord(andreJacksonPlayer) : null;
+  const andreJacksonReferenceImage = andreJacksonPlayer ? getAiCardReferenceImage(andreJacksonPlayer) : null;
+  const launchPlayersByTier = useMemo(() => getAiCardLaunchPlayersByTier(), []);
+  const launchPlayerCount = aiArtTiers.reduce((count, tier) => count + launchPlayersByTier[tier].length, 0);
+  const generatedLaunchArtCount = aiArtTiers.reduce(
+    (count, tier) =>
+      count + launchPlayersByTier[tier].filter((player) => getAiCardGeneratedCutout(player)).length,
+    0,
+  );
+  const referenceReadyLaunchCount = aiArtTiers.reduce(
+    (count, tier) =>
+      count + launchPlayersByTier[tier].filter((player) => getAiCardReferenceImage(player)).length,
+    0,
+  );
 
   const selectedImageUrl = imageUrls[selectedTier];
   const populatedTierCount = useMemo(
@@ -1037,48 +1130,168 @@ export const CardLabAiArtCards = () => {
           </div>
         </div>
         ) : (
-          <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
-            <div className="flex justify-center">
-              {andreJacksonPlayer ? (
-                <AiGeneratedPlayerCard
-                  player={andreJacksonPlayer}
-                  artUrl="/ai-card-art/players/andre-jackson-jr-cutout.png"
-                />
-              ) : (
-                <div className="rounded-[24px] border border-rose-300/20 bg-rose-300/10 p-5 text-sm text-rose-100">
-                  Andre Jackson Jr. could not be found in the player pool.
-                </div>
-              )}
-            </div>
+          <div className="mt-6 space-y-6">
             <div className="rounded-[26px] border border-white/10 bg-black/18 p-4">
-              <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Player Cards</div>
-              <h3 className="mt-2 font-display text-2xl text-white">Andre Jackson Jr.</h3>
-              <div className="mt-4 rounded-[22px] border border-white/10 bg-white/6 p-4 text-sm leading-6 text-slate-300">
-                First real AI-art player card using the generated player cutout layered over the existing Emerald tier background. This does not edit the tier placeholders.
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Player Cards</div>
+                  <h3 className="mt-2 font-display text-2xl text-white">25-card launch review grid</h3>
+                  <div className="mt-2 max-w-4xl text-sm leading-6 text-slate-300">
+                    Five real player-pool cards per tier, using live ratings, teams, natural positions, tier backgrounds, and derived player type badges. Each card uses its existing player-card image as the default AI reference source, then swaps to a generated cutout when one is available.
+                  </div>
+                </div>
+                <div className="rounded-full border border-white/10 bg-white/6 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-300">
+                  {generatedLaunchArtCount}/{launchPlayerCount} art assets ready
+                </div>
               </div>
-              {andreJacksonPlayer ? (
-                <div className="mt-4 grid gap-2 text-xs leading-5 text-slate-300 sm:grid-cols-2">
+              <div className="mt-4 grid gap-2 text-xs leading-5 text-slate-300 md:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-white/6 p-3">
+                  <div className="font-semibold uppercase tracking-[0.16em] text-slate-400">Data Source</div>
+                  <div className="mt-1">All cards are selected from the existing player pool.</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/6 p-3">
+                  <div className="font-semibold uppercase tracking-[0.16em] text-slate-400">Current Asset State</div>
+                  <div className="mt-1">{referenceReadyLaunchCount}/{launchPlayerCount} cards have existing player-card images ready as likeness references.</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/6 p-3">
+                  <div className="font-semibold uppercase tracking-[0.16em] text-slate-400">Next Production Pass</div>
+                  <div className="mt-1">Generate likeness-accurate player art and real-uniform cutouts tier by tier.</div>
+                </div>
+              </div>
+            </div>
+
+            {aiArtTiers.map((tier) => (
+              <section key={`ai-player-grid-${tier}`} className="rounded-[26px] border border-white/10 bg-black/18 p-4">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">{tier} Tier</div>
+                    <h4 className="mt-1 font-display text-xl text-white">5 {tier} player cards</h4>
+                  </div>
+                  <div className="rounded-full border border-white/10 bg-white/6 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-300">
+                    {launchPlayersByTier[tier].filter((player) => getAiCardGeneratedCutout(player)).length}/5 generated
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+                  {launchPlayersByTier[tier].map((player) => {
+                    const generatedCutout = getAiCardGeneratedCutout(player);
+                    const referenceImage = getAiCardReferenceImage(player);
+                    const status = getAiCardArtStatus(player);
+                    const artRecord = getAiCardArtRecord(player);
+
+                    return (
+                      <div key={`ai-player-card-${player.id}`} className="flex min-w-0 flex-col items-center gap-3 overflow-hidden rounded-[24px] border border-white/10 bg-white/6 p-3">
+                        <AiGeneratedPlayerCard player={player} artUrl={generatedCutout ?? undefined} scale={0.62} />
+                        <div className="w-full text-center">
+                          <div className="text-sm font-semibold text-white">{getCleanPlayerName(player.name)}</div>
+                          <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                            {player.overall} OVR / {player.teamLabel}
+                          </div>
+                        </div>
+                        <div className="flex w-full items-center gap-2 rounded-2xl border border-white/10 bg-black/24 p-2">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/6">
+                            {referenceImage ? (
+                              <img
+                                src={referenceImage}
+                                alt={`${getCleanPlayerName(player.name)} source reference`}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <Image size={14} className="text-slate-500" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1 text-left">
+                            <div
+                              className="truncate text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-300"
+                              title={aiCardArtStatusDetails[status]}
+                            >
+                              {aiCardArtStatusLabels[status]}
+                            </div>
+                            <div className="mt-0.5 truncate text-[9px] uppercase tracking-[0.12em] text-slate-500">
+                              {referenceImage ? "Current card image reference" : "Reference missing"}
+                            </div>
+                          </div>
+                        </div>
+                        {artRecord?.notes ? (
+                          <div className="line-clamp-2 w-full text-center text-[10px] leading-4 text-slate-500">
+                            {artRecord.notes}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+
+            {andreJacksonPlayer ? (
+              <div className="rounded-[26px] border border-white/10 bg-black/18 p-4">
+                <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Generated Asset Detail</div>
+                <h3 className="mt-2 font-display text-2xl text-white">Andre Jackson Jr.</h3>
+                <div className="mt-4 grid gap-2 text-xs leading-5 text-slate-300 sm:grid-cols-2 xl:grid-cols-4">
                   <div className="rounded-2xl border border-white/10 bg-white/6 p-3">
                     <div className="font-semibold uppercase tracking-[0.16em] text-slate-400">Player Pool Data</div>
                     <div className="mt-1 text-white">{andreJacksonPlayer.overall} OVR / {getPlayerTier(andreJacksonPlayer)} / {andreJacksonPlayer.primaryPosition}</div>
-                    <div className="mt-1">{andreJacksonPlayer.teamLabel}</div>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/6 p-3">
                     <div className="font-semibold uppercase tracking-[0.16em] text-slate-400">Player Type Badges</div>
                     <div className="mt-1 text-white">
                       {andreJacksonBadges.length ? andreJacksonBadges.map((badge) => badge.label).join(" / ") : "None"}
                     </div>
-                    <div className="mt-1">Derived from the same badge helper used by the game.</div>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/6 p-3 sm:col-span-2">
+                  <div className="rounded-2xl border border-white/10 bg-white/6 p-3">
                     <div className="font-semibold uppercase tracking-[0.16em] text-slate-400">Art Asset</div>
-                    <div className="mt-1 break-all text-white">/ai-card-art/players/andre-jackson-jr-cutout.png</div>
+                    <div className="mt-1 break-all text-white">
+                      {andreJacksonArtRecord?.generatedCutoutUrl ?? "No generated cutout yet"}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/6 p-3">
+                    <div className="font-semibold uppercase tracking-[0.16em] text-slate-400">Reference Source</div>
+                    <div className="mt-1 break-all text-white">
+                      {andreJacksonReferenceImage ?? "No existing card image found"}
+                    </div>
                   </div>
                 </div>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </div>
         )}
+      </section>
+
+      <section className="rounded-[30px] border border-white/10 bg-black/18 p-5 shadow-[0_18px_44px_rgba(0,0,0,0.24)]">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Approved References</div>
+            <h2 className="mt-2 font-display text-2xl text-white">Locked card direction</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+              Saved visual benchmarks for Rogue card design decisions before we build the next production card.
+            </p>
+          </div>
+          <div className="rounded-full border border-white/10 bg-white/6 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-300">
+            {approvedReferenceCards.length} reference saved
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          {approvedReferenceCards.map((card) => (
+            <div key={card.id} className="overflow-hidden rounded-[24px] border border-white/10 bg-white/6 p-3">
+              <div className="flex justify-center rounded-[18px] border border-white/10 bg-black/28 p-3">
+                <img
+                  src={card.imageUrl}
+                  alt={`${card.title} approved AI card reference`}
+                  className="max-h-[520px] w-auto rounded-[14px] object-contain shadow-[0_18px_38px_rgba(0,0,0,0.4)]"
+                  loading="lazy"
+                />
+              </div>
+              <div className="mt-4 text-center">
+                <div className="text-sm font-semibold text-white">{card.title}</div>
+                <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">{card.subtitle}</div>
+                <div className="mt-2 text-xs leading-5 text-slate-500">{card.details}</div>
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
 
       {activeTab === "Preview Lab" ? (

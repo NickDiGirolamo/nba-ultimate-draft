@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, Coins, Crown, Flag, LogOut, Sparkles, Swords, Target, Trophy, UserRound } from "lucide-react";
+import { BookOpen, Coins, Crown, Flag, Images, LogOut, Sparkles, Swords, Target, Trophy, UserRound } from "lucide-react";
+import { CollectionOverlay } from "./components/CollectionOverlay";
 import { DraftBriefing } from "./components/DraftBriefing";
 import { DraftPlayerCard } from "./components/DraftPlayerCard";
 import { GuidedTutorialOverlay, type GuidedTutorialStep } from "./components/GuidedTutorialOverlay";
@@ -20,9 +21,11 @@ import { useSupabaseAuth } from "./hooks/useSupabaseAuth";
 import {
   deleteActiveRogueRun,
   fetchActiveRogueRun,
+  fetchUserCollectionCards,
   fetchTokenBalance,
   syncTokenBalance,
   upsertActiveRogueRun,
+  upsertUserCollectionCards,
 } from "./lib/cloudSave";
 import { getRogueChallengeRunSettingsPreset } from "./lib/rogueChallenges";
 import type { RoguelikeRunSettings } from "./lib/roguelike";
@@ -87,7 +90,7 @@ function App() {
     beginDraftFromBriefing,
     awardRogueFailureRewards,
     updateRoguePersonalBests,
-    absorbCloudTokenBalance,
+    applyCloudAccountSnapshot,
     purchaseTrainingCampTicket,
     purchaseTradePhone,
     purchaseSilverStarterPack,
@@ -98,6 +101,8 @@ function App() {
     purchaseExtraDraftShuffle,
     purchaseStarterPackChoicePlus,
     purchaseRogueStar,
+    purchaseRoguePack,
+    ensureRoguePackPullOwned,
     setActiveRogueStar,
     recordRogueCollectionEntries,
     claimCollectionReward,
@@ -118,6 +123,7 @@ function App() {
     state.currentChoices.length,
   );
   const [prestigeOpen, setPrestigeOpen] = useState(false);
+  const [collectionOpen, setCollectionOpen] = useState(false);
   const [prestigeInitialView, setPrestigeInitialView] = useState<"overview" | "rewards">("overview");
   const [learnOpen, setLearnOpen] = useState(false);
   const [tokenStoreOpen, setTokenStoreOpen] = useState(false);
@@ -137,12 +143,17 @@ function App() {
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
   const [cloudSavedRogueRun, setCloudSavedRogueRun] = useState<unknown | null>(null);
   const [cloudTokenBalanceLoaded, setCloudTokenBalanceLoaded] = useState(false);
+  const [cloudCollectionLoaded, setCloudCollectionLoaded] = useState(false);
   const [showPrestigeLevelUp, setShowPrestigeLevelUp] = useState(false);
   const [showExtraPickIntro, setShowExtraPickIntro] = useState(false);
   const homeViewedTrackedRef = useRef(false);
   const checkoutReturnTrackedRef = useRef(false);
   const [isNarrowViewport, setIsNarrowViewport] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth < 640 : false,
+  );
+  const ownedCollectionPlayerIds = useMemo(
+    () => Array.from(new Set(state.ownedCollectionPlayerIds)),
+    [state.ownedCollectionPlayerIds],
   );
   const [roguelikeOpen, setRoguelikeOpen] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -156,13 +167,13 @@ function App() {
       return false;
     }
   });
-  const tutorialSteps = useMemo<GuidedTutorialStep[]>(
-    () => [
+  const tutorialSteps = useMemo<GuidedTutorialStep[]>(() => {
+    const steps: GuidedTutorialStep[] = [
       {
         id: "tokens",
         targetId: "app-token-store",
         title: "Your account power lives here",
-        body: "The Token Store holds permanent Rogue upgrades, utility items, rotating starter cards, token packs, and rewards. You can come back here between runs.",
+        body: "The Token Store holds permanent Rogue upgrades, utility items, rotating starter cards, token bundles, and rewards. You can come back here between runs.",
         placement: "bottom",
       },
       {
@@ -170,13 +181,6 @@ function App() {
         targetId: "app-learn",
         title: "Use Learn whenever something feels unclear",
         body: "The Learn guide explains Rogue cards, badges, boss battles, locker room cash, and the main run systems without needing to leave the game.",
-        placement: "bottom",
-      },
-      {
-        id: "prestige",
-        targetId: "app-prestige",
-        title: "Track your long-term progress",
-        body: "Prestige shows your account level and Rogue progression. Runs, rewards, and big clears all help move this forward over time.",
         placement: "bottom",
       },
       {
@@ -230,9 +234,20 @@ function App() {
         placement: "top",
         advanceOnTargetClick: true,
       },
-    ],
-    [],
-  );
+    ];
+
+    if (!isNarrowViewport) {
+      steps.splice(2, 0, {
+        id: "collection",
+        targetId: "app-collection",
+        title: "Track your owned cards",
+        body: "Collection opens your permanent card wall. Cards you own forever from store purchases, packs, and permanent rewards appear here.",
+        placement: "bottom",
+      });
+    }
+
+    return steps;
+  }, [isNarrowViewport]);
 
   const completeTutorial = useCallback(() => {
     setTutorialOpen(false);
@@ -246,6 +261,7 @@ function App() {
     setProfileMenuOpen(false);
     setTokenStoreOpen(false);
     setPrestigeOpen(false);
+    setCollectionOpen(false);
     setLearnOpen(false);
     setTutorialStepIndex(0);
     setTutorialOpen(true);
@@ -303,6 +319,18 @@ function App() {
     }
   }, [auth.user?.id, guestMode, metaProgress.tokens.balance]);
 
+  const openCollection = useCallback(() => {
+    setProfileMenuOpen(false);
+    setPrestigeOpen(false);
+    setTokenStoreOpen(false);
+    setLearnOpen(false);
+    setCollectionOpen(true);
+
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, []);
+
   const runRogueChallenge = useCallback((challengeId: string) => {
     const preset = getRogueChallengeRunSettingsPreset(challengeId);
 
@@ -312,6 +340,7 @@ function App() {
     });
     setTokenStoreOpen(false);
     setPrestigeOpen(false);
+    setCollectionOpen(false);
     setLearnOpen(false);
     openRoguelike("rogue_challenge");
 
@@ -451,23 +480,42 @@ function App() {
   useEffect(() => {
     if (!auth.user) {
       setCloudTokenBalanceLoaded(false);
+      setCloudCollectionLoaded(false);
       return;
     }
+
+    setCloudTokenBalanceLoaded(false);
+    setCloudCollectionLoaded(false);
+    applyCloudAccountSnapshot(null, []);
 
     let cancelled = false;
     const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
     const returningFromCheckout = params?.get("checkout") === "success";
     const maxAttempts = returningFromCheckout ? 8 : 1;
     const userId = auth.user.id;
+    const localBalanceBeforeSync = metaProgress.tokens.balance;
+    const collectionCardsPromise = fetchUserCollectionCards(userId);
     let trackedTokenBalanceSync = false;
 
-    const refreshTokenBalance = async () => {
+    const refreshAccountSnapshot = async () => {
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-        const cloudBalance = await fetchTokenBalance(userId);
+        const [cloudBalance, cloudCollectionPlayerIds] = await Promise.all([
+          fetchTokenBalance(userId),
+          collectionCardsPromise,
+        ]);
         if (cancelled) return;
 
-        absorbCloudTokenBalance(cloudBalance);
-        setCloudTokenBalanceLoaded(true);
+        const shouldApplySnapshot =
+          !returningFromCheckout ||
+          cloudBalance !== null ||
+          attempt === maxAttempts - 1;
+
+        if (shouldApplySnapshot) {
+          applyCloudAccountSnapshot(cloudBalance ?? 0, cloudCollectionPlayerIds);
+          setCloudTokenBalanceLoaded(true);
+          setCloudCollectionLoaded(true);
+        }
+
         if (!trackedTokenBalanceSync && cloudBalance !== null) {
           trackedTokenBalanceSync = true;
           trackAnalyticsEventSoon("token_balance_synced", {
@@ -475,23 +523,23 @@ function App() {
               cloudBalance,
               returningFromCheckout,
               attempt: attempt + 1,
-              localBalanceBeforeSync: metaProgress.tokens.balance,
+              localBalanceBeforeSync,
             },
           });
         }
 
-        if (!returningFromCheckout || (cloudBalance !== null && cloudBalance > metaProgress.tokens.balance)) return;
+        if (!returningFromCheckout || cloudBalance !== null) return;
 
         await new Promise((resolve) => window.setTimeout(resolve, 1000));
       }
     };
 
-    void refreshTokenBalance();
+    void refreshAccountSnapshot();
 
     return () => {
       cancelled = true;
     };
-  }, [absorbCloudTokenBalance, auth.user?.id]);
+  }, [applyCloudAccountSnapshot, auth.user?.id]);
 
   useEffect(() => {
     if (!auth.user || !cloudTokenBalanceLoaded) return;
@@ -512,6 +560,17 @@ function App() {
     state.purchasedTokens,
     state.spentTokens,
   ]);
+
+  useEffect(() => {
+    if (!auth.user || !cloudCollectionLoaded || state.ownedCollectionPlayerIds.length === 0) return;
+
+    void upsertUserCollectionCards(auth.user.id, state.ownedCollectionPlayerIds, {
+      source: "local_collection_sync",
+      metadata: {
+        ownedCount: state.ownedCollectionPlayerIds.length,
+      },
+    });
+  }, [auth.user?.id, cloudCollectionLoaded, state.ownedCollectionPlayerIds]);
 
   const saveCloudRogueRun = useCallback((runData: unknown) => {
     if (!auth.user) return;
@@ -585,7 +644,7 @@ function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }, [state.screen, roguelikeOpen, prestigeOpen, tokenStoreOpen, learnOpen, showPrestigeLevelUp]);
+  }, [state.screen, roguelikeOpen, prestigeOpen, collectionOpen, tokenStoreOpen, learnOpen, showPrestigeLevelUp]);
 
   if (!auth.loading && !auth.user && !guestMode) {
     return (
@@ -611,9 +670,11 @@ function App() {
     );
   }
 
+  const isLandingHome = !roguelikeOpen && state.screen === "landing";
+
   return (
-    <div className="arena-shell text-white">
-      <div className="mx-auto max-w-[1720px] px-3 py-3 sm:px-4 sm:py-4 lg:px-5 lg:py-4">
+    <div className={`arena-shell text-white ${isLandingHome ? "arena-shell--home" : ""}`}>
+      <div className="arena-shell__content mx-auto max-w-[1720px] px-3 py-3 sm:px-4 sm:py-4 lg:px-5 lg:py-4">
         <div className="mb-4 grid grid-cols-4 gap-2 lg:flex lg:flex-row lg:items-center lg:justify-between lg:gap-4">
           <button
             type="button"
@@ -624,15 +685,15 @@ function App() {
               setRoguelikeOpen(false);
               resetDraft();
             }}
-            className="group col-span-1 flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border border-white/10 bg-black/18 px-2 py-2 text-center transition hover:border-amber-200/22 hover:bg-black/24 lg:max-w-[320px] lg:flex-row lg:justify-start lg:gap-2.5 lg:px-3.5 lg:py-2 lg:text-left"
+            className="group col-span-1 flex min-h-[30px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl border border-white/10 bg-black/18 px-1.5 py-1 text-center transition hover:border-amber-200/22 hover:bg-black/24 lg:max-w-[320px] lg:flex-row lg:justify-start lg:gap-2.5 lg:px-3.5 lg:py-2 lg:text-left"
           >
-            <div className="rounded-2xl border border-amber-200/18 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.24),rgba(249,115,22,0.14),rgba(15,23,42,0.2))] p-2 text-amber-200 shadow-[0_10px_24px_rgba(251,191,36,0.16)] lg:p-2">
-              <Trophy size={15} className="lg:hidden" />
+            <div className="rounded-xl border border-amber-200/18 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.24),rgba(249,115,22,0.14),rgba(15,23,42,0.2))] p-1 text-amber-200 shadow-[0_10px_24px_rgba(251,191,36,0.16)] lg:rounded-2xl lg:p-2">
+              <Trophy size={11} className="lg:hidden" />
               <Trophy size={17} className="hidden lg:block" />
             </div>
             <div className="min-w-0">
-              <div className="text-[8px] uppercase tracking-[0.16em] text-slate-400 lg:text-[9px] lg:tracking-[0.22em]">Home</div>
-              <div className="mt-0.5 truncate font-display text-[0.65rem] text-white lg:hidden">Draft</div>
+              <div className="text-[7px] uppercase tracking-[0.14em] text-slate-400 lg:text-[9px] lg:tracking-[0.22em]">Home</div>
+              <div className="truncate font-display text-[0.52rem] leading-none text-white lg:hidden">Draft</div>
               <div className="mt-0.5 hidden truncate font-display text-[clamp(1rem,1.35vw,1.35rem)] text-white lg:block">
                 NBA Ultimate Draft
               </div>
@@ -644,12 +705,12 @@ function App() {
               type="button"
               data-tutorial-id="app-learn"
               onClick={() => setLearnOpen(true)}
-              className="glass-panel group min-h-[54px] w-full rounded-2xl border border-sky-200/12 bg-[linear-gradient(135deg,rgba(9,18,34,0.96),rgba(16,26,46,0.92))] px-2 py-1.5 text-left shadow-[0_16px_32px_rgba(0,0,0,0.24)] transition hover:border-sky-200/28 hover:bg-[linear-gradient(135deg,rgba(12,24,44,0.98),rgba(20,34,58,0.94))] hover:shadow-[0_18px_36px_rgba(56,189,248,0.14)] sm:min-w-0 lg:min-h-[70px] lg:min-w-[230px] lg:px-3.5 lg:py-2"
+              className="glass-panel group min-h-[30px] w-full rounded-2xl border border-sky-200/12 bg-[linear-gradient(135deg,rgba(9,18,34,0.96),rgba(16,26,46,0.92))] px-1.5 py-1 text-left shadow-[0_16px_32px_rgba(0,0,0,0.24)] transition hover:border-sky-200/28 hover:bg-[linear-gradient(135deg,rgba(12,24,44,0.98),rgba(20,34,58,0.94))] hover:shadow-[0_18px_36px_rgba(56,189,248,0.14)] sm:min-w-0 lg:min-h-[70px] lg:min-w-[230px] lg:px-3.5 lg:py-2"
             >
-	              <div className="flex items-center justify-center gap-1.5 lg:justify-between lg:gap-3">
-	                <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-200 lg:gap-2 lg:text-[11px] lg:tracking-[0.18em]">
-                  <div className="rounded-full border border-sky-200/18 bg-sky-300/12 p-1 text-sky-200 transition group-hover:border-sky-200/28 group-hover:bg-sky-300/18">
-                    <BookOpen size={11} className="lg:hidden" />
+	              <div className="flex items-center justify-center gap-1 lg:justify-between lg:gap-3">
+	                <div className="flex items-center gap-1 text-[7px] font-semibold uppercase tracking-[0.1em] text-slate-200 lg:gap-2 lg:text-[11px] lg:tracking-[0.18em]">
+                  <div className="rounded-full border border-sky-200/18 bg-sky-300/12 p-0.5 text-sky-200 transition group-hover:border-sky-200/28 group-hover:bg-sky-300/18 lg:p-1">
+                    <BookOpen size={9} className="lg:hidden" />
                     <BookOpen size={12} className="hidden lg:block" />
                   </div>
                   <span className="hidden sm:inline lg:inline">Learn</span>
@@ -667,55 +728,52 @@ function App() {
               type="button"
               data-tutorial-id="app-token-store"
               onClick={() => openTokenStore("store", "top_nav")}
-              className="glass-panel min-h-[54px] w-full rounded-2xl px-2 py-1.5 text-left transition hover:border-amber-200/24 hover:bg-white/10 sm:min-w-0 lg:min-h-[70px] lg:min-w-[200px] lg:px-3.5 lg:py-2"
+              className="glass-panel min-h-[30px] w-full rounded-2xl px-1.5 py-1 text-left transition hover:border-amber-200/24 hover:bg-white/10 sm:min-w-0 lg:min-h-[70px] lg:min-w-[200px] lg:px-3.5 lg:py-2"
             >
-              <div className="flex items-center justify-center gap-1 text-[9px] uppercase tracking-[0.12em] text-slate-400 lg:justify-start lg:gap-1.5 lg:text-[10px] lg:tracking-[0.17em]">
-                <Coins size={11} className="text-amber-200 lg:hidden" />
+              <div className="flex items-center justify-center gap-1 text-[7px] uppercase tracking-[0.1em] text-slate-400 lg:justify-start lg:gap-1.5 lg:text-[10px] lg:tracking-[0.17em]">
+                <Coins size={9} className="text-amber-200 lg:hidden" />
                 <Coins size={12} className="hidden text-amber-200 lg:block" />
                 Tokens
               </div>
-              <div className="mt-1 flex flex-col items-center gap-0.5 lg:flex-row lg:items-end lg:justify-between lg:gap-3">
-                <div className="text-[1rem] font-semibold leading-none text-white lg:text-[1.65rem]">
+              <div className="mt-0.5 flex flex-col items-center gap-0 lg:mt-1 lg:flex-row lg:items-end lg:justify-between lg:gap-3">
+                <div className="text-[0.78rem] font-semibold leading-none text-white lg:text-[1.65rem]">
                   {metaProgress.tokens.balance}
                 </div>
-                <div className="pb-0 text-center text-[8px] uppercase tracking-[0.1em] text-slate-400 lg:pb-0.5 lg:text-right lg:text-[9px] lg:tracking-[0.12em]">
+                <div className="hidden pb-0 text-center text-[8px] uppercase tracking-[0.1em] text-slate-400 lg:block lg:pb-0.5 lg:text-right lg:text-[9px] lg:tracking-[0.12em]">
                   Spendable
                 </div>
               </div>
-              <div className="mt-1 h-0.5" />
+              <div className="mt-0.5 h-0.5 lg:mt-1" />
             </button>
             <button
               type="button"
-              data-tutorial-id="app-prestige"
-              onClick={() => {
-                setPrestigeInitialView("overview");
-                setPrestigeOpen(true);
-              }}
-              className="glass-panel min-h-[54px] w-full rounded-2xl px-2 py-1.5 text-left transition hover:border-amber-200/24 hover:bg-white/10 sm:min-w-0 lg:min-h-[70px] lg:min-w-[230px] lg:px-3.5 lg:py-2"
+              data-tutorial-id="app-collection"
+              onClick={openCollection}
+              className="glass-panel min-h-[30px] w-full rounded-2xl px-1.5 py-1 text-left transition hover:border-cyan-200/24 hover:bg-white/10 sm:min-w-0 lg:min-h-[70px] lg:min-w-[230px] lg:px-3.5 lg:py-2"
             >
-              <div className="flex items-center justify-center gap-1 text-[9px] uppercase tracking-[0.12em] text-slate-400 lg:justify-start lg:gap-1.5 lg:text-[10px] lg:tracking-[0.17em]">
-                <Crown size={11} className="text-amber-200 lg:hidden" />
-                <Crown size={12} className="hidden text-amber-200 lg:block" />
-                Prestige
+              <div className="flex items-center justify-center gap-1 text-[7px] uppercase tracking-[0.1em] text-slate-400 lg:justify-start lg:gap-1.5 lg:text-[10px] lg:tracking-[0.17em]">
+                <Images size={9} className="text-cyan-200 lg:hidden" />
+                <Images size={12} className="hidden text-cyan-200 lg:block" />
+                Collection
               </div>
-              <div className="mt-1 flex flex-col items-center gap-0.5 lg:flex-row lg:items-end lg:justify-between lg:gap-3">
+              <div className="mt-0.5 flex flex-col items-center gap-0 lg:mt-1 lg:flex-row lg:items-end lg:justify-between lg:gap-3">
                 <div className="flex items-end gap-1 lg:gap-2">
-                  <span className="pb-0 text-[8px] uppercase tracking-[0.1em] text-amber-100/80 lg:pb-0.5 lg:text-[9px] lg:tracking-[0.13em]">Lvl</span>
-                  <span className="text-[1rem] font-semibold leading-none text-white lg:text-[1.65rem]">
-                    {metaProgress.prestige.level}
+                  <span className="hidden pb-0 text-[8px] uppercase tracking-[0.1em] text-cyan-100/80 sm:inline lg:pb-0.5 lg:text-[9px] lg:tracking-[0.13em]">Cards</span>
+                  <span className="text-[0.78rem] font-semibold leading-none text-white lg:text-[1.65rem]">
+                    {ownedCollectionPlayerIds.length}
                   </span>
                 </div>
-                <div className="pb-0 text-center text-[8px] uppercase tracking-[0.1em] text-slate-400 lg:pb-0.5 lg:text-right lg:text-[9px] lg:tracking-[0.12em]">
-                  {metaProgress.prestige.score}/{metaProgress.prestige.nextLevelScore}
+                <div className="hidden pb-0 text-center text-[8px] uppercase tracking-[0.1em] text-slate-400 lg:block lg:pb-0.5 lg:text-right lg:text-[9px] lg:tracking-[0.12em]">
+                  Owned forever
                 </div>
               </div>
-              <div className="mt-1 h-1.5 overflow-hidden rounded-full border border-white/10 bg-slate-700/70 lg:h-1.5">
+              <div className="mt-0.5 h-0.5 overflow-hidden rounded-full border border-white/10 bg-slate-700/70 lg:mt-1 lg:h-1.5">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-amber-300 via-yellow-200 to-orange-300"
+                  className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-sky-200 to-emerald-300"
                   style={{
                     width: `${Math.max(
                       6,
-                      Math.round(metaProgress.prestige.progressToNextLevel * 100),
+                      Math.round((ownedCollectionPlayerIds.length / Math.max(1, metaProgress.collection.totalPlayers)) * 100),
                     )}%`,
                   }}
                 />
@@ -728,9 +786,9 @@ function App() {
                 data-tutorial-id="app-account"
                 onClick={() => setProfileMenuOpen((open) => !open)}
                 aria-label="Open user profile menu"
-                className="glass-panel grid h-[54px] w-[54px] place-items-center rounded-full border border-cyan-100/18 bg-[radial-gradient(circle_at_top,rgba(103,232,249,0.18),rgba(15,23,42,0.92))] text-cyan-50 shadow-[0_14px_30px_rgba(8,47,73,0.24)] transition hover:scale-[1.03] hover:border-cyan-100/34 hover:bg-cyan-300/12 lg:h-[70px] lg:w-[70px]"
+                className="glass-panel grid h-[30px] w-[30px] place-items-center rounded-full border border-cyan-100/18 bg-[radial-gradient(circle_at_top,rgba(103,232,249,0.18),rgba(15,23,42,0.92))] text-cyan-50 shadow-[0_14px_30px_rgba(8,47,73,0.24)] transition hover:scale-[1.03] hover:border-cyan-100/34 hover:bg-cyan-300/12 lg:h-[70px] lg:w-[70px]"
               >
-                <UserRound size={20} className="lg:hidden" />
+                <UserRound size={13} className="lg:hidden" />
                 <UserRound size={24} className="hidden lg:block" />
               </button>
               {profileMenuOpen ? (
@@ -784,6 +842,7 @@ function App() {
           <RoguelikeMode
             activeRogueStarId={state.activeRogueStarId}
             ownedRogueStarIds={state.ownedRogueStarIds}
+            ownedCollectionPlayerIds={ownedCollectionPlayerIds}
             ownedTrainingCampTickets={state.ownedTrainingCampTickets}
             ownedTradePhones={state.ownedTradePhones}
             ownedSilverStarterPacks={state.ownedSilverStarterPacks}
@@ -1188,6 +1247,13 @@ function App() {
         />
       )}
 
+      {collectionOpen && (
+        <CollectionOverlay
+          ownedPlayerIds={ownedCollectionPlayerIds}
+          onClose={() => setCollectionOpen(false)}
+        />
+      )}
+
       {tokenStoreOpen && (
         <TokenStoreOverlay
           meta={metaProgress}
@@ -1201,6 +1267,7 @@ function App() {
           ownedExtraDraftShuffle={state.ownedExtraDraftShuffle}
           ownedStarterPackChoicePlus={state.ownedStarterPackChoicePlus}
           ownedRogueStarIds={state.ownedRogueStarIds}
+          ownedCollectionPlayerIds={state.ownedCollectionPlayerIds}
           activeRogueStarId={state.activeRogueStarId}
           rogueCollectedCollectionEntryIds={state.rogueCollectedCollectionEntryIds}
           claimedCollectionRewardIds={state.claimedCollectionRewardIds}
@@ -1217,6 +1284,8 @@ function App() {
           onBuyExtraDraftShuffle={() => purchaseExtraDraftShuffle(getTokenStoreUtilityPrice("extra-draft-shuffle"))}
           onBuyStarterPackChoicePlus={() => purchaseStarterPackChoicePlus(getTokenStoreUtilityPrice("starter-pack-choice-plus"))}
           onBuyRogueStar={purchaseRogueStar}
+          onBuyRoguePack={purchaseRoguePack}
+          onEnsureRoguePackPullOwned={ensureRoguePackPullOwned}
           onSetActiveRogueStar={setActiveRogueStar}
           onClaimCollectionReward={claimCollectionReward}
           onClaimRogueChallengeReward={claimRogueChallengeReward}

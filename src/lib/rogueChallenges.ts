@@ -1,7 +1,11 @@
 import { Player, PlayerTier } from "../types";
 import { teamChemistryGroups } from "./dynamicDuos";
 import { getPlayerTier } from "./playerTier";
-import { getRoguelikeCoachTeamKey, type RoguelikeRunSettings } from "./roguelike";
+import {
+  getRoguelikeCoachTeamKey,
+  roguelikeCoaches,
+  type RoguelikeRunSettings,
+} from "./roguelike";
 import { getPlayerTeamKey } from "./teamChemistry";
 
 export interface RogueChallengeDefinition {
@@ -10,12 +14,36 @@ export interface RogueChallengeDefinition {
   description: string;
   reward: number;
   requirement: string;
+  rewardCoachId?: string;
+  requiredTeamName?: string;
 }
 
 export interface RogueChallengeRunSettingsPreset {
   challengeId: string;
   settings: Partial<RoguelikeRunSettings>;
 }
+
+const slugifyTeamName = (teamName: string) =>
+  teamName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+const teamTakeoverChallenges: RogueChallengeDefinition[] = roguelikeCoaches.map((coach) => ({
+  id: `${slugifyTeamName(coach.teamName)}-year-1-takeover`,
+  title: `${coach.teamName} Year 1 Takeover`,
+  description: `Beat the Year 1 NBA Finals with 7 ${coach.teamName} players in your run roster.`,
+  reward: 500,
+  requirement: `7 ${coach.teamName} players in run roster, clear Year 1 Finals`,
+  rewardCoachId: coach.id,
+  requiredTeamName: coach.teamName,
+}));
+
+const totalTakeoverChallenges: RogueChallengeDefinition[] = roguelikeCoaches.map((coach) => ({
+  id: `${slugifyTeamName(coach.teamName)}-total-takeover`,
+  title: `${coach.teamName} Total Takeover`,
+  description: `Beat the GOAT node with only ${coach.teamName} players in your run roster.`,
+  reward: 25_000,
+  requirement: `10 ${coach.teamName} players in run roster, clear GOAT node`,
+  requiredTeamName: coach.teamName,
+}));
 
 export const ROGUE_CHALLENGES: RogueChallengeDefinition[] = [
   {
@@ -74,6 +102,8 @@ export const ROGUE_CHALLENGES: RogueChallengeDefinition[] = [
     reward: 2500,
     requirement: "5 same Team Chemistry group starters, clear Year 2 Finals",
   },
+  ...teamTakeoverChallenges,
+  ...totalTakeoverChallenges,
 ];
 
 const challengeById = new Map(ROGUE_CHALLENGES.map((challenge) => [challenge.id, challenge]));
@@ -89,6 +119,7 @@ const tierRank: Record<PlayerTier, number> = {
 const YEAR_ONE_FINALS_NODE_ID = "year-1-finals";
 const YEAR_TWO_PLAYOFFS_ROUND_ONE_NODE_ID = "year-2-playoffs-round-1";
 const YEAR_TWO_FINALS_NODE_ID = "year-2-finals";
+const GOAT_NODE_ID = "the-goats";
 
 export const getRogueChallengeById = (challengeId: string) => challengeById.get(challengeId) ?? null;
 
@@ -167,10 +198,28 @@ const hasFiveSameTeamChemistryGroupStarters = (startingLineup: Player[]) => {
   );
 };
 
+const hasAtLeastPlayersFromTeam = (players: Player[], teamName: string, requiredCount: number) => {
+  const matchingPlayerIds = new Set(
+    players
+      .filter((player) => getPlayerTeamKey(player) === teamName)
+      .map((player) => player.id),
+  );
+
+  return matchingPlayerIds.size >= requiredCount;
+};
+
+const hasOnlyPlayersFromTeam = (players: Player[], teamName: string, requiredCount: number) => {
+  const uniquePlayerIds = new Set(players.map((player) => player.id));
+  if (uniquePlayerIds.size < requiredCount) return false;
+
+  return players.every((player) => getPlayerTeamKey(player) === teamName);
+};
+
 export interface RogueChallengeCompletionContext {
   clearedNodeId: string;
   settings: RoguelikeRunSettings;
   startingLineup: Player[];
+  rosterPlayers: Player[];
   hiredCoachId: string | null;
 }
 
@@ -178,6 +227,7 @@ export const getCompletedRogueChallengeIdsForClear = ({
   clearedNodeId,
   settings,
   startingLineup,
+  rosterPlayers,
   hiredCoachId,
 }: RogueChallengeCompletionContext) => {
   const completedIds: string[] = [];
@@ -186,6 +236,14 @@ export const getCompletedRogueChallengeIdsForClear = ({
     if (settings.conferenceFilter === "west") completedIds.push("western-conference-takeover");
     if (settings.conferenceFilter === "east") completedIds.push("eastern-conference-takeover");
     if (hasNoRubyOrHigherStarters(startingLineup)) completedIds.push("sapphire-year-one-finals");
+    teamTakeoverChallenges.forEach((challenge) => {
+      if (
+        challenge.requiredTeamName &&
+        hasAtLeastPlayersFromTeam(rosterPlayers, challenge.requiredTeamName, 7)
+      ) {
+        completedIds.push(challenge.id);
+      }
+    });
   }
 
   if (
@@ -200,6 +258,17 @@ export const getCompletedRogueChallengeIdsForClear = ({
     if (settings.disableTrainingNodes) completedIds.push("no-training-year-two-finals");
     if (hasFiveCoachTeamStarters(startingLineup, hiredCoachId)) completedIds.push("coach-team-finals-core");
     if (hasFiveSameTeamChemistryGroupStarters(startingLineup)) completedIds.push("iconic-team-chem-finals-core");
+  }
+
+  if (clearedNodeId === GOAT_NODE_ID) {
+    totalTakeoverChallenges.forEach((challenge) => {
+      if (
+        challenge.requiredTeamName &&
+        hasOnlyPlayersFromTeam(rosterPlayers, challenge.requiredTeamName, 10)
+      ) {
+        completedIds.push(challenge.id);
+      }
+    });
   }
 
   return completedIds;

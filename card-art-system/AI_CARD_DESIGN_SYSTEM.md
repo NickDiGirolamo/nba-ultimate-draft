@@ -31,6 +31,9 @@ It does not override the approved live gameplay card templates unless a future t
 
 - Player face, pose, and jersey silhouette must be readable at small size.
 - Player likeness should be based on a real reference image whenever the card is for a real player.
+- The default likeness reference for any real player is the image already associated with that player in the existing card system.
+- Manual user-provided reference images are only needed when the existing card image is missing, low quality, wrong era/team, or fails likeness review.
+- AI player art should move through explicit production states: `needs-reference`, `ready-to-generate`, `generated-needs-review`, `approved`, or `needs-regeneration`.
 - Real-player cards should preserve recognizable facial structure, hair, facial hair, build, and era/team context from the reference.
 - Jerseys must match the player's real-life team uniform direction for that card: correct base color, trim colors, visible team wordmark when applicable, and correct jersey number.
 - Do not accept generic, invented, or wrong-team uniforms for real-player cards.
@@ -101,7 +104,7 @@ If the design only works at large size, it is not ready.
 Prompts should ask for:
 
 - Vertical premium basketball trading card composition.
-- Real-player likeness from a clear reference image when available.
+- Real-player likeness from the player-card reference image by default.
 - Accurate real-life team jersey colors, wordmark, and jersey number for real-player cards.
 - No fake text, fake logos, or watermarks in the generated image.
 - Clear face and jersey silhouette.

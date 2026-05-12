@@ -1328,15 +1328,6 @@ export const roguelikeNodes: RoguelikeNode[] = [
     targetLabel: "Spin for an NBA team, then choose 1 of 5 Amethyst players from that team",
     allowedRewardTiers: ["Amethyst"],
   }),
-  makeCoachingChangeNode({
-    id: "year-3-coaching-change",
-    floor: 64,
-    act: 3,
-    title: "Coaching Change",
-    description: "Make one last coaching decision before the final G.O.A.T. battle.",
-    rewardBundleId: "elite-closers",
-    targetLabel: "Re-sign your coach or hire a new one",
-  }),
   {
     id: "the-goats",
     floor: 64,

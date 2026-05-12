@@ -100,6 +100,159 @@ textarea {
   min-height: 100vh;
 }
 
+@media (min-width: 1024px) {
+  .arena-shell--home {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .arena-shell--home .arena-shell__content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .arena-shell--home .home-landing-fit {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
+.home-landing-fit {
+  display: flex;
+  min-height: calc(100vh - 118px);
+  min-height: calc(100dvh - 118px);
+  width: 100%;
+}
+
+.home-landing-fit > * {
+  flex: 1;
+}
+
+.home-rogue-hero {
+  box-shadow:
+    0 28px 90px rgba(0, 0, 0, 0.44),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 80px rgba(14, 165, 233, 0.05);
+}
+
+.home-rogue-hero::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background:
+    linear-gradient(115deg, transparent 8%, rgba(255, 255, 255, 0.12) 18%, transparent 32%),
+    radial-gradient(circle at 20% 0%, rgba(251, 191, 36, 0.16), transparent 34%);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.home-rogue-hero__court {
+  background:
+    linear-gradient(90deg, rgba(125, 211, 252, 0.12) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+    radial-gradient(circle at 72% 42%, rgba(251, 191, 36, 0.2), transparent 17%),
+    radial-gradient(circle at 78% 38%, rgba(14, 165, 233, 0.22), transparent 31%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(4, 8, 18, 0.98));
+  background-size: 96px 96px, 96px 96px, auto, auto, auto;
+  mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.74), rgba(0, 0, 0, 1) 38%, rgba(0, 0, 0, 0.95));
+}
+
+.home-rogue-hero__court::after {
+  content: "";
+  position: absolute;
+  inset: 10% 8% 8% 42%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left-width: 0;
+  border-radius: 999px 0 0 999px;
+  opacity: 0.9;
+}
+
+.home-rogue-hero__glow {
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.18), transparent 20%),
+    radial-gradient(circle, rgba(34, 211, 238, 0.24), rgba(124, 58, 237, 0.16) 46%, transparent 72%);
+}
+
+.home-rogue-hero__real-card-stack {
+  isolation: isolate;
+  overflow: visible;
+  transform-style: preserve-3d;
+}
+
+.home-rogue-hero__real-card {
+  position: absolute;
+  width: 133px;
+  transform-origin: center center;
+  filter: drop-shadow(0 22px 28px rgba(0, 0, 0, 0.44));
+}
+
+.home-rogue-hero__real-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 8px 18px;
+  height: 48%;
+  z-index: -1;
+  border-radius: 999px;
+  opacity: 0.28;
+  filter: blur(26px);
+  pointer-events: none;
+}
+
+.home-rogue-hero__real-card--emerald {
+  top: 88px;
+  left: 56px;
+  z-index: 1;
+  transform: rotate(-9deg) scale(0.9);
+}
+
+.home-rogue-hero__real-card--emerald::after {
+  background: rgba(52, 211, 153, 0.26);
+}
+
+.home-rogue-hero__real-card--sapphire {
+  top: 54px;
+  left: 188px;
+  z-index: 2;
+  transform: rotate(7deg) scale(0.96);
+}
+
+.home-rogue-hero__real-card--sapphire::after {
+  background: rgba(56, 189, 248, 0.24);
+}
+
+.home-rogue-hero__real-card--ruby {
+  top: 10px;
+  left: 124px;
+  z-index: 3;
+  transform: rotate(-2deg) scale(1.04);
+}
+
+.home-rogue-hero__real-card--ruby::after {
+  background: rgba(251, 113, 133, 0.28);
+}
+
+@media (max-width: 1023px) {
+  .home-landing-fit {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .home-landing-feature-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .home-landing-feature-grid > * {
+    min-width: 0;
+  }
+}
+
 .arena-shell::before {
   content: "";
   position: absolute;
@@ -268,6 +421,305 @@ textarea {
 
   to {
     transform: translateX(100%) rotate(12deg);
+  }
+}
+
+.pack-opening-burst {
+  background:
+    radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.24), transparent 16%),
+    conic-gradient(from 0deg at 50% 42%, transparent, rgba(251, 191, 36, 0.22), transparent, rgba(59, 130, 246, 0.2), transparent);
+  animation: packOpeningBurst 1500ms ease-out both;
+  opacity: 0;
+}
+
+.pack-opening-pack {
+  animation: packOpeningRip 1350ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+.pack-opening-card {
+  animation: packCardReveal 1500ms cubic-bezier(0.16, 1, 0.3, 1) 420ms both;
+  transform-style: preserve-3d;
+}
+
+.pack-reveal-stage {
+  perspective: 1200px;
+}
+
+.pack-rip-wrap {
+  animation: packWrapLift 1500ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+  filter: drop-shadow(0 32px 70px rgba(16, 185, 129, 0.28));
+  pointer-events: none;
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+.pack-rip-half {
+  height: 100%;
+  overflow: hidden;
+  position: absolute;
+  top: 0;
+  width: 50%;
+}
+
+.pack-rip-left {
+  animation: packRipLeft 2300ms cubic-bezier(0.18, 0.86, 0.22, 1) 780ms both;
+  left: 0;
+  transform-origin: right center;
+}
+
+.pack-rip-right {
+  animation: packRipRight 2300ms cubic-bezier(0.18, 0.86, 0.22, 1) 780ms both;
+  right: 0;
+  transform-origin: left center;
+}
+
+.pack-rip-flash {
+  animation: packRipFlash 2200ms ease-out 680ms both;
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.92), transparent),
+    radial-gradient(circle, rgba(254, 249, 195, 0.82), transparent 62%);
+  bottom: -8%;
+  filter: blur(1px);
+  left: 50%;
+  position: absolute;
+  top: -8%;
+  transform: translateX(-50%);
+  width: 34px;
+}
+
+.pack-revealed-card-anchor {
+  animation: packCardRiseFromPack 4400ms cubic-bezier(0.16, 1, 0.3, 1) 960ms both;
+  transform-origin: center center;
+  will-change: opacity, transform;
+}
+
+.pack-revealed-card {
+  animation: packCardFocusIn 4400ms cubic-bezier(0.16, 1, 0.3, 1) 960ms both;
+  filter: drop-shadow(0 30px 90px rgba(255, 255, 255, 0.2)) drop-shadow(0 0 42px rgba(52, 211, 153, 0.24));
+  position: relative;
+  transform-style: preserve-3d;
+  will-change: filter, transform;
+  z-index: 6;
+}
+
+.pack-card-illumination {
+  animation: packCardGlowIn 3800ms ease-out 1450ms both;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.58), rgba(250, 204, 21, 0.34) 22%, rgba(52, 211, 153, 0.26) 46%, rgba(14, 165, 233, 0.14) 58%, transparent 72%);
+  filter: blur(4px);
+  height: min(62vh, 540px);
+  transform: translate(-50%, -50%);
+  width: min(62vh, 540px);
+  z-index: 1;
+}
+
+.pack-send-collection {
+  animation: packSendCollectionIn 900ms ease-out 5600ms both;
+}
+
+@keyframes packOpeningBurst {
+  0% {
+    opacity: 0;
+    transform: scale(0.7) rotate(0deg);
+  }
+
+  28% {
+    opacity: 0.85;
+  }
+
+  100% {
+    opacity: 0.18;
+    transform: scale(1.55) rotate(18deg);
+  }
+}
+
+@keyframes packOpeningRip {
+  0% {
+    filter: brightness(0.92);
+    transform: translateY(18px) rotate(-2deg) scale(0.98);
+  }
+
+  42% {
+    filter: brightness(1.45);
+    transform: translateY(-8px) rotate(2deg) scale(1.05);
+  }
+
+  100% {
+    filter: brightness(1);
+    transform: translateY(0) rotate(-1deg) scale(1);
+  }
+}
+
+@keyframes packCardReveal {
+  0% {
+    opacity: 0;
+    transform: translateX(-140px) translateY(18px) rotateY(88deg) rotate(-7deg) scale(0.82);
+  }
+
+  56% {
+    opacity: 1;
+    transform: translateX(10px) translateY(-8px) rotateY(-10deg) rotate(2deg) scale(1.04);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(0) translateY(0) rotateY(0deg) rotate(0deg) scale(1);
+  }
+}
+
+@keyframes packWrapLift {
+  0% {
+    filter: brightness(0.92) drop-shadow(0 24px 48px rgba(16, 185, 129, 0.18));
+    transform: translateY(18px) rotate(-2deg) scale(0.92);
+  }
+
+  45% {
+    filter: brightness(1.35) drop-shadow(0 32px 76px rgba(250, 204, 21, 0.28));
+    transform: translateY(-10px) rotate(1deg) scale(1.04);
+  }
+
+  100% {
+    filter: brightness(1.1) drop-shadow(0 32px 70px rgba(16, 185, 129, 0.24));
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+}
+
+@keyframes packRipLeft {
+  0% {
+    opacity: 1;
+    transform: translateX(0) rotate(0deg) rotateY(0deg);
+  }
+
+  38% {
+    opacity: 1;
+    transform: translateX(-28px) rotate(-8deg) rotateY(-18deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-210px) translateY(28px) rotate(-18deg) rotateY(-58deg);
+  }
+}
+
+@keyframes packRipRight {
+  0% {
+    opacity: 1;
+    transform: translateX(0) rotate(0deg) rotateY(0deg);
+  }
+
+  38% {
+    opacity: 1;
+    transform: translateX(28px) rotate(8deg) rotateY(18deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(210px) translateY(28px) rotate(18deg) rotateY(58deg);
+  }
+}
+
+@keyframes packRipFlash {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scaleY(0.15);
+  }
+
+  26% {
+    opacity: 1;
+    transform: translateX(-50%) scaleY(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scaleY(1.08);
+  }
+}
+
+@keyframes packCardRiseFromPack {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -16%) scale(0.18);
+  }
+
+  18% {
+    opacity: 0;
+    transform: translate(-50%, -16%) scale(0.18);
+  }
+
+  36% {
+    opacity: 0.72;
+    transform: translate(-50%, -30%) scale(0.44);
+  }
+
+  62% {
+    opacity: 1;
+    transform: translate(-50%, -58%) scale(0.88);
+  }
+
+  82% {
+    opacity: 1;
+    transform: translate(-50%, -51%) scale(1.04);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes packCardFocusIn {
+  0% {
+    filter: brightness(1.4) saturate(1.15);
+    transform: rotateY(82deg) rotate(-8deg);
+  }
+
+  30% {
+    filter: brightness(1.55) saturate(1.18);
+    transform: rotateY(62deg) rotate(-5deg);
+  }
+
+  58% {
+    filter: brightness(1.18) saturate(1.08);
+    transform: rotateY(14deg) rotate(2deg);
+  }
+
+  78% {
+    filter: brightness(1.04) saturate(1.03);
+    transform: rotateY(-5deg) rotate(-1deg);
+  }
+
+  100% {
+    filter: brightness(1) saturate(1);
+    transform: rotateY(0deg) rotate(0deg);
+  }
+}
+
+@keyframes packCardGlowIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.45);
+  }
+
+  45% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.04);
+  }
+
+  100% {
+    opacity: 0.82;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes packSendCollectionIn {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 

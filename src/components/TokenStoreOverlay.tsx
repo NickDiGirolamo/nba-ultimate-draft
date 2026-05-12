@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, CheckCircle2, Coins, CreditCard, Crown, Handshake, Medal, Package2, RefreshCcw, ShieldPlus, Sparkles, Ticket, Trophy, Users2, WalletCards, X } from "lucide-react";
-import { MetaProgress, Player } from "../types";
+import { ArrowLeft, CheckCircle2, Coins, CreditCard, Handshake, Medal, Package2, RefreshCcw, ShieldPlus, Sparkles, Ticket, Trophy, Users2, WalletCards, X } from "lucide-react";
+import { MetaProgress, Player, PlayerTier } from "../types";
 import { allPlayers } from "../data/players";
+import { getNbaTeamByName } from "../data/nbaTeams";
 import { createTokenPackCheckoutSession, fetchActiveTokenPacks } from "../lib/cloudSave";
 import {
   STARTER_VAULT_TIERS,
@@ -11,21 +12,68 @@ import {
   getTokenStorePlayerPrice,
   getTokenStorePlayerPriceMap,
   getTokenStoreSPlayers,
+  getRoguePackPlayerPool,
   getWeeklyStarterVaultCards,
+  ROGUE_TOKEN_STORE_PACKS,
   tokenStoreUtilityItems,
+  type RogueTokenStorePack,
   type StarterVaultPlayerEntry,
   type StarterVaultTier,
 } from "../lib/tokenStore";
 import { defaultTokenPackProducts, type TokenPackProduct } from "../lib/tokenPacks";
 import { usePlayerImage } from "../hooks/usePlayerImage";
 import { PlayerTypeBadges } from "./PlayerTypeBadges";
+import { DraftPlayerCard } from "./DraftPlayerCard";
 import {
   COLLECTION_REWARD_TOKENS,
   buildCollectionProgress,
   type CollectionFamilyId,
 } from "../lib/collections";
 import { ROGUE_CHALLENGES } from "../lib/rogueChallenges";
+import { getRoguelikeCoachById } from "../lib/roguelike";
 import { trackAnalyticsEventSoon } from "../lib/analytics";
+
+const PENDING_ROGUE_PACK_PULL_STORAGE_KEY = "nba-ultimate-draft-pending-rogue-pack-pull-v1";
+
+type RoguePackPull = {
+  pack: RogueTokenStorePack;
+  player: Player;
+};
+
+const readPendingRoguePackPull = (): RoguePackPull | null => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const saved = window.localStorage.getItem(PENDING_ROGUE_PACK_PULL_STORAGE_KEY);
+    if (!saved) return null;
+
+    const parsed = JSON.parse(saved) as { packId?: unknown; playerId?: unknown };
+    if (typeof parsed.packId !== "string" || typeof parsed.playerId !== "string") return null;
+
+    const pack = ROGUE_TOKEN_STORE_PACKS.find((candidate) => candidate.id === parsed.packId);
+    const player = allPlayers.find((candidate) => candidate.id === parsed.playerId);
+    if (!pack || !player) return null;
+
+    return { pack, player };
+  } catch {
+    return null;
+  }
+};
+
+const savePendingRoguePackPull = ({ pack, player }: RoguePackPull) => {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(
+    PENDING_ROGUE_PACK_PULL_STORAGE_KEY,
+    JSON.stringify({ packId: pack.id, playerId: player.id }),
+  );
+};
+
+const clearPendingRoguePackPull = () => {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.removeItem(PENDING_ROGUE_PACK_PULL_STORAGE_KEY);
+};
 
 interface TokenStoreOverlayProps {
   meta: MetaProgress;
@@ -39,6 +87,7 @@ interface TokenStoreOverlayProps {
   ownedExtraDraftShuffle: number;
   ownedStarterPackChoicePlus: number;
   ownedRogueStarIds: string[];
+  ownedCollectionPlayerIds: string[];
   activeRogueStarId: string | null;
   rogueCollectedCollectionEntryIds: string[];
   claimedCollectionRewardIds: string[];
@@ -55,6 +104,8 @@ interface TokenStoreOverlayProps {
   onBuyExtraDraftShuffle: () => boolean | void;
   onBuyStarterPackChoicePlus: () => boolean | void;
   onBuyRogueStar: (playerId: string, price: number) => boolean | void;
+  onBuyRoguePack: (tier: PlayerTier, price: number) => Player | null;
+  onEnsureRoguePackPullOwned: (playerId: string) => void;
   onSetActiveRogueStar: (playerId: string | null) => void;
   onClaimCollectionReward: (familyId: CollectionFamilyId) => boolean;
   onClaimRogueChallengeReward: (challengeId: string) => boolean;
@@ -128,7 +179,7 @@ const getTokenPackUseCase = (pack: TokenPackProduct) => {
     "rotation-token-pack": "Good for: your first permanent Rogue upgrade.",
     "playoff-token-pack": "Good for: starter upgrades, coach recruitment, and run tools.",
     "finals-token-pack": "Good for: multiple permanent upgrades across future runs.",
-    "galaxy-token-pack": "Good for: high-end permanent starter-card chase progress.",
+    "galaxy-token-pack": "Good for: high-end permanent pack-card chase progress.",
   };
 
   return useCases[pack.slug] ?? "Good for: upgrading Rogue power before your next climb.";
@@ -346,7 +397,7 @@ const TokenPackCard = ({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-100/72">Token Pack</div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-100/72">Token Bundle</div>
             {popular ? (
               <div className="rounded-full border border-amber-100/24 bg-amber-200/14 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-amber-100">
                 Popular
@@ -377,7 +428,7 @@ const TokenPackCard = ({
         onClick={onCheckout}
         disabled={!checkoutReady || busy}
         className="relative mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48"
-        title={checkoutReady ? "Open Stripe Checkout for this token pack." : "Add a Stripe Price ID before this pack can be sold."}
+        title={checkoutReady ? "Open Stripe Checkout for this token bundle." : "Add a Stripe Price ID before this bundle can be sold."}
       >
         <CreditCard size={16} />
         {!checkoutReady ? "Stripe Setup Needed" : busy ? "Opening Checkout..." : "Buy With Stripe"}
@@ -385,6 +436,412 @@ const TokenPackCard = ({
     </div>
   );
 };
+
+const packWidth = 318;
+const packHeight = 636;
+
+const RoguePackVisual = ({ pack, scale = 0.62 }: { pack: RogueTokenStorePack; scale?: number }) => (
+  <div
+    className="pointer-events-none relative mx-auto"
+    style={{
+      width: `${packWidth * scale}px`,
+      height: `${packHeight * scale}px`,
+    }}
+  >
+    <div
+      className="absolute left-0 top-0"
+      style={{
+        transform: `scale(${scale})`,
+        transformOrigin: "top left",
+      }}
+    >
+      <div className={`relative h-[636px] w-[318px] overflow-hidden rounded-[8px] ${pack.shadowClass}`}>
+        <img
+          src={pack.wrapperImage}
+          alt={`${pack.name} foil wrapper base`}
+          className="absolute inset-0 h-full w-full object-cover"
+          draggable={false}
+        />
+        <div className={`absolute inset-0 bg-gradient-to-br ${pack.tintClass} mix-blend-color`} />
+        <div className="absolute inset-0 bg-[linear-gradient(100deg,transparent_0%,rgba(255,255,255,0.12)_18%,transparent_34%,rgba(255,255,255,0.18)_52%,transparent_68%,rgba(255,255,255,0.1)_84%,transparent_100%)] opacity-75" />
+
+        <img
+          src={pack.playerImage}
+          alt={`${pack.name} featured player art`}
+          className={`absolute z-10 w-auto object-contain drop-shadow-[0_20px_24px_rgba(0,0,0,0.62)] ${pack.playerClass}`}
+          draggable={false}
+        />
+
+        <div className="absolute right-5 top-[86px] z-20 min-w-[74px] rounded-[6px] border border-white/24 bg-black/62 px-3 py-2 text-center shadow-[0_12px_28px_rgba(0,0,0,0.36)] backdrop-blur-sm">
+          <div className="font-display text-[34px] font-extrabold leading-none text-white">{pack.cardCount}</div>
+          <div className="mt-1 text-[11px] font-black uppercase leading-none tracking-[0.08em]">
+            {pack.cardCount === "1" ? "Card" : "Cards"}
+          </div>
+        </div>
+
+        <div className="absolute inset-x-5 bottom-[82px] z-20 rounded-[6px] border border-white/20 bg-black/74 px-4 py-3 shadow-[0_16px_30px_rgba(0,0,0,0.42)] backdrop-blur-sm">
+          <div className="text-center font-display text-[30px] font-extrabold uppercase leading-none tracking-[0.02em] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+            {pack.name}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const RoguePackStoreCard = ({
+  pack,
+  remaining,
+  canAfford,
+  onOpen,
+  onAbout,
+}: {
+  pack: RogueTokenStorePack;
+  remaining: number;
+  canAfford: boolean;
+  onOpen: () => void;
+  onAbout: () => void;
+}) => {
+  const soldOut = remaining <= 0;
+
+  return (
+    <div className="flex min-h-full flex-col rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.075),rgba(7,11,20,0.96))] p-4 shadow-[0_20px_52px_rgba(0,0,0,0.34)]">
+      <div className="relative overflow-hidden rounded-[22px]">
+        <div className={`pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b ${pack.tintClass} opacity-80`} />
+        <div className="pointer-events-none relative">
+          <RoguePackVisual pack={pack} />
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">{pack.tier} Tier</div>
+          <h3 className="mt-1 text-2xl font-semibold text-white">{pack.name}</h3>
+        </div>
+        <div className="shrink-0 rounded-full border border-white/12 bg-black/24 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-200">{remaining} left</div>
+      </div>
+
+      <div className="mt-auto pt-5">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Price</div>
+          <div className="mt-1 text-2xl font-semibold text-white">{formatNumber(pack.price)}</div>
+        </div>
+        <button
+          type="button"
+          data-testid={`buy-${pack.id}`}
+          onPointerUp={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onOpen();
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            event.stopPropagation();
+            onOpen();
+          }}
+          disabled={soldOut || !canAfford}
+          className="pointer-events-auto mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-amber-100/36 bg-[linear-gradient(135deg,#fff6bf,#f8c85c_48%,#b77716)] px-5 py-3.5 text-sm font-black uppercase tracking-[0.12em] text-slate-950 shadow-[0_16px_34px_rgba(245,158,11,0.22)] transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-none disabled:bg-white/20 disabled:text-white/48 disabled:shadow-none"
+        >
+          <Package2 size={16} />
+          {soldOut ? "Tier Complete" : canAfford ? "Buy Pack" : "Need Tokens"}
+        </button>
+        <button
+          type="button"
+          data-testid={`about-${pack.id}`}
+          onPointerUp={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onAbout();
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            event.stopPropagation();
+            onAbout();
+          }}
+          className="pointer-events-auto mt-2 inline-flex w-full items-center justify-center rounded-full border border-white/12 bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-[0.12em] text-slate-950 transition hover:scale-[1.01] hover:bg-slate-100"
+        >
+          About This Pack
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const PackOpeningOverlay = ({
+  pack,
+  player,
+  onClose,
+}: {
+  pack: RogueTokenStorePack;
+  player: Player;
+  onClose: () => void;
+}) => (
+  <div className="fixed inset-0 z-[220] overflow-hidden bg-slate-950/94 px-3 py-3 text-white backdrop-blur-lg">
+    <div className="relative mx-auto flex h-[calc(100vh-24px)] w-full max-w-5xl items-center justify-center overflow-hidden rounded-[30px] border border-white/12 bg-[linear-gradient(135deg,rgba(7,11,20,0.98),rgba(15,23,42,0.96))] shadow-[0_34px_110px_rgba(0,0,0,0.72)]">
+
+      <div className="pack-reveal-stage relative h-full w-full">
+        <div
+          className="absolute left-1/2 top-[45%] -translate-x-1/2 -translate-y-1/2"
+          style={{
+            width: `${packWidth * 0.52}px`,
+            height: `${packHeight * 0.52}px`,
+          }}
+        >
+          <div className="pack-rip-wrap h-full w-full">
+            <div className="pack-rip-half pack-rip-left">
+              <RoguePackVisual pack={pack} scale={0.52} />
+            </div>
+            <div className="pack-rip-half pack-rip-right">
+              <div style={{ transform: `translateX(-${(packWidth * 0.52) / 2}px)` }}>
+                <RoguePackVisual pack={pack} scale={0.52} />
+              </div>
+            </div>
+            <div className="pack-rip-flash" />
+          </div>
+        </div>
+
+        <div className="pack-card-illumination pointer-events-none absolute left-1/2 top-[45%]" />
+        <div className="pack-revealed-card-anchor absolute left-1/2 top-[45%] z-[6] w-fit">
+          <div className="pack-revealed-card">
+            <DraftPlayerCard
+              player={player}
+              compact
+              compactScale={0.56}
+              actionLabel="Pulled"
+            />
+          </div>
+        </div>
+
+        <div className="absolute left-1/2 top-[calc(45%+320px)] w-[min(320px,calc(100%-32px))] -translate-x-1/2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="pack-send-collection inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-black uppercase tracking-[0.12em] text-slate-950 shadow-[0_18px_42px_rgba(255,255,255,0.16)] transition hover:scale-[1.02]"
+          >
+            <CheckCircle2 size={16} />
+            Send to Collection
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const PurchasedPackOverlay = ({
+  pack,
+  onOpen,
+}: {
+  pack: RogueTokenStorePack;
+  onOpen: () => void;
+}) => (
+  <div className="fixed inset-0 z-[215] flex items-center justify-center overflow-y-auto bg-slate-950/88 px-3 py-3 backdrop-blur-lg">
+    <div className="relative max-h-[calc(100vh-24px)] w-full max-w-xl overflow-hidden rounded-[30px] border border-amber-100/18 bg-[radial-gradient(circle_at_50%_34%,rgba(253,224,71,0.44),transparent_24%),radial-gradient(circle_at_50%_46%,rgba(245,158,11,0.22),transparent_48%),linear-gradient(135deg,rgba(8,13,24,0.98),rgba(15,23,42,0.96))] p-5 text-center text-white shadow-[0_34px_120px_rgba(0,0,0,0.76)]">
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(254,249,195,0.36),rgba(250,204,21,0.12)_38%,transparent_68%)] blur-sm" />
+      <div className="pointer-events-none absolute left-1/2 top-[44%] h-[520px] w-20 -translate-x-1/2 -translate-y-1/2 rotate-12 bg-white/18 blur-2xl" />
+      <div className="relative">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-100/76">Pack Purchased</div>
+        <h3 className="mt-2 font-display text-3xl text-white">{pack.name}</h3>
+        <div className="mx-auto mt-4 w-fit drop-shadow-[0_28px_70px_rgba(250,204,21,0.36)]">
+          <RoguePackVisual pack={pack} scale={0.48} />
+        </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="mt-5 inline-flex w-full max-w-xs items-center justify-center gap-2 rounded-full border border-amber-100/36 bg-[linear-gradient(135deg,#fff6bf,#f8c85c_48%,#b77716)] px-6 py-3 text-sm font-black uppercase tracking-[0.14em] text-slate-950 shadow-[0_18px_42px_rgba(245,158,11,0.28)] transition hover:scale-[1.02]"
+        >
+          <Package2 size={16} />
+          Open Pack
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+const PackPurchaseConfirmOverlay = ({
+  pack,
+  tokenBalance,
+  remaining,
+  confirming,
+  onCancel,
+  onConfirm,
+}: {
+  pack: RogueTokenStorePack;
+  tokenBalance: number;
+  remaining: number;
+  confirming: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) => {
+  const balanceAfter = Math.max(0, tokenBalance - pack.price);
+
+  return (
+    <div className="fixed inset-0 z-[210] flex items-center justify-center overflow-y-auto bg-slate-950/86 px-3 py-3 backdrop-blur-lg">
+      <div className="relative max-h-[calc(100vh-24px)] w-full max-w-lg overflow-y-auto rounded-[28px] border border-white/14 bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.18),transparent_34%),linear-gradient(135deg,rgba(8,13,24,0.98),rgba(15,23,42,0.96))] p-4 text-white shadow-[0_34px_110px_rgba(0,0,0,0.72)] sm:p-5">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/8 text-slate-200 transition hover:bg-white/12 hover:text-white"
+          aria-label="Cancel pack purchase"
+        >
+          <X size={18} />
+        </button>
+
+        <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-100/18 bg-amber-300/12 text-amber-100">
+          <Package2 size={19} />
+        </div>
+        <div className="mt-4 text-[10px] font-semibold uppercase tracking-[0.26em] text-amber-100/72">
+          Confirm Token Spend
+        </div>
+        <h3 className="mt-2 font-display text-3xl text-white">Open {pack.name}?</h3>
+        <p className="mt-3 text-sm leading-6 text-slate-200/88">
+          Confirm you want to spend {formatNumber(pack.price)} tokens to buy one {pack.tier} pack. This purchase is final and non-refundable. After purchase, you will open the pack for one random unowned {pack.tier} player card.
+        </p>
+
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-[18px] border border-white/10 bg-black/20 px-3 py-2.5">
+            <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Cost</div>
+            <div className="mt-1 text-xl font-semibold text-white">{formatNumber(pack.price)}</div>
+          </div>
+          <div className="rounded-[18px] border border-white/10 bg-black/20 px-3 py-2.5">
+            <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Balance After</div>
+            <div className="mt-1 text-xl font-semibold text-white">{formatNumber(balanceAfter)}</div>
+          </div>
+          <div className="rounded-[18px] border border-white/10 bg-black/20 px-3 py-2.5">
+            <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Cards Left</div>
+            <div className="mt-1 text-xl font-semibold text-white">{formatNumber(remaining)}</div>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-[20px] border border-amber-100/14 bg-amber-300/8 px-4 py-2.5 text-sm leading-6 text-amber-50/88">
+          The revealed card is added to your permanent collection and can be used in starter slots before future Rogue runs.
+        </div>
+
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="inline-flex items-center justify-center rounded-full border border-white/12 bg-white/8 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/12"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={confirming}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-wait disabled:bg-white/40 disabled:text-white/58"
+          >
+            <Coins size={16} />
+            {confirming ? "Buying Pack..." : `Spend ${formatNumber(pack.price)}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PackDetailsOverlay = ({
+  pack,
+  possiblePlayers,
+  totalTierPlayers,
+  ownedCount,
+  onClose,
+}: {
+  pack: RogueTokenStorePack;
+  possiblePlayers: Player[];
+  totalTierPlayers: number;
+  ownedCount: number;
+  onClose: () => void;
+}) => (
+  <div className="fixed inset-0 z-[210] flex items-center justify-center overflow-y-auto bg-slate-950/88 px-3 py-3 text-white backdrop-blur-lg">
+    <div className="max-h-[calc(100vh-24px)] w-full max-w-5xl overflow-y-auto rounded-[28px] border border-white/12 bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.16),transparent_32%),linear-gradient(135deg,rgba(8,13,24,0.98),rgba(15,23,42,0.96))] p-4 shadow-[0_34px_110px_rgba(0,0,0,0.72)] sm:p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="w-full max-w-[170px] shrink-0">
+            <RoguePackVisual pack={pack} scale={0.38} />
+          </div>
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.26em] text-amber-100/72">
+              About This Pack
+            </div>
+            <h3 className="mt-2 font-display text-3xl text-white">{pack.name}</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-200/88">
+              This pack contains one random permanent {pack.tier} player card. Cards you already own in this tier are removed from the pull pool, so every successful purchase adds a new card to your collection.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center self-end rounded-full border border-white/10 bg-white/8 text-slate-200 transition hover:bg-white/12 hover:text-white lg:self-start"
+          aria-label="Close pack details"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-4">
+        <div className="rounded-[18px] border border-amber-100/14 bg-amber-300/8 px-3 py-2.5">
+          <div className="text-[10px] uppercase tracking-[0.22em] text-amber-100/70">Price</div>
+          <div className="mt-1 text-xl font-semibold text-white">{formatNumber(pack.price)}</div>
+        </div>
+        <div className="rounded-[18px] border border-white/10 bg-black/20 px-3 py-2.5">
+          <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Card Count</div>
+          <div className="mt-1 text-xl font-semibold text-white">{pack.cardCount}</div>
+        </div>
+        <div className="rounded-[18px] border border-white/10 bg-black/20 px-3 py-2.5">
+          <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Possible Now</div>
+          <div className="mt-1 text-xl font-semibold text-white">{formatNumber(possiblePlayers.length)}</div>
+        </div>
+        <div className="rounded-[18px] border border-white/10 bg-black/20 px-3 py-2.5">
+          <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Owned In Tier</div>
+          <div className="mt-1 text-xl font-semibold text-white">
+            {formatNumber(ownedCount)} / {formatNumber(totalTierPlayers)}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-[22px] border border-white/10 bg-black/20 p-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Possible Pulls Right Now</div>
+            <div className="mt-1 text-lg font-semibold text-white">{pack.tier} player cards not already owned</div>
+          </div>
+          <div className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
+            Random Pull
+          </div>
+        </div>
+
+        {possiblePlayers.length > 0 ? (
+          <div className="mt-3 grid max-h-[38vh] gap-2 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
+            {possiblePlayers.map((player) => (
+              <div
+                key={player.id}
+                className="flex items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-white/[0.045] px-3 py-2.5"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-white">{player.name}</div>
+                  <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-slate-400">
+                    {player.teamLabel} / {player.primaryPosition}
+                    {player.secondaryPositions.length ? `-${player.secondaryPositions.join("-")}` : ""}
+                  </div>
+                </div>
+                <div className="shrink-0 rounded-full border border-white/10 bg-black/22 px-3 py-1 text-xs font-semibold text-white">
+                  {player.overall} OVR
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-[20px] border border-emerald-300/18 bg-emerald-300/10 px-4 py-5 text-sm font-semibold text-emerald-50">
+            You already own every {pack.tier} card currently available in this pack.
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+);
 
 export const TokenStoreOverlay = ({
   meta,
@@ -398,6 +855,7 @@ export const TokenStoreOverlay = ({
   ownedExtraDraftShuffle,
   ownedStarterPackChoicePlus,
   ownedRogueStarIds,
+  ownedCollectionPlayerIds,
   rogueCollectedCollectionEntryIds,
   claimedCollectionRewardIds,
   completedRogueChallengeIds,
@@ -413,6 +871,8 @@ export const TokenStoreOverlay = ({
   onBuyExtraDraftShuffle,
   onBuyStarterPackChoicePlus,
   onBuyRogueStar,
+  onBuyRoguePack,
+  onEnsureRoguePackPullOwned,
   onClaimCollectionReward,
   onClaimRogueChallengeReward,
   onRunRogueChallenge,
@@ -423,10 +883,20 @@ export const TokenStoreOverlay = ({
   const [tokenPacks, setTokenPacks] = useState<TokenPackProduct[]>(defaultTokenPackProducts);
   const [checkoutBusySlug, setCheckoutBusySlug] = useState<string | null>(null);
   const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
+  const [packReveal, setPackReveal] = useState<RoguePackPull | null>(null);
+  const [purchasedPack, setPurchasedPack] = useState<RoguePackPull | null>(() => readPendingRoguePackPull());
+  const [pendingPackPurchase, setPendingPackPurchase] = useState<RogueTokenStorePack | null>(null);
+  const [packDetails, setPackDetails] = useState<RogueTokenStorePack | null>(null);
+  const [packPurchaseBusy, setPackPurchaseBusy] = useState(false);
+  const [packPurchaseMessage, setPackPurchaseMessage] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const sTierPlayers = useMemo(() => getTokenStoreSPlayers(), []);
   const playerPriceMap = useMemo(() => getTokenStorePlayerPriceMap(), []);
   const starterVaultRotation = useMemo(() => getStarterVaultRotation(nowMs), [nowMs]);
+  const ownedPackPlayerIds = useMemo(
+    () => Array.from(new Set([...ownedRogueStarIds, ...ownedCollectionPlayerIds])),
+    [ownedCollectionPlayerIds, ownedRogueStarIds],
+  );
   const starterVaultCards = useMemo(() => getWeeklyStarterVaultCards(nowMs), [nowMs]);
   const starterVaultCountdown = formatVaultCountdown(starterVaultRotation.endsAt - nowMs);
   const collectionProgress = useMemo(
@@ -510,6 +980,11 @@ export const TokenStoreOverlay = ({
     return () => window.clearInterval(intervalId);
   }, []);
 
+  useEffect(() => {
+    if (!purchasedPack) return;
+    onEnsureRoguePackPullOwned(purchasedPack.player.id);
+  }, [onEnsureRoguePackPullOwned, purchasedPack]);
+
   const buyStoreItem = (
     itemId: string,
     price: number,
@@ -525,6 +1000,35 @@ export const TokenStoreOverlay = ({
         price,
         tokenBalanceBefore: meta.tokens.balance,
         ...extraPayload,
+      },
+    });
+  };
+
+  const openRoguePack = (pack: RogueTokenStorePack) => {
+    if (packPurchaseBusy) return;
+
+    setPackPurchaseBusy(true);
+    setPackPurchaseMessage(null);
+    const player = onBuyRoguePack(pack.tier, pack.price);
+    if (!player) {
+      setPackPurchaseMessage(`Unable to open ${pack.name}. Check your token balance or try another tier.`);
+      setPackPurchaseBusy(false);
+      return;
+    }
+
+    const nextPackPull = { pack, player };
+    savePendingRoguePackPull(nextPackPull);
+    setPendingPackPurchase(null);
+    setPurchasedPack(nextPackPull);
+    setPackPurchaseBusy(false);
+    trackAnalyticsEventSoon("store_item_purchased", {
+      payload: {
+        itemId: pack.id,
+        price: pack.price,
+        tier: pack.tier,
+        playerId: player.id,
+        playerName: player.name,
+        tokenBalanceBefore: meta.tokens.balance,
       },
     });
   };
@@ -723,7 +1227,7 @@ export const TokenStoreOverlay = ({
             </div>
             <h2 className="mt-3 font-display text-3xl text-white sm:text-4xl">Spend Tokens On Rogue Power</h2>
             <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
-              Tokens turn progress into stronger Rogue runs. Buy run-only tools for the climb in front of you, unlock permanent upgrades for every future run, or collect starter cards from the weekly vault.
+              Tokens turn progress into stronger Rogue runs. Buy run-only tools for the climb in front of you, unlock permanent upgrades for every future run, or open tier packs for permanent player cards.
             </p>
           </div>
           <button
@@ -745,8 +1249,8 @@ export const TokenStoreOverlay = ({
             <div className="mt-2 text-4xl font-semibold text-white">{formatNumber(meta.tokens.lifetimeEarned)}</div>
           </div>
           <div className="rounded-[26px] border border-fuchsia-200/16 bg-fuchsia-300/10 p-5">
-            <div className="text-[10px] uppercase tracking-[0.22em] text-fuchsia-100/72">Owned Starter Cards</div>
-            <div className="mt-2 text-4xl font-semibold text-white">{ownedRogueStarIds.length}</div>
+            <div className="text-[10px] uppercase tracking-[0.22em] text-fuchsia-100/72">Owned Pack Cards</div>
+            <div className="mt-2 text-4xl font-semibold text-white">{ownedCollectionPlayerIds.length}</div>
           </div>
         </div>
 
@@ -758,7 +1262,7 @@ export const TokenStoreOverlay = ({
                 ["Run-only tools", "Utility items you spend during one Rogue run."],
                 ["Permanent power", "Upgrades that unlock once and help future runs."],
                 ["Better openings", "Starter pack upgrades that improve your first cards."],
-                ["Starter cards", "Permanent player cards you can slot into future openings."],
+                ["Card packs", "Open tier packs for permanent player cards."],
               ].map(([title, detail]) => (
                 <div key={title} className="rounded-[20px] border border-white/10 bg-black/20 px-4 py-3">
                   <div className="text-sm font-semibold text-white">{title}</div>
@@ -830,15 +1334,15 @@ export const TokenStoreOverlay = ({
                   <Sparkles size={20} />
               </span>
               <span className="min-w-0 self-end">
-                  <span className="block text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">7-Day Cards</span>
-                  <span className="mt-1 block text-2xl font-semibold leading-tight text-white">Starter Vault</span>
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Player Packs</span>
+                  <span className="mt-1 block text-2xl font-semibold leading-tight text-white">Card Packs</span>
               </span>
               <span className={`w-fit max-w-full shrink-0 self-start rounded-full border px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] ${
                 view === "vault"
                   ? "border-violet-100/30 bg-violet-200/14 text-violet-100"
                   : "border-white/10 bg-white/6 text-slate-400"
               }`}>
-                {view === "vault" ? "Active" : starterVaultCountdown}
+                {view === "vault" ? "Active" : "Open"}
               </span>
             </button>
 
@@ -863,7 +1367,7 @@ export const TokenStoreOverlay = ({
               </span>
               <span className="min-w-0 self-end">
                   <span className="block text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Buy Tokens</span>
-                  <span className="mt-1 block text-2xl font-semibold leading-tight text-white">Token Packs</span>
+                  <span className="mt-1 block text-2xl font-semibold leading-tight text-white">Token Bundles</span>
               </span>
               <span className={`w-fit max-w-full shrink-0 self-start rounded-full border px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] ${
                 view === "tokens"
@@ -1091,33 +1595,6 @@ export const TokenStoreOverlay = ({
             })}
           </div>
         </div>
-
-        <div className="mt-10">
-          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
-            <Crown size={14} className="text-amber-200" />
-            Galaxy Starter Card Catalog
-          </div>
-          <div className="mt-3 text-sm leading-7 text-slate-300">
-            Save toward premium players you can own forever and place into starter slots before future Rogue runs.
-          </div>
-          <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {orderedStarPlayers.map((player) => {
-              const price = getTokenStorePlayerPrice(player, playerPriceMap);
-              const owned = ownedRogueStarIds.includes(player.id);
-
-              return (
-                <StorePlayerCard
-                  key={player.id}
-                  playerId={player.id}
-                  price={price}
-                  owned={owned}
-                  canAfford={meta.tokens.balance >= price}
-                  onBuy={() => buyStoreItem("rogue-star", price, () => onBuyRogueStar(player.id, price), { playerId: player.id })}
-                />
-              );
-            })}
-          </div>
-        </div>
           </>
         ) : view === "vault" ? (
           <div className="mt-8 space-y-7">
@@ -1125,79 +1602,52 @@ export const TokenStoreOverlay = ({
               <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-violet-100/78">
-                    <Sparkles size={15} />
-                    Weekly Starter Vault
+                    <Package2 size={15} />
+                    Rogue Card Packs
                   </div>
-                  <h3 className="mt-3 font-display text-3xl text-white">Limited cards for future starter slots</h3>
+                  <h3 className="mt-3 font-display text-3xl text-white">Open one permanent player card from the named tier</h3>
                   <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-200/88">
-                    Each tier shows five cards for seven days. Buy a card once and it stays in your owned starter-card pool forever, even after the vault refreshes.
+                    Each pack opens immediately. The pull is random, duplicate-protected, and limited to the exact pack tier.
                   </p>
                 </div>
                 <div className="grid gap-3 lg:min-w-[360px] xl:min-w-[460px] xl:grid-cols-2">
                   <div className="min-w-0 overflow-hidden rounded-[22px] border border-white/10 bg-black/24 px-5 py-4">
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Refreshes In</div>
-                    <div className="mt-1 whitespace-nowrap font-semibold leading-none text-white text-[clamp(1.45rem,4.8vw,1.875rem)] xl:text-[clamp(1.35rem,1.65vw,1.875rem)]">
-                      {starterVaultCountdown}
-                    </div>
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Pack Types</div>
+                    <div className="mt-1 text-3xl font-semibold text-white">{ROGUE_TOKEN_STORE_PACKS.length}</div>
                   </div>
                   <div className="rounded-[22px] border border-white/10 bg-black/24 px-5 py-4">
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">This Rotation</div>
-                    <div className="mt-1 text-3xl font-semibold text-white">20 Cards</div>
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Each Pack</div>
+                    <div className="mt-1 text-3xl font-semibold text-white">1 Card</div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {STARTER_VAULT_TIERS.map((tier) => {
-              const tierEntries = starterVaultCards[tier];
-              const tierStyle = vaultTierStyles[tier];
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+              {packPurchaseMessage ? (
+                <div className="sm:col-span-2 xl:col-span-3 2xl:col-span-5 rounded-[22px] border border-rose-300/18 bg-rose-300/10 px-4 py-3 text-sm font-semibold text-rose-100">
+                  {packPurchaseMessage}
+                </div>
+              ) : null}
+              {ROGUE_TOKEN_STORE_PACKS.map((pack) => {
+                const remaining = getRoguePackPlayerPool(pack.tier, ownedPackPlayerIds).length;
 
-              return (
-                <section key={tier} className="rounded-[28px] border border-white/10 bg-white/[0.035] p-4 sm:p-5">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                      <div className={`w-fit rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${tierStyle.badgeClass}`}>
-                        {tier} Drop
-                      </div>
-                      <h4 className="mt-2 text-2xl font-semibold text-white">{tier} Starter Cards</h4>
-                      <p className="mt-1 text-sm leading-6 text-slate-300">
-                        Five rotating cards. Purchased cards stay owned and can be placed into empty starter slots before a run.
-                      </p>
-                    </div>
-                    <div className="w-fit rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
-                      5 available
-                    </div>
-                  </div>
-                  <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                    {tierEntries.map((entry) => {
-                      const owned = ownedRogueStarIds.includes(entry.player.id);
-
-                      return (
-                        <StarterVaultPlayerCard
-                          key={entry.player.id}
-                          entry={entry}
-                          owned={owned}
-                          canAfford={meta.tokens.balance >= entry.price}
-                          onBuy={() =>
-                            buyStoreItem(
-                              "starter-vault-card",
-                              entry.price,
-                              () => onBuyRogueStar(entry.player.id, entry.price),
-                              {
-                                playerId: entry.player.id,
-                                playerName: entry.player.name,
-                                tier: entry.tier,
-                                rotationIndex: starterVaultRotation.rotationIndex,
-                              },
-                            )
-                          }
-                        />
-                      );
-                    })}
-                  </div>
-                </section>
-              );
-            })}
+                return (
+                  <RoguePackStoreCard
+                    key={pack.id}
+                    pack={pack}
+                    remaining={remaining}
+                    canAfford={meta.tokens.balance >= pack.price}
+                    onOpen={() => {
+                      setPackPurchaseMessage(null);
+                      setPackPurchaseBusy(false);
+                      setPendingPackPurchase(pack);
+                    }}
+                    onAbout={() => setPackDetails(pack)}
+                  />
+                );
+              })}
+            </div>
           </div>
         ) : view === "tokens" ? (
           <div className="mt-8 space-y-6">
@@ -1210,7 +1660,7 @@ export const TokenStoreOverlay = ({
                   </div>
                   <h3 className="mt-3 font-display text-3xl text-white">Add tokens when you want faster Rogue progress</h3>
                   <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-200/88">
-                    Buy tokens to unlock permanent Rogue upgrades, stack run-only tools, or collect permanent starter cards. Stripe handles checkout, and tokens are credited after the purchase is confirmed.
+                    Buy token bundles to unlock permanent Rogue upgrades, stack run-only tools, or open tier packs for permanent player cards. Stripe handles checkout, and tokens are credited after the purchase is confirmed.
                   </p>
                   {checkoutMessage ? (
                     <div className="mt-4 rounded-2xl border border-rose-300/18 bg-rose-300/10 px-4 py-3 text-sm font-semibold text-rose-100">
@@ -1219,7 +1669,7 @@ export const TokenStoreOverlay = ({
                   ) : null}
                 </div>
                 <div className="rounded-[22px] border border-white/10 bg-black/24 px-5 py-4">
-                  <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Available Packs</div>
+                  <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Available Bundles</div>
                   <div className="mt-1 text-3xl font-semibold text-white">{tokenPacks.length}</div>
                 </div>
               </div>
@@ -1448,7 +1898,7 @@ export const TokenStoreOverlay = ({
                   {claimedChallengeIds.size} / {ROGUE_CHALLENGES.length}
                 </div>
                 <div className="mt-2 text-sm text-slate-200">
-                  Claimed challenge rewards are permanent token-bank bonuses.
+                  Claimed challenge rewards are permanent token-bank and coach-card bonuses.
                 </div>
               </div>
             </div>
@@ -1458,6 +1908,10 @@ export const TokenStoreOverlay = ({
                 const completed = completedChallengeIds.has(challenge.id);
                 const claimed = claimedChallengeIds.has(challenge.id);
                 const canClaim = completed && !claimed;
+                const rewardCoach = getRoguelikeCoachById(challenge.rewardCoachId);
+                const challengeTeam = challenge.requiredTeamName
+                  ? getNbaTeamByName(challenge.requiredTeamName)
+                  : null;
 
                 return (
                   <div
@@ -1477,7 +1931,17 @@ export const TokenStoreOverlay = ({
                             ? "border-amber-200/24 bg-amber-300/12 text-amber-100"
                             : "border-white/12 bg-black/20 text-slate-300"
                         }`}>
-                          <Trophy size={22} />
+                          {challengeTeam?.logo ? (
+                            <img
+                              src={challengeTeam.logo}
+                              alt=""
+                              className="h-[22px] w-[22px] object-contain"
+                              loading="lazy"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <Trophy size={22} />
+                          )}
                         </div>
                         <div>
                           <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Rogue Challenge</div>
@@ -1499,6 +1963,11 @@ export const TokenStoreOverlay = ({
                     <div className="mt-4 rounded-[20px] border border-white/10 bg-black/18 px-4 py-3">
                       <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Requirement</div>
                       <div className="mt-1 text-sm font-semibold text-white">{challenge.requirement}</div>
+                      {rewardCoach ? (
+                        <div className="mt-2 text-sm font-semibold text-sky-100">
+                          Coach reward: {rewardCoach.name}
+                        </div>
+                      ) : null}
                     </div>
 
                     <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1544,5 +2013,57 @@ export const TokenStoreOverlay = ({
     </div>
   );
 
-  return createPortal(overlay, document.body);
+  const packModals = (
+    <>
+      {packReveal ? (
+        <PackOpeningOverlay
+          pack={packReveal.pack}
+          player={packReveal.player}
+          onClose={() => {
+            clearPendingRoguePackPull();
+            setPackReveal(null);
+          }}
+        />
+      ) : null}
+      {purchasedPack ? (
+        <PurchasedPackOverlay
+          pack={purchasedPack.pack}
+          onOpen={() => {
+            setPackReveal(purchasedPack);
+            setPurchasedPack(null);
+          }}
+        />
+      ) : null}
+      {pendingPackPurchase ? (
+        <PackPurchaseConfirmOverlay
+          pack={pendingPackPurchase}
+          tokenBalance={meta.tokens.balance}
+          remaining={getRoguePackPlayerPool(pendingPackPurchase.tier, ownedPackPlayerIds).length}
+          confirming={packPurchaseBusy}
+          onCancel={() => {
+            if (packPurchaseBusy) return;
+            setPendingPackPurchase(null);
+          }}
+          onConfirm={() => openRoguePack(pendingPackPurchase)}
+        />
+      ) : null}
+      {packDetails ? (
+        <PackDetailsOverlay
+          pack={packDetails}
+          possiblePlayers={getRoguePackPlayerPool(packDetails.tier, ownedPackPlayerIds)}
+          totalTierPlayers={getRoguePackPlayerPool(packDetails.tier).length}
+          ownedCount={getRoguePackPlayerPool(packDetails.tier).length - getRoguePackPlayerPool(packDetails.tier, ownedPackPlayerIds).length}
+          onClose={() => setPackDetails(null)}
+        />
+      ) : null}
+    </>
+  );
+
+  return createPortal(
+    <>
+      {overlay}
+      {packModals}
+    </>,
+    document.body,
+  );
 };

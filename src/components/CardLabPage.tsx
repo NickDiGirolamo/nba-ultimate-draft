@@ -6,6 +6,7 @@ import { CardLabAltPlayerCardV3 } from "./CardLabAltPlayerCard";
 import { CardLabAiArtCards } from "./CardLabAiArtCards";
 import { CardLabCoachCard } from "./CardLabCoachCard";
 import { CardLabCoachRunRosterCard } from "./CardLabCoachRunRosterCard";
+import { CardLabPacks } from "./CardLabPacks";
 import { CardLabRunRosterCard } from "./CardLabRunRosterCard";
 import type { CardHoloVariant } from "./CardHoloOverlay";
 import { DraftPlayerCard } from "./DraftPlayerCard";
@@ -21,7 +22,7 @@ import { LegacyPlayerTier, PlayerTier } from "../types";
 import { PlayerTypeBadge } from "../lib/playerTypeBadges";
 
 type LabRarity = PlayerTier | LegacyPlayerTier | "Pink Smoke" | "Neon Paint" | "Black/Gold Marble";
-type CardLabLine = "main-sandbox" | "before-the-glory" | "coaches" | "ai-art-cards";
+type CardLabLine = "main-sandbox" | "before-the-glory" | "coaches" | "ai-art-cards" | "packs";
 
 const rarityOptions: LabRarity[] = [
   "S",
@@ -150,7 +151,9 @@ export const CardLabPage = () => {
         ? "Before the Glory"
         : activeLine === "coaches"
           ? "Coaches"
-          : "AI Art Cards";
+          : activeLine === "packs"
+            ? "Packs"
+            : "AI Art Cards";
   const currentFocusDetail =
     activeLine === "main-sandbox"
       ? `${badgeTypeOptions.find((option) => option.value === badgeType)?.label} | ${badgeCount} badge${
@@ -160,7 +163,9 @@ export const CardLabPage = () => {
         ? `${beforeTheGloryCards.length} BTG cards`
         : activeLine === "coaches"
           ? `${coachCards.length} Rogue coach cards`
-          : "Isolated full-art sandbox";
+          : activeLine === "packs"
+            ? "Token bundle wrapper previews"
+            : "Isolated full-art sandbox";
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.12),transparent_28%),linear-gradient(180deg,#08111f_0%,#0f172a_38%,#020617_100%)] text-white">
@@ -289,6 +294,17 @@ export const CardLabPage = () => {
                       }`}
                     >
                       AI Art Cards
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveLine("packs")}
+                      className={`rounded-2xl border px-3 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] transition ${
+                        activeLine === "packs"
+                          ? "border-white/20 bg-white text-slate-950"
+                          : "border-white/12 bg-white/6 text-slate-300 hover:bg-white/10"
+                      }`}
+                    >
+                      Packs
                     </button>
                   </div>
                 </div>
@@ -419,6 +435,10 @@ export const CardLabPage = () => {
                         <>
                           Dedicated preview page for all <span className="font-semibold text-white">Rogue coach cards</span>.
                           These use the same list as the opening Rogue coach floor so we can tune the full line before launch.
+                        </>
+                      ) : activeLine === "packs" ? (
+                        <>
+                          Visual-only <span className="font-semibold text-white">Packs</span> tab for reviewing token bundle wrapper designs before anything is implemented in the Token Store.
                         </>
                       ) : (
                         <>
@@ -665,6 +685,8 @@ export const CardLabPage = () => {
                     ))}
                   </div>
                 </>
+              ) : activeLine === "packs" ? (
+                <CardLabPacks scale={Math.min(cardScale * 0.66, 0.72)} />
               ) : (
                 <CardLabAiArtCards />
               )}

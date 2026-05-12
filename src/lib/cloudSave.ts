@@ -22,6 +22,11 @@ interface SyncTokenBalanceOptions {
   metadata?: Record<string, unknown>;
 }
 
+interface SyncUserCollectionCardsOptions {
+  source?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export const syncTokenBalance = async (
   userId: string,
   tokenBalance: number,
@@ -70,6 +75,58 @@ export const fetchTokenBalance = async (userId: string) => {
   }
 
   return typeof data?.token_balance === "number" ? data.token_balance : null;
+};
+
+export const fetchUserCollectionCards = async (userId: string) => {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("user_collection_cards")
+    .select("player_id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.warn("Unable to load Supabase collection cards", error);
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      (data ?? [])
+        .map((row) => row.player_id)
+        .filter((playerId): playerId is string => typeof playerId === "string" && playerId.length > 0),
+    ),
+  );
+};
+
+export const upsertUserCollectionCards = async (
+  userId: string,
+  playerIds: string[],
+  options: SyncUserCollectionCardsOptions = {},
+) => {
+  if (!supabase) return;
+
+  const uniquePlayerIds = Array.from(
+    new Set(playerIds.filter((playerId): playerId is string => typeof playerId === "string" && playerId.length > 0)),
+  );
+  if (uniquePlayerIds.length === 0) return;
+
+  const now = new Date().toISOString();
+  const { error } = await supabase.from("user_collection_cards").upsert(
+    uniquePlayerIds.map((playerId) => ({
+      user_id: userId,
+      player_id: playerId,
+      source: options.source ?? "local_collection_sync",
+      metadata: options.metadata ?? {},
+      updated_at: now,
+    })),
+    { onConflict: "user_id,player_id" },
+  );
+
+  if (error) {
+    console.warn("Unable to save Supabase collection cards", error);
+  }
 };
 
 export const fetchActiveRogueRun = async (userId: string) => {
@@ -141,7 +198,7 @@ export const fetchActiveTokenPacks = async (): Promise<TokenPackProduct[]> => {
     .order("sort_order", { ascending: true });
 
   if (error) {
-    console.warn("Unable to load Supabase token packs", error);
+    console.warn("Unable to load Supabase token bundles", error);
     return defaultTokenPackProducts;
   }
 

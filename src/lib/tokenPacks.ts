@@ -16,7 +16,7 @@ export const defaultTokenPackProducts: TokenPackProduct[] = [
   {
     id: "rookie-token-pack",
     slug: "rookie-token-pack",
-    name: "Rookie Token Pack",
+    name: "Rookie Token Bundle",
     description: "A small token boost for early Rogue upgrades and utility items.",
     tokenAmount: 10_000,
     usdCents: 199,
@@ -29,7 +29,7 @@ export const defaultTokenPackProducts: TokenPackProduct[] = [
   {
     id: "rotation-token-pack",
     slug: "rotation-token-pack",
-    name: "Rotation Token Pack",
+    name: "Rotation Token Bundle",
     description: "Enough tokens to unlock a meaningful permanent Rogue upgrade.",
     tokenAmount: 30_000,
     usdCents: 499,
@@ -42,7 +42,7 @@ export const defaultTokenPackProducts: TokenPackProduct[] = [
   {
     id: "playoff-token-pack",
     slug: "playoff-token-pack",
-    name: "Playoff Token Pack",
+    name: "Playoff Token Bundle",
     description: "A strong pack for starter upgrades, coach recruitment, and run utility.",
     tokenAmount: 75_000,
     usdCents: 999,
@@ -55,7 +55,7 @@ export const defaultTokenPackProducts: TokenPackProduct[] = [
   {
     id: "finals-token-pack",
     slug: "finals-token-pack",
-    name: "Finals Token Pack",
+    name: "Finals Token Bundle",
     description: "A premium pack for multiple permanent upgrades and future Rogue planning.",
     tokenAmount: 175_000,
     usdCents: 1_999,
@@ -68,7 +68,7 @@ export const defaultTokenPackProducts: TokenPackProduct[] = [
   {
     id: "galaxy-token-pack",
     slug: "galaxy-token-pack",
-    name: "Galaxy Token Pack",
+    name: "Galaxy Token Bundle",
     description: "A high-end pack that meaningfully accelerates the long-term Galaxy chase.",
     tokenAmount: 500_000,
     usdCents: 4_999,

@@ -434,8 +434,10 @@ export interface DraftState {
   ownedOpeningLockerCashTier: number;
   ownedExtraDraftShuffle: number;
   ownedStarterPackChoicePlus: number;
+  ownedCoachIds: string[];
   ownedRogueStarIds: string[];
   activeRogueStarId: string | null;
+  ownedCollectionPlayerIds: string[];
   rogueCollectedCollectionEntryIds: string[];
   claimedCollectionRewardIds: string[];
   completedRogueChallengeIds: string[];

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CategoryChallengeSelection, DraftChallengeSelection, DraftState, Player, PrestigeChallengeDefinition, RareEventSelection, RoguePersonalBests, RunHistoryEntry, Screen } from "../types";
+import { CategoryChallengeSelection, DraftChallengeSelection, DraftState, Player, PlayerTier, PrestigeChallengeDefinition, RareEventSelection, RoguePersonalBests, RunHistoryEntry, Screen } from "../types";
 import { STORAGE_KEY, assignPlayerToRoster, createSeed, generateChoices, rosterTemplate } from "../lib/draft";
 import { allPlayers } from "../data/players";
 import { evaluateDraftChemistry, getCategoryChallengeTarget, runSeasonSimulation } from "../lib/simulate";
@@ -33,8 +33,12 @@ import {
   getRogueChallengeById,
   isValidRogueChallengeId,
 } from "../lib/rogueChallenges";
+import { roguelikeCoaches } from "../lib/roguelike";
+import { getRoguePackPlayerPool } from "../lib/tokenStore";
 
 const HISTORY_LIMIT = 24;
+const VERIFIED_COLLECTION_STORAGE_KEY = "nba-ultimate-draft-verified-collection-player-ids-v1";
+const LEGACY_COLLECTION_TRUST_LIMIT = 8;
 const DEFAULT_METRICS = {
   overall: 0,
   offense: 0,
@@ -152,6 +156,7 @@ const LEGACY_PLAYER_NAME_MIGRATIONS: Record<string, string> = {
 
 const canonicalPlayersById = new Map(allPlayers.map((player) => [player.id, player]));
 const canonicalPlayersByName = new Map(allPlayers.map((player) => [player.name, player]));
+const validRoguelikeCoachIds = new Set(roguelikeCoaches.map((coach) => coach.id));
 
 const normalizePlayer = (player: Player | null | undefined): Player | null => {
   if (!player) return null;
@@ -170,6 +175,43 @@ const normalizePlayer = (player: Player | null | undefined): Player | null => {
 
 const normalizePlayerIds = (playerIds: string[]) =>
   playerIds.map((id) => LEGACY_PLAYER_ID_MIGRATIONS[id] ?? id);
+
+const readVerifiedCollectionPlayerIds = () => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const saved = window.localStorage.getItem(VERIFIED_COLLECTION_STORAGE_KEY);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved) as unknown;
+    return Array.isArray(parsed)
+      ? Array.from(
+          new Set(normalizePlayerIds(parsed.filter((playerId): playerId is string => typeof playerId === "string"))),
+        )
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeVerifiedCollectionPlayerIds = (playerIds: string[]) => {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(
+    VERIFIED_COLLECTION_STORAGE_KEY,
+    JSON.stringify(Array.from(new Set(normalizePlayerIds(playerIds)))),
+  );
+};
+
+const getNormalizedCollectionPlayerIds = (value: DraftState) => {
+  const verifiedPlayerIds = readVerifiedCollectionPlayerIds();
+  if (verifiedPlayerIds) return verifiedPlayerIds;
+
+  const legacyPlayerIds = Array.isArray(value.ownedCollectionPlayerIds)
+    ? Array.from(new Set(normalizePlayerIds(value.ownedCollectionPlayerIds)))
+    : [];
+
+  return legacyPlayerIds.length <= LEGACY_COLLECTION_TRUST_LIMIT ? legacyPlayerIds : [];
+};
 
 const resolveDraftChallenge = (selection: DraftChallengeSelection, rng: () => number) =>
   selection === "random"
@@ -351,8 +393,10 @@ const createInitialState = (): DraftState => {
     ownedOpeningLockerCashTier: 0,
     ownedExtraDraftShuffle: 0,
     ownedStarterPackChoicePlus: 0,
+    ownedCoachIds: [],
     ownedRogueStarIds: [],
     activeRogueStarId: null,
+    ownedCollectionPlayerIds: [],
     rogueCollectedCollectionEntryIds: [],
     claimedCollectionRewardIds: [],
     completedRogueChallengeIds: [],
@@ -430,11 +474,15 @@ const normalizeState = (value: DraftState): DraftState => {
     ownedOpeningLockerCashTier: Math.min(3, Math.max(0, value.ownedOpeningLockerCashTier ?? 0)),
     ownedExtraDraftShuffle: value.ownedExtraDraftShuffle ?? 0,
     ownedStarterPackChoicePlus: value.ownedStarterPackChoicePlus ?? 0,
+    ownedCoachIds: Array.isArray(value.ownedCoachIds)
+      ? value.ownedCoachIds.filter((coachId): coachId is string => typeof coachId === "string" && validRoguelikeCoachIds.has(coachId))
+      : [],
     ownedRogueStarIds: Array.isArray(value.ownedRogueStarIds) ? normalizePlayerIds(value.ownedRogueStarIds) : [],
     activeRogueStarId:
       typeof value.activeRogueStarId === "string"
         ? LEGACY_PLAYER_ID_MIGRATIONS[value.activeRogueStarId] ?? value.activeRogueStarId
         : null,
+    ownedCollectionPlayerIds: getNormalizedCollectionPlayerIds(value),
     rogueCollectedCollectionEntryIds: Array.isArray(value.rogueCollectedCollectionEntryIds)
       ? value.rogueCollectedCollectionEntryIds.filter((entryId): entryId is string => typeof entryId === "string")
       : [],
@@ -480,8 +528,29 @@ export const useDraftGame = () => {
   });
 
   useEffect(() => {
+    if (readVerifiedCollectionPlayerIds() !== null) return;
+    if (state.ownedCollectionPlayerIds.length <= LEGACY_COLLECTION_TRUST_LIMIT) return;
+
+    setState((current) => ({
+      ...current,
+      ownedCollectionPlayerIds: [],
+    }));
+  }, []);
+
+  useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
+
+  useEffect(() => {
+    if (
+      readVerifiedCollectionPlayerIds() === null &&
+      state.ownedCollectionPlayerIds.length > LEGACY_COLLECTION_TRUST_LIMIT
+    ) {
+      return;
+    }
+
+    writeVerifiedCollectionPlayerIds(state.ownedCollectionPlayerIds);
+  }, [state.ownedCollectionPlayerIds]);
 
   const completedRoster = useMemo(() => state.roster.every((slot) => slot.player !== null), [state.roster]);
   const metaProgress = useMemo(
@@ -960,8 +1029,10 @@ export const useDraftGame = () => {
       ownedOpeningLockerCashTier: state.ownedOpeningLockerCashTier,
       ownedExtraDraftShuffle: state.ownedExtraDraftShuffle,
       ownedStarterPackChoicePlus: state.ownedStarterPackChoicePlus,
+      ownedCoachIds: state.ownedCoachIds,
       ownedRogueStarIds: state.ownedRogueStarIds,
       activeRogueStarId: state.activeRogueStarId,
+      ownedCollectionPlayerIds: state.ownedCollectionPlayerIds,
       rogueCollectedCollectionEntryIds: state.rogueCollectedCollectionEntryIds,
       claimedCollectionRewardIds: state.claimedCollectionRewardIds,
       completedRogueChallengeIds: state.completedRogueChallengeIds,
@@ -1100,8 +1171,10 @@ export const useDraftGame = () => {
         ownedOpeningLockerCashTier: current.ownedOpeningLockerCashTier,
         ownedExtraDraftShuffle: current.ownedExtraDraftShuffle,
         ownedStarterPackChoicePlus: current.ownedStarterPackChoicePlus,
+        ownedCoachIds: current.ownedCoachIds,
         ownedRogueStarIds: current.ownedRogueStarIds,
         activeRogueStarId: current.activeRogueStarId,
+        ownedCollectionPlayerIds: current.ownedCollectionPlayerIds,
         rogueCollectedCollectionEntryIds: current.rogueCollectedCollectionEntryIds,
         claimedCollectionRewardIds: current.claimedCollectionRewardIds,
         completedRogueChallengeIds: current.completedRogueChallengeIds,
@@ -1142,6 +1215,61 @@ export const useDraftGame = () => {
         purchasedTokens: current.purchasedTokens + purchasedTokenDelta,
       };
     });
+  }, []);
+
+  const absorbCloudCollectionPlayerIds = useCallback((playerIds: string[]) => {
+    const validPlayerIds = Array.from(
+      new Set(
+        normalizePlayerIds(playerIds).filter((playerId) =>
+          allPlayers.some((player) => player.id === playerId),
+        ),
+      ),
+    );
+    if (validPlayerIds.length === 0) return;
+
+    setState((current) => {
+      const ownedCollectionPlayerIds = Array.from(
+        new Set([...current.ownedCollectionPlayerIds, ...validPlayerIds]),
+      );
+      const ownedRogueStarIds = Array.from(
+        new Set([...current.ownedRogueStarIds, ...validPlayerIds]),
+      );
+
+      if (
+        ownedCollectionPlayerIds.length === current.ownedCollectionPlayerIds.length &&
+        ownedRogueStarIds.length === current.ownedRogueStarIds.length
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        ownedCollectionPlayerIds,
+        ownedRogueStarIds,
+      };
+    });
+  }, []);
+
+  const applyCloudAccountSnapshot = useCallback((cloudTokenBalance: number | null, playerIds: string[]) => {
+    const normalizedCloudBalance =
+      cloudTokenBalance !== null && Number.isFinite(cloudTokenBalance)
+        ? Math.max(0, Math.floor(cloudTokenBalance))
+        : 0;
+    const validPlayerIds = Array.from(
+      new Set(
+        normalizePlayerIds(playerIds).filter((playerId) =>
+          allPlayers.some((player) => player.id === playerId),
+        ),
+      ),
+    );
+
+    writeVerifiedCollectionPlayerIds(validPlayerIds);
+    setState(() => ({
+      ...createInitialState(),
+      purchasedTokens: normalizedCloudBalance,
+      ownedRogueStarIds: validPlayerIds,
+      ownedCollectionPlayerIds: validPlayerIds,
+    }));
   }, []);
 
   const updateRoguePersonalBests = (nextValues: Partial<RoguePersonalBests>) => {
@@ -1307,9 +1435,70 @@ export const useDraftGame = () => {
       ...current,
       spentTokens: current.spentTokens + price,
       ownedRogueStarIds: [...current.ownedRogueStarIds, playerId],
+      ownedCollectionPlayerIds: Array.from(new Set([...current.ownedCollectionPlayerIds, playerId])),
     }));
     return true;
   };
+
+  const purchaseRoguePack = (tier: PlayerTier, price: number) => {
+    if (getDisplayedTokenBalanceForState(state) < price) return null;
+
+    const packPool = getRoguePackPlayerPool(tier, [
+      ...state.ownedRogueStarIds,
+      ...state.ownedCollectionPlayerIds,
+    ]);
+    if (packPool.length === 0) return null;
+
+    const pulledPlayer = packPool[Math.floor(Math.random() * packPool.length)];
+
+    setState((current) => {
+      if (getDisplayedTokenBalanceForState(current) < price) return current;
+
+      if (
+        current.ownedRogueStarIds.includes(pulledPlayer.id) ||
+        current.ownedCollectionPlayerIds.includes(pulledPlayer.id)
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        spentTokens: current.spentTokens + price,
+        ownedRogueStarIds: [...current.ownedRogueStarIds, pulledPlayer.id],
+        ownedCollectionPlayerIds: Array.from(
+          new Set([...current.ownedCollectionPlayerIds, pulledPlayer.id]),
+        ),
+      };
+    });
+
+    return pulledPlayer;
+  };
+
+  const ensureRoguePackPullOwned = useCallback((playerId: string) => {
+    if (!allPlayers.some((player) => player.id === playerId)) return;
+
+    setState((current) => {
+      const ownedRogueStarIds = current.ownedRogueStarIds.includes(playerId)
+        ? current.ownedRogueStarIds
+        : [...current.ownedRogueStarIds, playerId];
+      const ownedCollectionPlayerIds = current.ownedCollectionPlayerIds.includes(playerId)
+        ? current.ownedCollectionPlayerIds
+        : [...current.ownedCollectionPlayerIds, playerId];
+
+      if (
+        ownedRogueStarIds === current.ownedRogueStarIds &&
+        ownedCollectionPlayerIds === current.ownedCollectionPlayerIds
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        ownedRogueStarIds,
+        ownedCollectionPlayerIds,
+      };
+    });
+  }, []);
 
   const setActiveRogueStar = (playerId: string | null) => {
     setState((current) => ({
@@ -1320,7 +1509,8 @@ export const useDraftGame = () => {
   };
 
   const recordRogueCollectionEntries = (playerIds: string[]) => {
-    const entryIds = getRogueCollectionEntryIdsForRoster(normalizePlayerIds(playerIds));
+    const normalizedPlayerIds = normalizePlayerIds(playerIds);
+    const entryIds = getRogueCollectionEntryIdsForRoster(normalizedPlayerIds);
     if (entryIds.length === 0) return;
 
     setState((current) => {
@@ -1381,14 +1571,20 @@ export const useDraftGame = () => {
   const claimRogueChallengeReward = (challengeId: string) => {
     if (state.claimedRogueChallengeIds.includes(challengeId)) return false;
     if (!state.completedRogueChallengeIds.includes(challengeId)) return false;
-    if (!getRogueChallengeById(challengeId)) return false;
+    const challenge = getRogueChallengeById(challengeId);
+    if (!challenge) return false;
 
     setState((current) => {
       if (current.claimedRogueChallengeIds.includes(challengeId)) return current;
       if (!current.completedRogueChallengeIds.includes(challengeId)) return current;
+      const ownedCoachIds =
+        challenge.rewardCoachId && !current.ownedCoachIds.includes(challenge.rewardCoachId)
+          ? [...current.ownedCoachIds, challenge.rewardCoachId]
+          : current.ownedCoachIds;
 
       return {
         ...current,
+        ownedCoachIds,
         claimedRogueChallengeIds: [...current.claimedRogueChallengeIds, challengeId],
       };
     });
@@ -1452,6 +1648,8 @@ export const useDraftGame = () => {
     awardRogueFailureRewards,
     updateRoguePersonalBests,
     absorbCloudTokenBalance,
+    absorbCloudCollectionPlayerIds,
+    applyCloudAccountSnapshot,
     purchaseTrainingCampTicket,
     purchaseTradePhone,
     purchaseSilverStarterPack,
@@ -1462,6 +1660,8 @@ export const useDraftGame = () => {
     purchaseExtraDraftShuffle,
     purchaseStarterPackChoicePlus,
     purchaseRogueStar,
+    purchaseRoguePack,
+    ensureRoguePackPullOwned,
     setActiveRogueStar,
     recordRogueCollectionEntries,
     claimCollectionReward,

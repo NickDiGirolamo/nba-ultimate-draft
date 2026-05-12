@@ -10,6 +10,7 @@ import {
   Crown,
   GripHorizontal,
   Handshake,
+  Info,
   Package2,
   PillBottle,
   Pause,
@@ -28,6 +29,7 @@ import { DraftPlayerCard } from "./DraftPlayerCard";
 import { DynamicDuoBadge } from "./DynamicDuoBadge";
 import { CardLabCoachCard } from "./CardLabCoachCard";
 import { CardLabCoachRunRosterCard } from "./CardLabCoachRunRosterCard";
+import { CollectionOverlay } from "./CollectionOverlay";
 import { PlayerTypeBadges, playerTypeBadgeStyleClass, renderPlayerTypeBadgeIcon } from "./PlayerTypeBadges";
 import { PlayerSynergyBadges } from "./PlayerSynergyBadges";
 import { RunRosterPlayerCard } from "./RunRosterPlayerCard";
@@ -271,6 +273,7 @@ interface RoguelikeRun {
 interface RoguelikeModeProps {
   activeRogueStarId: string | null;
   ownedRogueStarIds: string[];
+  ownedCollectionPlayerIds: string[];
   ownedTrainingCampTickets: number;
   ownedTradePhones: number;
   ownedSilverStarterPacks: number;
@@ -303,7 +306,7 @@ interface RoguelikeModeProps {
 
 const ROGUELIKE_STORAGE_KEY = "legends-draft-roguelike-run-v1";
 const ROGUELIKE_PARKED_STORAGE_KEY = "legends-draft-roguelike-parked-v1";
-const CURRENT_ROGUELIKE_LADDER_VERSION = 5;
+const CURRENT_ROGUELIKE_LADDER_VERSION = 6;
 
 const createSeed = () => Math.floor(Date.now() % 1_000_000) + Math.floor(Math.random() * 1000);
 
@@ -1288,6 +1291,7 @@ const CHANCE_WHEEL_SLICE_COLORS = [
 ];
 const CHANCE_WHEEL_SPIN_DURATION_MS = 5600;
 const CHANCE_WHEEL_SPIN_ROTATIONS = 8;
+const CHANCE_WHEEL_POINTER_ANGLE = 270;
 
 const chanceWheelBackground = `conic-gradient(${CHANCE_WHEEL_TEAMS.map((_, index) => {
   const start = (index / CHANCE_WHEEL_TEAMS.length) * 100;
@@ -1395,6 +1399,7 @@ const drawTradeReplacementChoices = (
   seed: number,
   tradedOverall: number,
   coachTeamKey: string | null = null,
+  blockedPlayerIds: string[] = [],
 ) => {
   const nextOwnedPlayerIds = nextRoster.map((player) => player.id);
   const initialChoices = drawRoguelikeChoices(
@@ -1403,7 +1408,7 @@ const drawTradeReplacementChoices = (
     count,
     seed,
     undefined,
-    [],
+    blockedPlayerIds,
     tradeReplacementPool,
   );
 
@@ -1433,6 +1438,7 @@ const drawTradeReplacementChoices = (
         (candidate) =>
           getTradePreviewOverall(candidate, nextOwnedPlayerIds, coachTeamKey) === desiredOverall &&
           !choiceIds.has(candidate.id) &&
+          !blockedPlayerIds.includes(candidate.id) &&
           !choiceIdentities.has(getRunPlayerIdentityKey(candidate)) &&
           !isPlayerIdentityOnRoster(candidate, nextRoster),
       );
@@ -2990,17 +2996,19 @@ const RogueNodeRewardsRail = ({
   rewards,
   lockerRoomCash,
   earned,
+  compact = false,
 }: {
   rewards: RoguelikeClearRewards;
   lockerRoomCash: number;
   earned: boolean;
+  compact?: boolean;
 }) => {
   const hasRewards = rewards.tokenReward > 0 || rewards.prestigeXpAward > 0 || lockerRoomCash > 0;
 
   return (
     <div
       className={clsx(
-        "rounded-[22px] border px-4 py-4 transition",
+        compact ? "rounded-[18px] border px-3 py-3 transition" : "rounded-[22px] border px-4 py-4 transition",
         earned && hasRewards
           ? "border-emerald-300/34 bg-[linear-gradient(180deg,rgba(6,78,59,0.34),rgba(16,185,129,0.14),rgba(5,46,22,0.34))] shadow-[0_0_0_1px_rgba(52,211,153,0.14),0_0_26px_rgba(16,185,129,0.14)]"
           : "border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))]",
@@ -3014,55 +3022,61 @@ const RogueNodeRewardsRail = ({
           Rewards
         </div>
         {earned && hasRewards ? (
-          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/28 bg-emerald-300/14 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-emerald-50">
+          <span className={clsx("inline-flex items-center gap-1 rounded-full border border-emerald-200/28 bg-emerald-300/14 font-semibold uppercase tracking-[0.18em] text-emerald-50", compact ? "px-1.5 py-0.5 text-[8px]" : "px-2 py-1 text-[9px]")}>
             <CheckCircle2 size={11} />
             Earned
           </span>
         ) : null}
       </div>
       {hasRewards ? (
-        <div className="mt-3 space-y-2.5">
+        <div className={clsx(compact ? "mt-2.5 space-y-2" : "mt-3 space-y-2.5")}>
           {lockerRoomCash > 0 ? (
             <div
               className={clsx(
-                "flex items-center justify-between gap-3 rounded-[16px] border px-3 py-2.5",
+                compact
+                  ? "flex items-center justify-between gap-2 rounded-[14px] border px-2.5 py-2"
+                  : "flex items-center justify-between gap-3 rounded-[16px] border px-3 py-2.5",
                 earned ? "border-emerald-200/18 bg-emerald-300/10" : "border-white/8 bg-black/14",
               )}
             >
-              <span className="inline-flex items-center gap-2 text-xs font-medium text-white/84">
-                <Coins size={14} className={earned ? "text-emerald-200" : "text-slate-400"} />
+              <span className={clsx("inline-flex items-center font-medium text-white/84", compact ? "gap-1.5 text-[11px]" : "gap-2 text-xs")}>
+                <Coins size={compact ? 12 : 14} className={earned ? "text-emerald-200" : "text-slate-400"} />
                 Locker Room Cash
               </span>
-              <span className="text-sm font-semibold text-white">+{lockerRoomCash}</span>
+              <span className={clsx("font-semibold text-white", compact ? "text-[12px]" : "text-sm")}>+{lockerRoomCash}</span>
             </div>
           ) : null}
           <div
             className={clsx(
-              "flex items-center justify-between gap-3 rounded-[16px] border px-3 py-2.5",
+              compact
+                ? "flex items-center justify-between gap-2 rounded-[14px] border px-2.5 py-2"
+                : "flex items-center justify-between gap-3 rounded-[16px] border px-3 py-2.5",
               earned ? "border-amber-200/18 bg-amber-300/10" : "border-white/8 bg-black/14",
             )}
           >
-            <span className="inline-flex items-center gap-2 text-xs font-medium text-white/84">
-              <Coins size={14} className={earned ? "text-amber-200" : "text-slate-400"} />
+            <span className={clsx("inline-flex items-center font-medium text-white/84", compact ? "gap-1.5 text-[11px]" : "gap-2 text-xs")}>
+              <Coins size={compact ? 12 : 14} className={earned ? "text-amber-200" : "text-slate-400"} />
               Tokens
             </span>
-            <span className="text-sm font-semibold text-white">+{rewards.tokenReward}</span>
+            <span className={clsx("font-semibold text-white", compact ? "text-[12px]" : "text-sm")}>+{rewards.tokenReward}</span>
           </div>
           <div
             className={clsx(
-              "flex items-center justify-between gap-3 rounded-[16px] border px-3 py-2.5",
+              compact
+                ? "flex items-center justify-between gap-2 rounded-[14px] border px-2.5 py-2"
+                : "flex items-center justify-between gap-3 rounded-[16px] border px-3 py-2.5",
               earned ? "border-sky-200/18 bg-sky-300/10" : "border-white/8 bg-black/14",
             )}
           >
-            <span className="inline-flex items-center gap-2 text-xs font-medium text-white/84">
-              <Sparkles size={14} className={earned ? "text-sky-200" : "text-slate-400"} />
+            <span className={clsx("inline-flex items-center font-medium text-white/84", compact ? "gap-1.5 text-[11px]" : "gap-2 text-xs")}>
+              <Sparkles size={compact ? 12 : 14} className={earned ? "text-sky-200" : "text-slate-400"} />
               Prestige XP
             </span>
-            <span className="text-sm font-semibold text-white">+{rewards.prestigeXpAward}</span>
+            <span className={clsx("font-semibold text-white", compact ? "text-[12px]" : "text-sm")}>+{rewards.prestigeXpAward}</span>
           </div>
         </div>
       ) : (
-        <div className="mt-3 rounded-[16px] border border-white/8 bg-black/14 px-3 py-4 text-center text-[11px] uppercase tracking-[0.18em] text-slate-500">
+        <div className={clsx("rounded-[16px] border border-white/8 bg-black/14 text-center uppercase tracking-[0.18em] text-slate-500", compact ? "mt-2.5 px-2.5 py-3 text-[10px]" : "mt-3 px-3 py-4 text-[11px]")}>
           No completion rewards
         </div>
       )}
@@ -3750,10 +3764,12 @@ const RogueStarterSlotPreview = ({
   player,
   slotNumber,
   onClear,
+  onOpenCollection,
 }: {
   player: Player | null;
   slotNumber: number;
   onClear: () => void;
+  onOpenCollection: () => void;
 }) => {
   if (player) {
     return <FilledRogueStarterSlotPreview player={player} slotNumber={slotNumber} onClear={onClear} />;
@@ -3762,7 +3778,8 @@ const RogueStarterSlotPreview = ({
   return (
     <button
       type="button"
-      className="min-h-[148px] rounded-[24px] border border-dashed border-white/16 bg-white/5 p-3 text-left transition"
+      onClick={onOpenCollection}
+      className="min-h-[148px] rounded-[24px] border border-dashed border-white/16 bg-white/5 p-3 text-left transition hover:border-amber-100/34 hover:bg-amber-300/8"
     >
       <div className="flex h-full min-h-[122px] flex-col items-center justify-center text-center">
         <div className="grid h-12 w-12 place-items-center rounded-2xl border border-white/12 bg-white/6 text-white/70">
@@ -3770,6 +3787,7 @@ const RogueStarterSlotPreview = ({
         </div>
         <div className="mt-3 text-[10px] uppercase tracking-[0.2em] text-slate-400">Starter Slot {slotNumber}</div>
         <div className="mt-1 text-sm font-semibold text-white">Empty</div>
+        <div className="mt-2 text-xs font-semibold text-amber-100/78">Choose from collection</div>
       </div>
     </button>
   );
@@ -4383,6 +4401,7 @@ const FinalVictoryStarterCard = ({
 export const RoguelikeMode = ({
   activeRogueStarId,
   ownedRogueStarIds,
+  ownedCollectionPlayerIds,
   ownedTrainingCampTickets,
   ownedTradePhones,
   ownedSilverStarterPacks,
@@ -4443,6 +4462,13 @@ export const RoguelikeMode = ({
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const [cutDropTargetIndex, setCutDropTargetIndex] = useState<number | null>(null);
   const [allStarDropTargetKey, setAllStarDropTargetKey] = useState<AllStarEventKey | null>(null);
+  const [mobileAllStarAssignmentKey, setMobileAllStarAssignmentKey] = useState<AllStarEventKey | null>(null);
+  const [lockerRoomInfoCard, setLockerRoomInfoCard] = useState<{
+    title: string;
+    description: string;
+    price: number;
+    detail?: string;
+  } | null>(null);
   const bestOwnedStarterPackUpgrade = getBestOwnedStarterPackUpgrade({
     ownedSilverStarterPacks,
     ownedGoldStarterPacks,
@@ -4457,6 +4483,7 @@ export const RoguelikeMode = ({
     () => bestOwnedStarterPackUpgrade,
   );
   const [selectedRogueStarterSlotIds, setSelectedRogueStarterSlotIds] = useState<(string | null)[]>([null, null, null]);
+  const [starterCollectionSlotIndex, setStarterCollectionSlotIndex] = useState<number | null>(null);
   const [selectedRunSettings, setSelectedRunSettings] = useState<RoguelikeRunSettings>(
     DEFAULT_ROGUELIKE_RUN_SETTINGS,
   );
@@ -4516,6 +4543,7 @@ export const RoguelikeMode = ({
         clearedNodeId: node.id,
         settings: sourceRun.settings,
         startingLineup,
+        rosterPlayers: sourceRun.roster,
         hiredCoachId: sourceRun.hiredCoachId,
       }),
     );
@@ -4591,9 +4619,9 @@ export const RoguelikeMode = ({
 
   useEffect(() => {
     setSelectedRogueStarterSlotIds((currentSlots) =>
-      currentSlots.map((playerId) => playerId && ownedRogueStarIds.includes(playerId) ? playerId : null),
+      currentSlots.map((playerId) => playerId && ownedCollectionPlayerIds.includes(playerId) ? playerId : null),
     );
-  }, [ownedRogueStarIds]);
+  }, [ownedCollectionPlayerIds]);
 
   useEffect(() => {
     if (!run || run.stage !== "starter-reveal") return;
@@ -4772,7 +4800,7 @@ export const RoguelikeMode = ({
     const selectedRogueStarterPlayersForRun = selectedRogueStarterSlotIds
       .map((playerId) => getPlayerById(playerId))
       .filter((player): player is Player => player !== null)
-      .filter((player) => ownedRogueStarIds.includes(player.id))
+      .filter((player) => ownedCollectionPlayerIds.includes(player.id))
       .slice(0, 3);
     const playerUniverse = getRoguelikePlayerUniverse(runSettings);
     const selectedRogueStarterIdSetForRun = new Set(selectedRogueStarterPlayersForRun.map((player) => player.id));
@@ -5457,7 +5485,14 @@ export const RoguelikeMode = ({
     setChanceWheelSpinning(true);
     setChanceWheelRotation((currentRotation) => {
       const sliceDegrees = 360 / CHANCE_WHEEL_TEAMS.length;
-      return currentRotation + CHANCE_WHEEL_SPIN_ROTATIONS * 360 + (360 - landedTeamIndex * sliceDegrees);
+      const selectedSliceCenterAngle = landedTeamIndex * sliceDegrees + sliceDegrees / 2;
+      const currentNormalizedRotation = ((currentRotation % 360) + 360) % 360;
+      const targetNormalizedRotation =
+        (CHANCE_WHEEL_POINTER_ANGLE - selectedSliceCenterAngle + 360) % 360;
+      const rotationDelta =
+        (targetNormalizedRotation - currentNormalizedRotation + 360) % 360;
+
+      return currentRotation + CHANCE_WHEEL_SPIN_ROTATIONS * 360 + rotationDelta;
     });
 
     window.setTimeout(() => {
@@ -5739,6 +5774,10 @@ export const RoguelikeMode = ({
       ...run,
       allStarAssignments: nextAssignments,
     });
+    setMobileAllStarAssignmentKey(null);
+    if (isMobileViewport) {
+      setMobileBottomPanel("board");
+    }
   };
 
   const assignDraggedPlayerToAllStarEvent = (fromIndex: number, eventKey: AllStarEventKey) => {
@@ -5781,6 +5820,9 @@ export const RoguelikeMode = ({
         },
       };
     });
+    if (mobileAllStarAssignmentKey === eventKey) {
+      setMobileAllStarAssignmentKey(null);
+    }
   };
 
   const allStarAssignmentsComplete = (assignments: AllStarAssignments) =>
@@ -6873,6 +6915,51 @@ export const RoguelikeMode = ({
     const sourceNode = run.activeNode ?? runNodes[run.floorIndex] ?? null;
     if (sourceNode?.type === "chance") return;
 
+    if (run.stage === "reward-draft" && run.pendingTradeState && sourceNode) {
+      const tradedOverall = run.pendingTradeState.outgoingPlayerOverall;
+      const tradeReplacementPool = getSimilarCaliberTradePool(
+        sourceNode,
+        run.availablePool,
+        runPlayerUniverse,
+        tradedOverall,
+        run.roster,
+        run.pendingTradeState.outgoingPlayerId,
+        getRoguelikeCoachTeamKey(run.hiredCoachId),
+      );
+      const replacementChoiceCount = getTradeReplacementChoiceCount(sourceNode, run.pendingChoiceSelection);
+      const blockedCurrentChoiceIds = run.choices.map((choice) => choice.id);
+      let nextChoices = drawTradeReplacementChoices(
+        tradeReplacementPool,
+        run.roster,
+        replacementChoiceCount,
+        nextChoiceSeed(run.seed, 600 + run.floorIndex * 31 + run.draftShuffleTickets * 7),
+        tradedOverall,
+        getRoguelikeCoachTeamKey(run.hiredCoachId),
+        blockedCurrentChoiceIds,
+      );
+
+      if (nextChoices.length < replacementChoiceCount) {
+        nextChoices = drawTradeReplacementChoices(
+          tradeReplacementPool,
+          run.roster,
+          replacementChoiceCount,
+          nextChoiceSeed(run.seed, 601 + run.floorIndex * 31 + run.draftShuffleTickets * 7),
+          tradedOverall,
+          getRoguelikeCoachTeamKey(run.hiredCoachId),
+        );
+      }
+
+      if (nextChoices.length === 0) return;
+
+      setRun({
+        ...run,
+        draftShuffleTickets: Math.max(0, run.draftShuffleTickets - 1),
+        seenChoicePlayerIds: Array.from(new Set([...(run.seenChoicePlayerIds ?? []), ...nextChoices.map((choice) => choice.id)])),
+        choices: nextChoices,
+      });
+      return;
+    }
+
     const rerollPool =
       run.stage === "initial-draft"
         ? getNodePlayerPool(
@@ -7131,6 +7218,26 @@ export const RoguelikeMode = ({
 
     onRecordCollectionEntries(getRunOwnedPlayers(run).map((player) => player.id));
   }, [onRecordCollectionEntries, run]);
+
+  useEffect(() => {
+    if (run?.stage !== "locker-room") {
+      setLockerRoomInfoCard(null);
+    }
+  }, [run?.stage]);
+
+  useEffect(() => {
+    if (run?.stage !== "all-star-select") {
+      setMobileAllStarAssignmentKey(null);
+      return;
+    }
+
+    if (
+      mobileAllStarAssignmentKey &&
+      !ALL_STAR_EVENT_CARDS.some((eventCard) => eventCard.key === mobileAllStarAssignmentKey)
+    ) {
+      setMobileAllStarAssignmentKey(null);
+    }
+  }, [mobileAllStarAssignmentKey, run?.stage]);
 
   useEffect(() => {
     if (cloudSavedRunAppliedRef.current || run || !cloudSavedRunData) return;
@@ -7512,13 +7619,16 @@ export const RoguelikeMode = ({
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
   };
-  const ownedRogueStarPlayers = ownedRogueStarIds
+  const ownedRogueStarPlayers = ownedCollectionPlayerIds
     .map((playerId) => getPlayerById(playerId))
     .filter((player): player is Player => Boolean(player));
   const selectedRogueStarterPlayers = selectedRogueStarterSlotIds
     .map((playerId) => getPlayerById(playerId))
     .filter((player): player is Player => Boolean(player));
   const selectedRogueStarterIdSet = new Set(selectedRogueStarterPlayers.map((player) => player.id));
+  const openStarterCollectionSlot = (slotIndex: number) => {
+    setStarterCollectionSlotIndex(slotIndex);
+  };
   const assignRogueStarterSlot = (slotIndex: number, playerId: string | null) => {
     setSelectedRogueStarterSlotIds((currentSlots) => {
       const nextSlots = [...currentSlots];
@@ -7528,6 +7638,11 @@ export const RoguelikeMode = ({
       nextSlots[slotIndex] = playerId;
       return nextSlots;
     });
+  };
+  const assignStarterFromCollection = (playerId: string) => {
+    if (starterCollectionSlotIndex === null) return;
+    assignRogueStarterSlot(starterCollectionSlotIndex, playerId);
+    setStarterCollectionSlotIndex(null);
   };
   const toggleRogueStarterPlayer = (playerId: string) => {
     setSelectedRogueStarterSlotIds((currentSlots) => {
@@ -7958,7 +8073,7 @@ export const RoguelikeMode = ({
               </div>
               <h2 className="mt-2 font-display text-2xl text-white">Optional starter inserts</h2>
               <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-300">
-                Place owned starter cards into the slots below to force them into this run's starter reveal. Leave every slot empty to open a normal starter pack.
+                Click an empty slot to choose one permanent card from your collection. Leave every slot empty to open a normal starter pack.
               </p>
             </div>
             {selectedRogueStarterPlayers.length > 0 ? (
@@ -7979,33 +8094,29 @@ export const RoguelikeMode = ({
                 player={playerId ? getPlayerById(playerId) : null}
                 slotNumber={index + 1}
                 onClear={() => assignRogueStarterSlot(index, null)}
+                onOpenCollection={() => openStarterCollectionSlot(index)}
               />
             ))}
           </div>
 
-          {ownedRogueStarPlayers.length > 0 ? (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {ownedRogueStarPlayers.map((player) => {
-                const selected = selectedRogueStarterIdSet.has(player.id);
-                const slotsFull = selectedRogueStarterPlayers.length >= 3;
-
-                return (
-                  <OwnedRogueStarterOption
-                    key={player.id}
-                    player={player}
-                    selected={selected}
-                    disabled={!selected && slotsFull}
-                    onToggle={() => toggleRogueStarterPlayer(player.id)}
-                  />
-                );
-              })}
-            </div>
-          ) : (
+          {ownedRogueStarPlayers.length === 0 ? (
             <div className="mt-4 rounded-[22px] border border-white/10 bg-black/20 px-4 py-4 text-sm leading-6 text-slate-300">
-              You do not own any starter cards yet. Starter packs will use the normal card pool.
+              You do not own any permanent collection cards yet. Starter packs will use the normal card pool.
             </div>
-          )}
+          ) : null}
         </div>
+
+        {starterCollectionSlotIndex !== null ? (
+          <CollectionOverlay
+            ownedPlayerIds={ownedCollectionPlayerIds}
+            onClose={() => setStarterCollectionSlotIndex(null)}
+            starterSlotSelection={{
+              slotNumber: starterCollectionSlotIndex + 1,
+              selectedPlayerIds: selectedRogueStarterSlotIds.filter((playerId): playerId is string => Boolean(playerId)),
+              onConfirm: assignStarterFromCollection,
+            }}
+          />
+        ) : null}
 
         <div className="glass-panel rounded-[30px] p-4 shadow-card lg:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -8744,10 +8855,6 @@ export const RoguelikeMode = ({
   const trainingSelectionTitle = isChoiceTrainingPath ? "Training Camp" : activeNode?.title ?? "";
   const tradeSelectionTitle = isChoiceTradePath ? "Trade Deadline" : activeNode?.title ?? "";
   const activeTrainingOverallBoostAmount = getOverallBoostAmountForTrainingNode(activeNode);
-  const trainingCapReminder =
-    activeTrainingOverallBoostAmount > 0
-      ? ` Players who would pass ${ROGUELIKE_MAX_OVERALL} OVR are locked; choose another player.`
-      : "";
   const lockerRoomTrainingSelectionCopy =
     activeNode?.id === LOCKER_ROOM_TRAINING_NODE.id
       ? {
@@ -8878,10 +8985,19 @@ export const RoguelikeMode = ({
     const playerId = run.selectedCutPlayerIds[slotIndex];
     return playerId ? runOwnedDisplayPlayers.find((player) => player.id === playerId) ?? null : null;
   });
+  const mobileAllStarAssignmentEvent =
+    mobileAllStarAssignmentKey
+      ? ALL_STAR_EVENT_CARDS.find((eventCard) => eventCard.key === mobileAllStarAssignmentKey) ?? null
+      : null;
   const runRosterPanel = (
     <div className="glass-panel rounded-[30px] p-6 shadow-card">
       <div>
         <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Run Roster</div>
+        {isMobileViewport && run.stage === "all-star-select" && mobileAllStarAssignmentEvent ? (
+          <div className="mt-3 rounded-[22px] border border-violet-200/16 bg-violet-300/10 px-4 py-3 text-sm leading-6 text-violet-50">
+            Tap 1 player to assign them to {mobileAllStarAssignmentEvent.title}. If that player is already in another event, they will move here automatically.
+          </div>
+        ) : null}
         {run.stage === "roster-cut-select" ? (
           <div className="mt-3 rounded-[22px] border border-rose-200/14 bg-rose-300/8 px-4 py-3 text-sm leading-6 text-slate-100">
             Set your lineup and bench order here, then drag exactly 2 players into the cut slots. Red cards are currently selected for removal.
@@ -8920,7 +9036,28 @@ export const RoguelikeMode = ({
                 dropTargetIndex === index ? "border-amber-300/60 bg-amber-300/10" : "border-white/12 bg-black/12",
               )}
             >
-              <div onPointerDown={(event) => handleRosterPointerDown(index, event)}>
+              <div
+                onPointerDown={(event) => {
+                  if (isMobileViewport && run.stage === "all-star-select") return;
+                  handleRosterPointerDown(index, event);
+                }}
+                onClick={() => {
+                  if (
+                    !isMobileViewport ||
+                    run.stage !== "all-star-select" ||
+                    !mobileAllStarAssignmentKey ||
+                    !slot.player
+                  ) {
+                    return;
+                  }
+                  assignAllStarPlayer(mobileAllStarAssignmentKey, slot.player);
+                }}
+                className={clsx(
+                  isMobileViewport && run.stage === "all-star-select" && mobileAllStarAssignmentKey && slot.player
+                    ? "cursor-pointer"
+                    : "",
+                )}
+              >
                 <RogueRosterSlotCard
                   slot={slot}
                     index={index}
@@ -8945,47 +9082,216 @@ export const RoguelikeMode = ({
     run.stage === "initial-draft" ||
     run.stage === "reward-draft" ||
     run.stage === "reward-replace-select";
+  const useUltraCompactMobileHeader = isMobileViewport;
+  const renderMobileLockerRoomActionCard = ({
+    eyebrow,
+    title,
+    price,
+    toneClassName,
+    actionLabel,
+    onAction,
+    disabled = false,
+    icon = null,
+    meta = null,
+    description,
+    detail,
+    secondaryAction,
+  }: {
+    eyebrow: string;
+    title: string;
+    price: number;
+    toneClassName: string;
+    actionLabel: string;
+    onAction: () => void;
+    disabled?: boolean;
+    icon?: ReactNode;
+    meta?: string | null;
+    description: string;
+    detail?: string;
+    secondaryAction?: ReactNode;
+  }) => (
+    <div className={clsx("rounded-[18px] border p-2.5 shadow-card", toneClassName)}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[8px] font-semibold uppercase tracking-[0.2em] text-white/58">{eyebrow}</div>
+          <div className="mt-1 flex items-start gap-1.5">
+            {icon ? <div className="shrink-0 text-white/88">{icon}</div> : null}
+            <div className="min-w-0 text-[0.95rem] font-semibold leading-tight text-white">{title}</div>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setLockerRoomInfoCard({ title, description, detail, price })}
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-white/14 bg-white/8 text-white/82 transition hover:bg-white/12"
+          aria-label={`More info about ${title}`}
+        >
+          <Info size={12} />
+        </button>
+      </div>
+      <div className="mt-2.5 flex items-start justify-between gap-2">
+        <div className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-white/14 bg-white/8 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-white">
+          {price} Cash
+        </div>
+        {meta ? (
+          <div className="max-w-[48%] text-right text-[9px] uppercase leading-4 tracking-[0.14em] text-white/62">
+            {meta}
+          </div>
+        ) : (
+          <div />
+        )}
+      </div>
+      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={onAction}
+          disabled={disabled}
+          className="whitespace-nowrap rounded-full bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48"
+        >
+          {actionLabel}
+        </button>
+        {secondaryAction}
+      </div>
+    </div>
+  );
 
   const headerPanel = (
-    <div className={clsx("glass-panel shadow-card", useCompactRunHeader ? "rounded-[24px] p-4" : "rounded-[30px] p-6")}>
-      <div className={clsx("flex flex-wrap justify-between", useCompactRunHeader ? "items-center gap-3" : "items-start gap-4")}>
+    <div
+      className={clsx(
+        "glass-panel shadow-card",
+        useUltraCompactMobileHeader
+          ? "rounded-[20px] p-2.5"
+          : useCompactRunHeader
+            ? "rounded-[24px] p-4"
+            : "rounded-[30px] p-6",
+      )}
+    >
+      <div
+        className={clsx(
+          "flex flex-wrap justify-between",
+          useUltraCompactMobileHeader
+            ? "items-center gap-2"
+            : useCompactRunHeader
+              ? "items-center gap-3"
+              : "items-start gap-4",
+        )}
+      >
         <div>
-          <div className={clsx("uppercase text-fuchsia-100/80", useCompactRunHeader ? "text-[10px] tracking-[0.2em]" : "text-xs tracking-[0.24em]")}>
+          <div
+            className={clsx(
+              "uppercase text-fuchsia-100/80",
+              useUltraCompactMobileHeader
+                ? "text-[8px] tracking-[0.18em]"
+                : useCompactRunHeader
+                  ? "text-[10px] tracking-[0.2em]"
+                  : "text-xs tracking-[0.24em]",
+            )}
+          >
             Roguelike Run
           </div>
-          <h1 className={clsx("font-display text-white", useCompactRunHeader ? "mt-1 truncate whitespace-nowrap text-[clamp(1rem,1.9vw,2.1rem)] leading-[1.02]" : "mt-2 text-4xl")}>
+          <h1
+            className={clsx(
+              "font-display text-white",
+              useUltraCompactMobileHeader
+                ? "mt-0.5 text-[1.05rem] leading-[0.96]"
+                : useCompactRunHeader
+                  ? "mt-1 truncate whitespace-nowrap text-[clamp(1rem,1.9vw,2.1rem)] leading-[1.02]"
+                  : "mt-2 text-4xl",
+            )}
+          >
             {headerTitle}
           </h1>
-          <p className={clsx("max-w-3xl text-slate-300", useCompactRunHeader ? "mt-2 text-xs leading-5" : "mt-3 text-sm leading-7")}>
+          <p
+            className={clsx(
+              "max-w-3xl text-slate-300",
+              useUltraCompactMobileHeader
+                ? "mt-1 text-[9px] leading-3.5"
+                : useCompactRunHeader
+                  ? "mt-2 text-xs leading-5"
+                  : "mt-3 text-sm leading-7",
+            )}
+          >
             {headerDescription}
           </p>
         </div>
-        <div className={clsx("flex flex-wrap", useCompactRunHeader ? "gap-2" : "gap-3")}>
+        <div
+          className={clsx(
+            "flex flex-wrap",
+            useUltraCompactMobileHeader ? "gap-1.5" : useCompactRunHeader ? "gap-2" : "gap-3",
+          )}
+        >
           <button
             type="button"
             onClick={leaveRun}
             className={clsx(
               "border border-white/12 bg-white/6 text-left text-slate-100 transition hover:scale-[1.02] hover:border-white/20 hover:bg-white/10",
-              useCompactRunHeader ? "rounded-[18px] px-4 py-2.5" : "rounded-[22px] px-5 py-3",
+              useUltraCompactMobileHeader
+                ? "rounded-[14px] px-2.5 py-1.5"
+                : useCompactRunHeader
+                  ? "rounded-[18px] px-4 py-2.5"
+                  : "rounded-[22px] px-5 py-3",
             )}
           >
-            <div className={clsx("uppercase text-slate-300/82", useCompactRunHeader ? "text-[9px] tracking-[0.18em]" : "text-[10px] tracking-[0.2em]")}>
+            <div
+              className={clsx(
+                "uppercase text-slate-300/82",
+                useUltraCompactMobileHeader
+                  ? "text-[7px] tracking-[0.15em]"
+                  : useCompactRunHeader
+                    ? "text-[9px] tracking-[0.18em]"
+                    : "text-[10px] tracking-[0.2em]",
+              )}
+            >
               Leave Run
             </div>
-            <div className={clsx("font-semibold text-white", useCompactRunHeader ? "mt-1 text-lg" : "mt-2 text-2xl")}>Save & Exit</div>
+            <div
+              className={clsx(
+                "font-semibold text-white",
+                useUltraCompactMobileHeader
+                  ? "mt-0.5 text-[0.95rem] leading-none"
+                  : useCompactRunHeader
+                    ? "mt-1 text-lg"
+                    : "mt-2 text-2xl",
+              )}
+            >
+              Save & Exit
+            </div>
           </button>
           <button
             type="button"
             onClick={abortRun}
             className={clsx(
               "border border-rose-200/22 bg-[linear-gradient(135deg,rgba(127,29,29,0.95),rgba(153,27,27,0.92),rgba(69,10,10,0.96))] text-left text-rose-50 shadow-[0_16px_36px_rgba(127,29,29,0.24)] transition hover:scale-[1.02] hover:border-rose-100/30 hover:bg-[linear-gradient(135deg,rgba(153,27,27,0.98),rgba(185,28,28,0.94),rgba(87,13,13,0.98))]",
-              useCompactRunHeader ? "rounded-[18px] px-4 py-2.5" : "rounded-[22px] px-5 py-3",
+              useUltraCompactMobileHeader
+                ? "rounded-[14px] px-2.5 py-1.5"
+                : useCompactRunHeader
+                  ? "rounded-[18px] px-4 py-2.5"
+                  : "rounded-[22px] px-5 py-3",
             )}
           >
-            <div className={clsx("uppercase text-rose-100/82", useCompactRunHeader ? "text-[9px] tracking-[0.18em]" : "text-[10px] tracking-[0.2em]")}>
+            <div
+              className={clsx(
+                "uppercase text-rose-100/82",
+                useUltraCompactMobileHeader
+                  ? "text-[7px] tracking-[0.15em]"
+                  : useCompactRunHeader
+                    ? "text-[9px] tracking-[0.18em]"
+                    : "text-[10px] tracking-[0.2em]",
+              )}
+            >
               Abort Run
             </div>
-            <div className={clsx("font-semibold text-white", useCompactRunHeader ? "mt-1 text-lg" : "mt-2 text-2xl")}>End Now</div>
+            <div
+              className={clsx(
+                "font-semibold text-white",
+                useUltraCompactMobileHeader
+                  ? "mt-0.5 text-[0.95rem] leading-none"
+                  : useCompactRunHeader
+                    ? "mt-1 text-lg"
+                    : "mt-2 text-2xl",
+              )}
+            >
+              End Now
+            </div>
           </button>
           <button
             type="button"
@@ -8993,56 +9299,155 @@ export const RoguelikeMode = ({
             disabled={!canUseDraftShuffle}
             className={clsx(
               "border text-left transition",
-              useCompactRunHeader ? "rounded-[18px] px-4 py-2.5" : "rounded-[22px] px-5 py-3",
+              useUltraCompactMobileHeader
+                ? "rounded-[14px] px-2.5 py-1.5"
+                : useCompactRunHeader
+                  ? "rounded-[18px] px-4 py-2.5"
+                  : "rounded-[22px] px-5 py-3",
               canUseDraftShuffle
                 ? "border-indigo-200/22 bg-[linear-gradient(135deg,rgba(37,46,104,0.95),rgba(67,56,202,0.88),rgba(20,24,60,0.96))] text-indigo-50 shadow-[0_16px_36px_rgba(67,56,202,0.24)] hover:scale-[1.02] hover:border-indigo-100/30"
                 : "cursor-not-allowed border-white/10 bg-white/5 text-slate-300 opacity-70",
             )}
           >
-            <div className={clsx("flex items-center gap-2 uppercase text-current", useCompactRunHeader ? "text-[9px] tracking-[0.18em]" : "text-[10px] tracking-[0.2em]")}>
-              <RefreshCcw size={12} />
+            <div
+              className={clsx(
+                "flex items-center uppercase text-current",
+                useUltraCompactMobileHeader
+                  ? "gap-1 text-[7px] tracking-[0.15em]"
+                  : useCompactRunHeader
+                    ? "gap-2 text-[9px] tracking-[0.18em]"
+                    : "gap-2 text-[10px] tracking-[0.2em]",
+              )}
+            >
+              <RefreshCcw size={useUltraCompactMobileHeader ? 9 : 12} />
               Draft Shuffle
             </div>
-            <div className={clsx("font-semibold text-white", useCompactRunHeader ? "mt-1 text-base" : "mt-2 text-xl")}>{run.draftShuffleTickets}</div>
-            <div className={clsx("mt-1 uppercase tracking-[0.16em] text-current", useCompactRunHeader ? "text-[9px]" : "text-[11px]")}>
+            <div
+              className={clsx(
+                "font-semibold text-white",
+                useUltraCompactMobileHeader
+                  ? "mt-0.5 text-[0.82rem] leading-none"
+                  : useCompactRunHeader
+                    ? "mt-1 text-base"
+                    : "mt-2 text-xl",
+              )}
+            >
+              {run.draftShuffleTickets}
+            </div>
+            <div
+              className={clsx(
+                "uppercase tracking-[0.16em] text-current",
+                useUltraCompactMobileHeader
+                  ? "mt-0.5 text-[7px]"
+                  : useCompactRunHeader
+                    ? "mt-1 text-[9px]"
+                    : "mt-1 text-[11px]",
+              )}
+            >
               {canUseDraftShuffle ? "Reroll current board" : "No live board to reroll"}
             </div>
           </button>
           {canUseStoreUtilities && ownedTrainingCampTickets > 0 ? (
             <button
               type="button"
-              onClick={openStoreTrainingCamp}
-              className={clsx(
-                "border border-sky-200/18 bg-[linear-gradient(135deg,rgba(15,23,42,0.95),rgba(15,52,96,0.9),rgba(9,19,34,0.96))] text-left text-sky-50 shadow-[0_16px_36px_rgba(14,116,144,0.2)] transition hover:scale-[1.02] hover:border-sky-100/30",
-                useCompactRunHeader ? "rounded-[18px] px-4 py-2.5" : "rounded-[22px] px-5 py-3",
-              )}
-            >
-              <div className={clsx("uppercase text-sky-100/82", useCompactRunHeader ? "text-[9px] tracking-[0.18em]" : "text-[10px] tracking-[0.2em]")}>
-                Training Camp Ticket
-              </div>
-              <div className={clsx("font-semibold text-white", useCompactRunHeader ? "mt-1 text-base" : "mt-2 text-xl")}>Use Ticket</div>
-              <div className={clsx("mt-1 uppercase tracking-[0.16em] text-sky-100/74", useCompactRunHeader ? "text-[9px]" : "text-[11px]")}>
-                {ownedTrainingCampTickets} owned
-              </div>
-            </button>
+                onClick={openStoreTrainingCamp}
+                className={clsx(
+                  "border border-sky-200/18 bg-[linear-gradient(135deg,rgba(15,23,42,0.95),rgba(15,52,96,0.9),rgba(9,19,34,0.96))] text-left text-sky-50 shadow-[0_16px_36px_rgba(14,116,144,0.2)] transition hover:scale-[1.02] hover:border-sky-100/30",
+                  useUltraCompactMobileHeader
+                    ? "rounded-[14px] px-2.5 py-1.5"
+                    : useCompactRunHeader
+                      ? "rounded-[18px] px-4 py-2.5"
+                      : "rounded-[22px] px-5 py-3",
+                )}
+              >
+                <div
+                  className={clsx(
+                    "uppercase text-sky-100/82",
+                    useUltraCompactMobileHeader
+                      ? "text-[7px] tracking-[0.15em]"
+                      : useCompactRunHeader
+                        ? "text-[9px] tracking-[0.18em]"
+                        : "text-[10px] tracking-[0.2em]",
+                  )}
+                >
+                  Training Camp Ticket
+                </div>
+                <div
+                  className={clsx(
+                    "font-semibold text-white",
+                    useUltraCompactMobileHeader
+                      ? "mt-0.5 text-[0.82rem] leading-none"
+                      : useCompactRunHeader
+                        ? "mt-1 text-base"
+                        : "mt-2 text-xl",
+                  )}
+                >
+                  Use Ticket
+                </div>
+                <div
+                  className={clsx(
+                    "uppercase tracking-[0.16em] text-sky-100/74",
+                    useUltraCompactMobileHeader
+                      ? "mt-0.5 text-[7px]"
+                      : useCompactRunHeader
+                        ? "mt-1 text-[9px]"
+                        : "mt-1 text-[11px]",
+                  )}
+                >
+                  {ownedTrainingCampTickets} owned
+                </div>
+              </button>
           ) : null}
           {canUseStoreUtilities && ownedTradePhones > 0 ? (
             <button
               type="button"
-              onClick={openStoreTradePhone}
-              className={clsx(
-                "border border-fuchsia-200/18 bg-[linear-gradient(135deg,rgba(54,18,76,0.95),rgba(91,33,182,0.84),rgba(25,12,48,0.96))] text-left text-fuchsia-50 shadow-[0_16px_36px_rgba(126,34,206,0.22)] transition hover:scale-[1.02] hover:border-fuchsia-100/30",
-                useCompactRunHeader ? "rounded-[18px] px-4 py-2.5" : "rounded-[22px] px-5 py-3",
-              )}
-            >
-              <div className={clsx("uppercase text-fuchsia-100/82", useCompactRunHeader ? "text-[9px] tracking-[0.18em]" : "text-[10px] tracking-[0.2em]")}>
-                Trade Phone
-              </div>
-              <div className={clsx("font-semibold text-white", useCompactRunHeader ? "mt-1 text-base" : "mt-2 text-xl")}>Make A Trade</div>
-              <div className={clsx("mt-1 uppercase tracking-[0.16em] text-fuchsia-100/74", useCompactRunHeader ? "text-[9px]" : "text-[11px]")}>
-                {ownedTradePhones} owned
-              </div>
-            </button>
+                onClick={openStoreTradePhone}
+                className={clsx(
+                  "border border-fuchsia-200/18 bg-[linear-gradient(135deg,rgba(54,18,76,0.95),rgba(91,33,182,0.84),rgba(25,12,48,0.96))] text-left text-fuchsia-50 shadow-[0_16px_36px_rgba(126,34,206,0.22)] transition hover:scale-[1.02] hover:border-fuchsia-100/30",
+                  useUltraCompactMobileHeader
+                    ? "rounded-[14px] px-2.5 py-1.5"
+                    : useCompactRunHeader
+                      ? "rounded-[18px] px-4 py-2.5"
+                      : "rounded-[22px] px-5 py-3",
+                )}
+              >
+                <div
+                  className={clsx(
+                    "uppercase text-fuchsia-100/82",
+                    useUltraCompactMobileHeader
+                      ? "text-[7px] tracking-[0.15em]"
+                      : useCompactRunHeader
+                        ? "text-[9px] tracking-[0.18em]"
+                        : "text-[10px] tracking-[0.2em]",
+                  )}
+                >
+                  Trade Phone
+                </div>
+                <div
+                  className={clsx(
+                    "font-semibold text-white",
+                    useUltraCompactMobileHeader
+                      ? "mt-0.5 text-[0.82rem] leading-none"
+                      : useCompactRunHeader
+                        ? "mt-1 text-base"
+                        : "mt-2 text-xl",
+                  )}
+                >
+                  Make A Trade
+                </div>
+                <div
+                  className={clsx(
+                    "uppercase tracking-[0.16em] text-fuchsia-100/74",
+                    useUltraCompactMobileHeader
+                      ? "mt-0.5 text-[7px]"
+                      : useCompactRunHeader
+                        ? "mt-1 text-[9px]"
+                        : "mt-1 text-[11px]",
+                  )}
+                >
+                  {ownedTradePhones} owned
+                </div>
+              </button>
           ) : null}
         </div>
       </div>
@@ -9220,26 +9625,44 @@ export const RoguelikeMode = ({
 
           {run.stage === "locker-room" && (
             <div className="glass-panel rounded-[30px] p-6 shadow-card">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
-                    {isForcedLockerRoomVisit ? "Locker Room Visit" : "Mid-Run Store"}
+              {isMobileViewport ? (
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">
+                      {isForcedLockerRoomVisit ? "Locker Room Visit" : "Mid-Run Store"}
+                    </div>
+                    <h2 className="mt-1 font-display text-[2.15rem] leading-none text-white">Locker Room</h2>
                   </div>
-                  <h2 className="mt-2 font-display text-3xl text-white">Locker Room</h2>
-                  <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
-                    {isForcedLockerRoomVisit
-                      ? "This is your scheduled store stop. Check your Locker Room Cash, buy any upgrades you want, then continue the run when you are ready."
-                      : "Spend Locker Room Cash on one-run upgrades, scouting intel, and targeted boosts that help you shape the rest of this climb."}
-                  </p>
-                </div>
-                <div className="rounded-[24px] border border-emerald-200/18 bg-emerald-300/10 px-5 py-4 text-right">
-                  <div className="flex items-center justify-end gap-2 text-[10px] uppercase tracking-[0.2em] text-emerald-100/76">
-                    <Coins size={13} />
-                    Locker Room Cash
+                  <div className="shrink-0 rounded-[18px] border border-emerald-200/18 bg-emerald-300/10 px-3 py-2 text-right">
+                    <div className="flex items-center justify-end gap-1.5 text-[8px] uppercase tracking-[0.18em] text-emerald-100/76">
+                      <Coins size={11} />
+                      Cash
+                    </div>
+                    <div className="mt-1 text-2xl font-semibold leading-none text-white">{run.lockerRoomCash}</div>
                   </div>
-                  <div className="mt-2 text-3xl font-semibold text-white">{run.lockerRoomCash}</div>
                 </div>
-              </div>
+              ) : (
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
+                      {isForcedLockerRoomVisit ? "Locker Room Visit" : "Mid-Run Store"}
+                    </div>
+                    <h2 className="mt-2 font-display text-3xl text-white">Locker Room</h2>
+                    <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
+                      {isForcedLockerRoomVisit
+                        ? "This is your scheduled store stop. Check your Locker Room Cash, buy any upgrades you want, then continue the run when you are ready."
+                        : "Spend Locker Room Cash on one-run upgrades, scouting intel, and targeted boosts that help you shape the rest of this climb."}
+                    </p>
+                  </div>
+                  <div className="rounded-[24px] border border-emerald-200/18 bg-emerald-300/10 px-5 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2 text-[10px] uppercase tracking-[0.2em] text-emerald-100/76">
+                      <Coins size={13} />
+                      Locker Room Cash
+                    </div>
+                    <div className="mt-2 text-3xl font-semibold text-white">{run.lockerRoomCash}</div>
+                  </div>
+                </div>
+              )}
 
               {run.lockerRoomNotice ? (
                 <div className="mt-5 rounded-[24px] border border-emerald-200/18 bg-[linear-gradient(135deg,rgba(10,72,48,0.32),rgba(16,94,65,0.18),rgba(6,24,18,0.38))] px-5 py-4">
@@ -9249,16 +9672,29 @@ export const RoguelikeMode = ({
                 </div>
               ) : null}
 
-              <div className="mt-8">
-                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
-                  <Target size={14} className="text-sky-200" />
-                  Intel
-                </div>
-                <div className="mt-4 grid gap-4 xl:grid-cols-2">
-                  <div className="rounded-[28px] border border-sky-200/18 bg-[linear-gradient(135deg,rgba(15,52,96,0.28),rgba(8,18,32,0.94))] p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-xl font-semibold text-white">Advanced Scouting</div>
+                <div className="mt-8">
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
+                    <Target size={14} className="text-sky-200" />
+                    Intel
+                  </div>
+                  <div className={clsx("mt-4 grid", isMobileViewport ? "grid-cols-2 gap-3" : "gap-4 xl:grid-cols-2")}>
+                    {isMobileViewport ? (
+                      renderMobileLockerRoomActionCard({
+                        eyebrow: "Intel",
+                        title: "Advanced Scouting",
+                        price: getLockerRoomItemPrice("advanced-scouting"),
+                        toneClassName: "border-sky-200/18 bg-[linear-gradient(135deg,rgba(15,52,96,0.28),rgba(8,18,32,0.94))]",
+                        actionLabel: nextBossScouted ? "Already Scouted" : "Buy Intel",
+                        onAction: buyLockerRoomAdvancedScouting,
+                        disabled: !nextBossNode || nextBossScouted || run.lockerRoomCash < getLockerRoomItemPrice("advanced-scouting"),
+                        meta: nextBossScouted ? "Scouted" : nextBossNode ? "1 boss peek" : "No boss",
+                        description: "Reveal the next boss team before you get there, including the starting five, ratings, and player type badges.",
+                      })
+                    ) : (
+                    <div className="rounded-[28px] border border-sky-200/18 bg-[linear-gradient(135deg,rgba(15,52,96,0.28),rgba(8,18,32,0.94))] p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-xl font-semibold text-white">Advanced Scouting</div>
                         <div className="mt-3 text-sm leading-7 text-slate-300">
                           Reveal the next boss team before you get there, including the starting five, ratings, and player type badges.
                         </div>
@@ -9277,15 +9713,29 @@ export const RoguelikeMode = ({
                         {nextBossScouted ? "Already Scouted" : "Buy Scouting Report"}
                       </button>
                       <div className="self-center text-xs uppercase tracking-[0.18em] text-slate-400">
-                        {nextBossNode ? `Next boss: ${nextBossNode.title}` : "No upcoming boss to scout"}
+                          {nextBossNode ? `Next boss: ${nextBossNode.title}` : "No upcoming boss to scout"}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                    )}
 
-                  <div className="rounded-[28px] border border-indigo-200/18 bg-[linear-gradient(135deg,rgba(37,46,104,0.28),rgba(11,16,34,0.94))] p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-xl font-semibold text-white">Draft Shuffle Ticket</div>
+                    {isMobileViewport ? (
+                      renderMobileLockerRoomActionCard({
+                        eyebrow: "Intel",
+                        title: "Draft Shuffle Ticket",
+                        price: getLockerRoomItemPrice("draft-shuffle-ticket"),
+                        toneClassName: "border-indigo-200/18 bg-[linear-gradient(135deg,rgba(37,46,104,0.28),rgba(11,16,34,0.94))]",
+                        actionLabel: "Buy Ticket",
+                        onAction: buyLockerRoomDraftShuffleTicket,
+                        disabled: run.lockerRoomCash < getLockerRoomItemPrice("draft-shuffle-ticket"),
+                        meta: `${run.draftShuffleTickets} owned`,
+                        description: "Add 1 Draft Shuffle ticket to this run so you can reroll any live five-player board when the timing feels right.",
+                      })
+                    ) : (
+                    <div className="rounded-[28px] border border-indigo-200/18 bg-[linear-gradient(135deg,rgba(37,46,104,0.28),rgba(11,16,34,0.94))] p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-xl font-semibold text-white">Draft Shuffle Ticket</div>
                         <div className="mt-3 text-sm leading-7 text-slate-300">
                           Add 1 Draft Shuffle ticket to this run so you can reroll any live five-player board when the timing feels right.
                         </div>
@@ -9304,23 +9754,37 @@ export const RoguelikeMode = ({
                         disabled={run.lockerRoomCash < getLockerRoomItemPrice("draft-shuffle-ticket")}
                         className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48"
                       >
-                        Buy Ticket
-                      </button>
+                          Buy Ticket
+                        </button>
+                      </div>
                     </div>
+                    )}
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-8">
-                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
-                  <Shield size={14} className="text-emerald-200" />
-                  Staff Perks
-                </div>
-                <div className="mt-4 grid gap-4 xl:grid-cols-3">
-                  <div className="rounded-[28px] border border-emerald-200/18 bg-[linear-gradient(135deg,rgba(12,74,50,0.28),rgba(7,24,18,0.94))] p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-xl font-semibold text-white">Training Camp Tickets</div>
+                <div className="mt-8">
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
+                    <Shield size={14} className="text-emerald-200" />
+                    Staff Perks
+                  </div>
+                  <div className={clsx("mt-4 grid", isMobileViewport ? "grid-cols-2 gap-3" : "gap-4 xl:grid-cols-3")}>
+                    {isMobileViewport ? (
+                      renderMobileLockerRoomActionCard({
+                        eyebrow: "Staff Perk",
+                        title: "Training Camp Ticket",
+                        price: getLockerRoomItemPrice("training-camp-ticket"),
+                        toneClassName: "border-emerald-200/18 bg-[linear-gradient(135deg,rgba(12,74,50,0.28),rgba(7,24,18,0.94))]",
+                        actionLabel: "Choose Player",
+                        onAction: () => openLockerRoomSelection(LOCKER_ROOM_TRAINING_NODE),
+                        disabled: run.lockerRoomCash < getLockerRoomItemPrice("training-camp-ticket"),
+                        meta: `${ownedTrainingCampTickets} owned`,
+                        description: "Send 1 player to a private training camp for a permanent +1 OVR boost during this run.",
+                      })
+                    ) : (
+                    <div className="rounded-[28px] border border-emerald-200/18 bg-[linear-gradient(135deg,rgba(12,74,50,0.28),rgba(7,24,18,0.94))] p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-xl font-semibold text-white">Training Camp Tickets</div>
                         <div className="mt-3 text-sm leading-7 text-slate-300">
                           Send 1 player to a private training camp for a permanent +1 OVR boost during this run.
                         </div>
@@ -9336,15 +9800,51 @@ export const RoguelikeMode = ({
                         disabled={run.lockerRoomCash < getLockerRoomItemPrice("training-camp-ticket")}
                         className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48"
                       >
-                        Choose Player
-                      </button>
+                          Choose Player
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                    )}
 
-                  <div className="rounded-[28px] border border-cyan-200/18 bg-[linear-gradient(135deg,rgba(14,116,144,0.24),rgba(7,20,32,0.94))] p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2 text-xl font-semibold text-white">
+                    {isMobileViewport ? (
+                      renderMobileLockerRoomActionCard({
+                        eyebrow: "Staff Perk",
+                        title: "Special Stuff",
+                        price: getLockerRoomItemPrice("special-stuff"),
+                        toneClassName: "border-cyan-200/18 bg-[linear-gradient(135deg,rgba(14,116,144,0.24),rgba(7,20,32,0.94))]",
+                        actionLabel: run.activeSpecialStuffPlayerId ? "Change Player" : "Apply",
+                        onAction: () => openLockerRoomSelection(LOCKER_ROOM_SPECIAL_STUFF_NODE),
+                        disabled: !nextBossNode || (run.specialStuffInventoryCount <= 0 && !run.activeSpecialStuffPlayerId),
+                        icon: <PillBottle size={14} className="text-cyan-100" />,
+                        meta: run.activeSpecialStuffPlayerId
+                          ? `Active`
+                          : run.specialStuffInventoryCount > 0
+                            ? `${run.specialStuffInventoryCount} owned`
+                            : nextBossNode
+                              ? "Need purchase"
+                              : "No boss",
+                        description: `Buy now, save it for any future boss matchup this run. When used, 1 player gets +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for that boss game only.`,
+                        detail: run.activeSpecialStuffPlayerId
+                          ? `Currently assigned to ${getPlayerById(run.activeSpecialStuffPlayerId)?.name ?? "selected player"}.`
+                          : nextBossNode
+                            ? `Next boss available: ${nextBossNode.title}.`
+                            : "No upcoming boss is currently available for this item.",
+                        secondaryAction: (
+                          <button
+                            type="button"
+                            onClick={buyLockerRoomSpecialStuff}
+                            disabled={!nextBossNode || run.lockerRoomCash < getLockerRoomItemPrice("special-stuff")}
+                            className="whitespace-nowrap rounded-full border border-white/14 bg-white/6 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:border-white/8 disabled:bg-white/5 disabled:text-white/38"
+                          >
+                            Buy
+                          </button>
+                        ),
+                      })
+                    ) : (
+                    <div className="rounded-[28px] border border-cyan-200/18 bg-[linear-gradient(135deg,rgba(14,116,144,0.24),rgba(7,20,32,0.94))] p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2 text-xl font-semibold text-white">
                           <PillBottle size={20} className="text-cyan-100" />
                           Special Stuff
                         </div>
@@ -9380,17 +9880,30 @@ export const RoguelikeMode = ({
                           onClick={() => openLockerRoomSelection(LOCKER_ROOM_SPECIAL_STUFF_NODE)}
                           disabled={!nextBossNode || (run.specialStuffInventoryCount <= 0 && !run.activeSpecialStuffPlayerId)}
                           className="rounded-full border border-white/14 bg-white/6 px-5 py-2.5 text-sm font-semibold text-white transition hover:scale-[1.02] hover:bg-white/10 disabled:cursor-not-allowed disabled:border-white/8 disabled:bg-white/5 disabled:text-white/38"
-                        >
-                          {run.activeSpecialStuffPlayerId ? "Change Player" : "Apply"}
-                        </button>
+                          >
+                            {run.activeSpecialStuffPlayerId ? "Change Player" : "Apply"}
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                    )}
 
-                  <div className="rounded-[28px] border border-fuchsia-200/18 bg-[linear-gradient(135deg,rgba(64,23,107,0.28),rgba(16,10,32,0.94))] p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-xl font-semibold text-white">New Position Training</div>
+                    {isMobileViewport ? (
+                      renderMobileLockerRoomActionCard({
+                        eyebrow: "Staff Perk",
+                        title: "New Position Training",
+                        price: getLockerRoomItemPrice("new-position-training"),
+                        toneClassName: "border-fuchsia-200/18 bg-[linear-gradient(135deg,rgba(64,23,107,0.28),rgba(16,10,32,0.94))]",
+                        actionLabel: "Choose Player",
+                        onAction: () => openLockerRoomSelection(LOCKER_ROOM_NEW_POSITION_NODE),
+                        disabled: run.lockerRoomCash < getLockerRoomItemPrice("new-position-training"),
+                        description: "Teach 1 player a new natural position for the rest of this run so your lineup has more flexibility where it matters.",
+                      })
+                    ) : (
+                    <div className="rounded-[28px] border border-fuchsia-200/18 bg-[linear-gradient(135deg,rgba(64,23,107,0.28),rgba(16,10,32,0.94))] p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-xl font-semibold text-white">New Position Training</div>
                         <div className="mt-3 text-sm leading-7 text-slate-300">
                           Teach 1 player a new natural position for the rest of this run so your lineup has more flexibility where it matters.
                         </div>
@@ -9406,19 +9919,20 @@ export const RoguelikeMode = ({
                         disabled={run.lockerRoomCash < getLockerRoomItemPrice("new-position-training")}
                         className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48"
                       >
-                        Choose Player
-                      </button>
+                          Choose Player
+                        </button>
+                      </div>
                     </div>
+                    )}
                   </div>
                 </div>
-              </div>
 
               <div className="mt-8">
                 <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
                   <Zap size={14} className="text-amber-200" />
                   Player Type Badges
                 </div>
-                <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className={clsx("mt-4 grid", isMobileViewport ? "grid-cols-2 gap-3" : "gap-4 md:grid-cols-2 xl:grid-cols-3")}>
                   {[
                     {
                       id: "practice-shooting" as LockerRoomItemId,
@@ -9460,11 +9974,26 @@ export const RoguelikeMode = ({
                       node: LOCKER_ROOM_PRACTICE_OFFENSE_NODE,
                       tone: "border-rose-200/18 bg-[linear-gradient(135deg,rgba(136,19,55,0.24),rgba(28,12,16,0.94))]",
                     },
-                    ].map((item) => (
-                      <div key={item.id} className={`rounded-[28px] border p-4 ${item.tone}`}>
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60">Player Type Badge</div>
-                          <div className="shrink-0 rounded-full border border-white/14 bg-white/8 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white">
+                      ].map((item) => (
+                        isMobileViewport ? (
+                          <div key={item.id}>
+                            {renderMobileLockerRoomActionCard({
+                              eyebrow: "Badge",
+                              title: item.title,
+                              price: getLockerRoomItemPrice(item.id),
+                              toneClassName: item.tone,
+                              actionLabel: "Choose Player",
+                              onAction: () => openLockerRoomSelection(item.node),
+                              disabled: run.lockerRoomCash < getLockerRoomItemPrice(item.id),
+                              icon: <div className={clsx("flex h-8 w-8 items-center justify-center rounded-xl border", playerTypeBadgeStyleClass[item.badgeType])}>{renderPlayerTypeBadgeIcon(item.badgeType, false)}</div>,
+                              description: item.description,
+                            })}
+                          </div>
+                        ) : (
+                        <div key={item.id} className={`rounded-[28px] border p-4 ${item.tone}`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60">Player Type Badge</div>
+                            <div className="shrink-0 rounded-full border border-white/14 bg-white/8 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white">
                             {getLockerRoomItemPrice(item.id)} Cash
                           </div>
                         </div>
@@ -9493,10 +10022,11 @@ export const RoguelikeMode = ({
                             className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48"
                           >
                             Choose Player
-                          </button>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                        )
+                      ))}
                   </div>
                 </div>
 
@@ -9558,6 +10088,33 @@ export const RoguelikeMode = ({
                   <ArrowRight size={16} />
                 </button>
               </div>
+
+              {isMobileViewport && lockerRoomInfoCard ? (
+                <div className="fixed inset-0 z-[130] flex items-end justify-center bg-black/72 p-3 backdrop-blur-sm sm:hidden">
+                  <div className="w-full max-w-xl rounded-[28px] border border-white/12 bg-[#070b12]/98 p-5 shadow-[0_28px_80px_rgba(0,0,0,0.48)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Locker Room Info</div>
+                        <div className="mt-2 text-2xl font-semibold text-white">{lockerRoomInfoCard.title}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setLockerRoomInfoCard(null)}
+                        className="rounded-full border border-white/12 bg-white/6 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-white/10"
+                      >
+                        Close
+                      </button>
+                    </div>
+                    <div className="mt-4 inline-flex rounded-full border border-white/12 bg-white/8 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+                      {lockerRoomInfoCard.price} Cash
+                    </div>
+                    <p className="mt-4 text-sm leading-7 text-slate-200">{lockerRoomInfoCard.description}</p>
+                    {lockerRoomInfoCard.detail ? (
+                      <p className="mt-3 text-sm leading-7 text-slate-400">{lockerRoomInfoCard.detail}</p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -9810,10 +10367,6 @@ export const RoguelikeMode = ({
               <p className="mt-3 text-sm leading-7 text-slate-300">
                 {lockerRoomTrainingSelectionCopy.description}
               </p>
-              <div className="mt-5 rounded-[22px] border border-emerald-200/14 bg-emerald-300/8 px-4 py-4 text-sm text-slate-100">
-                {lockerRoomTrainingSelectionCopy.detail}
-                {trainingCapReminder}
-              </div>
               <div className="mt-5 flex flex-wrap items-start justify-center gap-2 overflow-hidden">
                 {trainingSelectionDisplayPlayers.map((player) => {
                   const sourcePlayer = runOwnedPlayerById.get(player.id) ?? player;
@@ -10034,26 +10587,52 @@ export const RoguelikeMode = ({
               <div className="text-xs uppercase tracking-[0.24em] text-slate-400">All-Star Weekend</div>
               <h2 className="mt-2 font-display text-3xl text-white">{activeNode.title}</h2>
               <p className="mt-3 text-sm leading-7 text-slate-300">
-                Drag players from your Run Roster into each event slot. Every event awards its listed player-type badge for the rest of the run.
+                {isMobileViewport
+                  ? "Tap an event slot, then choose 1 player from your Run Roster. Every event awards its listed player-type badge for the rest of the run."
+                  : "Drag players from your Run Roster into each event slot. Every event awards its listed player-type badge for the rest of the run."}
               </p>
               <div className="mt-5 rounded-[22px] border border-violet-200/14 bg-violet-300/8 px-4 py-4 text-sm leading-6 text-slate-100">
-                Each player can only enter one event. Dropping the same player into a new event will move them from their previous slot.
+                {isMobileViewport
+                  ? "Each player can only enter one event. Tapping the same player into a new event will move them from their previous slot."
+                  : "Each player can only enter one event. Dropping the same player into a new event will move them from their previous slot."}
               </div>
+              {isMobileViewport ? (
+                <div className="mt-4 rounded-[20px] border border-cyan-200/14 bg-cyan-300/8 px-4 py-3 text-sm leading-6 text-cyan-50">
+                  Pick an event card below to open a tap-friendly roster picker.
+                </div>
+              ) : null}
               <div className="mt-6 grid gap-4 md:grid-cols-2 2xl:grid-cols-5">
                 {ALL_STAR_EVENT_CARDS.map((eventCard) => {
                   const assignedPlayer = getAllStarAssignedPlayer(eventCard.key);
                   const selected = Boolean(assignedPlayer);
-                  const highlighted = allStarDropTargetKey === eventCard.key;
+                  const highlighted =
+                    allStarDropTargetKey === eventCard.key ||
+                    (isMobileViewport && mobileAllStarAssignmentKey === eventCard.key);
 
                   return (
-                  <div
-                    key={eventCard.key}
-                    data-all-star-event-key={eventCard.key}
-                    className={clsx(
-                      "min-h-[238px] rounded-[24px] border border-dashed p-4 transition",
-                      highlighted
-                        ? "border-violet-200/70 bg-violet-400/18 shadow-[0_0_30px_rgba(167,139,250,0.2)]"
-                        : selected
+                    <div
+                      key={eventCard.key}
+                      data-all-star-event-key={eventCard.key}
+                      role={isMobileViewport ? "button" : undefined}
+                      tabIndex={isMobileViewport ? 0 : undefined}
+                      onClick={() => {
+                        if (!isMobileViewport) return;
+                        setMobileAllStarAssignmentKey(eventCard.key);
+                        setMobileBottomPanel("roster");
+                      }}
+                      onKeyDown={(event) => {
+                        if (!isMobileViewport) return;
+                        if (event.key !== "Enter" && event.key !== " ") return;
+                        event.preventDefault();
+                        setMobileAllStarAssignmentKey(eventCard.key);
+                        setMobileBottomPanel("roster");
+                      }}
+                      className={clsx(
+                        "min-h-[238px] rounded-[24px] border border-dashed p-4 transition",
+                        isMobileViewport && "cursor-pointer",
+                        highlighted
+                          ? "border-violet-200/70 bg-violet-400/18 shadow-[0_0_30px_rgba(167,139,250,0.2)]"
+                          : selected
                           ? "border-violet-200/34 bg-violet-500/12 shadow-[0_16px_36px_rgba(0,0,0,0.24)]"
                           : "border-white/14 bg-white/6",
                     )}
@@ -10080,21 +10659,24 @@ export const RoguelikeMode = ({
                             <div className="rounded-full border border-violet-200/18 bg-violet-300/10 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-violet-100">
                               Assigned
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => removeAllStarAssignment(eventCard.key)}
-                              className="rounded-full border border-white/12 bg-white/6 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-white/10"
-                            >
-                              Remove
-                            </button>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  removeAllStarAssignment(eventCard.key);
+                                }}
+                                className="rounded-full border border-white/12 bg-white/6 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-white/10"
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="rounded-[20px] border border-dashed border-white/14 bg-black/16 px-4 py-8 text-center text-sm leading-6 text-slate-300">
-                          Drag a roster card here.
-                        </div>
-                      )}
-                    </div>
+                        ) : (
+                          <div className="rounded-[20px] border border-dashed border-white/14 bg-black/16 px-4 py-8 text-center text-sm leading-6 text-slate-300">
+                            {isMobileViewport ? "Tap to choose a roster player." : "Drag a roster card here."}
+                          </div>
+                        )}
+                      </div>
                   </div>
                   );
                 })}
@@ -10826,19 +11408,19 @@ export const RoguelikeMode = ({
                       <div
                         key={node.id}
                         className={clsx(
-                          "relative grid gap-3 pl-4",
+                          "relative grid gap-2.5 pl-3.5",
                           showCompactLadderRewards ? "xl:grid-cols-[minmax(0,1fr)_200px] xl:items-stretch" : "grid-cols-1",
                         )}
                       >
                         <div
                           className={clsx(
-                            "absolute left-[-1px] top-6 h-3.5 w-3.5 rounded-full border-4 border-[#090b12]",
+                            "absolute left-[-1px] top-5 h-3 w-3 rounded-full border-[3px] border-[#090b12]",
                             isCleared ? "bg-emerald-300 shadow-[0_0_16px_rgba(16,185,129,0.4)]" : actTheme.accent,
                           )}
                         />
                         <div
                           className={clsx(
-                            "relative overflow-hidden rounded-[22px] border px-4 py-4 transition",
+                            "relative overflow-hidden rounded-[20px] border px-3.5 py-3.5 transition",
                             isCurrent
                               ? actTheme.current
                               : isCleared
@@ -10848,30 +11430,30 @@ export const RoguelikeMode = ({
                         >
                           {!isCleared ? (
                             <>
-                              <div className={clsx("absolute inset-y-4 left-0 w-[3px] rounded-full bg-gradient-to-b", nodeTheme.accentLine)} />
-                              <div className="pointer-events-none absolute right-4 top-4 h-14 w-14 rounded-full bg-white/[0.03] blur-2xl" />
+                              <div className={clsx("absolute inset-y-3.5 left-0 w-[3px] rounded-full bg-gradient-to-b", nodeTheme.accentLine)} />
+                              <div className="pointer-events-none absolute right-3 top-3 h-12 w-12 rounded-full bg-white/[0.03] blur-2xl" />
                             </>
                           ) : null}
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-start gap-3">
+                          <div className="flex items-center justify-between gap-2.5">
+                            <div className="flex min-w-0 items-start gap-2.5">
                               <div
                                 className={clsx(
-                                  "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+                                  "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[18px] border shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
                                   isCleared ? "border-emerald-200/24 bg-emerald-300/12 text-emerald-50" : nodeTheme.iconWrap,
                                 )}
                               >
-                                <nodeTheme.Icon size={16} className={clsx(isCleared ? "text-emerald-50" : nodeTheme.iconColor)} />
+                                <nodeTheme.Icon size={14} className={clsx(isCleared ? "text-emerald-50" : nodeTheme.iconColor)} />
                               </div>
-                              <div>
+                              <div className="min-w-0">
                                 <div className={clsx(
-                                  "text-[10px] uppercase tracking-[0.2em]",
+                                  "text-[9px] uppercase tracking-[0.18em]",
                                   isCleared ? "text-emerald-100/90" : actTheme.eyebrow,
                                 )}>
                                   Year {node.act} | Floor {node.floor}
                                 </div>
-                                <div className="mt-1 font-semibold text-white">{node.title}</div>
-                                <div className="mt-2">
-                                  <span className={clsx("rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em]", isCleared ? "border-emerald-200/30 bg-emerald-300/12 text-emerald-50" : nodeTheme.chip)}>
+                                <div className="mt-1 text-[0.95rem] font-semibold leading-tight text-white">{node.title}</div>
+                                <div className="mt-1.5">
+                                  <span className={clsx("rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-[0.16em]", isCleared ? "border-emerald-200/30 bg-emerald-300/12 text-emerald-50" : nodeTheme.chip)}>
                                     {nodeTheme.label}
                                   </span>
                                 </div>
@@ -10879,7 +11461,7 @@ export const RoguelikeMode = ({
                             </div>
                             <div
                               className={clsx(
-                                "rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em]",
+                                "shrink-0 rounded-full border px-2.5 py-0.5 text-[9px] uppercase tracking-[0.16em]",
                                 isCleared
                                   ? "border-emerald-200/35 bg-emerald-300/14 text-emerald-50"
                                   : "border-white/10 bg-black/20 text-slate-300",
@@ -10887,7 +11469,7 @@ export const RoguelikeMode = ({
                             >
                               {isCleared ? (
                                 <span className="inline-flex items-center gap-1.5">
-                                  <CheckCircle2 size={12} />
+                                  <CheckCircle2 size={11} />
                                   Cleared
                                 </span>
                               ) : (
@@ -10897,19 +11479,19 @@ export const RoguelikeMode = ({
                           </div>
                           <div
                             className={clsx(
-                              "mt-3 rounded-[18px] border px-4 py-3",
+                              "mt-2.5 rounded-[16px] border px-3 py-2.5",
                               isCleared ? "border-emerald-200/22 bg-emerald-300/10 text-emerald-50/94" : node.targetLabel ? nodeTheme.summary : actTheme.reward,
                             )}
                           >
-                            <div className="flex items-start gap-3">
-                              <div className={clsx("mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-white", isCleared ? "border-emerald-200/18 bg-emerald-300/12" : nodeTheme.iconWrap)}>
-                                <nodeTheme.Icon size={13} className={clsx(isCleared ? "text-emerald-50" : nodeTheme.iconColor)} />
+                            <div className="flex items-start gap-2.5">
+                              <div className={clsx("mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-white", isCleared ? "border-emerald-200/18 bg-emerald-300/12" : nodeTheme.iconWrap)}>
+                                <nodeTheme.Icon size={11} className={clsx(isCleared ? "text-emerald-50" : nodeTheme.iconColor)} />
                               </div>
-                              <div>
-                                <div className="text-[10px] uppercase tracking-[0.22em] text-white/62">
+                              <div className="min-w-0">
+                                <div className="text-[9px] uppercase tracking-[0.18em] text-white/62">
                                   {summary.label}
                                 </div>
-                                <div className="mt-1 text-sm font-semibold leading-6 text-current">
+                                <div className="mt-1 text-[0.95rem] font-semibold leading-6 text-current">
                                   {summary.value}
                                 </div>
                               </div>
@@ -10917,7 +11499,7 @@ export const RoguelikeMode = ({
                           </div>
                         </div>
                         {showCompactLadderRewards ? (
-                          <RogueNodeRewardsRail rewards={rewards} lockerRoomCash={lockerRoomCashReward} earned={rewardsEarned} />
+                          <RogueNodeRewardsRail rewards={rewards} lockerRoomCash={lockerRoomCashReward} earned={rewardsEarned} compact />
                         ) : null}
                       </div>
                     );
@@ -10946,10 +11528,20 @@ export const RoguelikeMode = ({
         <div className="fixed inset-x-0 bottom-[78px] z-[90] px-3 sm:hidden">
           <div className="max-h-[calc(100vh-148px)] overflow-y-auto rounded-[28px] border border-white/12 bg-[#070b12]/98 shadow-[0_22px_60px_rgba(0,0,0,0.42)] backdrop-blur-xl">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#070b12]/96 px-4 py-3">
-              <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Run Roster</div>
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Run Roster</div>
+                {run.stage === "all-star-select" && mobileAllStarAssignmentEvent ? (
+                  <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-violet-100/80">
+                    Assigning: {mobileAllStarAssignmentEvent.title}
+                  </div>
+                ) : null}
+              </div>
               <button
                 type="button"
-                onClick={() => setMobileBottomPanel("board")}
+                onClick={() => {
+                  setMobileBottomPanel("board");
+                  setMobileAllStarAssignmentKey(null);
+                }}
                 className="rounded-full border border-white/10 bg-white/6 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white"
               >
                 Close
@@ -10963,13 +11555,16 @@ export const RoguelikeMode = ({
       ) : null}
       {showMobileBottomNav ? (
         <div className="fixed inset-x-0 bottom-0 z-[95] border-t border-white/10 bg-[#050811]/96 px-3 py-3 shadow-[0_-12px_36px_rgba(0,0,0,0.36)] backdrop-blur-xl sm:hidden">
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setMobileBottomPanel("board")}
-              className={clsx(
-                "inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold transition",
-                mobileBottomPanel === "board"
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileBottomPanel("board");
+                  setMobileAllStarAssignmentKey(null);
+                }}
+                className={clsx(
+                  "inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold transition",
+                  mobileBottomPanel === "board"
                   ? "bg-white text-slate-950"
                   : "border border-white/12 bg-white/6 text-white",
               )}

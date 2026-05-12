@@ -67,7 +67,7 @@ Deno.serve(async (request) => {
     const packSlug = body.packSlug?.trim();
 
     if (!packSlug) {
-      return jsonResponse({ error: "Missing token pack." }, 400);
+      return jsonResponse({ error: "Missing token bundle." }, 400);
     }
 
     const { data: pack, error: packError } = await adminClient
@@ -78,12 +78,12 @@ Deno.serve(async (request) => {
       .maybeSingle();
 
     if (packError) {
-      console.error("Unable to load token pack", packError);
-      return jsonResponse({ error: `Unable to load token pack: ${packError.message}` }, 500);
+      console.error("Unable to load token bundle", packError);
+      return jsonResponse({ error: `Unable to load token bundle: ${packError.message}` }, 500);
     }
 
     if (!pack?.stripe_price_id) {
-      return jsonResponse({ error: "This token pack is not ready for checkout yet." }, 400);
+      return jsonResponse({ error: "This token bundle is not ready for checkout yet." }, 400);
     }
 
     const origin = request.headers.get("Origin") ?? "http://localhost:5173";

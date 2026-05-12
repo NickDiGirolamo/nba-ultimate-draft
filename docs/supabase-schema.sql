@@ -63,6 +63,17 @@ create table if not exists public.token_purchase_records (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.user_collection_cards (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  player_id text not null,
+  source text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, player_id)
+);
+
 create index if not exists token_transactions_user_created_at_idx
 on public.token_transactions (user_id, created_at desc);
 
@@ -71,6 +82,12 @@ on public.token_purchase_records (user_id, created_at desc);
 
 create index if not exists token_purchase_records_status_idx
 on public.token_purchase_records (status);
+
+create index if not exists user_collection_cards_user_created_at_idx
+on public.user_collection_cards (user_id, created_at desc);
+
+create index if not exists user_collection_cards_player_id_idx
+on public.user_collection_cards (player_id);
 
 insert into public.token_pack_products (
   slug,
@@ -87,7 +104,7 @@ insert into public.token_pack_products (
 values
   (
     'rookie-token-pack',
-    'Rookie Token Pack',
+    'Rookie Token Bundle',
     'A small token boost for early Rogue upgrades and utility items.',
     10000,
     199,
@@ -99,7 +116,7 @@ values
   ),
   (
     'rotation-token-pack',
-    'Rotation Token Pack',
+    'Rotation Token Bundle',
     'Enough tokens to unlock a meaningful permanent Rogue upgrade.',
     30000,
     499,
@@ -111,7 +128,7 @@ values
   ),
   (
     'playoff-token-pack',
-    'Playoff Token Pack',
+    'Playoff Token Bundle',
     'A strong pack for starter upgrades, coach recruitment, and run utility.',
     75000,
     999,
@@ -123,7 +140,7 @@ values
   ),
   (
     'finals-token-pack',
-    'Finals Token Pack',
+    'Finals Token Bundle',
     'A premium pack for multiple permanent upgrades and future Rogue planning.',
     175000,
     1999,
@@ -135,7 +152,7 @@ values
   ),
   (
     'galaxy-token-pack',
-    'Galaxy Token Pack',
+    'Galaxy Token Bundle',
     'A high-end pack that meaningfully accelerates the long-term Galaxy chase.',
     500000,
     4999,
@@ -192,6 +209,7 @@ alter table public.user_token_balances enable row level security;
 alter table public.token_transactions enable row level security;
 alter table public.token_pack_products enable row level security;
 alter table public.token_purchase_records enable row level security;
+alter table public.user_collection_cards enable row level security;
 alter table public.saved_rogue_runs enable row level security;
 
 drop policy if exists "Users can select own profile" on public.user_profiles;
@@ -291,6 +309,26 @@ grant select on public.token_pack_products to anon, authenticated, service_role;
 grant select, insert, update on public.token_purchase_records to authenticated, service_role;
 grant select, insert on public.token_transactions to authenticated, service_role;
 grant select, insert, update on public.user_token_balances to authenticated, service_role;
+grant select, insert, update on public.user_collection_cards to authenticated, service_role;
+
+drop policy if exists "Users can select own collection cards" on public.user_collection_cards;
+create policy "Users can select own collection cards"
+on public.user_collection_cards for select
+to authenticated
+using (user_id = auth.uid());
+
+drop policy if exists "Users can insert own collection cards" on public.user_collection_cards;
+create policy "Users can insert own collection cards"
+on public.user_collection_cards for insert
+to authenticated
+with check (user_id = auth.uid());
+
+drop policy if exists "Users can update own collection cards" on public.user_collection_cards;
+create policy "Users can update own collection cards"
+on public.user_collection_cards for update
+to authenticated
+using (user_id = auth.uid())
+with check (user_id = auth.uid());
 
 create or replace function public.credit_token_purchase(
   purchase_id uuid,
@@ -610,3 +648,21 @@ from public.token_purchase_records purchase
 left join public.token_pack_products product on product.id = purchase.token_pack_product_id
 left join public.user_profiles profile on profile.id = purchase.user_id
 left join auth.users auth_user on auth_user.id = purchase.user_id;
+
+drop view if exists public.user_collection_card_overview;
+create view public.user_collection_card_overview
+with (security_invoker = true)
+as
+select
+  coalesce(profile.username, split_part(auth_user.email, '@', 1)) as username,
+  auth_user.email as user_email,
+  collection_card.id,
+  collection_card.user_id,
+  collection_card.player_id,
+  collection_card.source,
+  collection_card.metadata,
+  collection_card.created_at,
+  collection_card.updated_at
+from public.user_collection_cards collection_card
+left join public.user_profiles profile on profile.id = collection_card.user_id
+left join auth.users auth_user on auth_user.id = collection_card.user_id;
