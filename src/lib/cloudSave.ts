@@ -27,6 +27,13 @@ interface SyncUserCollectionCardsOptions {
   metadata?: Record<string, unknown>;
 }
 
+export type UserStoreUnlockQuantities = Record<string, number>;
+
+interface SyncUserStoreUnlocksOptions {
+  source?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export const syncTokenBalance = async (
   userId: string,
   tokenBalance: number,
@@ -71,7 +78,7 @@ export const fetchTokenBalance = async (userId: string) => {
 
   if (error) {
     console.warn("Unable to load Supabase token balance", error);
-    return null;
+    throw error;
   }
 
   return typeof data?.token_balance === "number" ? data.token_balance : null;
@@ -88,7 +95,7 @@ export const fetchUserCollectionCards = async (userId: string) => {
 
   if (error) {
     console.warn("Unable to load Supabase collection cards", error);
-    return [];
+    throw error;
   }
 
   return Array.from(
@@ -126,6 +133,59 @@ export const upsertUserCollectionCards = async (
 
   if (error) {
     console.warn("Unable to save Supabase collection cards", error);
+  }
+};
+
+export const fetchUserStoreUnlocks = async (userId: string): Promise<UserStoreUnlockQuantities> => {
+  if (!supabase) return {};
+
+  const { data, error } = await supabase
+    .from("user_store_unlocks")
+    .select("unlock_id, quantity")
+    .eq("user_id", userId);
+
+  if (error) {
+    console.warn("Unable to load Supabase store unlocks", error);
+    return {};
+  }
+
+  return (data ?? []).reduce<UserStoreUnlockQuantities>((lookup, row) => {
+    const unlockId = row.unlock_id;
+    const quantity = Number(row.quantity);
+    if (typeof unlockId === "string" && unlockId.length > 0 && Number.isFinite(quantity)) {
+      lookup[unlockId] = Math.max(0, Math.floor(quantity));
+    }
+    return lookup;
+  }, {});
+};
+
+export const upsertUserStoreUnlocks = async (
+  userId: string,
+  unlockQuantities: UserStoreUnlockQuantities,
+  options: SyncUserStoreUnlocksOptions = {},
+) => {
+  if (!supabase) return;
+
+  const now = new Date().toISOString();
+  const rows = Object.entries(unlockQuantities)
+    .filter(([unlockId]) => unlockId.length > 0)
+    .map(([unlockId, quantity]) => ({
+      user_id: userId,
+      unlock_id: unlockId,
+      quantity: Math.max(0, Math.floor(Number.isFinite(quantity) ? quantity : 0)),
+      source: options.source ?? "local_store_unlock_sync",
+      metadata: options.metadata ?? {},
+      updated_at: now,
+    }));
+
+  if (rows.length === 0) return;
+
+  const { error } = await supabase.from("user_store_unlocks").upsert(rows, {
+    onConflict: "user_id,unlock_id",
+  });
+
+  if (error) {
+    console.warn("Unable to save Supabase store unlocks", error);
   }
 };
 

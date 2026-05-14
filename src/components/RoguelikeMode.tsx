@@ -40,6 +40,7 @@ import { assignPlayerToRoster } from "../lib/draft";
 import { getPlayerDisplayLines } from "../lib/playerDisplay";
 import { getPlayerTier, getPlayerTierLabel, playerTierRunRosterSurfaceStyles } from "../lib/playerTier";
 import { getPlayerArchetypeBehaviorProfile } from "../lib/playerArchetypeBehavior";
+import { getPlayerBadgeStates } from "../lib/dynamicDuos";
 import { mulberry32 } from "../lib/random";
 import { getCompletedRogueChallengeIdsForClear } from "../lib/rogueChallenges";
 import { getPlayerTeamKey, getSameTeamChemistryBonusForPlayer } from "../lib/teamChemistry";
@@ -109,6 +110,7 @@ type RoguelikeStage =
   | "training-select"
   | "trade-offer"
   | "trade-select"
+  | "trade-path-select"
   | "chance-spin"
   | "reward-replace-select"
   | "evolution-select"
@@ -132,6 +134,8 @@ type LockerRoomItemId =
   | "practice-offense"
   | "special-stuff"
   | "new-position-training";
+
+type TradeReplacementMode = "similar" | "fit";
 
 type SimulationTeam = "user" | "opponent";
 type StarterPackUpgrade = "standard" | "silver" | "gold" | "platinum";
@@ -220,6 +224,9 @@ interface RoguelikeRun {
   pendingTradeState?: {
     outgoingPlayerId: string;
     outgoingPlayerOverall: number;
+    outgoingPlayerName?: string;
+    outgoingPlayerTier?: PlayerTier;
+    replacementMode?: TradeReplacementMode | null;
     originalRoster: Player[];
     originalLineup: RosterSlot[];
   } | null;
@@ -306,7 +313,7 @@ interface RoguelikeModeProps {
 
 const ROGUELIKE_STORAGE_KEY = "legends-draft-roguelike-run-v1";
 const ROGUELIKE_PARKED_STORAGE_KEY = "legends-draft-roguelike-parked-v1";
-const CURRENT_ROGUELIKE_LADDER_VERSION = 6;
+const CURRENT_ROGUELIKE_LADDER_VERSION = 7;
 
 const createSeed = () => Math.floor(Date.now() % 1_000_000) + Math.floor(Math.random() * 1000);
 
@@ -426,10 +433,10 @@ const LOCKER_ROOM_SPECIAL_STUFF_NODE: RoguelikeNode = {
   act: 0,
   type: "training",
   title: "Special Stuff",
-  description: "Choose 1 player to gain +3 OVR for one boss game in this run.",
+  description: "Choose 1 player below 99 OVR to gain up to +3 OVR for one boss game in this run.",
   rewardBundleId: "elite-closers",
   rewardChoices: 0,
-  targetLabel: "Select 1 player to gain +3 OVR for one boss game",
+  targetLabel: "Select 1 player below 99 OVR to gain up to +3 OVR for one boss game",
 };
 
 const SPECIAL_STUFF_BOOST_AMOUNT = 3;
@@ -883,7 +890,7 @@ const buildRevealedStarterRosterState = (run: RoguelikeRun, keptStarterIds: stri
   };
 };
 
-const getRunOwnedPlayers = (run: RoguelikeRun) => {
+const getRunOwnedPlayers = (run: Pick<RoguelikeRun, "roster" | "lineup">) => {
   const ownedPlayers = [...run.roster, ...run.lineup.map((slot) => slot.player).filter((player): player is Player => Boolean(player))];
   const seen = new Set<string>();
 
@@ -897,13 +904,8 @@ const getRunOwnedPlayers = (run: RoguelikeRun) => {
 const getTrainingCountForPlayer = (playerId: string, trainedPlayerIds: string[] = []) =>
   trainedPlayerIds.filter((trainedPlayerId) => trainedPlayerId === playerId).length;
 
-const getSpecialStuffTrainingIds = (playerId: string | null | undefined) =>
-  playerId ? Array.from({ length: SPECIAL_STUFF_BOOST_AMOUNT }, () => playerId) : [];
-
-const getEffectiveBossTrainedPlayerIds = (run: Pick<RoguelikeRun, "trainedPlayerIds" | "activeSpecialStuffPlayerId">) => [
-  ...(run.trainedPlayerIds ?? []),
-  ...getSpecialStuffTrainingIds(run.activeSpecialStuffPlayerId),
-];
+const getSpecialStuffTrainingIds = (playerId: string | null | undefined, boostAmount: number) =>
+  playerId && boostAmount > 0 ? Array.from({ length: boostAmount }, () => playerId) : [];
 
 const getUncappedRunDisplayOverall = (
   player: Player,
@@ -920,6 +922,62 @@ const canApplyRunOverallBoost = (
   coachTeamKey: string | null = null,
 ) => getUncappedRunDisplayOverall(player, ownedPlayerIds, trainedPlayerIds, coachTeamKey) + boostAmount <= ROGUELIKE_MAX_OVERALL;
 
+const getAvailableRunOverallBoostAmount = (
+  player: Player,
+  boostAmount: number,
+  ownedPlayerIds: string[] = [],
+  trainedPlayerIds: string[] = [],
+  coachTeamKey: string | null = null,
+) =>
+  Math.max(
+    0,
+    Math.min(
+      boostAmount,
+      ROGUELIKE_MAX_OVERALL - getUncappedRunDisplayOverall(player, ownedPlayerIds, trainedPlayerIds, coachTeamKey),
+    ),
+  );
+
+const getEffectiveBossTrainedPlayerIds = (
+  run: Pick<
+    RoguelikeRun,
+    "trainedPlayerIds" | "activeSpecialStuffPlayerId" | "roster" | "lineup" | "hiredCoachId"
+  >,
+) => {
+  const trainedPlayerIds = run.trainedPlayerIds ?? [];
+  const specialStuffPlayerId = run.activeSpecialStuffPlayerId;
+  if (!specialStuffPlayerId) return trainedPlayerIds;
+
+  const ownedPlayers = getRunOwnedPlayers(run);
+  const specialStuffPlayer = ownedPlayers.find((player) => player.id === specialStuffPlayerId);
+  if (!specialStuffPlayer) return trainedPlayerIds;
+
+  const specialStuffBoostAmount = getSpecialStuffBoostAmountForPlayer(
+    specialStuffPlayer,
+    ownedPlayers.map((player) => player.id),
+    trainedPlayerIds,
+    getRoguelikeCoachTeamKey(run.hiredCoachId),
+  );
+
+  return [
+    ...trainedPlayerIds,
+    ...getSpecialStuffTrainingIds(specialStuffPlayerId, specialStuffBoostAmount),
+  ];
+};
+
+const getSpecialStuffBoostAmountForPlayer = (
+  player: Player,
+  ownedPlayerIds: string[] = [],
+  trainedPlayerIds: string[] = [],
+  coachTeamKey: string | null = null,
+) =>
+  getAvailableRunOverallBoostAmount(
+    player,
+    SPECIAL_STUFF_BOOST_AMOUNT,
+    ownedPlayerIds,
+    trainedPlayerIds,
+    coachTeamKey,
+  );
+
 const getCoachBoostForPlayer = (player: Player, coachTeamKey: string | null = null) =>
   coachTeamKey && getPlayerTeamKey(player) === coachTeamKey ? 1 : 0;
 
@@ -935,6 +993,16 @@ const getTradePreviewOverall = (
   return capRoguelikeOverall(
     player.overall + getRoguelikeDisplayOverallBonus(player, previewOwnedPlayerIds, [], coachTeamKey),
   );
+};
+
+const TRADE_FOR_FIT_START_NODE_ID = "year-2-finals";
+const PLAYER_TIER_ORDER: PlayerTier[] = ["Emerald", "Sapphire", "Ruby", "Amethyst", "Galaxy"];
+
+const getPlayerTierIndex = (tier: PlayerTier) => PLAYER_TIER_ORDER.indexOf(tier);
+
+const getLowerPlayerTiers = (tier: PlayerTier) => {
+  const tierIndex = getPlayerTierIndex(tier);
+  return tierIndex > 0 ? PLAYER_TIER_ORDER.slice(0, tierIndex) : [];
 };
 
 const PLAYER_IDENTITY_SUFFIX_PATTERN = /\s\([^)]*\)$/;
@@ -1359,6 +1427,78 @@ const getNodePlayerPool = (
   });
 };
 
+const getTradeForFitConnectionLabels = (
+  candidate: Player,
+  nextRoster: Player[],
+  coachTeamKey: string | null = null,
+) => {
+  const labels: string[] = [];
+  const candidateTeamKey = getPlayerTeamKey(candidate);
+  const rosterPlayerIds = nextRoster.map((player) => player.id);
+  const proposedPlayerIds = rosterPlayerIds.includes(candidate.id)
+    ? rosterPlayerIds
+    : [...rosterPlayerIds, candidate.id];
+
+  if (coachTeamKey && candidateTeamKey === coachTeamKey) {
+    labels.push("Coach Link");
+  }
+
+  if (
+    candidateTeamKey &&
+    nextRoster.some((player) => getPlayerTeamKey(player) === candidateTeamKey) &&
+    getSameTeamChemistryBonusForPlayer(candidate, proposedPlayerIds) > 0
+  ) {
+    labels.push(`Same Team: ${candidateTeamKey}`);
+  }
+
+  getPlayerBadgeStates(candidate.id, rosterPlayerIds).forEach((badgeState) => {
+    if (!badgeState.previewActive) return;
+    if (badgeState.active) return;
+
+    if (badgeState.definition.type === "dynamic-duo") {
+      labels.push("Dynamic Duo");
+      return;
+    }
+
+    if (badgeState.definition.type === "team-chemistry") {
+      labels.push("Team Chemistry");
+      return;
+    }
+
+    labels.push(badgeState.definition.title);
+  });
+
+  return Array.from(new Set(labels));
+};
+
+const getTradeForFitPool = (
+  pool: Player[],
+  fallbackPool: Player[],
+  outgoingPlayerTier: PlayerTier,
+  nextRoster: Player[],
+  outgoingPlayerId?: string | null,
+  coachTeamKey: string | null = null,
+) => {
+  const lowerTiers = new Set(getLowerPlayerTiers(outgoingPlayerTier));
+  if (lowerTiers.size === 0) return [];
+
+  const seenIds = new Set<string>();
+  const seenIdentities = new Set<string>();
+
+  return [...pool, ...fallbackPool].filter((candidate) => {
+    if (candidate.id === outgoingPlayerId) return false;
+    if (!lowerTiers.has(getPlayerTier(candidate))) return false;
+    if (isPlayerIdentityOnRoster(candidate, nextRoster)) return false;
+    if (getTradeForFitConnectionLabels(candidate, nextRoster, coachTeamKey).length === 0) return false;
+    if (seenIds.has(candidate.id)) return false;
+    const identity = getRunPlayerIdentityKey(candidate);
+    if (seenIdentities.has(identity)) return false;
+    seenIds.add(candidate.id);
+    seenIdentities.add(identity);
+    return true;
+  });
+};
+
 const getSimilarCaliberTradePool = (
   node: RoguelikeNode | null,
   pool: Player[],
@@ -1473,6 +1613,38 @@ const drawTradeReplacementChoices = (
   return adjustedChoices;
 };
 
+const drawTradeForFitChoices = (
+  tradeForFitPool: Player[],
+  nextRoster: Player[],
+  count: number,
+  seed: number,
+  coachTeamKey: string | null = null,
+  blockedPlayerIds: string[] = [],
+) => {
+  const rng = mulberry32(seed + 53);
+  const blockedIds = new Set(blockedPlayerIds);
+  const shuffledPool = tradeForFitPool.filter((candidate) => !blockedIds.has(candidate.id));
+
+  for (let index = shuffledPool.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(rng() * (index + 1));
+    [shuffledPool[index], shuffledPool[swapIndex]] = [shuffledPool[swapIndex], shuffledPool[index]];
+  }
+
+  return shuffledPool
+    .sort((left, right) => {
+      const leftConnectionCount = getTradeForFitConnectionLabels(left, nextRoster, coachTeamKey).length;
+      const rightConnectionCount = getTradeForFitConnectionLabels(right, nextRoster, coachTeamKey).length;
+      if (leftConnectionCount !== rightConnectionCount) return rightConnectionCount - leftConnectionCount;
+
+      const leftTierIndex = getPlayerTierIndex(getPlayerTier(left));
+      const rightTierIndex = getPlayerTierIndex(getPlayerTier(right));
+      if (leftTierIndex !== rightTierIndex) return rightTierIndex - leftTierIndex;
+
+      return right.overall - left.overall;
+    })
+    .slice(0, count);
+};
+
 const getTradeReplacementChoiceCount = (
   node: RoguelikeNode | null,
   pendingChoiceSelection?: "training" | "trade" | null,
@@ -1480,6 +1652,19 @@ const getTradeReplacementChoiceCount = (
   node?.type === "choice" && pendingChoiceSelection === "trade"
     ? 5
     : Math.max(0, node?.rewardChoices ?? 0);
+
+const canNodeOfferTradeForFit = (
+  node: RoguelikeNode | null,
+  nodes: RoguelikeNode[],
+  pendingChoiceSelection?: "training" | "trade" | null,
+) => {
+  if (!node) return false;
+  if (node.type !== "trade" && !(node.type === "choice" && pendingChoiceSelection === "trade")) return false;
+
+  const yearTwoFinalsIndex = nodes.findIndex((entry) => entry.id === TRADE_FOR_FIT_START_NODE_ID);
+  const nodeIndex = nodes.findIndex((entry) => entry.id === node.id);
+  return yearTwoFinalsIndex >= 0 && nodeIndex > yearTwoFinalsIndex;
+};
 
 const shouldStrictlyUseNodePool = (node: RoguelikeNode | null) => Boolean(node?.coachTeamOnly);
 
@@ -5233,6 +5418,15 @@ export const RoguelikeMode = ({
           ...run,
           roster: hydratedRun.roster,
           lineup: hydratedRun.lineup,
+          activeOpponentPlayerIds:
+            currentNode.opponentStarterPlayerIds ??
+            currentNode.opponentPlayerIds ??
+            generateFaceoffOpponentPlayerIds(
+              getRunOwnedPlayers(hydratedRun),
+              nextChoiceSeed(run.seed, 200 + run.floorIndex * 17),
+              currentNode.opponentAverageOverall,
+              undefined,
+            ),
           stage: "faceoff-setup",
         });
         return;
@@ -6128,7 +6322,7 @@ export const RoguelikeMode = ({
         seenChoicePlayerIds: nextChoicesState.seenChoicePlayerIds,
         choices: nextChoicesState.choices,
         stage: "reward-draft",
-        activeNode: null,
+        activeNode: node,
         activeOpponentPlayerIds: null,
         nodeResult: {
           title: `${node.title} cleared`,
@@ -6280,7 +6474,7 @@ export const RoguelikeMode = ({
         seenChoicePlayerIds: nextChoicesState.seenChoicePlayerIds,
         choices: nextChoicesState.choices,
         stage: "reward-draft",
-        activeNode: null,
+        activeNode: node,
         activeOpponentPlayerIds: null,
         nodeResult: {
           title: `${node.title} cleared`,
@@ -6658,7 +6852,7 @@ export const RoguelikeMode = ({
       specialStuffInventoryCount: nextInventoryCount,
       lockerRoomNotice: {
         title: "Special Stuff Purchased",
-        detail: `You banked Special Stuff for this run. Save it for any future boss matchup, then apply it to give one player +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for that boss game only.`,
+        detail: `You banked Special Stuff for this run. Save it for any future boss matchup, then apply it to give one player up to +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for that boss game only.`,
       },
     });
   };
@@ -6670,9 +6864,11 @@ export const RoguelikeMode = ({
     const overallBoostAmount = getOverallBoostAmountForTrainingNode(run.activeNode);
     const ownedPlayerIds = ownedPlayers.map((ownedPlayer) => ownedPlayer.id);
     const coachTeamKey = getRoguelikeCoachTeamKey(run.hiredCoachId);
+    const isSpecialStuffSelection = run.activeNode.id === LOCKER_ROOM_SPECIAL_STUFF_NODE.id;
 
     if (
       overallBoostAmount > 0 &&
+      !isSpecialStuffSelection &&
       !canApplyRunOverallBoost(sourcePlayer, overallBoostAmount, ownedPlayerIds, run.trainedPlayerIds ?? [], coachTeamKey)
     ) {
       return;
@@ -6715,9 +6911,16 @@ export const RoguelikeMode = ({
       return;
     }
 
-    if (run.activeNode.id === LOCKER_ROOM_SPECIAL_STUFF_NODE.id) {
+    if (isSpecialStuffSelection) {
       const hadActiveSpecialStuff = Boolean(run.activeSpecialStuffPlayerId);
       if (!hadActiveSpecialStuff && run.specialStuffInventoryCount <= 0) return;
+      const specialStuffBoostAmount = getSpecialStuffBoostAmountForPlayer(
+        sourcePlayer,
+        ownedPlayerIds,
+        run.trainedPlayerIds ?? [],
+        coachTeamKey,
+      );
+      if (specialStuffBoostAmount <= 0) return;
 
       const nextBossNode = getUpcomingBossNodeForLockerRoom(run, runNodes);
       const nextSpecialStuffInventoryCount = hadActiveSpecialStuff
@@ -6730,7 +6933,7 @@ export const RoguelikeMode = ({
         specialStuffInventoryCount: nextSpecialStuffInventoryCount,
         lockerRoomNotice: {
           title: "Special Stuff Ready",
-          detail: `${player.name} will get +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for ${nextBossNode?.title ?? "the selected boss matchup"} only.`,
+          detail: `${player.name} will get +${specialStuffBoostAmount} OVR for ${nextBossNode?.title ?? "the selected boss matchup"} only.`,
         },
       }, run.utilityReturnState?.stage ?? "locker-room"));
       return;
@@ -6917,36 +7120,66 @@ export const RoguelikeMode = ({
 
     if (run.stage === "reward-draft" && run.pendingTradeState && sourceNode) {
       const tradedOverall = run.pendingTradeState.outgoingPlayerOverall;
-      const tradeReplacementPool = getSimilarCaliberTradePool(
-        sourceNode,
-        run.availablePool,
-        runPlayerUniverse,
-        tradedOverall,
-        run.roster,
-        run.pendingTradeState.outgoingPlayerId,
-        getRoguelikeCoachTeamKey(run.hiredCoachId),
-      );
+      const tradeReplacementMode = run.pendingTradeState.replacementMode ?? "similar";
+      const tradeReplacementPool =
+        tradeReplacementMode === "fit" && run.pendingTradeState.outgoingPlayerTier
+          ? getTradeForFitPool(
+              run.availablePool,
+              runPlayerUniverse,
+              run.pendingTradeState.outgoingPlayerTier,
+              run.roster,
+              run.pendingTradeState.outgoingPlayerId,
+              getRoguelikeCoachTeamKey(run.hiredCoachId),
+            )
+          : getSimilarCaliberTradePool(
+              sourceNode,
+              run.availablePool,
+              runPlayerUniverse,
+              tradedOverall,
+              run.roster,
+              run.pendingTradeState.outgoingPlayerId,
+              getRoguelikeCoachTeamKey(run.hiredCoachId),
+            );
       const replacementChoiceCount = getTradeReplacementChoiceCount(sourceNode, run.pendingChoiceSelection);
       const blockedCurrentChoiceIds = run.choices.map((choice) => choice.id);
-      let nextChoices = drawTradeReplacementChoices(
-        tradeReplacementPool,
-        run.roster,
-        replacementChoiceCount,
-        nextChoiceSeed(run.seed, 600 + run.floorIndex * 31 + run.draftShuffleTickets * 7),
-        tradedOverall,
-        getRoguelikeCoachTeamKey(run.hiredCoachId),
-        blockedCurrentChoiceIds,
-      );
+      let nextChoices =
+        tradeReplacementMode === "fit"
+          ? drawTradeForFitChoices(
+              tradeReplacementPool,
+              run.roster,
+              replacementChoiceCount,
+              nextChoiceSeed(run.seed, 600 + run.floorIndex * 31 + run.draftShuffleTickets * 7),
+              getRoguelikeCoachTeamKey(run.hiredCoachId),
+              blockedCurrentChoiceIds,
+            )
+          : drawTradeReplacementChoices(
+              tradeReplacementPool,
+              run.roster,
+              replacementChoiceCount,
+              nextChoiceSeed(run.seed, 600 + run.floorIndex * 31 + run.draftShuffleTickets * 7),
+              tradedOverall,
+              getRoguelikeCoachTeamKey(run.hiredCoachId),
+              blockedCurrentChoiceIds,
+            );
 
       if (nextChoices.length < replacementChoiceCount) {
-        nextChoices = drawTradeReplacementChoices(
-          tradeReplacementPool,
-          run.roster,
-          replacementChoiceCount,
-          nextChoiceSeed(run.seed, 601 + run.floorIndex * 31 + run.draftShuffleTickets * 7),
-          tradedOverall,
-          getRoguelikeCoachTeamKey(run.hiredCoachId),
-        );
+        nextChoices =
+          tradeReplacementMode === "fit"
+            ? drawTradeForFitChoices(
+                tradeReplacementPool,
+                run.roster,
+                replacementChoiceCount,
+                nextChoiceSeed(run.seed, 601 + run.floorIndex * 31 + run.draftShuffleTickets * 7),
+                getRoguelikeCoachTeamKey(run.hiredCoachId),
+              )
+            : drawTradeReplacementChoices(
+                tradeReplacementPool,
+                run.roster,
+                replacementChoiceCount,
+                nextChoiceSeed(run.seed, 601 + run.floorIndex * 31 + run.draftShuffleTickets * 7),
+                tradedOverall,
+                getRoguelikeCoachTeamKey(run.hiredCoachId),
+              );
       }
 
       if (nextChoices.length === 0) return;
@@ -7020,47 +7253,98 @@ export const RoguelikeMode = ({
       getRoguelikeCoachTeamKey(run.hiredCoachId),
     );
     const tradedOverall = tradedDisplayPlayer.overall;
-    const nextRoster = hydratedRun.roster.filter((owned) => owned.id !== player.id);
-    const nextLineup = hydratedRun.lineup.map((slot) =>
-      slot.player?.id === player.id
-          ? { ...slot, player: null }
-          : { ...slot },
+
+    setRun({
+      ...run,
+      choices: [],
+      stage: "trade-path-select",
+      pendingTradeState: {
+        outgoingPlayerId: player.id,
+        outgoingPlayerOverall: tradedOverall,
+        outgoingPlayerName: baseTradedPlayer.name,
+        outgoingPlayerTier: getPlayerTier(baseTradedPlayer),
+        replacementMode: null,
+        originalRoster: hydratedRun.roster.map((owned) => ({ ...owned })),
+        originalLineup: hydratedRun.lineup.map((slot) => ({ ...slot })),
+      },
+      nodeResult: null,
+      });
+  };
+
+  const chooseTradeReplacementMode = (replacementMode: TradeReplacementMode) => {
+    if (!run?.activeNode || run.stage !== "trade-path-select" || !run.pendingTradeState) return;
+
+    const sourceNode = run.activeNode;
+    const coachTeamKey = getRoguelikeCoachTeamKey(run.hiredCoachId);
+    const pendingTrade = run.pendingTradeState;
+    const nextRoster = pendingTrade.originalRoster.filter((owned) => owned.id !== pendingTrade.outgoingPlayerId);
+    const nextLineup = pendingTrade.originalLineup.map((slot) =>
+      slot.player?.id === pendingTrade.outgoingPlayerId ? { ...slot, player: null } : { ...slot },
     );
-      const tradeReplacementPool = getSimilarCaliberTradePool(
-        run.activeNode,
-        run.availablePool,
-        runPlayerUniverse,
-        tradedOverall,
-        nextRoster,
-        player.id,
-        getRoguelikeCoachTeamKey(run.hiredCoachId),
-      );
-    const replacementChoiceCount = getTradeReplacementChoiceCount(
-      run.activeNode,
-      run.pendingChoiceSelection,
-    );
-      let nextChoices = drawTradeReplacementChoices(
-        tradeReplacementPool,
-        nextRoster,
-        replacementChoiceCount,
-        nextChoiceSeed(run.seed, run.floorIndex + 30),
-        tradedOverall,
-        getRoguelikeCoachTeamKey(run.hiredCoachId),
-      );
+    const replacementChoiceCount = getTradeReplacementChoiceCount(sourceNode, run.pendingChoiceSelection);
+    const tradeReplacementPool =
+      replacementMode === "fit" && pendingTrade.outgoingPlayerTier
+        ? getTradeForFitPool(
+            run.availablePool,
+            runPlayerUniverse,
+            pendingTrade.outgoingPlayerTier,
+            nextRoster,
+            pendingTrade.outgoingPlayerId,
+            coachTeamKey,
+          )
+        : getSimilarCaliberTradePool(
+            sourceNode,
+            run.availablePool,
+            runPlayerUniverse,
+            pendingTrade.outgoingPlayerOverall,
+            nextRoster,
+            pendingTrade.outgoingPlayerId,
+            coachTeamKey,
+          );
+    let nextChoices =
+      replacementMode === "fit"
+        ? drawTradeForFitChoices(
+            tradeReplacementPool,
+            nextRoster,
+            replacementChoiceCount,
+            nextChoiceSeed(run.seed, run.floorIndex + 30),
+            coachTeamKey,
+          )
+        : drawTradeReplacementChoices(
+            tradeReplacementPool,
+            nextRoster,
+            replacementChoiceCount,
+            nextChoiceSeed(run.seed, run.floorIndex + 30),
+            pendingTrade.outgoingPlayerOverall,
+            coachTeamKey,
+          );
 
     if (nextChoices.length < replacementChoiceCount) {
-      nextChoices = drawTradeReplacementChoices(
-        tradeReplacementPool,
-        nextRoster,
-        replacementChoiceCount,
-        nextChoiceSeed(run.seed, run.floorIndex + 31),
-        tradedOverall,
-      );
+      nextChoices =
+        replacementMode === "fit"
+          ? drawTradeForFitChoices(
+              tradeReplacementPool,
+              nextRoster,
+              replacementChoiceCount,
+              nextChoiceSeed(run.seed, run.floorIndex + 31),
+              coachTeamKey,
+            )
+          : drawTradeReplacementChoices(
+              tradeReplacementPool,
+              nextRoster,
+              replacementChoiceCount,
+              nextChoiceSeed(run.seed, run.floorIndex + 31),
+              pendingTrade.outgoingPlayerOverall,
+              coachTeamKey,
+            );
     }
 
+    if (nextChoices.length === 0) return;
+
     const nextChoiceIds = new Set([...(run.seenChoicePlayerIds ?? []), ...nextChoices.map((choice) => choice.id)]);
-    const replacementFloor = tradedOverall - 1;
-    const replacementCeiling = tradedOverall + 1;
+    const replacementFloor = pendingTrade.outgoingPlayerOverall - 1;
+    const replacementCeiling = pendingTrade.outgoingPlayerOverall + 1;
+    const outgoingName = pendingTrade.outgoingPlayerName ?? "Your player";
 
     setRun({
       ...run,
@@ -7068,19 +7352,20 @@ export const RoguelikeMode = ({
       lineup: nextLineup,
       seenChoicePlayerIds: Array.from(nextChoiceIds),
       choices: nextChoices,
-        stage: "reward-draft",
-        pendingTradeState: {
-          outgoingPlayerId: player.id,
-          outgoingPlayerOverall: tradedOverall,
-          originalRoster: hydratedRun.roster.map((owned) => ({ ...owned })),
-          originalLineup: hydratedRun.lineup.map((slot) => ({ ...slot })),
-        },
-        nodeResult: {
-          title: run.activeNode.title,
-          detail: `${player.name} is on the trade block. Choose 1 of 5 similar-caliber replacement players rated between ${replacementFloor} and ${replacementCeiling} OVR, or skip this board to keep ${player.name} on your team.`,
-          passed: true,
-        },
-      });
+      stage: "reward-draft",
+      pendingTradeState: {
+        ...pendingTrade,
+        replacementMode,
+      },
+      nodeResult: {
+        title: sourceNode.title,
+        detail:
+          replacementMode === "fit"
+            ? `${outgoingName} is on the trade block. Choose 1 lower-tier connected player who links to your current roster or coach, or skip this board to keep ${outgoingName}.`
+            : `${outgoingName} is on the trade block. Choose 1 of ${nextChoices.length} similar-caliber replacement players rated between ${replacementFloor} and ${replacementCeiling} OVR, or skip this board to keep ${outgoingName}.`,
+        passed: true,
+      },
+    });
   };
 
   const replaceRosterPlayerWithReward = (playerToReplace: Player) => {
@@ -7349,7 +7634,16 @@ export const RoguelikeMode = ({
 
     const repairedPool =
       isTradeReplacementBoard && run.pendingTradeState
-          ? getSimilarCaliberTradePool(
+        ? run.pendingTradeState.replacementMode === "fit" && run.pendingTradeState.outgoingPlayerTier
+          ? getTradeForFitPool(
+              run.availablePool,
+              runPlayerUniverse,
+              run.pendingTradeState.outgoingPlayerTier,
+              ownedPlayers,
+              run.pendingTradeState.outgoingPlayerId,
+              getRoguelikeCoachTeamKey(run.hiredCoachId),
+            )
+          : getSimilarCaliberTradePool(
               sourceNode,
               run.availablePool,
               runPlayerUniverse,
@@ -7363,14 +7657,23 @@ export const RoguelikeMode = ({
     const repairedChoicesState =
       isTradeReplacementBoard && run.pendingTradeState
         ? (() => {
-              const repairedTradeChoices = drawTradeReplacementChoices(
-                repairedPool,
-                ownedPlayers,
-                getTradeReplacementChoiceCount(sourceNode, run.pendingChoiceSelection),
-                nextChoiceSeed(run.seed, 900 + run.floorIndex * 37),
-                run.pendingTradeState.outgoingPlayerOverall,
-                getRoguelikeCoachTeamKey(run.hiredCoachId),
-              );
+              const repairedTradeChoices =
+                run.pendingTradeState?.replacementMode === "fit"
+                  ? drawTradeForFitChoices(
+                      repairedPool,
+                      ownedPlayers,
+                      getTradeReplacementChoiceCount(sourceNode, run.pendingChoiceSelection),
+                      nextChoiceSeed(run.seed, 900 + run.floorIndex * 37),
+                      getRoguelikeCoachTeamKey(run.hiredCoachId),
+                    )
+                  : drawTradeReplacementChoices(
+                      repairedPool,
+                      ownedPlayers,
+                      getTradeReplacementChoiceCount(sourceNode, run.pendingChoiceSelection),
+                      nextChoiceSeed(run.seed, 900 + run.floorIndex * 37),
+                      run.pendingTradeState.outgoingPlayerOverall,
+                      getRoguelikeCoachTeamKey(run.hiredCoachId),
+                    );
 
             return {
               choices: repairedTradeChoices,
@@ -7570,6 +7873,27 @@ export const RoguelikeMode = ({
   const backToRunLadder = () => {
     if (!run) return;
 
+    const isDraftBoardStage =
+      run.stage === "initial-draft" ||
+      run.stage === "reward-draft" ||
+      run.stage === "reward-replace-select";
+    const shouldPreserveDraftBoard =
+      isDraftBoardStage &&
+      !run.pendingTradeState &&
+      (run.choices.length > 0 || Boolean(run.pendingRewardPlayer));
+    const restoredTradeRun =
+      run.pendingTradeState && (run.stage === "trade-path-select" || run.stage === "reward-draft")
+        ? {
+            ...run,
+            roster: run.pendingTradeState.originalRoster,
+            lineup: run.pendingTradeState.originalLineup,
+          }
+        : run;
+    const currentNode = runNodes[restoredTradeRun.floorIndex] ?? null;
+    const activeNode = shouldPreserveDraftBoard
+      ? restoredTradeRun.activeNode ?? currentNode
+      : restoredTradeRun.activeNode;
+
     setShowOutcomeOverlay(false);
     setDraggingIndex(null);
     setDropTargetIndex(null);
@@ -7577,12 +7901,15 @@ export const RoguelikeMode = ({
     setAllStarDropTargetKey(null);
     setDragPointer(null);
     setRun({
-      ...run,
+      ...restoredTradeRun,
       stage: "ladder-overview",
+      activeNode,
+      choices: shouldPreserveDraftBoard ? restoredTradeRun.choices : [],
       selectedCutPlayerIds: [],
       selectedNaturalPositionPlayerId: null,
       selectedNaturalPosition: null,
       pendingChoiceSelection: null,
+      pendingTradeState: null,
       allStarAssignments: { ...DEFAULT_ALL_STAR_ASSIGNMENTS },
       utilityReturnState: null,
       failureReviewStage: null,
@@ -8579,6 +8906,17 @@ export const RoguelikeMode = ({
     getRunDisplayPlayer(player, runOwnedPlayerIds, runDisplayTrainedPlayerIds, runCoachTeamKey),
   );
   const runOwnedDisplayPlayerById = new Map(runOwnedDisplayPlayers.map((player) => [player.id, player]));
+  const activeSpecialStuffPlayer = run.activeSpecialStuffPlayerId
+    ? runOwnedPlayers.find((player) => player.id === run.activeSpecialStuffPlayerId) ?? null
+    : null;
+  const activeSpecialStuffBoostAmount = activeSpecialStuffPlayer
+    ? getSpecialStuffBoostAmountForPlayer(
+        activeSpecialStuffPlayer,
+        runOwnedPlayerIds,
+        run.trainedPlayerIds ?? [],
+        runCoachTeamKey,
+      )
+    : 0;
   const runCoachBoostedPlayerCount = runOwnedPlayers.filter((player) =>
     getCoachBoostForPlayer(player, runCoachTeamKey) > 0,
   ).length;
@@ -8622,6 +8960,7 @@ export const RoguelikeMode = ({
     run.floorIndex,
     run.initialPicks,
     run.pendingTradeState?.outgoingPlayerId ?? "standard",
+    run.pendingTradeState?.replacementMode ?? "standard",
     run.choices.map((player) => player.id).join("|"),
   ].join(":");
   const faceoffOpponentLineup =
@@ -8833,7 +9172,7 @@ export const RoguelikeMode = ({
   const formatVictoryMetric = (value: number) =>
     Number.isInteger(value) ? `${value}` : value.toFixed(1);
   const canUseStoreUtilities =
-    !["initial-draft", "reward-draft", "training-select", "trade-offer", "trade-select", "chance-spin", "evolution-select", "faceoff-game", "node-result", "run-over", "run-cleared"].includes(run.stage);
+    !["initial-draft", "reward-draft", "training-select", "trade-offer", "trade-select", "trade-path-select", "chance-spin", "evolution-select", "faceoff-game", "node-result", "run-over", "run-cleared"].includes(run.stage);
   const utilityBackLabel =
     activeNode && isLockerRoomSelectionNode(activeNode) && run.utilityReturnState
       ? run.utilityReturnState.stage === "locker-room"
@@ -8854,6 +9193,27 @@ export const RoguelikeMode = ({
     activeNode?.type === "choice" && run.pendingChoiceSelection === "trade";
   const trainingSelectionTitle = isChoiceTrainingPath ? "Training Camp" : activeNode?.title ?? "";
   const tradeSelectionTitle = isChoiceTradePath ? "Trade Deadline" : activeNode?.title ?? "";
+  const pendingTrade = run.pendingTradeState;
+  const pendingTradeNextRoster =
+    pendingTrade?.originalRoster.filter((player) => player.id !== pendingTrade.outgoingPlayerId) ?? [];
+  const tradeForFitEnabled =
+    Boolean(activeNode && pendingTrade?.outgoingPlayerTier) &&
+    canNodeOfferTradeForFit(activeNode, runNodes, run.pendingChoiceSelection);
+  const tradeForFitPool =
+    tradeForFitEnabled && pendingTrade?.outgoingPlayerTier
+      ? getTradeForFitPool(
+          run.availablePool,
+          runPlayerUniverse,
+          pendingTrade.outgoingPlayerTier,
+          pendingTradeNextRoster,
+          pendingTrade.outgoingPlayerId,
+          runCoachTeamKey,
+        )
+      : [];
+  const tradeForFitChoiceCount = activeNode
+    ? getTradeReplacementChoiceCount(activeNode, run.pendingChoiceSelection)
+    : 0;
+  const canTradeForFit = tradeForFitEnabled && tradeForFitPool.length > 0;
   const activeTrainingOverallBoostAmount = getOverallBoostAmountForTrainingNode(activeNode);
   const lockerRoomTrainingSelectionCopy =
     activeNode?.id === LOCKER_ROOM_TRAINING_NODE.id
@@ -8901,7 +9261,7 @@ export const RoguelikeMode = ({
                 : activeNode?.id === LOCKER_ROOM_SPECIAL_STUFF_NODE.id
                   ? {
                       eyebrow: "Locker Room Boost",
-                      description: `Choose 1 player to gain +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for one boss game in this run.`,
+                      description: `Choose 1 player below 99 OVR to gain up to +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for one boss game in this run.`,
                       detail: run.activeSpecialStuffPlayerId
                         ? "Changing the selected player will keep using the same purchased Special Stuff. The boost still expires after the boss game where it is used."
                         : "This consumes 1 owned Special Stuff, does not count as permanent training, and expires after the boss game where it is used.",
@@ -9823,7 +10183,7 @@ export const RoguelikeMode = ({
                             : nextBossNode
                               ? "Need purchase"
                               : "No boss",
-                        description: `Buy now, save it for any future boss matchup this run. When used, 1 player gets +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for that boss game only.`,
+                        description: `Buy now, save it for any future boss matchup this run. When used, 1 player gets up to +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for that boss game only.`,
                         detail: run.activeSpecialStuffPlayerId
                           ? `Currently assigned to ${getPlayerById(run.activeSpecialStuffPlayerId)?.name ?? "selected player"}.`
                           : nextBossNode
@@ -9849,7 +10209,7 @@ export const RoguelikeMode = ({
                           Special Stuff
                         </div>
                         <div className="mt-3 text-sm leading-7 text-slate-300">
-                          Buy now, save it for any future boss matchup this run. When used, 1 player gets +{SPECIAL_STUFF_BOOST_AMOUNT} OVR for that boss game only.
+                          Buy now, save it for any future boss matchup this run. When used, 1 player gets up to +{SPECIAL_STUFF_BOOST_AMOUNT} OVR for that boss game only.
                         </div>
                       </div>
                       <div className="rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
@@ -10173,8 +10533,8 @@ export const RoguelikeMode = ({
                     <div className="font-semibold text-cyan-50">Special Stuff</div>
                     <div className="mt-1 text-slate-300">
                       {run.activeSpecialStuffPlayerId
-                        ? `${getPlayerById(run.activeSpecialStuffPlayerId)?.name ?? "Selected player"} is boosted +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for this boss game.`
-                        : `${run.specialStuffInventoryCount} owned. Apply one before tipoff to give a player +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for this boss game.`}
+                        ? `${getPlayerById(run.activeSpecialStuffPlayerId)?.name ?? "Selected player"} is boosted +${activeSpecialStuffBoostAmount} OVR for this boss game.`
+                        : `${run.specialStuffInventoryCount} owned. Apply one before tipoff to give a player up to +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for this boss game.`}
                     </div>
                   </div>
                   <button
@@ -10370,15 +10730,26 @@ export const RoguelikeMode = ({
               <div className="mt-5 flex flex-wrap items-start justify-center gap-2 overflow-hidden">
                 {trainingSelectionDisplayPlayers.map((player) => {
                   const sourcePlayer = runOwnedPlayerById.get(player.id) ?? player;
+                  const isSpecialStuffSelection = activeNode.id === LOCKER_ROOM_SPECIAL_STUFF_NODE.id;
+                  const specialStuffBoostAmount = isSpecialStuffSelection
+                    ? getSpecialStuffBoostAmountForPlayer(
+                        sourcePlayer,
+                        runOwnedPlayerIds,
+                        run.trainedPlayerIds ?? [],
+                        runCoachTeamKey,
+                      )
+                    : 0;
                   const trainingWouldExceedCap =
                     activeTrainingOverallBoostAmount > 0 &&
-                    !canApplyRunOverallBoost(
-                      sourcePlayer,
-                      activeTrainingOverallBoostAmount,
-                      runOwnedPlayerIds,
-                      run.trainedPlayerIds ?? [],
-                      runCoachTeamKey,
-                    );
+                    (isSpecialStuffSelection
+                      ? specialStuffBoostAmount <= 0
+                      : !canApplyRunOverallBoost(
+                          sourcePlayer,
+                          activeTrainingOverallBoostAmount,
+                          runOwnedPlayerIds,
+                          run.trainedPlayerIds ?? [],
+                          runCoachTeamKey,
+                        ));
 
                   return (
                     <div key={player.id} className="flex flex-col items-center gap-2">
@@ -10397,6 +10768,10 @@ export const RoguelikeMode = ({
                       {trainingWouldExceedCap ? (
                         <div className="max-w-[180px] rounded-full border border-amber-200/18 bg-amber-300/10 px-3 py-1 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-100">
                           99 OVR cap
+                        </div>
+                      ) : isSpecialStuffSelection ? (
+                        <div className="max-w-[180px] rounded-full border border-cyan-200/18 bg-cyan-300/10 px-3 py-1 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-100">
+                          +{specialStuffBoostAmount} this boss
                         </div>
                       ) : null}
                     </div>
@@ -10812,6 +11187,68 @@ export const RoguelikeMode = ({
                 ))}
               </div>
               <BackToRunLadderButton onClick={backToRunLadder} />
+            </div>
+          )}
+
+          {run.stage === "trade-path-select" && activeNode && pendingTrade && (
+            <div className="glass-panel rounded-[30px] p-6 shadow-card">
+              <div className="text-xs uppercase tracking-[0.24em] text-slate-400">{isChoiceTradePath ? "Choice Floor" : "Trade Floor"}</div>
+              <h2 className="mt-2 font-display text-3xl text-white">Choose Your Trade Path</h2>
+              <p className="mt-3 text-sm leading-7 text-slate-300">
+                {pendingTrade.outgoingPlayerName ?? "Your player"} is on the block. Keep the current similar-value market, or sacrifice tier value to hunt for a lower-tier player with a real chemistry connection.
+              </p>
+              <div className="mt-5 grid gap-3 lg:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => chooseTradeReplacementMode("similar")}
+                  className="group rounded-[22px] border border-white/12 bg-white/6 p-4 text-left transition hover:border-white/24 hover:bg-white/10"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Current Trade</div>
+                      <div className="mt-1 text-xl font-semibold text-white">Similar Value</div>
+                    </div>
+                    <ArrowRight size={18} className="text-white/70 transition group-hover:translate-x-0.5" />
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-slate-300">
+                    Get a replacement board within 1 OVR of the outgoing player. Best when you want to reshape without giving up power.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => chooseTradeReplacementMode("fit")}
+                  disabled={!canTradeForFit}
+                  className={clsx(
+                    "group rounded-[22px] border p-4 text-left transition",
+                    canTradeForFit
+                      ? "border-emerald-200/22 bg-emerald-300/10 hover:border-emerald-100/34 hover:bg-emerald-300/14"
+                      : "cursor-not-allowed border-white/8 bg-white/[0.03] opacity-55",
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-emerald-100/76">Chemistry Market</div>
+                      <div className="mt-1 text-xl font-semibold text-white">Trade For Fit</div>
+                    </div>
+                    <Sparkles size={18} className={canTradeForFit ? "text-emerald-100" : "text-slate-500"} />
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-slate-300">
+                    Choose from lower-tier players who connect to your roster or coach. Great for team links, badge paths, and challenge builds.
+                  </p>
+                  <div className="mt-3 rounded-2xl border border-white/10 bg-black/18 px-3 py-2 text-xs text-slate-200">
+                    {canTradeForFit
+                      ? `${Math.min(tradeForFitChoiceCount, tradeForFitPool.length)} connected fit option${Math.min(tradeForFitChoiceCount, tradeForFitPool.length) === 1 ? "" : "s"} available`
+                      : tradeForFitEnabled
+                        ? "No lower-tier connected fits are available for this player."
+                        : "Available after the Year 2 NBA Finals."}
+                  </div>
+                </button>
+              </div>
+              <div className="mt-5 rounded-[22px] border border-amber-200/14 bg-amber-300/8 px-4 py-4 text-sm text-slate-100">
+                Skipping the replacement board still restores {pendingTrade.outgoingPlayerName ?? "the outgoing player"} and keeps your roster intact.
+              </div>
+              <BackToRunLadderButton onClick={backToRunLadder} className="mt-5" />
             </div>
           )}
 
@@ -11648,11 +12085,11 @@ export const RoguelikeMode = ({
                         The G.O.A.T.s Are Down
                       </h2>
                       <p className="mt-2 max-w-3xl text-[13px] leading-6 text-white/82 lg:text-sm">
-                        Year 3 Floor 61 is down. Your championship run is complete.
+                        Year 3 Floor 60 is down. Your championship run is complete.
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <div className="rounded-full border border-white/14 bg-white/8 px-3.5 py-1.5 text-[10px] uppercase tracking-[0.22em] text-white/78">
-                          Year 3 | Floor 61
+                          Year 3 | Floor 60
                         </div>
                         <div className="rounded-full border border-emerald-200/16 bg-emerald-300/10 px-3.5 py-1.5 text-[10px] uppercase tracking-[0.22em] text-emerald-50/84">
                           Final Boss Cleared

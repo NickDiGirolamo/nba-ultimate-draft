@@ -719,6 +719,7 @@ export const teamChemistryGroups: TeamChemistryGroupDefinition[] = [
       "fred-van-vleet-raptors",
       "danny-green-raptors",
       "og-anunoby-raptors",
+      "marc-gasol-raptors",
     ],
     bonusType: "team-chemistry",
     bonusValue: 1,

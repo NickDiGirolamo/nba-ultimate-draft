@@ -3,6 +3,7 @@ import { ArrowLeft, Check, ClipboardCheck, Handshake, ShieldCheck, Sparkles, Use
 import { CardLabAltPlayerCardV1 } from "./CardLabAltPlayerCardV1";
 import { CardLabAltPlayerCardV2 } from "./CardLabAltPlayerCardV2";
 import { CardLabAltPlayerCardV3 } from "./CardLabAltPlayerCard";
+import { AI_COACH_CARD_WIDTH, CardLabAiCoachCard } from "./CardLabAiCoachCard";
 import { CardLabAiArtCards } from "./CardLabAiArtCards";
 import { CardLabCoachCard } from "./CardLabCoachCard";
 import { CardLabCoachRunRosterCard } from "./CardLabCoachRunRosterCard";
@@ -132,6 +133,7 @@ export const CardLabPage = () => {
   const coachCards = useMemo(() => coachCardSections.flatMap((section) => section.cards), []);
   const cardScale = cardScalePercent / 100;
   const linePreviewScale = Math.min(cardScale * 0.5, 0.62);
+  const aiCoachCardScale = Math.min(cardScale * 0.22, 0.26);
   const lineCardWidth = Math.round(388 * linePreviewScale);
   const lineCardHeight = Math.round(930 * linePreviewScale);
   const scaledPreviewFrame = showRunRoster
@@ -636,6 +638,68 @@ export const CardLabPage = () => {
                       })}
                     </div>
                   </div>
+                  {!showRunRoster ? (
+                    <div className="mt-6 rounded-[28px] border border-emerald-300/16 bg-[linear-gradient(180deg,rgba(6,78,59,0.22),rgba(2,6,23,0.44))] p-4 shadow-[0_18px_42px_rgba(0,0,0,0.24)]">
+                      <div className="flex flex-wrap items-end justify-between gap-3">
+                        <div>
+                          <div className="text-[10px] uppercase tracking-[0.24em] text-emerald-100/70">AI Cards</div>
+                          <h3 className="mt-1 font-display text-2xl text-white">AI Coaches</h3>
+                          <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-300">
+                            Coach-card direction using the Rogue card design language, with no overall rating, no tier,
+                            team-specific styling, a coach-link chemistry badge, and the +1 matching-team boost surfaced on the card face.
+                          </p>
+                        </div>
+                        <div className="rounded-full border border-lime-300/18 bg-lime-300/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-lime-100">
+                          {coachCards.length} AI coach cards
+                        </div>
+                      </div>
+
+                      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(240px,320px)_minmax(0,1fr)]">
+                        <div className="rounded-[24px] border border-white/10 bg-black/24 p-4">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Saved Reference</div>
+                          <div className="mt-2 text-lg font-semibold text-white">Red Auerbach</div>
+                          <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">Generated AI coach card</div>
+                          <img
+                            src="/ai-card-art/coaches/red-auerbach-ai-coach-card.png"
+                            alt="AI Red Auerbach coach card reference"
+                            className="mt-4 w-full rounded-[22px] border border-[#f6d36d]/45 object-cover shadow-[0_20px_44px_rgba(0,0,0,0.38)]"
+                            loading="lazy"
+                          />
+                        </div>
+
+                        <div className="space-y-7">
+                          {coachCardSections.map((section) => (
+                            <div key={`ai-${section.id}`}>
+                              <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                                <div>
+                                  <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">{section.title}</div>
+                                  <div className="mt-1 text-sm text-slate-300">{section.cards.length} team-themed AI coach cards</div>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap justify-center gap-5">
+                                {section.cards.map((coach) => (
+                                  <div
+                                    key={`ai-${coach.id}`}
+                                    className="flex shrink-0 flex-col items-center"
+                                    style={{
+                                      width: `${Math.round(AI_COACH_CARD_WIDTH * aiCoachCardScale)}px`,
+                                      maxWidth: "100%",
+                                    }}
+                                  >
+                                    <CardLabAiCoachCard coach={coach} scale={aiCoachCardScale} />
+                                    <div className="mt-3 text-center">
+                                      <div className="text-sm font-semibold text-white">{coach.label}</div>
+                                      <div className="mt-1 text-[10px] uppercase tracking-[0.2em] text-slate-400">{coach.teamName}</div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="mt-6 space-y-8">
                     {coachCardSections.map((section) => (
                       <div key={section.id}>

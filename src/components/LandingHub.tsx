@@ -1,10 +1,9 @@
-import { CheckCircle2, ChevronRight, Coins, Crown, PackageOpen, Shield, Trophy, Zap } from "lucide-react";
+import { CheckCircle2, ChevronRight, Coins, Trophy } from "lucide-react";
 import { MetaProgress, RunHistoryEntry } from "../types";
-import { allPlayers } from "../data/players";
 import { getNbaTeamByName } from "../data/nbaTeams";
 import { ROGUE_CHALLENGES } from "../lib/rogueChallenges";
 import { getRoguelikeCoachById } from "../lib/roguelike";
-import { DraftPlayerCard } from "./DraftPlayerCard";
+import { RogueHero } from "./RogueHero";
 
 interface LandingHubProps {
   onOpenPrestige: () => void;
@@ -18,30 +17,6 @@ interface LandingHubProps {
   completedRogueChallengeIds: string[];
   claimedRogueChallengeIds: string[];
 }
-
-const getHeroCardPlayer = (name: string) =>
-  allPlayers.find((player) => player.name === name) ?? allPlayers[0];
-
-const heroCardStack = [
-  {
-    key: "emerald",
-    player: getHeroCardPlayer("Brandon Clarke (2025-26)"),
-    rarity: "Emerald" as const,
-    className: "home-rogue-hero__real-card--emerald",
-  },
-  {
-    key: "sapphire",
-    player: getHeroCardPlayer("Michael Jordan (Wizards)"),
-    rarity: "Sapphire" as const,
-    className: "home-rogue-hero__real-card--sapphire",
-  },
-  {
-    key: "ruby",
-    player: getHeroCardPlayer("Chris Mullin"),
-    rarity: "Ruby" as const,
-    className: "home-rogue-hero__real-card--ruby",
-  },
-];
 
 export const LandingHub = ({
   onOpenPrestige,
@@ -73,104 +48,11 @@ export const LandingHub = ({
   return (
     <section className="home-landing-fit">
       <div className="grid w-full items-stretch gap-3 lg:grid-cols-[1.35fr_0.65fr] xl:grid-cols-[1.42fr_0.58fr]">
-        <div className="home-rogue-hero glass-panel relative flex min-h-[460px] flex-col overflow-hidden rounded-[28px] border border-cyan-100/18 bg-[#060912] p-5 shadow-card sm:p-6 lg:h-full lg:rounded-[30px] xl:p-8 2xl:p-10">
-          <div className="pointer-events-none absolute inset-0">
-            <div className="home-rogue-hero__court absolute inset-0" />
-            <div className="home-rogue-hero__glow absolute -right-[9%] top-[7%] h-[62%] w-[48%] rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 h-28 w-full bg-[linear-gradient(180deg,transparent,rgba(2,6,13,0.84))]" />
-          </div>
-
-          <div className="relative z-10 grid h-full gap-6 lg:grid-cols-[minmax(0,0.96fr)_minmax(360px,0.68fr)] lg:items-stretch">
-            <div className="flex min-h-0 flex-col">
-              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-100/22 bg-amber-200/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-100 shadow-[0_0_22px_rgba(251,191,36,0.12)]">
-                <Crown size={13} />
-                NBA Rogue Mode
-              </div>
-              <h1 className="mt-5 max-w-5xl font-display text-[clamp(2.9rem,5vw,5.65rem)] font-semibold leading-[0.95] text-white">
-                Build your dynasty.
-                <span className="block bg-[linear-gradient(90deg,#fef3c7,#a5f3fc,#ffffff)] bg-clip-text text-transparent">
-                  Floor by floor.
-                </span>
-              </h1>
-              <p className="mt-5 max-w-4xl text-[clamp(0.95rem,1.04vw,1.15rem)] leading-[1.6] text-slate-200/86">
-                Draft a starter core, survive boss gates, earn permanent cards, and turn every run into a cleaner path toward the next great roster.
-              </p>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  data-tutorial-id="home-enter-rogue"
-                  onClick={onOpenRoguelike}
-                  className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-xs font-semibold uppercase tracking-[0.11em] text-slate-900 shadow-[0_18px_40px_rgba(255,255,255,0.18)] transition hover:scale-[1.02] xl:px-7"
-                >
-                  Enter Rogue
-                  <ChevronRight size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={onOpenRogueChallenges}
-                  className="inline-flex items-center gap-2 rounded-full border border-cyan-100/28 bg-cyan-300/12 px-6 py-3 text-xs font-semibold uppercase tracking-[0.11em] text-cyan-50 transition hover:scale-[1.02] hover:bg-cyan-300/18 xl:px-7"
-                >
-                  Challenges
-                  <ChevronRight size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={onRestartTutorial}
-                  className="inline-flex items-center gap-2 rounded-full border border-amber-200/26 bg-amber-300/12 px-6 py-3 text-xs font-semibold uppercase tracking-[0.11em] text-amber-100 transition hover:scale-[1.02] hover:bg-amber-300/16 xl:px-7"
-                >
-                  Tutorial
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-
-              <div className="mt-7 grid max-w-3xl gap-3 sm:grid-cols-3 lg:mt-auto lg:pt-8">
-                {[
-                  { label: "Draft", value: "1-of-5 boards", Icon: PackageOpen },
-                  { label: "Climb", value: "69 floors", Icon: Zap },
-                  { label: "Collect", value: "Owned forever", Icon: Shield },
-                ].map(({ label, value, Icon }) => (
-                  <div key={label} className="rounded-[18px] border border-white/10 bg-white/[0.055] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur">
-                    <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-cyan-100/68">
-                      <Icon size={13} />
-                      {label}
-                    </div>
-                    <div className="mt-2 text-sm font-semibold text-white xl:text-base">{value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="pointer-events-none relative hidden min-h-[430px] lg:block">
-              <div className="absolute inset-x-[13%] top-[7%] h-[50%] rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.08),rgba(125,211,252,0.12)_45%,transparent_74%)] blur-2xl" />
-              <div className="home-rogue-hero__real-card-stack absolute left-1/2 top-[1%] h-[356px] w-[380px] -translate-x-1/2">
-                {heroCardStack.map((card) => (
-                  <div key={card.key} className={`home-rogue-hero__real-card ${card.className}`}>
-                    <DraftPlayerCard
-                      player={card.player}
-                      compact
-                      compactScale={0.35}
-                      rarityOverride={card.rarity}
-                    />
-                  </div>
-                ))}
-              </div>
-
-              <div className="absolute bottom-[7%] left-0 right-0 rounded-[24px] border border-white/10 bg-black/36 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur">
-                <div className="grid grid-cols-5 gap-1.5">
-                  {["Start", "Build", "Train", "Reward", "Repeat"].map((step, index) => (
-                    <div key={step} className="flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-[18px] border border-cyan-100/10 bg-white/[0.045] px-1.5 py-2">
-                      <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-cyan-100/24 bg-cyan-300/10 text-[10px] font-semibold text-cyan-50">
-                        {index + 1}
-                      </div>
-                      <div className="w-full text-center text-[8px] font-semibold uppercase leading-none tracking-[0.08em] text-slate-100">{step}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <RogueHero
+          onEnterRogue={onOpenRoguelike}
+          onOpenChallenges={onOpenRogueChallenges}
+          onRestartTutorial={onRestartTutorial}
+        />
 
         <div className="glass-panel flex min-h-[460px] flex-col rounded-[28px] border border-sky-200/12 p-4 shadow-card lg:h-full lg:rounded-[30px] xl:p-5">
           <div className="flex items-center gap-3">

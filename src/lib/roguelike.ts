@@ -222,11 +222,11 @@ const BOSS_AVERAGE_OVERRIDES_BY_FLOOR: Partial<Record<number, number>> = {
   39: 90.25,
   41: 92,
   43: 92.5,
-  48: 92.75,
-  56: 93,
-  59: 94,
-  61: 95,
-  63: 96,
+  47: 92.75,
+  55: 93,
+  58: 94,
+  60: 95,
+  62: 96,
 };
 
 export const capRoguelikeOverall = (overall: number) =>
@@ -1125,18 +1125,9 @@ export const roguelikeNodes: RoguelikeNode[] = [
     targetLabel: "Optionally trade 1 player, then draft 1 Amethyst replacement",
     allowedRewardTiers: ["Amethyst"],
   }),
-  makeRosterCutNode({
-    id: "year-3-offseason-roster-cut",
-    floor: 47,
-    act: 3,
-    title: "Off-Season Roster Cut",
-    description: "Cut two players before the final season opens.",
-    rewardBundleId: "balanced-floor",
-    targetLabel: "Select 2 players to cut from your roster",
-  }),
   makeBossNode(12, {
     id: "year-3-opening-night",
-    floor: 48,
+    floor: 47,
     act: 3,
     title: "Opening Night",
     description: "Beat the Boston Celtics to launch the final season.",
@@ -1152,7 +1143,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTrainingNode({
     id: "year-3-in-season-training",
-    floor: 49,
+    floor: 48,
     act: 3,
     title: "In-Season Training Camp",
     description: "Train one player during the final season.",
@@ -1161,7 +1152,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeChallengeNode({
     id: "year-3-chemistry-is-key",
-    floor: 50,
+    floor: 49,
     act: 3,
     title: "Challenge 3: Chemistry is Key",
     description: "Set your best chemistry lineup and prove this roster can function like a champion.",
@@ -1174,7 +1165,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTradeNode({
     id: "year-3-early-season-trade",
-    floor: 51,
+    floor: 50,
     act: 3,
     title: "Early Season Trade",
     description: "Optionally trade one player and replace them from an Amethyst board.",
@@ -1185,7 +1176,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeAddPositionNode({
     id: "year-3-new-rotation-test",
-    floor: 52,
+    floor: 51,
     act: 3,
     title: "New Rotation Test",
     description: "Add one last natural position to stretch your lineup options.",
@@ -1194,7 +1185,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeLockerRoomVisitNode({
     id: "year-3-locker-room-visit",
-    floor: 53,
+    floor: 52,
     act: 3,
     title: "Locker Room Visit",
     description: "Make one last locker room stop and spend any remaining cash before the final playoff climb.",
@@ -1203,7 +1194,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeAllStarNode({
     id: "year-3-all-star-saturday",
-    floor: 54,
+    floor: 53,
     act: 3,
     title: "All-Star Saturday",
     description: "",
@@ -1212,7 +1203,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTrainingNode({
     id: "year-3-in-season-training-2",
-    floor: 55,
+    floor: 54,
     act: 3,
     title: "In-Season Training Camp",
     description: "One more in-season boost before the final playoffs.",
@@ -1221,7 +1212,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeBossNode(13, {
     id: "year-3-playoffs-round-1",
-    floor: 56,
+    floor: 55,
     act: 3,
     title: "NBA Playoffs Round 1",
     description: "Beat your first-round opponent in the final season.",
@@ -1236,7 +1227,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTrainingNode({
     id: "year-3-playoff-training",
-    floor: 57,
+    floor: 56,
     act: 3,
     title: "Playoff Training Camp",
     description: "Keep one player climbing through the last postseason.",
@@ -1245,7 +1236,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeDraftNode({
     id: "year-3-return-from-injury",
-    floor: 58,
+    floor: 57,
     act: 3,
     title: "Return from Injury",
     description: "Add one Amethyst player from any era. If your roster is full, you'll need to drop someone after the pick.",
@@ -1256,7 +1247,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeBossNode(14, {
     id: "year-3-conference-semifinals",
-    floor: 59,
+    floor: 58,
     act: 3,
     title: "NBA Playoffs: Conference Semifinals",
     description: "Beat your Conference Semifinal opponent in the final season.",
@@ -1271,7 +1262,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTrainingNode({
     id: "year-3-playoff-training-2",
-    floor: 60,
+    floor: 59,
     act: 3,
     title: "Playoff Training Camp - 2",
     description: "Take one player through one more playoff jump.",
@@ -1280,7 +1271,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeBossNode(15, {
     id: "year-3-conference-finals",
-    floor: 61,
+    floor: 60,
     act: 3,
     title: "NBA Playoffs: Conference Finals",
     description: "Win the last Conference Finals faceoff of the run.",
@@ -1295,7 +1286,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeTrainingNode({
     id: "year-3-playoff-training-3",
-    floor: 62,
+    floor: 61,
     act: 3,
     title: "Playoff Training Camp - 3",
     description: "One last playoff tune-up before the championship fight.",
@@ -1304,7 +1295,7 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeBossNode(16, {
     id: "year-3-finals",
-    floor: 63,
+    floor: 62,
     act: 3,
     title: "NBA Playoffs: Finals",
     description: "Beat your Finals opponent and earn the final pre-GOAT reward board.",
@@ -1319,18 +1310,18 @@ export const roguelikeNodes: RoguelikeNode[] = [
   }),
   makeChanceNode({
     id: "year-3-team-wheel",
-    floor: 64,
+    floor: 63,
     act: 3,
     title: "Team Wheel",
-    description: "Spin the 30-team wheel, then draft 1 Amethyst player from the team it lands on.",
+    description: "Spin the 30-team wheel, then draft 1 Amethyst or Galaxy player from the team it lands on.",
     rewardBundleId: "elite-closers",
     rewardChoices: 5,
-    targetLabel: "Spin for an NBA team, then choose 1 of 5 Amethyst players from that team",
-    allowedRewardTiers: ["Amethyst"],
+    targetLabel: "Spin for an NBA team, then choose 1 of 5 Amethyst or Galaxy players from that team",
+    allowedRewardTiers: ["Amethyst", "Galaxy"],
   }),
   {
     id: "the-goats",
-    floor: 64,
+    floor: 63,
     act: 3,
     type: "boss",
     title: "The G.O.A.T.s",

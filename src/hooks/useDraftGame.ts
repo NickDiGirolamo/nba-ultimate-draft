@@ -35,10 +35,24 @@ import {
 } from "../lib/rogueChallenges";
 import { roguelikeCoaches } from "../lib/roguelike";
 import { getRoguePackPlayerPool } from "../lib/tokenStore";
+import type { UserStoreUnlockQuantities } from "../lib/cloudSave";
 
 const HISTORY_LIMIT = 24;
 const VERIFIED_COLLECTION_STORAGE_KEY = "nba-ultimate-draft-verified-collection-player-ids-v1";
 const LEGACY_COLLECTION_TRUST_LIMIT = 8;
+const STORE_UNLOCK_IDS = [
+  "training-camp-ticket",
+  "trade-phone",
+  "silver-starter-pack",
+  "gold-starter-pack",
+  "platinum-starter-pack",
+  "coach-recruitment",
+  "opening-locker-cash-1",
+  "opening-locker-cash-2",
+  "opening-locker-cash-3",
+  "extra-draft-shuffle",
+  "starter-pack-choice-plus",
+] as const;
 const DEFAULT_METRICS = {
   overall: 0,
   offense: 0,
@@ -119,6 +133,8 @@ const LEGACY_PLAYER_ID_MIGRATIONS: Record<string, string> = {
   "allen-iverson": "allen-iverson-76ers",
   "amar-e-stoudemire": "amar-e-stoudemire-suns",
   "sharif-abdur-rahim": "shareef-abdour-rahim",
+  "karl-anthony-towns-timberwolves": "karl-anthony-towns-wolves",
+  "gus-williams-super-sonics": "gus-williams-sonics",
 };
 
 const LEGACY_PLAYER_NAME_MIGRATIONS: Record<string, string> = {
@@ -152,6 +168,8 @@ const LEGACY_PLAYER_NAME_MIGRATIONS: Record<string, string> = {
   "Allen Iverson": "Allen Iverson (76ers)",
   "Amar'e Stoudemire": "Amar'e Stoudemire (Suns)",
   "Sharif Abdur-Rahim": "Shareef Abdour-Rahim",
+  "Karl-Anthony Towns (Timberwolves)": "Karl-Anthony Towns (Wolves)",
+  "Gus Williams (SuperSonics)": "Gus Williams (Sonics)",
 };
 
 const canonicalPlayersById = new Map(allPlayers.map((player) => [player.id, player]));
@@ -514,6 +532,32 @@ const getDisplayedTokenBalanceForState = (draftState: DraftState) => {
       getClaimedRogueChallengeRewardTotal(draftState.claimedRogueChallengeIds),
   );
 };
+
+const getStoreUnlockQuantity = (
+  unlocks: UserStoreUnlockQuantities,
+  unlockId: (typeof STORE_UNLOCK_IDS)[number],
+) => Math.max(0, Math.floor(unlocks[unlockId] ?? 0));
+
+const getOpeningLockerCashTierFromUnlocks = (unlocks: UserStoreUnlockQuantities) => {
+  if (getStoreUnlockQuantity(unlocks, "opening-locker-cash-3") > 0) return 3;
+  if (getStoreUnlockQuantity(unlocks, "opening-locker-cash-2") > 0) return 2;
+  if (getStoreUnlockQuantity(unlocks, "opening-locker-cash-1") > 0) return 1;
+  return 0;
+};
+
+export const getStoreUnlockQuantitiesForState = (draftState: DraftState): UserStoreUnlockQuantities => ({
+  "training-camp-ticket": draftState.ownedTrainingCampTickets,
+  "trade-phone": draftState.ownedTradePhones,
+  "silver-starter-pack": draftState.ownedSilverStarterPacks,
+  "gold-starter-pack": draftState.ownedGoldStarterPacks,
+  "platinum-starter-pack": draftState.ownedPlatinumStarterPacks,
+  "coach-recruitment": draftState.ownedCoachRecruitment,
+  "opening-locker-cash-1": draftState.ownedOpeningLockerCashTier >= 1 ? 1 : 0,
+  "opening-locker-cash-2": draftState.ownedOpeningLockerCashTier >= 2 ? 1 : 0,
+  "opening-locker-cash-3": draftState.ownedOpeningLockerCashTier >= 3 ? 1 : 0,
+  "extra-draft-shuffle": draftState.ownedExtraDraftShuffle,
+  "starter-pack-choice-plus": draftState.ownedStarterPackChoicePlus,
+});
 
 export const useDraftGame = () => {
   const [state, setState] = useState<DraftState>(() => {
@@ -1206,13 +1250,25 @@ export const useDraftGame = () => {
     setState((current) => {
       const normalizedCloudBalance = Math.max(0, Math.floor(cloudTokenBalance));
       const displayedBalance = getDisplayedTokenBalanceForState(current);
-      const purchasedTokenDelta = normalizedCloudBalance - displayedBalance;
+      const tokenDelta = normalizedCloudBalance - displayedBalance;
 
-      if (purchasedTokenDelta <= 0) return current;
+      if (tokenDelta === 0) return current;
+
+      if (tokenDelta > 0) {
+        return {
+          ...current,
+          purchasedTokens: current.purchasedTokens + tokenDelta,
+        };
+      }
+
+      const balanceReduction = Math.abs(tokenDelta);
+      const purchasedTokenReduction = Math.min(current.purchasedTokens, balanceReduction);
+      const remainingReduction = balanceReduction - purchasedTokenReduction;
 
       return {
         ...current,
-        purchasedTokens: current.purchasedTokens + purchasedTokenDelta,
+        purchasedTokens: current.purchasedTokens - purchasedTokenReduction,
+        spentTokens: current.spentTokens + remainingReduction,
       };
     });
   }, []);
@@ -1225,19 +1281,16 @@ export const useDraftGame = () => {
         ),
       ),
     );
-    if (validPlayerIds.length === 0) return;
 
     setState((current) => {
-      const ownedCollectionPlayerIds = Array.from(
-        new Set([...current.ownedCollectionPlayerIds, ...validPlayerIds]),
-      );
-      const ownedRogueStarIds = Array.from(
-        new Set([...current.ownedRogueStarIds, ...validPlayerIds]),
-      );
+      const ownedCollectionPlayerIds = validPlayerIds;
+      const ownedRogueStarIds = validPlayerIds;
 
       if (
         ownedCollectionPlayerIds.length === current.ownedCollectionPlayerIds.length &&
-        ownedRogueStarIds.length === current.ownedRogueStarIds.length
+        ownedCollectionPlayerIds.every((playerId) => current.ownedCollectionPlayerIds.includes(playerId)) &&
+        ownedRogueStarIds.length === current.ownedRogueStarIds.length &&
+        ownedRogueStarIds.every((playerId) => current.ownedRogueStarIds.includes(playerId))
       ) {
         return current;
       }
@@ -1246,29 +1299,56 @@ export const useDraftGame = () => {
         ...current,
         ownedCollectionPlayerIds,
         ownedRogueStarIds,
+        activeRogueStarId:
+          current.activeRogueStarId && ownedRogueStarIds.includes(current.activeRogueStarId)
+            ? current.activeRogueStarId
+            : null,
       };
     });
   }, []);
 
-  const applyCloudAccountSnapshot = useCallback((cloudTokenBalance: number | null, playerIds: string[]) => {
-    const normalizedCloudBalance =
-      cloudTokenBalance !== null && Number.isFinite(cloudTokenBalance)
-        ? Math.max(0, Math.floor(cloudTokenBalance))
-        : 0;
-    const validPlayerIds = Array.from(
-      new Set(
-        normalizePlayerIds(playerIds).filter((playerId) =>
-          allPlayers.some((player) => player.id === playerId),
-        ),
-      ),
-    );
+  const applyCloudAccountSnapshot = useCallback((
+    cloudTokenBalance: number | null | undefined,
+    playerIds: string[] | undefined,
+    storeUnlocks: UserStoreUnlockQuantities = {},
+  ) => {
+    const validPlayerIds =
+      playerIds === undefined
+        ? undefined
+        : Array.from(
+            new Set(
+              normalizePlayerIds(playerIds).filter((playerId) =>
+                allPlayers.some((player) => player.id === playerId),
+              ),
+            ),
+          );
 
-    writeVerifiedCollectionPlayerIds(validPlayerIds);
-    setState(() => ({
+    if (validPlayerIds !== undefined) {
+      writeVerifiedCollectionPlayerIds(validPlayerIds);
+    }
+    setState((current) => ({
       ...createInitialState(),
-      purchasedTokens: normalizedCloudBalance,
-      ownedRogueStarIds: validPlayerIds,
-      ownedCollectionPlayerIds: validPlayerIds,
+      purchasedTokens:
+        cloudTokenBalance === undefined
+          ? current.purchasedTokens
+          : cloudTokenBalance !== null && Number.isFinite(cloudTokenBalance)
+            ? Math.max(0, Math.floor(cloudTokenBalance))
+            : 0,
+      ownedTrainingCampTickets: getStoreUnlockQuantity(storeUnlocks, "training-camp-ticket"),
+      ownedTradePhones: getStoreUnlockQuantity(storeUnlocks, "trade-phone"),
+      ownedSilverStarterPacks: getStoreUnlockQuantity(storeUnlocks, "silver-starter-pack") > 0 ? 1 : 0,
+      ownedGoldStarterPacks: getStoreUnlockQuantity(storeUnlocks, "gold-starter-pack") > 0 ? 1 : 0,
+      ownedPlatinumStarterPacks: getStoreUnlockQuantity(storeUnlocks, "platinum-starter-pack") > 0 ? 1 : 0,
+      ownedCoachRecruitment: getStoreUnlockQuantity(storeUnlocks, "coach-recruitment") > 0 ? 1 : 0,
+      ownedOpeningLockerCashTier: getOpeningLockerCashTierFromUnlocks(storeUnlocks),
+      ownedExtraDraftShuffle: getStoreUnlockQuantity(storeUnlocks, "extra-draft-shuffle") > 0 ? 1 : 0,
+      ownedStarterPackChoicePlus: getStoreUnlockQuantity(storeUnlocks, "starter-pack-choice-plus") > 0 ? 1 : 0,
+      ownedRogueStarIds: validPlayerIds ?? current.ownedRogueStarIds,
+      activeRogueStarId:
+        current.activeRogueStarId && (validPlayerIds ?? current.ownedRogueStarIds).includes(current.activeRogueStarId)
+          ? current.activeRogueStarId
+          : null,
+      ownedCollectionPlayerIds: validPlayerIds ?? current.ownedCollectionPlayerIds,
     }));
   }, []);
 

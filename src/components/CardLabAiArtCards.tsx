@@ -121,6 +121,20 @@ const approvedReferenceCards = [
     imageUrl: "/ai-card-art/references/steph-curry-amethyst-approved.png",
     details: "93 OVR / PG-SG / Gravity Shooter / Sniper, Playmaker, Slasher",
   },
+  {
+    id: "michael-jordan-galaxy-approved",
+    title: "Michael Jordan",
+    subtitle: "Approved Galaxy Rogue card direction",
+    imageUrl: "/ai-card-art/references/michael-jordan-galaxy-approved.png",
+    details: "99 OVR / SG-SF / Two-Way Scoring Titan / Sniper, Slasher, Lockdown, Playmaker, Board Man",
+  },
+  {
+    id: "al-horford-warriors-emerald-approved",
+    title: "Al Horford (Warriors)",
+    subtitle: "Approved Emerald Rogue card direction",
+    imageUrl: "/ai-card-art/references/al-horford-warriors-emerald-approved.png",
+    details: "79 OVR / C / Rotation Piece / Lockdown",
+  },
 ];
 
 const splitCardFaceName = (name: string) => (name.trim() || "AI Art Player").split(/\s+/).filter(Boolean);

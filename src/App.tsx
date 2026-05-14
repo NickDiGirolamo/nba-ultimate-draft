@@ -12,22 +12,25 @@ import { PrestigeLevelUpModal } from "./components/PrestigeLevelUpModal";
 import { PrestigeOverlay } from "./components/PrestigeOverlay";
 import { ProgressHeader } from "./components/ProgressHeader";
 import { ResultsShowcase } from "./components/ResultsShowcase";
+import { RogueChallengesOverlay } from "./components/RogueChallengesOverlay";
 import { RoguelikeMode } from "./components/RoguelikeMode";
 import { RosterSidebar } from "./components/RosterSidebar";
 import { SimulationScreen } from "./components/SimulationScreen";
 import { TokenStoreOverlay } from "./components/TokenStoreOverlay";
-import { useDraftGame } from "./hooks/useDraftGame";
+import { getStoreUnlockQuantitiesForState, useDraftGame } from "./hooks/useDraftGame";
 import { useSupabaseAuth } from "./hooks/useSupabaseAuth";
 import {
   deleteActiveRogueRun,
   fetchActiveRogueRun,
   fetchUserCollectionCards,
+  fetchUserStoreUnlocks,
   fetchTokenBalance,
   syncTokenBalance,
   upsertActiveRogueRun,
   upsertUserCollectionCards,
+  upsertUserStoreUnlocks,
 } from "./lib/cloudSave";
-import { getRogueChallengeRunSettingsPreset } from "./lib/rogueChallenges";
+import { ROGUE_CHALLENGES, getRogueChallengeRunSettingsPreset } from "./lib/rogueChallenges";
 import type { RoguelikeRunSettings } from "./lib/roguelike";
 import { getCategoryChallengeTarget } from "./lib/simulate";
 import { tokenStoreUtilityItems, type TokenStoreUtilityItem } from "./lib/tokenStore";
@@ -91,6 +94,8 @@ function App() {
     awardRogueFailureRewards,
     updateRoguePersonalBests,
     applyCloudAccountSnapshot,
+    absorbCloudTokenBalance,
+    absorbCloudCollectionPlayerIds,
     purchaseTrainingCampTicket,
     purchaseTradePhone,
     purchaseSilverStarterPack,
@@ -126,8 +131,9 @@ function App() {
   const [collectionOpen, setCollectionOpen] = useState(false);
   const [prestigeInitialView, setPrestigeInitialView] = useState<"overview" | "rewards">("overview");
   const [learnOpen, setLearnOpen] = useState(false);
+  const [challengesOpen, setChallengesOpen] = useState(false);
   const [tokenStoreOpen, setTokenStoreOpen] = useState(false);
-  const [tokenStoreInitialView, setTokenStoreInitialView] = useState<"store" | "vault" | "tokens" | "collections" | "challenges">("store");
+  const [tokenStoreInitialView, setTokenStoreInitialView] = useState<"store" | "vault" | "tokens" | "collections">("store");
   const [guestMode, setGuestMode] = useState(false);
   const [rogueChallengeSetupRequest, setRogueChallengeSetupRequest] = useState<{
     challengeId: string;
@@ -144,6 +150,7 @@ function App() {
   const [cloudSavedRogueRun, setCloudSavedRogueRun] = useState<unknown | null>(null);
   const [cloudTokenBalanceLoaded, setCloudTokenBalanceLoaded] = useState(false);
   const [cloudCollectionLoaded, setCloudCollectionLoaded] = useState(false);
+  const [cloudStoreUnlocksLoaded, setCloudStoreUnlocksLoaded] = useState(false);
   const [showPrestigeLevelUp, setShowPrestigeLevelUp] = useState(false);
   const [showExtraPickIntro, setShowExtraPickIntro] = useState(false);
   const homeViewedTrackedRef = useRef(false);
@@ -154,6 +161,13 @@ function App() {
   const ownedCollectionPlayerIds = useMemo(
     () => Array.from(new Set(state.ownedCollectionPlayerIds)),
     [state.ownedCollectionPlayerIds],
+  );
+  const readyRogueChallengeCount = useMemo(
+    () =>
+      state.completedRogueChallengeIds.filter(
+        (challengeId) => !state.claimedRogueChallengeIds.includes(challengeId),
+      ).length,
+    [state.claimedRogueChallengeIds, state.completedRogueChallengeIds],
   );
   const [roguelikeOpen, setRoguelikeOpen] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -263,6 +277,7 @@ function App() {
     setPrestigeOpen(false);
     setCollectionOpen(false);
     setLearnOpen(false);
+    setChallengesOpen(false);
     setTutorialStepIndex(0);
     setTutorialOpen(true);
     if (typeof window !== "undefined") {
@@ -301,8 +316,11 @@ function App() {
     }
   }, [auth.user?.id, guestMode]);
 
-  const openTokenStore = useCallback((initialView: "store" | "vault" | "tokens" | "collections" | "challenges", source: string) => {
+  const openTokenStore = useCallback((initialView: "store" | "vault" | "tokens" | "collections", source: string) => {
     setTokenStoreInitialView(initialView);
+    setChallengesOpen(false);
+    setCollectionOpen(false);
+    setLearnOpen(false);
     setTokenStoreOpen(true);
     trackAnalyticsEventSoon("token_store_opened", {
       payload: {
@@ -323,6 +341,7 @@ function App() {
     setProfileMenuOpen(false);
     setPrestigeOpen(false);
     setTokenStoreOpen(false);
+    setChallengesOpen(false);
     setLearnOpen(false);
     setCollectionOpen(true);
 
@@ -342,6 +361,7 @@ function App() {
     setPrestigeOpen(false);
     setCollectionOpen(false);
     setLearnOpen(false);
+    setChallengesOpen(false);
     openRoguelike("rogue_challenge");
 
     if (typeof window !== "undefined") {
@@ -349,8 +369,21 @@ function App() {
     }
   }, [openRoguelike]);
   const openRogueChallenges = useCallback(() => {
-    openTokenStore("challenges", "landing_rogue_challenges");
-  }, [openTokenStore]);
+    setProfileMenuOpen(false);
+    setPrestigeOpen(false);
+    setTokenStoreOpen(false);
+    setCollectionOpen(false);
+    setLearnOpen(false);
+    setChallengesOpen(true);
+    trackAnalyticsEventSoon("token_store_opened", {
+      payload: {
+        initialView: "challenges",
+        source: "top_nav_or_home",
+        isGuest: guestMode,
+        isLoggedIn: Boolean(auth.user),
+      },
+    });
+  }, [auth.user?.id, guestMode]);
   const draftIntel = useMemo(() => {
     const cards = [
       {
@@ -481,12 +514,13 @@ function App() {
     if (!auth.user) {
       setCloudTokenBalanceLoaded(false);
       setCloudCollectionLoaded(false);
+      setCloudStoreUnlocksLoaded(false);
       return;
     }
 
     setCloudTokenBalanceLoaded(false);
     setCloudCollectionLoaded(false);
-    applyCloudAccountSnapshot(null, []);
+    setCloudStoreUnlocksLoaded(false);
 
     let cancelled = false;
     const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
@@ -494,29 +528,55 @@ function App() {
     const maxAttempts = returningFromCheckout ? 8 : 1;
     const userId = auth.user.id;
     const localBalanceBeforeSync = metaProgress.tokens.balance;
-    const collectionCardsPromise = fetchUserCollectionCards(userId);
+    const collectionCardsPromise = fetchUserCollectionCards(userId)
+      .then((cloudCollectionPlayerIds) => ({ cloudCollectionPlayerIds, collectionLoaded: true }))
+      .catch((error) => {
+        console.warn("Unable to refresh cloud collection cards", error);
+        return { cloudCollectionPlayerIds: undefined, collectionLoaded: false };
+      });
+    const storeUnlocksPromise = fetchUserStoreUnlocks(userId);
     let trackedTokenBalanceSync = false;
 
     const refreshAccountSnapshot = async () => {
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-        const [cloudBalance, cloudCollectionPlayerIds] = await Promise.all([
-          fetchTokenBalance(userId),
+        const tokenBalancePromise = fetchTokenBalance(userId)
+          .then((cloudBalance) => ({ cloudBalance, tokenBalanceLoaded: true }))
+          .catch((error) => {
+            console.warn("Unable to refresh cloud token balance", error);
+            return { cloudBalance: undefined, tokenBalanceLoaded: false };
+          });
+        const [
+          { cloudBalance, tokenBalanceLoaded },
+          { cloudCollectionPlayerIds, collectionLoaded },
+          cloudStoreUnlocks,
+        ] = await Promise.all([
+          tokenBalancePromise,
           collectionCardsPromise,
+          storeUnlocksPromise,
         ]);
         if (cancelled) return;
 
         const shouldApplySnapshot =
           !returningFromCheckout ||
-          cloudBalance !== null ||
+          tokenBalanceLoaded ||
           attempt === maxAttempts - 1;
 
         if (shouldApplySnapshot) {
-          applyCloudAccountSnapshot(cloudBalance ?? 0, cloudCollectionPlayerIds);
-          setCloudTokenBalanceLoaded(true);
-          setCloudCollectionLoaded(true);
+          applyCloudAccountSnapshot(
+            tokenBalanceLoaded ? cloudBalance : null,
+            collectionLoaded ? cloudCollectionPlayerIds : undefined,
+            cloudStoreUnlocks,
+          );
+          if (tokenBalanceLoaded) {
+            setCloudTokenBalanceLoaded(true);
+          }
+          if (collectionLoaded) {
+            setCloudCollectionLoaded(true);
+          }
+          setCloudStoreUnlocksLoaded(true);
         }
 
-        if (!trackedTokenBalanceSync && cloudBalance !== null) {
+        if (!trackedTokenBalanceSync && tokenBalanceLoaded && cloudBalance !== null) {
           trackedTokenBalanceSync = true;
           trackAnalyticsEventSoon("token_balance_synced", {
             payload: {
@@ -528,7 +588,7 @@ function App() {
           });
         }
 
-        if (!returningFromCheckout || cloudBalance !== null) return;
+        if (!returningFromCheckout || (tokenBalanceLoaded && cloudBalance !== null)) return;
 
         await new Promise((resolve) => window.setTimeout(resolve, 1000));
       }
@@ -540,6 +600,74 @@ function App() {
       cancelled = true;
     };
   }, [applyCloudAccountSnapshot, auth.user?.id]);
+
+  useEffect(() => {
+    if (!auth.user || !cloudTokenBalanceLoaded) return;
+
+    let cancelled = false;
+    const userId = auth.user.id;
+    const refreshCloudTokenBalance = async () => {
+      try {
+        const cloudBalance = await fetchTokenBalance(userId);
+        if (!cancelled && cloudBalance !== null) {
+          absorbCloudTokenBalance(cloudBalance);
+        }
+      } catch (error) {
+        console.warn("Unable to refresh cloud token balance", error);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refreshCloudTokenBalance();
+      }
+    };
+
+    window.addEventListener("focus", refreshCloudTokenBalance);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    const intervalId = window.setInterval(refreshCloudTokenBalance, 30000);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", refreshCloudTokenBalance);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.clearInterval(intervalId);
+    };
+  }, [absorbCloudTokenBalance, auth.user?.id, cloudTokenBalanceLoaded]);
+
+  useEffect(() => {
+    if (!auth.user || !cloudCollectionLoaded) return;
+
+    let cancelled = false;
+    const userId = auth.user.id;
+    const refreshCloudCollection = async () => {
+      try {
+        const cloudCollectionPlayerIds = await fetchUserCollectionCards(userId);
+        if (!cancelled) {
+          absorbCloudCollectionPlayerIds(cloudCollectionPlayerIds);
+        }
+      } catch (error) {
+        console.warn("Unable to refresh cloud collection cards", error);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refreshCloudCollection();
+      }
+    };
+
+    window.addEventListener("focus", refreshCloudCollection);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    const intervalId = window.setInterval(refreshCloudCollection, 30000);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", refreshCloudCollection);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.clearInterval(intervalId);
+    };
+  }, [absorbCloudCollectionPlayerIds, auth.user?.id, cloudCollectionLoaded]);
 
   useEffect(() => {
     if (!auth.user || !cloudTokenBalanceLoaded) return;
@@ -571,6 +699,32 @@ function App() {
       },
     });
   }, [auth.user?.id, cloudCollectionLoaded, state.ownedCollectionPlayerIds]);
+
+  useEffect(() => {
+    if (!auth.user || !cloudStoreUnlocksLoaded) return;
+
+    void upsertUserStoreUnlocks(auth.user.id, getStoreUnlockQuantitiesForState(state), {
+      source: "local_store_unlock_sync",
+      metadata: {
+        ownedSilverStarterPacks: state.ownedSilverStarterPacks,
+        ownedGoldStarterPacks: state.ownedGoldStarterPacks,
+        ownedPlatinumStarterPacks: state.ownedPlatinumStarterPacks,
+        ownedOpeningLockerCashTier: state.ownedOpeningLockerCashTier,
+      },
+    });
+  }, [
+    auth.user?.id,
+    cloudStoreUnlocksLoaded,
+    state.ownedTrainingCampTickets,
+    state.ownedTradePhones,
+    state.ownedSilverStarterPacks,
+    state.ownedGoldStarterPacks,
+    state.ownedPlatinumStarterPacks,
+    state.ownedCoachRecruitment,
+    state.ownedOpeningLockerCashTier,
+    state.ownedExtraDraftShuffle,
+    state.ownedStarterPackChoicePlus,
+  ]);
 
   const saveCloudRogueRun = useCallback((runData: unknown) => {
     if (!auth.user) return;
@@ -644,7 +798,7 @@ function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }, [state.screen, roguelikeOpen, prestigeOpen, collectionOpen, tokenStoreOpen, learnOpen, showPrestigeLevelUp]);
+  }, [state.screen, roguelikeOpen, prestigeOpen, collectionOpen, tokenStoreOpen, learnOpen, challengesOpen, showPrestigeLevelUp]);
 
   if (!auth.loading && !auth.user && !guestMode) {
     return (
@@ -675,7 +829,7 @@ function App() {
   return (
     <div className={`arena-shell text-white ${isLandingHome ? "arena-shell--home" : ""}`}>
       <div className="arena-shell__content mx-auto max-w-[1720px] px-3 py-3 sm:px-4 sm:py-4 lg:px-5 lg:py-4">
-        <div className="mb-4 grid grid-cols-4 gap-2 lg:flex lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+        <div className="mb-4 grid grid-cols-[minmax(64px,0.7fr)_minmax(0,4.3fr)] items-stretch gap-2 lg:grid-cols-[minmax(210px,0.95fr)_minmax(0,4.05fr)] lg:gap-3">
           <button
             type="button"
             onClick={() => {
@@ -685,7 +839,7 @@ function App() {
               setRoguelikeOpen(false);
               resetDraft();
             }}
-            className="group col-span-1 flex min-h-[30px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl border border-white/10 bg-black/18 px-1.5 py-1 text-center transition hover:border-amber-200/22 hover:bg-black/24 lg:max-w-[320px] lg:flex-row lg:justify-start lg:gap-2.5 lg:px-3.5 lg:py-2 lg:text-left"
+            className="group col-span-1 flex min-h-[30px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl border border-white/10 bg-black/18 px-1.5 py-1 text-center transition hover:border-amber-200/22 hover:bg-black/24 lg:min-h-[64px] lg:max-w-none lg:flex-row lg:justify-start lg:gap-2.5 lg:px-3 lg:py-2 lg:text-left"
           >
             <div className="rounded-xl border border-amber-200/18 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.24),rgba(249,115,22,0.14),rgba(15,23,42,0.2))] p-1 text-amber-200 shadow-[0_10px_24px_rgba(251,191,36,0.16)] lg:rounded-2xl lg:p-2">
               <Trophy size={11} className="lg:hidden" />
@@ -700,12 +854,18 @@ function App() {
             </div>
           </button>
 
-          <div className="col-span-3 grid grid-cols-4 gap-2 lg:flex lg:justify-end lg:gap-3">
+          <div className="col-span-1 grid min-w-0 grid-cols-5 gap-2 lg:grid-cols-[minmax(132px,1.05fr)_minmax(126px,0.8fr)_minmax(142px,0.9fr)_minmax(150px,0.95fr)_64px] lg:gap-3">
             <button
               type="button"
               data-tutorial-id="app-learn"
-              onClick={() => setLearnOpen(true)}
-              className="glass-panel group min-h-[30px] w-full rounded-2xl border border-sky-200/12 bg-[linear-gradient(135deg,rgba(9,18,34,0.96),rgba(16,26,46,0.92))] px-1.5 py-1 text-left shadow-[0_16px_32px_rgba(0,0,0,0.24)] transition hover:border-sky-200/28 hover:bg-[linear-gradient(135deg,rgba(12,24,44,0.98),rgba(20,34,58,0.94))] hover:shadow-[0_18px_36px_rgba(56,189,248,0.14)] sm:min-w-0 lg:min-h-[70px] lg:min-w-[230px] lg:px-3.5 lg:py-2"
+              onClick={() => {
+                setProfileMenuOpen(false);
+                setTokenStoreOpen(false);
+                setCollectionOpen(false);
+                setChallengesOpen(false);
+                setLearnOpen(true);
+              }}
+              className="glass-panel group min-h-[30px] w-full min-w-0 rounded-2xl border border-sky-200/12 bg-[linear-gradient(135deg,rgba(9,18,34,0.96),rgba(16,26,46,0.92))] px-1.5 py-1 text-left shadow-[0_16px_32px_rgba(0,0,0,0.24)] transition hover:border-sky-200/28 hover:bg-[linear-gradient(135deg,rgba(12,24,44,0.98),rgba(20,34,58,0.94))] hover:shadow-[0_18px_36px_rgba(56,189,248,0.14)] sm:min-w-0 lg:min-h-[64px] lg:px-3 lg:py-2"
             >
 	              <div className="flex items-center justify-center gap-1 lg:justify-between lg:gap-3">
 	                <div className="flex items-center gap-1 text-[7px] font-semibold uppercase tracking-[0.1em] text-slate-200 lg:gap-2 lg:text-[11px] lg:tracking-[0.18em]">
@@ -720,15 +880,50 @@ function App() {
                   Open
                 </span>
               </div>
-	              <div className="mt-2 hidden text-[0.78rem] font-medium leading-4 text-slate-300 lg:block">
+	              <div className="mt-2 hidden text-[0.72rem] font-medium leading-4 text-slate-300 lg:block">
 	                Learn Rogue cards, bosses, and run systems
 	              </div>
             </button>
             <button
               type="button"
+              data-tutorial-id="app-challenges"
+              onClick={openRogueChallenges}
+              className="glass-panel min-h-[30px] w-full min-w-0 rounded-2xl border border-sky-200/12 bg-[linear-gradient(135deg,rgba(8,18,34,0.96),rgba(13,30,52,0.92))] px-1.5 py-1 text-left shadow-[0_16px_32px_rgba(0,0,0,0.24)] transition hover:border-sky-200/28 hover:bg-[linear-gradient(135deg,rgba(12,28,52,0.98),rgba(16,39,68,0.94))] sm:min-w-0 lg:min-h-[64px] lg:px-3 lg:py-2"
+            >
+              <div className="flex items-center justify-center gap-1 text-[7px] uppercase tracking-[0.1em] text-slate-400 lg:justify-start lg:gap-1.5 lg:text-[10px] lg:tracking-[0.17em]">
+                <Target size={9} className="text-sky-200 lg:hidden" />
+                <Target size={12} className="hidden text-sky-200 lg:block" />
+                Challenges
+              </div>
+              <div className="mt-0.5 flex flex-col items-center gap-0 lg:mt-1 lg:flex-row lg:items-end lg:justify-between lg:gap-3">
+                <div className="flex items-end gap-1 lg:gap-2">
+                  <span className="hidden pb-0 text-[8px] uppercase tracking-[0.1em] text-sky-100/80 sm:inline lg:pb-0.5 lg:text-[9px] lg:tracking-[0.13em]">Ready</span>
+                  <span className="text-[0.78rem] font-semibold leading-none text-white lg:text-[clamp(1rem,1.45vw,1.45rem)]">
+                    {readyRogueChallengeCount}
+                  </span>
+                </div>
+                <div className="hidden pb-0 text-center text-[8px] uppercase tracking-[0.1em] text-slate-400 lg:block lg:pb-0.5 lg:text-right lg:text-[9px] lg:tracking-[0.12em]">
+                  Goals
+                </div>
+              </div>
+              <div className="mt-0.5 h-0.5 overflow-hidden rounded-full border border-white/10 bg-slate-700/70 lg:mt-1 lg:h-1.5">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-sky-300 via-cyan-200 to-amber-200"
+                  style={{
+                    width: `${Math.max(
+                      6,
+                      Math.round((state.claimedRogueChallengeIds.length / Math.max(1, ROGUE_CHALLENGES.length)) * 100),
+                    )}%`,
+                  }}
+                />
+              </div>
+              <div className="mt-1 h-0.5" />
+            </button>
+            <button
+              type="button"
               data-tutorial-id="app-token-store"
               onClick={() => openTokenStore("store", "top_nav")}
-              className="glass-panel min-h-[30px] w-full rounded-2xl px-1.5 py-1 text-left transition hover:border-amber-200/24 hover:bg-white/10 sm:min-w-0 lg:min-h-[70px] lg:min-w-[200px] lg:px-3.5 lg:py-2"
+              className="glass-panel min-h-[30px] w-full min-w-0 rounded-2xl px-1.5 py-1 text-left transition hover:border-amber-200/24 hover:bg-white/10 sm:min-w-0 lg:min-h-[64px] lg:px-3 lg:py-2"
             >
               <div className="flex items-center justify-center gap-1 text-[7px] uppercase tracking-[0.1em] text-slate-400 lg:justify-start lg:gap-1.5 lg:text-[10px] lg:tracking-[0.17em]">
                 <Coins size={9} className="text-amber-200 lg:hidden" />
@@ -736,7 +931,7 @@ function App() {
                 Tokens
               </div>
               <div className="mt-0.5 flex flex-col items-center gap-0 lg:mt-1 lg:flex-row lg:items-end lg:justify-between lg:gap-3">
-                <div className="text-[0.78rem] font-semibold leading-none text-white lg:text-[1.65rem]">
+                <div className="text-[0.78rem] font-semibold leading-none text-white lg:text-[clamp(1rem,1.45vw,1.45rem)]">
                   {metaProgress.tokens.balance}
                 </div>
                 <div className="hidden pb-0 text-center text-[8px] uppercase tracking-[0.1em] text-slate-400 lg:block lg:pb-0.5 lg:text-right lg:text-[9px] lg:tracking-[0.12em]">
@@ -749,7 +944,7 @@ function App() {
               type="button"
               data-tutorial-id="app-collection"
               onClick={openCollection}
-              className="glass-panel min-h-[30px] w-full rounded-2xl px-1.5 py-1 text-left transition hover:border-cyan-200/24 hover:bg-white/10 sm:min-w-0 lg:min-h-[70px] lg:min-w-[230px] lg:px-3.5 lg:py-2"
+              className="glass-panel min-h-[30px] w-full min-w-0 rounded-2xl px-1.5 py-1 text-left transition hover:border-cyan-200/24 hover:bg-white/10 sm:min-w-0 lg:min-h-[64px] lg:px-3 lg:py-2"
             >
               <div className="flex items-center justify-center gap-1 text-[7px] uppercase tracking-[0.1em] text-slate-400 lg:justify-start lg:gap-1.5 lg:text-[10px] lg:tracking-[0.17em]">
                 <Images size={9} className="text-cyan-200 lg:hidden" />
@@ -759,7 +954,7 @@ function App() {
               <div className="mt-0.5 flex flex-col items-center gap-0 lg:mt-1 lg:flex-row lg:items-end lg:justify-between lg:gap-3">
                 <div className="flex items-end gap-1 lg:gap-2">
                   <span className="hidden pb-0 text-[8px] uppercase tracking-[0.1em] text-cyan-100/80 sm:inline lg:pb-0.5 lg:text-[9px] lg:tracking-[0.13em]">Cards</span>
-                  <span className="text-[0.78rem] font-semibold leading-none text-white lg:text-[1.65rem]">
+                  <span className="text-[0.78rem] font-semibold leading-none text-white lg:text-[clamp(1rem,1.45vw,1.45rem)]">
                     {ownedCollectionPlayerIds.length}
                   </span>
                 </div>
@@ -780,13 +975,13 @@ function App() {
               </div>
               <div className="mt-1 h-0.5" />
             </button>
-            <div className="relative flex justify-end">
+            <div className="relative flex justify-end lg:justify-center">
               <button
                 type="button"
                 data-tutorial-id="app-account"
                 onClick={() => setProfileMenuOpen((open) => !open)}
                 aria-label="Open user profile menu"
-                className="glass-panel grid h-[30px] w-[30px] place-items-center rounded-full border border-cyan-100/18 bg-[radial-gradient(circle_at_top,rgba(103,232,249,0.18),rgba(15,23,42,0.92))] text-cyan-50 shadow-[0_14px_30px_rgba(8,47,73,0.24)] transition hover:scale-[1.03] hover:border-cyan-100/34 hover:bg-cyan-300/12 lg:h-[70px] lg:w-[70px]"
+                className="glass-panel grid h-[30px] w-[30px] place-items-center rounded-full border border-cyan-100/18 bg-[radial-gradient(circle_at_top,rgba(103,232,249,0.18),rgba(15,23,42,0.92))] text-cyan-50 shadow-[0_14px_30px_rgba(8,47,73,0.24)] transition hover:scale-[1.03] hover:border-cyan-100/34 hover:bg-cyan-300/12 lg:h-[64px] lg:w-[64px]"
               >
                 <UserRound size={13} className="lg:hidden" />
                 <UserRound size={24} className="hidden lg:block" />
@@ -1271,8 +1466,6 @@ function App() {
           activeRogueStarId={state.activeRogueStarId}
           rogueCollectedCollectionEntryIds={state.rogueCollectedCollectionEntryIds}
           claimedCollectionRewardIds={state.claimedCollectionRewardIds}
-          completedRogueChallengeIds={state.completedRogueChallengeIds}
-          claimedRogueChallengeIds={state.claimedRogueChallengeIds}
           initialView={tokenStoreInitialView}
           onBuyTrainingCampTicket={() => purchaseTrainingCampTicket(getTokenStoreUtilityPrice("training-camp-ticket"))}
           onBuyTradePhone={() => purchaseTradePhone(getTokenStoreUtilityPrice("trade-phone"))}
@@ -1288,9 +1481,17 @@ function App() {
           onEnsureRoguePackPullOwned={ensureRoguePackPullOwned}
           onSetActiveRogueStar={setActiveRogueStar}
           onClaimCollectionReward={claimCollectionReward}
+          onClose={() => setTokenStoreOpen(false)}
+        />
+      )}
+
+      {challengesOpen && (
+        <RogueChallengesOverlay
+          completedRogueChallengeIds={state.completedRogueChallengeIds}
+          claimedRogueChallengeIds={state.claimedRogueChallengeIds}
           onClaimRogueChallengeReward={claimRogueChallengeReward}
           onRunRogueChallenge={runRogueChallenge}
-          onClose={() => setTokenStoreOpen(false)}
+          onClose={() => setChallengesOpen(false)}
         />
       )}
 

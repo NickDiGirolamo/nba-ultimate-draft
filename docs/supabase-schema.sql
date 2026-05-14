@@ -74,6 +74,18 @@ create table if not exists public.user_collection_cards (
   unique (user_id, player_id)
 );
 
+create table if not exists public.user_store_unlocks (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  unlock_id text not null,
+  quantity integer not null default 0 check (quantity >= 0),
+  source text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, unlock_id)
+);
+
 create index if not exists token_transactions_user_created_at_idx
 on public.token_transactions (user_id, created_at desc);
 
@@ -88,6 +100,9 @@ on public.user_collection_cards (user_id, created_at desc);
 
 create index if not exists user_collection_cards_player_id_idx
 on public.user_collection_cards (player_id);
+
+create index if not exists user_store_unlocks_user_unlock_id_idx
+on public.user_store_unlocks (user_id, unlock_id);
 
 insert into public.token_pack_products (
   slug,
@@ -210,6 +225,7 @@ alter table public.token_transactions enable row level security;
 alter table public.token_pack_products enable row level security;
 alter table public.token_purchase_records enable row level security;
 alter table public.user_collection_cards enable row level security;
+alter table public.user_store_unlocks enable row level security;
 alter table public.saved_rogue_runs enable row level security;
 
 drop policy if exists "Users can select own profile" on public.user_profiles;
@@ -310,6 +326,7 @@ grant select, insert, update on public.token_purchase_records to authenticated, 
 grant select, insert on public.token_transactions to authenticated, service_role;
 grant select, insert, update on public.user_token_balances to authenticated, service_role;
 grant select, insert, update on public.user_collection_cards to authenticated, service_role;
+grant select, insert, update on public.user_store_unlocks to authenticated, service_role;
 
 drop policy if exists "Users can select own collection cards" on public.user_collection_cards;
 create policy "Users can select own collection cards"
@@ -326,6 +343,25 @@ with check (user_id = auth.uid());
 drop policy if exists "Users can update own collection cards" on public.user_collection_cards;
 create policy "Users can update own collection cards"
 on public.user_collection_cards for update
+to authenticated
+using (user_id = auth.uid())
+with check (user_id = auth.uid());
+
+drop policy if exists "Users can select own store unlocks" on public.user_store_unlocks;
+create policy "Users can select own store unlocks"
+on public.user_store_unlocks for select
+to authenticated
+using (user_id = auth.uid());
+
+drop policy if exists "Users can insert own store unlocks" on public.user_store_unlocks;
+create policy "Users can insert own store unlocks"
+on public.user_store_unlocks for insert
+to authenticated
+with check (user_id = auth.uid());
+
+drop policy if exists "Users can update own store unlocks" on public.user_store_unlocks;
+create policy "Users can update own store unlocks"
+on public.user_store_unlocks for update
 to authenticated
 using (user_id = auth.uid())
 with check (user_id = auth.uid());

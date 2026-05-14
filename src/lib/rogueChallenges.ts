@@ -14,9 +14,21 @@ export interface RogueChallengeDefinition {
   description: string;
   reward: number;
   requirement: string;
+  groupId: RogueChallengeGroupId;
+  subgroupId?: RogueChallengeSubgroupId;
   rewardCoachId?: string;
   requiredTeamName?: string;
 }
+
+export type RogueChallengeGroupId =
+  | "rookie"
+  | "pro"
+  | "all-star"
+  | "superstar"
+  | "hall-of-fame"
+  | "team-takeovers";
+
+export type RogueChallengeSubgroupId = "year-one-takeovers" | "total-takeovers";
 
 export interface RogueChallengeRunSettingsPreset {
   challengeId: string;
@@ -26,12 +38,16 @@ export interface RogueChallengeRunSettingsPreset {
 const slugifyTeamName = (teamName: string) =>
   teamName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
+const YEAR_ONE_TAKEOVER_REQUIRED_TEAM_PLAYERS = 5;
+
 const teamTakeoverChallenges: RogueChallengeDefinition[] = roguelikeCoaches.map((coach) => ({
   id: `${slugifyTeamName(coach.teamName)}-year-1-takeover`,
   title: `${coach.teamName} Year 1 Takeover`,
-  description: `Beat the Year 1 NBA Finals with 7 ${coach.teamName} players in your run roster.`,
+  description: `Beat the Year 1 NBA Finals with ${YEAR_ONE_TAKEOVER_REQUIRED_TEAM_PLAYERS} ${coach.teamName} players in your run roster.`,
   reward: 500,
-  requirement: `7 ${coach.teamName} players in run roster, clear Year 1 Finals`,
+  requirement: `${YEAR_ONE_TAKEOVER_REQUIRED_TEAM_PLAYERS} ${coach.teamName} players in run roster, clear Year 1 Finals`,
+  groupId: "team-takeovers",
+  subgroupId: "year-one-takeovers",
   rewardCoachId: coach.id,
   requiredTeamName: coach.teamName,
 }));
@@ -42,6 +58,8 @@ const totalTakeoverChallenges: RogueChallengeDefinition[] = roguelikeCoaches.map
   description: `Beat the GOAT node with only ${coach.teamName} players in your run roster.`,
   reward: 25_000,
   requirement: `10 ${coach.teamName} players in run roster, clear GOAT node`,
+  groupId: "team-takeovers",
+  subgroupId: "total-takeovers",
   requiredTeamName: coach.teamName,
 }));
 
@@ -52,6 +70,7 @@ export const ROGUE_CHALLENGES: RogueChallengeDefinition[] = [
     description: "Use the West-only player pool and get past the Year 1 NBA Finals.",
     reward: 250,
     requirement: "West-only player pool, clear Year 1 Finals",
+    groupId: "rookie",
   },
   {
     id: "eastern-conference-takeover",
@@ -59,6 +78,7 @@ export const ROGUE_CHALLENGES: RogueChallengeDefinition[] = [
     description: "Use the East-only player pool and get past the Year 1 NBA Finals.",
     reward: 250,
     requirement: "East-only player pool, clear Year 1 Finals",
+    groupId: "rookie",
   },
   {
     id: "sapphire-year-two-round-one",
@@ -66,6 +86,7 @@ export const ROGUE_CHALLENGES: RogueChallengeDefinition[] = [
     description: "Beat the Year 2 NBA Playoffs Round 1 without any Ruby or higher players in your starting lineup.",
     reward: 1000,
     requirement: "Starting lineup only: Emerald/Sapphire players, clear Year 2 Round 1",
+    groupId: "pro",
   },
   {
     id: "no-trades-year-two-finals",
@@ -73,6 +94,7 @@ export const ROGUE_CHALLENGES: RogueChallengeDefinition[] = [
     description: "Turn Trades off before the run and beat the Year 2 NBA Finals.",
     reward: 2000,
     requirement: "Trades off, clear Year 2 Finals",
+    groupId: "all-star",
   },
   {
     id: "no-training-year-two-finals",
@@ -80,6 +102,7 @@ export const ROGUE_CHALLENGES: RogueChallengeDefinition[] = [
     description: "Turn Training Camps off before the run and beat the Year 2 NBA Finals.",
     reward: 2000,
     requirement: "Training Camps off, clear Year 2 Finals",
+    groupId: "all-star",
   },
   {
     id: "sapphire-year-one-finals",
@@ -87,6 +110,7 @@ export const ROGUE_CHALLENGES: RogueChallengeDefinition[] = [
     description: "Beat the Year 1 NBA Finals without any Ruby or higher players in your starting lineup.",
     reward: 250,
     requirement: "Starting lineup only: Emerald/Sapphire players, clear Year 1 Finals",
+    groupId: "rookie",
   },
   {
     id: "coach-team-finals-core",
@@ -94,6 +118,7 @@ export const ROGUE_CHALLENGES: RogueChallengeDefinition[] = [
     description: "Beat the Year 2 NBA Finals with 5 starters from your coach's NBA team.",
     reward: 750,
     requirement: "5 coach-team starters, clear Year 2 Finals",
+    groupId: "pro",
   },
   {
     id: "iconic-team-chem-finals-core",
@@ -101,6 +126,7 @@ export const ROGUE_CHALLENGES: RogueChallengeDefinition[] = [
     description: "Beat the Year 2 NBA Finals with 5 starters from the same Team Chemistry group.",
     reward: 2500,
     requirement: "5 same Team Chemistry group starters, clear Year 2 Finals",
+    groupId: "superstar",
   },
   ...teamTakeoverChallenges,
   ...totalTakeoverChallenges,
@@ -239,7 +265,11 @@ export const getCompletedRogueChallengeIdsForClear = ({
     teamTakeoverChallenges.forEach((challenge) => {
       if (
         challenge.requiredTeamName &&
-        hasAtLeastPlayersFromTeam(rosterPlayers, challenge.requiredTeamName, 7)
+        hasAtLeastPlayersFromTeam(
+          rosterPlayers,
+          challenge.requiredTeamName,
+          YEAR_ONE_TAKEOVER_REQUIRED_TEAM_PLAYERS,
+        )
       ) {
         completedIds.push(challenge.id);
       }

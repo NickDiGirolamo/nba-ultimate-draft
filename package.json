@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "validate:image-overrides": "node ./scripts/validate-player-image-overrides.mjs",
+    "add:image-override": "node ./scripts/add-player-image-override.mjs",
+    "build": "npm run validate:image-overrides && tsc -b && vite build",
     "preview": "vite preview",
     "release:check": "powershell -ExecutionPolicy Bypass -File ./scripts/release-check.ps1"
   },
