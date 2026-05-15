@@ -37,7 +37,7 @@ export const DraftBriefing = ({
       ? `Post a ${focusTargetScore ?? 95}+ ${categoryChallenge.metricLabel.toLowerCase()} score.`
       : "Win the NBA Championship.";
   return (
-  <section className="space-y-8">
+  <section data-tutorial-id="draft-briefing-screen" className="space-y-8">
     <div className="glass-panel rounded-[34px] p-8 shadow-card lg:p-10">
       <div className="inline-flex rounded-full border border-white/12 bg-white/8 px-3 py-1 text-xs uppercase tracking-[0.24em] text-slate-300">
         Draft Briefing
@@ -50,7 +50,7 @@ export const DraftBriefing = ({
       </p>
 
       <div className="mt-8 grid gap-5 lg:grid-cols-[1.05fr_1.05fr_0.9fr]">
-        <div className="rounded-[28px] border border-amber-300/18 bg-amber-300/8 p-6">
+        <div data-tutorial-id="draft-briefing-rule" className="rounded-[28px] border border-amber-300/18 bg-amber-300/8 p-6">
           <div className="flex items-center gap-3 text-amber-100">
             <Flag size={18} />
             <span className="text-xs uppercase tracking-[0.22em]">Rule</span>
@@ -59,7 +59,7 @@ export const DraftBriefing = ({
           <p className="mt-4 text-base leading-8 text-slate-100">{activeRule}</p>
         </div>
 
-        <div className="rounded-[28px] border border-emerald-300/18 bg-emerald-300/8 p-6">
+        <div data-tutorial-id="draft-briefing-goal" className="rounded-[28px] border border-emerald-300/18 bg-emerald-300/8 p-6">
           <div className="flex items-center gap-3 text-emerald-100">
             <Target size={18} />
             <span className="text-xs uppercase tracking-[0.22em]">Goal</span>
@@ -72,7 +72,7 @@ export const DraftBriefing = ({
           </p>
         </div>
 
-        <div className="rounded-[28px] border border-sky-300/18 bg-sky-300/8 p-6">
+        <div data-tutorial-id="draft-briefing-reward" className="rounded-[28px] border border-sky-300/18 bg-sky-300/8 p-6">
           <div className="flex items-center gap-3 text-sky-100">
             <Sparkles size={18} />
             <span className="text-xs uppercase tracking-[0.22em]">Run Intel</span>
@@ -95,7 +95,7 @@ export const DraftBriefing = ({
         </div>
       </div>
 
-      <div className="mt-8 rounded-[28px] border border-white/10 bg-black/20 p-6">
+      <div data-tutorial-id="draft-briefing-tips" className="mt-8 rounded-[28px] border border-white/10 bg-black/20 p-6">
         <div className="flex items-center gap-3 text-slate-200">
           <Target size={18} />
           <span className="text-xs uppercase tracking-[0.22em] text-slate-400">How To Win This Run</span>
@@ -153,6 +153,7 @@ export const DraftBriefing = ({
       <div className="mt-8 flex flex-wrap items-center gap-4">
         <button
           type="button"
+          data-tutorial-id="draft-briefing-start"
           onClick={onBegin}
           className="inline-flex min-w-[260px] items-center justify-center gap-2 rounded-full bg-white px-8 py-4 text-base font-semibold text-slate-900 transition hover:scale-[1.02]"
         >

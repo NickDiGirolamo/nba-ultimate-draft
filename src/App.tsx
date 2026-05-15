@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, Coins, Crown, Flag, Images, LogOut, Sparkles, Swords, Target, Trophy, UserRound } from "lucide-react";
+import { createPortal } from "react-dom";
+import { BookOpen, Coins, Crown, Flag, Images, Info, LifeBuoy, LogOut, Sparkles, Swords, Target, UserRound } from "lucide-react";
 import { CollectionOverlay } from "./components/CollectionOverlay";
 import { DraftBriefing } from "./components/DraftBriefing";
 import { DraftPlayerCard } from "./components/DraftPlayerCard";
@@ -35,14 +36,37 @@ import type { RoguelikeRunSettings } from "./lib/roguelike";
 import { getCategoryChallengeTarget } from "./lib/simulate";
 import { tokenStoreUtilityItems, type TokenStoreUtilityItem } from "./lib/tokenStore";
 import { trackAnalyticsEventSoon } from "./lib/analytics";
+import { ULTIMATE_DRAFT_LOGO_SRC } from "./lib/brand";
 
 const ROGUELIKE_UI_STORAGE_KEY = "legends-draft-roguelike-ui-v1";
 const ROGUELIKE_RUN_STORAGE_KEY = "legends-draft-roguelike-run-v1";
 const ROGUELIKE_PARKED_STORAGE_KEY = "legends-draft-roguelike-parked-v1";
 const FIRST_RUN_TUTORIAL_STORAGE_KEY = "nba-ultimate-draft-first-run-tutorial-v1";
+const FEEDBACK_SUPPORT_EMAIL = "support@nbaultimatedraft.com";
+
+type TutorialMode = "first-run" | "context";
 
 const getTokenStoreUtilityPrice = (id: TokenStoreUtilityItem["id"]) =>
   tokenStoreUtilityItems.find((item) => item.id === id)?.price ?? 0;
+
+const openFeedbackSupportEmail = (email: string | null | undefined, guestMode: boolean) => {
+  if (typeof window === "undefined") return;
+
+  const subject = encodeURIComponent("NBA Ultimate Draft feedback/support");
+  const body = encodeURIComponent(
+    [
+      "Tell us what happened, what you expected, and what screen you were on:",
+      "",
+      "",
+      "Troubleshooting details:",
+      `Account: ${guestMode ? "Guest Mode" : email ?? "Signed in"}`,
+      `Page: ${window.location.href}`,
+      `Browser: ${window.navigator.userAgent}`,
+    ].join("\n"),
+  );
+
+  window.location.href = `mailto:${FEEDBACK_SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
+};
 
 const challengeStrategyMap: Record<string, string> = {
   "classic": "Take the best long-term team, not the flashiest individual player.",
@@ -72,6 +96,18 @@ const categoryStrategyMap: Record<string, string> = {
   chemistry: "Chase badge synergies while keeping players in coherent positions and roles.",
 };
 
+const hasVisibleTutorialTarget = (step: GuidedTutorialStep) => {
+  if (typeof document === "undefined" || typeof window === "undefined") return false;
+
+  const targetId = step.spotlightTargetId ?? step.targetId;
+  const element = document.querySelector<HTMLElement>(`[data-tutorial-id="${targetId}"]`);
+  if (!element) return false;
+
+  const rect = element.getBoundingClientRect();
+  const style = window.getComputedStyle(element);
+  return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+};
+
 function App() {
   const auth = useSupabaseAuth();
   const {
@@ -93,6 +129,8 @@ function App() {
     beginDraftFromBriefing,
     awardRogueFailureRewards,
     updateRoguePersonalBests,
+    recordRogueRunStarted,
+    recordRogueRunDraftedPlayers,
     applyCloudAccountSnapshot,
     absorbCloudTokenBalance,
     absorbCloudCollectionPlayerIds,
@@ -146,7 +184,9 @@ function App() {
 
     return window.localStorage.getItem(FIRST_RUN_TUTORIAL_STORAGE_KEY) !== "complete";
   });
+  const [tutorialMode, setTutorialMode] = useState<TutorialMode>("first-run");
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
+  const [activeContextTutorialSteps, setActiveContextTutorialSteps] = useState<GuidedTutorialStep[]>([]);
   const [cloudSavedRogueRun, setCloudSavedRogueRun] = useState<unknown | null>(null);
   const [cloudTokenBalanceLoaded, setCloudTokenBalanceLoaded] = useState(false);
   const [cloudCollectionLoaded, setCloudCollectionLoaded] = useState(false);
@@ -181,7 +221,7 @@ function App() {
       return false;
     }
   });
-  const tutorialSteps = useMemo<GuidedTutorialStep[]>(() => {
+  const firstRunTutorialSteps = useMemo<GuidedTutorialStep[]>(() => {
     const steps: GuidedTutorialStep[] = [
       {
         id: "tokens",
@@ -209,7 +249,7 @@ function App() {
         targetId: "home-enter-rogue",
         title: "Start with NBA Rogue Mode",
         body: "This is the main experience. Click this button to enter the run setup and begin the guided path.",
-        placement: "bottom",
+        placement: "top",
         advanceOnTargetClick: true,
       },
       {
@@ -263,13 +303,529 @@ function App() {
     return steps;
   }, [isNarrowViewport]);
 
-  const completeTutorial = useCallback(() => {
+  const contextTutorialCandidates = useMemo<GuidedTutorialStep[]>(() => {
+    const navigationSteps: GuidedTutorialStep[] = [
+      {
+        id: "nav-learn",
+        targetId: "app-learn",
+        title: "Learn Guide",
+        body: "Open this when you want a rules refresher on Rogue cards, badges, bosses, locker room cash, and long-term progress.",
+        placement: "bottom",
+      },
+      {
+        id: "nav-challenges",
+        targetId: "app-challenges",
+        title: "Challenges",
+        body: "Challenges are one-time Rogue goals. Completed goals can be filtered, claimed for rewards, or launched as preset challenge runs.",
+        placement: "bottom",
+      },
+      {
+        id: "nav-store",
+        targetId: "app-token-store",
+        title: "Token Store",
+        body: "Spend tokens here on run tools, permanent upgrades, starter pack improvements, token bundles, and permanent player-card packs.",
+        placement: "bottom",
+      },
+      {
+        id: "nav-collection",
+        targetId: "app-collection",
+        title: "Collection",
+        body: "Open your permanent card wall to review owned cards and collection progress.",
+        placement: "bottom",
+      },
+      {
+        id: "nav-account",
+        targetId: "app-account",
+        title: "Account",
+        body: "This opens profile actions, including restarting the full onboarding tour and signing in or out.",
+        placement: "bottom",
+      },
+    ];
+
+    if (learnOpen) {
+      return [
+        {
+          id: "learn-shell",
+          targetId: "learn-overlay",
+          title: "Learn Guide",
+          body: "This modal is the in-game reference manual for the systems that matter most during a Rogue run.",
+        },
+        {
+          id: "learn-tabs",
+          targetId: "learn-tabs",
+          title: "Topics",
+          body: "Switch topics to jump between basics, card reading, badges, bosses, locker room cash, and progression.",
+          placement: "right",
+        },
+        {
+          id: "learn-content",
+          targetId: "learn-content",
+          title: "Current Lesson",
+          body: "The main lesson cards explain what the selected system does and how it should affect your decisions.",
+          placement: "top",
+        },
+        {
+          id: "learn-reminders",
+          targetId: "learn-reminders",
+          title: "Practical Reminders",
+          body: "These short notes call out the things most likely to matter while you are actually drafting or climbing.",
+          placement: "top",
+        },
+      ];
+    }
+
+    if (challengesOpen) {
+      return [
+        {
+          id: "challenges-shell",
+          targetId: "rogue-challenges-overlay",
+          title: "Challenge Tracker",
+          body: "This is where Rogue goals, milestone progress, reward status, and preset challenge launches live.",
+        },
+        {
+          id: "challenges-groups",
+          targetId: "rogue-challenges-groups",
+          title: "Challenge Groups",
+          body: "Use these groups and subgroups to move between milestones, difficulty families, and team takeover goals.",
+          placement: "right",
+        },
+        {
+          id: "challenges-filters",
+          targetId: "rogue-challenges-filters",
+          title: "Status Filters",
+          body: "Filter to hide completed goals, find open goals, focus on ready-to-claim rewards, or review claimed challenges.",
+          placement: "top",
+        },
+        {
+          id: "challenges-list",
+          targetId: "rogue-challenges-list",
+          title: "Challenge Rows",
+          body: "Each row shows the requirement, saved progress, reward, and the actions to run the preset or claim the payout.",
+          placement: "top",
+        },
+      ];
+    }
+
+    if (tokenStoreOpen) {
+      return [
+        {
+          id: "store-shell",
+          targetId: "token-store-overlay",
+          title: "Token Store",
+          body: "This store converts Rogue progress into better starts, stronger future runs, and permanent cards.",
+        },
+        {
+          id: "store-summary",
+          targetId: "token-store-summary",
+          title: "Token Summary",
+          body: "These cards show your spendable balance, lifetime token earnings, and how many permanent pack cards you own.",
+          placement: "top",
+        },
+        {
+          id: "store-tabs",
+          targetId: "token-store-view-tabs",
+          title: "Store Sections",
+          body: "Swap between Rogue upgrades, card packs, token bundles, and collection reward sets.",
+          placement: "top",
+        },
+        {
+          id: "store-active-view",
+          targetId: "token-store-active-view",
+          title: "Active Store View",
+          body: "The current section contains the purchases or rewards you can inspect, buy, open, or claim.",
+          placement: "top",
+        },
+      ];
+    }
+
+    if (collectionOpen) {
+      return [
+        {
+          id: "collection-shell",
+          targetId: "collection-overlay",
+          title: "Collection",
+          body: "This is your permanent card wall. Cards earned from packs, purchases, and rewards stay here across runs.",
+        },
+        {
+          id: "collection-summary",
+          targetId: "collection-summary",
+          title: "Collection Totals",
+          body: "These counters show owned cards, the full player pool, and total completion percentage.",
+          placement: "top",
+        },
+        {
+          id: "collection-filters",
+          targetId: "collection-filters",
+          title: "Card Filters",
+          body: "Search by player or team, then narrow the wall by tier, NBA team, or position.",
+          placement: "top",
+        },
+        {
+          id: "collection-grid",
+          targetId: "collection-grid",
+          title: "Owned Cards",
+          body: "This grid displays the filtered permanent cards you own. In starter-pick flows, selecting a card enables the add action.",
+          placement: "top",
+        },
+      ];
+    }
+
+    if (prestigeOpen) {
+      return [
+        {
+          id: "prestige-shell",
+          targetId: "prestige-overlay",
+          title: "Prestige Profile",
+          body: "Prestige is your long-term Rogue reputation and reward track.",
+        },
+        {
+          id: "prestige-tabs",
+          targetId: "prestige-tabs",
+          title: "Prestige Views",
+          body: "Switch between your progress overview and the level reward track.",
+          placement: "top",
+        },
+        {
+          id: "prestige-summary",
+          targetId: "prestige-summary",
+          title: "Level Progress",
+          body: "These cards show your current score, level floor, next target, and progress toward the next level.",
+          placement: "top",
+        },
+        {
+          id: "prestige-active-panel",
+          targetId: "prestige-active-panel",
+          title: "Details",
+          body: "This section explains where your Prestige came from or what future levels unlock.",
+          placement: "top",
+        },
+      ];
+    }
+
+    if (showPrestigeLevelUp) {
+      return [
+        {
+          id: "level-up-shell",
+          targetId: "prestige-level-up-modal",
+          title: "Level Up",
+          body: "This modal confirms your new Prestige level after the run result is processed.",
+        },
+        {
+          id: "level-up-rewards",
+          targetId: "prestige-level-up-rewards",
+          title: "Unlocked Rewards",
+          body: "Any gameplay rewards unlocked at this level are listed here so you know what changed.",
+          placement: "top",
+        },
+        {
+          id: "level-up-continue",
+          targetId: "prestige-level-up-continue",
+          title: "Continue",
+          body: "Close this when you are ready to return to the results screen.",
+          placement: "top",
+        },
+      ];
+    }
+
+    if (roguelikeOpen) {
+      return [
+        {
+          id: "rogue-coach-select-intro",
+          targetId: "rogue-coach-select-intro",
+          title: "Choose Your Coach",
+          body: "Select 1 of the 5 coaches on this screen. Each coach is tied to an NBA team, and signing that coach gives every player you draft or add later from that same team a +1 overall boost for the rest of the run.",
+          placement: "bottom",
+        },
+        {
+          id: "rogue-coach-select-options",
+          targetId: "rogue-coach-select-options",
+          title: "Coach Team Boosts",
+          body: "Look at the team shown on each coach card before you hire. The best choice is usually the team boost that matches players you already have or players you want to chase next.",
+          placement: "top",
+        },
+        {
+          id: "rogue-screen",
+          targetId: "rogue-mode-screen",
+          title: "NBA Rogue Mode",
+          body: "This is the run-based mode. The current screen changes as you configure, draft, climb, shop, fight bosses, and review results.",
+        },
+        {
+          id: "rogue-settings",
+          targetId: "rogue-settings-screen",
+          title: "Run Settings",
+          body: "These controls shape the player pool, difficulty, enabled run systems, starter pack quality, and ladder length.",
+          placement: "top",
+        },
+        {
+          id: "rogue-settings-action",
+          targetId: "rogue-settings-continue",
+          title: "Continue",
+          body: "Use this when the setup looks right and you are ready to choose a starter pack.",
+          placement: "top",
+        },
+        {
+          id: "rogue-starter-choice",
+          targetId: "rogue-starter-pack-choice",
+          title: "Starter Packs",
+          body: "Pick the opening offer that best matches the kind of roster you want to build.",
+          placement: "top",
+        },
+        {
+          id: "rogue-starter-reveal",
+          targetId: "rogue-starter-reveal-cards",
+          title: "Starter Reveal",
+          body: "Flip your starter cards to see the first core pieces of the run.",
+          placement: "top",
+        },
+        {
+          id: "rogue-starter-proceed",
+          targetId: "rogue-starter-proceed",
+          title: "Proceed",
+          body: "Once the starter cards are revealed, this moves the run to the ladder.",
+          placement: "top",
+        },
+        {
+          id: "rogue-stage-panel",
+          targetId: "rogue-mode-stage-panel",
+          title: "Current Run Panel",
+          body: "This is the main action area for the current floor, reward, store stop, lineup choice, or result.",
+          placement: "top",
+        },
+        {
+          id: "rogue-ladder",
+          targetId: "rogue-ladder-map",
+          title: "Run Ladder",
+          body: "The ladder shows the floors ahead, the current decision, and the rewards or checks attached to each stop.",
+          placement: "top",
+        },
+        {
+          id: "rogue-ladder-go",
+          targetId: "rogue-ladder-go",
+          title: "Current Floor Action",
+          body: "This starts the highlighted floor and moves the run forward.",
+          placement: "top",
+        },
+        {
+          id: "rogue-roster",
+          targetId: "rogue-roster-rail",
+          title: "Run Roster",
+          body: "Your current roster and slot order live here. During roster decisions, this is where drag-and-drop matters.",
+          placement: "top",
+        },
+      ];
+    }
+
+    if (state.screen === "briefing") {
+      return [
+        {
+          id: "briefing-shell",
+          targetId: "draft-briefing-screen",
+          title: "Draft Briefing",
+          body: "This pre-run screen locks in the rules, goals, and reward stakes before the draft starts.",
+        },
+        {
+          id: "briefing-rule",
+          targetId: "draft-briefing-rule",
+          title: "Run Rule",
+          body: "This card tells you the restriction or setup that changes how the roster should be built.",
+          placement: "top",
+        },
+        {
+          id: "briefing-goal",
+          targetId: "draft-briefing-goal",
+          title: "Goal",
+          body: "This is the outcome you need for the run to count as cleared.",
+          placement: "top",
+        },
+        {
+          id: "briefing-start",
+          targetId: "draft-briefing-start",
+          title: "Start Drafting",
+          body: "Begin the draft when the rule and goal are clear.",
+          placement: "top",
+        },
+      ];
+    }
+
+    if (state.screen === "draft") {
+      return [
+        {
+          id: "draft-progress",
+          targetId: "draft-progress",
+          title: "Draft Progress",
+          body: "This header tracks which pick you are on and whether you are resolving a normal pick or a bonus pick.",
+          placement: "top",
+        },
+        {
+          id: "draft-action",
+          targetId: "draft-simulate-action",
+          title: state.bonusPickActive ? "Bonus Pick Action" : "Simulate Action",
+          body: state.bonusPickActive
+            ? "Skip the extra pick if the board does not improve your roster."
+            : "This stays locked until your 10-player roster is complete, then starts the season simulation.",
+          placement: "top",
+        },
+        {
+          id: "draft-intel",
+          targetId: "draft-run-intel",
+          title: "Run Intel",
+          body: "These notes summarize the active modifiers and suggest what kind of picks should play well.",
+          placement: "top",
+        },
+        {
+          id: "draft-choice-board",
+          targetId: "draft-choice-board",
+          title: "Choice Board",
+          body: "Choose one player from each five-card board. In bonus-pick mode, select a roster slot first if required.",
+          placement: "top",
+        },
+        {
+          id: "draft-roster",
+          targetId: "draft-roster-sidebar",
+          title: "Roster Sidebar",
+          body: "This tracks the team you are building, slot by slot, along with team average and chemistry.",
+          placement: "top",
+        },
+      ];
+    }
+
+    if (state.screen === "lineup") {
+      return [
+        {
+          id: "lineup-shell",
+          targetId: "lineup-screen",
+          title: "Lineup Phase",
+          body: "This is where you order your 10 drafted players before the season simulation.",
+        },
+        {
+          id: "lineup-starters",
+          targetId: "lineup-starters",
+          title: "Starting Five",
+          body: "Drag your best five into the starter slots. These positions carry the most simulation weight.",
+          placement: "top",
+        },
+        {
+          id: "lineup-bench",
+          targetId: "lineup-bench",
+          title: "Bench Roles",
+          body: "The structured bench roles matter after the starters, especially for roster balance and position fit.",
+          placement: "top",
+        },
+        {
+          id: "lineup-simulate",
+          targetId: "lineup-simulate",
+          title: "Simulate Season",
+          body: "Start the simulation once the rotation order feels right.",
+          placement: "top",
+        },
+      ];
+    }
+
+    if (state.screen === "simulating") {
+      return [
+        {
+          id: "sim-shell",
+          targetId: "simulation-screen",
+          title: "Season Simulation",
+          body: "The game is evaluating roster power, chemistry, depth, playoff volatility, and the active challenge context.",
+        },
+        {
+          id: "sim-steps",
+          targetId: "simulation-steps",
+          title: "Simulation Steps",
+          body: "These lines show the major pieces being processed before the results screen appears.",
+          placement: "top",
+        },
+      ];
+    }
+
+    if (state.screen === "results") {
+      return [
+        {
+          id: "results-actions",
+          targetId: "results-actions",
+          title: "Results Actions",
+          body: "Use these buttons to draft again, return home, or jump back to challenge tracking when a challenge flow is active.",
+          placement: "top",
+        },
+        {
+          id: "results-tabs",
+          targetId: "results-tabs",
+          title: "Results Views",
+          body: "Switch between the season outcome and the deeper team dashboard.",
+          placement: "top",
+        },
+        {
+          id: "results-main",
+          targetId: "results-main-panel",
+          title: "Result Summary",
+          body: "This panel explains the run outcome, headline stats, grade, record, or category-focus score.",
+          placement: "top",
+        },
+        {
+          id: "results-analysis",
+          targetId: "results-analysis-panel",
+          title: "Analysis",
+          body: "Use this section to understand what worked, what failed, and what the next draft should adjust.",
+          placement: "top",
+        },
+      ];
+    }
+
+    return [
+      {
+        id: "home-hero",
+        targetId: "home-enter-rogue",
+        title: "Enter Rogue",
+        body: "This launches NBA Rogue Mode, the main run-based experience.",
+        placement: "top",
+      },
+      {
+        id: "home-challenges",
+        targetId: "home-challenge-panel",
+        title: "Challenge Preview",
+        body: "This panel surfaces ready rewards, open challenge goals, and quick launch or claim actions.",
+        placement: "top",
+      },
+      ...navigationSteps,
+    ];
+  }, [
+    challengesOpen,
+    collectionOpen,
+    learnOpen,
+    prestigeOpen,
+    roguelikeOpen,
+    showPrestigeLevelUp,
+    state.bonusPickActive,
+    state.screen,
+    tokenStoreOpen,
+  ]);
+
+  const activeTutorialSteps = tutorialMode === "context" ? activeContextTutorialSteps : firstRunTutorialSteps;
+
+  const closeActiveTutorial = useCallback(() => {
     setTutorialOpen(false);
     setTutorialStepIndex(0);
-    if (typeof window !== "undefined") {
+    if (tutorialMode === "first-run" && typeof window !== "undefined") {
       window.localStorage.setItem(FIRST_RUN_TUTORIAL_STORAGE_KEY, "complete");
     }
-  }, []);
+  }, [tutorialMode]);
+
+  const openContextTutorial = useCallback(() => {
+    const visibleSteps = contextTutorialCandidates.filter(hasVisibleTutorialTarget);
+    const hasSpecificRogueStep = visibleSteps.some((step) =>
+      step.id.startsWith("rogue-") && step.id !== "rogue-screen",
+    );
+    const focusedVisibleSteps = hasSpecificRogueStep
+      ? visibleSteps.filter((step) => step.id !== "rogue-screen")
+      : visibleSteps;
+
+    setProfileMenuOpen(false);
+    setTutorialMode("context");
+    setActiveContextTutorialSteps(focusedVisibleSteps.length > 0 ? focusedVisibleSteps : contextTutorialCandidates);
+    setTutorialStepIndex(0);
+    setTutorialOpen(true);
+  }, [contextTutorialCandidates]);
 
   const restartTutorial = useCallback(() => {
     setProfileMenuOpen(false);
@@ -278,6 +834,8 @@ function App() {
     setCollectionOpen(false);
     setLearnOpen(false);
     setChallengesOpen(false);
+    setTutorialMode("first-run");
+    setActiveContextTutorialSteps([]);
     setTutorialStepIndex(0);
     setTutorialOpen(true);
     if (typeof window !== "undefined") {
@@ -829,7 +1387,7 @@ function App() {
   return (
     <div className={`arena-shell text-white ${isLandingHome ? "arena-shell--home" : ""}`}>
       <div className="arena-shell__content mx-auto max-w-[1720px] px-3 py-3 sm:px-4 sm:py-4 lg:px-5 lg:py-4">
-        <div className="mb-4 grid grid-cols-[minmax(64px,0.7fr)_minmax(0,4.3fr)] items-stretch gap-2 lg:grid-cols-[minmax(210px,0.95fr)_minmax(0,4.05fr)] lg:gap-3">
+        <div className="mb-4 grid grid-cols-[minmax(64px,0.7fr)_minmax(0,4.3fr)] items-stretch gap-2 lg:grid-cols-[160px_minmax(0,1fr)] lg:gap-3">
           <button
             type="button"
             onClick={() => {
@@ -839,19 +1397,15 @@ function App() {
               setRoguelikeOpen(false);
               resetDraft();
             }}
-            className="group col-span-1 flex min-h-[30px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl border border-white/10 bg-black/18 px-1.5 py-1 text-center transition hover:border-amber-200/22 hover:bg-black/24 lg:min-h-[64px] lg:max-w-none lg:flex-row lg:justify-start lg:gap-2.5 lg:px-3 lg:py-2 lg:text-left"
+            aria-label="Home"
+            className="group col-span-1 flex min-h-[30px] min-w-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/18 p-1 transition hover:border-amber-200/22 hover:bg-black/24 lg:min-h-[64px] lg:max-w-none lg:p-1.5"
           >
-            <div className="rounded-xl border border-amber-200/18 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.24),rgba(249,115,22,0.14),rgba(15,23,42,0.2))] p-1 text-amber-200 shadow-[0_10px_24px_rgba(251,191,36,0.16)] lg:rounded-2xl lg:p-2">
-              <Trophy size={11} className="lg:hidden" />
-              <Trophy size={17} className="hidden lg:block" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-[7px] uppercase tracking-[0.14em] text-slate-400 lg:text-[9px] lg:tracking-[0.22em]">Home</div>
-              <div className="truncate font-display text-[0.52rem] leading-none text-white lg:hidden">Draft</div>
-              <div className="mt-0.5 hidden truncate font-display text-[clamp(1rem,1.35vw,1.35rem)] text-white lg:block">
-                NBA Ultimate Draft
-              </div>
-            </div>
+            <img
+              src={ULTIMATE_DRAFT_LOGO_SRC}
+              alt="NBA Ultimate Draft"
+              className="h-[26px] w-full rounded-xl object-contain drop-shadow-[0_8px_18px_rgba(251,191,36,0.2)] lg:h-[58px] lg:rounded-2xl"
+              draggable={false}
+            />
           </button>
 
           <div className="col-span-1 grid min-w-0 grid-cols-5 gap-2 lg:grid-cols-[minmax(132px,1.05fr)_minmax(126px,0.8fr)_minmax(142px,0.9fr)_minmax(150px,0.95fr)_64px] lg:gap-3">
@@ -1006,6 +1560,21 @@ function App() {
                   </div>
                   <button
                     type="button"
+                    onClick={() => {
+                      setProfileMenuOpen(false);
+                      openFeedbackSupportEmail(auth.user?.email, guestMode);
+                    }}
+                    className="mt-4 group relative inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl border border-amber-100/45 bg-[linear-gradient(135deg,rgba(251,191,36,0.98),rgba(250,204,21,0.9),rgba(16,185,129,0.78))] px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-950 shadow-[0_16px_34px_rgba(251,191,36,0.28),0_0_28px_rgba(52,211,153,0.12)] transition hover:scale-[1.02] hover:shadow-[0_18px_38px_rgba(251,191,36,0.36),0_0_34px_rgba(52,211,153,0.18)]"
+                  >
+                    <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.32),transparent)] opacity-0 transition group-hover:opacity-100" />
+                    <LifeBuoy size={16} className="relative" />
+                    <span className="relative">Feedback / Support</span>
+                  </button>
+                  <p className="mt-2 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-100/82">
+                    Report issues or get troubleshooting help
+                  </p>
+                  <button
+                    type="button"
                     onClick={restartTutorial}
                     className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-amber-100/20 bg-amber-300/10 px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.16em] text-amber-50 transition hover:bg-amber-300/16"
                   >
@@ -1049,6 +1618,8 @@ function App() {
             ownedStarterPackChoicePlus={state.ownedStarterPackChoicePlus}
             onAwardFailureRewards={awardRogueFailureRewards}
             onUpdatePersonalBests={updateRoguePersonalBests}
+            onRecordRunStarted={recordRogueRunStarted}
+            onRecordRogueRunDraftedPlayers={recordRogueRunDraftedPlayers}
             onUseTrainingCampTicket={useTrainingCampTicket}
             onUseTradePhone={useTradePhone}
             onUseSilverStarterPack={useSilverStarterPack}
@@ -1056,6 +1627,8 @@ function App() {
             onUsePlatinumStarterPack={usePlatinumStarterPack}
             onRecordCollectionEntries={recordRogueCollectionEntries}
             onRecordRogueChallengeCompletions={recordRogueChallengeCompletions}
+            completedRogueChallengeIds={state.completedRogueChallengeIds}
+            onOpenRogueChallenges={openRogueChallenges}
             challengeSetupRequest={rogueChallengeSetupRequest}
             cloudSavedRunData={cloudSavedRogueRun}
             onCloudSaveRun={saveCloudRogueRun}
@@ -1111,13 +1684,18 @@ function App() {
                 onClick={resetDraft}
                 className="glass-panel inline-flex min-h-[72px] min-w-0 flex-row items-center justify-center gap-3 rounded-[24px] px-4 py-3 text-center shadow-card transition hover:border-amber-200/40 hover:text-amber-100 lg:h-full lg:flex-col lg:gap-2 lg:rounded-[28px] lg:p-3"
               >
-                <div className="rounded-full border border-white/12 bg-white/8 p-2">
-                  <Trophy size={14} className="text-amber-200" />
+                <div className="flex h-8 w-[76px] items-center justify-center overflow-hidden rounded-full border border-white/12 bg-black/38 px-2 py-1 shadow-[0_10px_22px_rgba(251,191,36,0.12)]">
+                  <img
+                    src={ULTIMATE_DRAFT_LOGO_SRC}
+                    alt="NBA Ultimate Draft"
+                    className="h-full w-full object-contain"
+                    draggable={false}
+                  />
                 </div>
                 <span className="text-[9px] uppercase tracking-[0.18em] text-slate-200">Home</span>
               </button>
 
-              <div className="min-w-0">
+              <div data-tutorial-id="draft-progress" className="min-w-0">
                 <ProgressHeader pickNumber={state.pickNumber} bonusPickActive={state.bonusPickActive} />
               </div>
 
@@ -1163,6 +1741,7 @@ function App() {
                   </div>
                   <button
                     type="button"
+                    data-tutorial-id="draft-simulate-action"
                     onClick={state.bonusPickActive ? skipBonusPick : beginSimulation}
                     disabled={state.bonusPickActive ? false : !completedRoster}
                     className="self-stretch rounded-full bg-white px-4 py-3 text-sm font-semibold text-slate-900 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-slate-400 sm:self-start sm:px-4 sm:py-2 sm:text-xs"
@@ -1176,7 +1755,7 @@ function App() {
             <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
               <div className="space-y-5">
                 {isNarrowViewport ? (
-                  <div className="grid grid-cols-5 gap-1.5">
+                  <div data-tutorial-id="draft-choice-board" className="grid grid-cols-5 gap-1.5">
                     {state.currentChoices.map((player, index) => {
                       const revealed = index < visibleChoiceCount;
 
@@ -1189,17 +1768,13 @@ function App() {
                           <div className={`choice-flip-card ${revealed ? "is-revealed" : ""}`}>
                             <div className="choice-face choice-face-back">
                               <div className="choice-card-back h-full rounded-[18px] border border-white/10">
-                                <div className="choice-card-back__inner">
-                                  <div className="choice-card-back__badge">Legends Draft</div>
-                                  <div className="choice-card-back__crest">
-                                    <div className="choice-card-back__crest-ring" />
-                                    <div className="choice-card-back__crest-core">NBA</div>
-                                  </div>
-                                  <div className="choice-card-back__pattern" />
-                                  <div className="choice-card-back__footer">
-                                    <span>All-Time</span>
-                                    <span>Reveal</span>
-                                  </div>
+                                <div className="choice-card-back__inner choice-card-back__inner--logo">
+                                  <img
+                                    src={ULTIMATE_DRAFT_LOGO_SRC}
+                                    alt="NBA Ultimate Draft"
+                                    className="choice-card-back__logo"
+                                    draggable={false}
+                                  />
                                 </div>
                               </div>
                             </div>
@@ -1223,7 +1798,7 @@ function App() {
                   </div>
                 ) : null}
 
-                <div className="glass-panel rounded-[20px] p-3 shadow-card">
+                <div data-tutorial-id="draft-run-intel" className="glass-panel rounded-[20px] p-3 shadow-card">
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Run Intel</div>
                     <div className="text-[11px] text-slate-500">Quick modifiers</div>
@@ -1256,7 +1831,7 @@ function App() {
                   </p>
                 </div>
 
-                <div className={`grid gap-1.5 sm:gap-3 ${isNarrowViewport ? "hidden" : "grid-cols-1 md:grid-cols-2 xl:grid-cols-5"}`}>
+                <div data-tutorial-id="draft-choice-board" className={`grid gap-1.5 sm:gap-3 ${isNarrowViewport ? "hidden" : "grid-cols-1 md:grid-cols-2 xl:grid-cols-5"}`}>
                   {state.currentChoices.map((player, index) => {
                     const revealed = index < visibleChoiceCount;
 
@@ -1269,17 +1844,13 @@ function App() {
                         <div className={`choice-flip-card ${revealed ? "is-revealed" : ""}`}>
                           <div className="choice-face choice-face-back">
                             <div className="choice-card-back h-full min-h-[1040px] rounded-[26px] border border-white/10">
-                              <div className="choice-card-back__inner">
-                                <div className="choice-card-back__badge">Legends Draft</div>
-                                <div className="choice-card-back__crest">
-                                  <div className="choice-card-back__crest-ring" />
-                                  <div className="choice-card-back__crest-core">NBA</div>
-                                </div>
-                                <div className="choice-card-back__pattern" />
-                                <div className="choice-card-back__footer">
-                                  <span>All-Time</span>
-                                  <span>Reveal</span>
-                                </div>
+                              <div className="choice-card-back__inner choice-card-back__inner--logo">
+                                <img
+                                  src={ULTIMATE_DRAFT_LOGO_SRC}
+                                  alt="NBA Ultimate Draft"
+                                  className="choice-card-back__logo"
+                                  draggable={false}
+                                />
                               </div>
                             </div>
                           </div>
@@ -1304,15 +1875,17 @@ function App() {
               </div>
 
               <div className="space-y-6">
-                <RosterSidebar
-                  roster={state.roster}
-                  teamAverage={teamAverage}
-                  draftChemistry={draftChemistry}
-                  lastFilledSlot={state.lastFilledSlot}
-                  selectedSlotIndex={state.selectedSlotIndex}
-                  bonusPickActive={state.bonusPickActive}
-                  onSlotClick={handleRosterSlotClick}
-                />
+                <div data-tutorial-id="draft-roster-sidebar">
+                  <RosterSidebar
+                    roster={state.roster}
+                    teamAverage={teamAverage}
+                    draftChemistry={draftChemistry}
+                    lastFilledSlot={state.lastFilledSlot}
+                    selectedSlotIndex={state.selectedSlotIndex}
+                    bonusPickActive={state.bonusPickActive}
+                    onSlotClick={handleRosterSlotClick}
+                  />
+                </div>
                 <div className="glass-panel rounded-[24px] p-4 shadow-card sm:p-5 sm:rounded-[28px]">
                   <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Team Snapshot</div>
                   <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-1">
@@ -1487,6 +2060,7 @@ function App() {
 
       {challengesOpen && (
         <RogueChallengesOverlay
+          meta={metaProgress}
           completedRogueChallengeIds={state.completedRogueChallengeIds}
           claimedRogueChallengeIds={state.claimedRogueChallengeIds}
           onClaimRogueChallengeReward={claimRogueChallengeReward}
@@ -1504,14 +2078,36 @@ function App() {
         />
       )}
 
-      {tutorialOpen && !auth.loading ? (
+      {!tutorialOpen && !auth.loading && typeof document !== "undefined"
+        ? createPortal(
+            <button
+              type="button"
+              data-tutorial-id="screen-guide-button"
+              onClick={openContextTutorial}
+              className="fixed grid h-12 w-12 place-items-center rounded-full border-2 border-yellow-100 bg-[#f5b82e] text-slate-950 shadow-[0_18px_45px_rgba(0,0,0,0.5),0_0_0_4px_rgba(48,28,4,1),0_0_26px_rgba(245,184,46,0.7),0_0_54px_rgba(245,158,11,0.34)] transition hover:scale-[1.05] hover:bg-[#ffd76a] hover:shadow-[0_20px_48px_rgba(0,0,0,0.52),0_0_0_4px_rgba(48,28,4,1),0_0_34px_rgba(251,191,36,0.86),0_0_72px_rgba(245,158,11,0.46)] focus:outline-none focus:ring-2 focus:ring-yellow-100 sm:h-[52px] sm:w-[52px]"
+              style={{
+                bottom: "max(28px, calc(env(safe-area-inset-bottom, 0px) + 18px))",
+                right: "max(22px, calc(env(safe-area-inset-right, 0px) + 18px))",
+                zIndex: 2147483647,
+              }}
+              aria-label="Open screen guide"
+              title="Open screen guide"
+            >
+              <Info size={20} />
+              <span className="sr-only">Open screen guide</span>
+            </button>,
+            document.body,
+          )
+        : null}
+
+      {tutorialOpen && !auth.loading && activeTutorialSteps.length > 0 ? (
         <GuidedTutorialOverlay
-          steps={tutorialSteps}
+          steps={activeTutorialSteps}
           activeStepIndex={tutorialStepIndex}
-          onNext={() => setTutorialStepIndex((index) => Math.min(tutorialSteps.length - 1, index + 1))}
+          onNext={() => setTutorialStepIndex((index) => Math.min(activeTutorialSteps.length - 1, index + 1))}
           onBack={() => setTutorialStepIndex((index) => Math.max(0, index - 1))}
-          onSkip={completeTutorial}
-          onFinish={completeTutorial}
+          onSkip={closeActiveTutorial}
+          onFinish={closeActiveTutorial}
         />
       ) : null}
     </div>

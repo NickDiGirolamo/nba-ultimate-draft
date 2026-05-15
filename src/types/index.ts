@@ -387,6 +387,13 @@ export interface MetaProgress {
   tokens: TokenProgress;
   personalBests: PersonalBests;
   roguePersonalBests: RoguePersonalBests;
+  rogueMilestones: {
+    runsStarted: number;
+    playersDrafted: number;
+    uniquePlayersDrafted: number;
+    collectionPlayers: number;
+    totalPlayers: number;
+  };
   leaderboards: LeaderboardEntry[];
   trophies: Trophy[];
   streaks: Streaks;
@@ -423,6 +430,9 @@ export interface DraftState {
   bonusPickActive: boolean;
   rogueBonusPrestigeXp: number;
   roguePersonalBests: RoguePersonalBests;
+  rogueRunsStarted: number;
+  rogueRunPlayersDrafted: number;
+  rogueRunDraftedPlayerIds: string[];
   spentTokens: number;
   purchasedTokens: number;
   ownedTrainingCampTickets: number;
@@ -442,5 +452,6 @@ export interface DraftState {
   claimedCollectionRewardIds: string[];
   completedRogueChallengeIds: string[];
   claimedRogueChallengeIds: string[];
+  rogueChallengePackRewardPlayerIds: Record<string, string>;
   seed: number;
 }

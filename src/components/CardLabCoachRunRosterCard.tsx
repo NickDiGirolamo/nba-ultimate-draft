@@ -1,10 +1,9 @@
-import { Shield } from "lucide-react";
-import { getNbaTeamByName } from "../data/nbaTeams";
 import { CardHoloOverlay, type CardHoloVariant } from "./CardHoloOverlay";
-import { COACH_CARD_BACKGROUND_IMAGE_URL, getCardLabCoachImageUrl } from "./CardLabCoachCard";
 
-const COACH_RUN_ROSTER_CARD_SCALE = 1.5;
-const COACH_RUN_ROSTER_CARD_BASE_HEIGHT = 40;
+const COACH_RUN_ROSTER_CARD_WIDTH = 1536;
+const COACH_RUN_ROSTER_CARD_HEIGHT = 192;
+
+const getAiCoachRunRosterImageUrl = (coachId: string) => `/ai-card-art/coaches/run-roster/${coachId}.png`;
 
 interface CardLabCoachRunRosterCardProps {
   coach: {
@@ -26,87 +25,29 @@ export const CardLabCoachRunRosterCard = ({
   holoOverlay = false,
   holoVariant = "prism",
 }: CardLabCoachRunRosterCardProps) => {
-  const team = getNbaTeamByName(coach.teamName);
-  const coachImageUrl = getCardLabCoachImageUrl(coach.id);
-  const initials = coach.label
-    .split(" ")
-    .map((segment) => segment.replace(/[^A-Za-z]/g, "").charAt(0))
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  const coachRunRosterImageUrl = getAiCoachRunRosterImageUrl(coach.id);
+  const boostLabel =
+    typeof boostedCount === "number" && typeof rosterCount === "number"
+      ? `${boostedCount}/${rosterCount} boosted`
+      : "Team Boost";
 
   return (
     <div
-      className="block w-full max-w-full overflow-hidden"
-      style={{ height: `${COACH_RUN_ROSTER_CARD_BASE_HEIGHT * COACH_RUN_ROSTER_CARD_SCALE}px` }}
+      className="relative block w-full max-w-full overflow-hidden rounded-[20px] bg-black shadow-[0_16px_34px_rgba(0,0,0,0.34)]"
+      style={{ aspectRatio: `${COACH_RUN_ROSTER_CARD_WIDTH} / ${COACH_RUN_ROSTER_CARD_HEIGHT}` }}
     >
-      <div
-        style={{
-          width: `${100 / COACH_RUN_ROSTER_CARD_SCALE}%`,
-          transform: `scale(${COACH_RUN_ROSTER_CARD_SCALE})`,
-          transformOrigin: "top left",
-        }}
-      >
-        <div className="block w-full max-w-full overflow-hidden rounded-[18px] border border-dashed border-white/35 p-0.5">
-      <div className="relative min-h-[36px] overflow-hidden rounded-[15px] border border-white/12 bg-[linear-gradient(180deg,rgba(18,24,34,0.96),rgba(8,12,20,0.98))] px-2 py-1 shadow-[0_12px_28px_rgba(0,0,0,0.22)]">
+      <div className="absolute inset-0 origin-center scale-[0.972]">
         <img
-          src={COACH_CARD_BACKGROUND_IMAGE_URL}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover opacity-[0.62] saturate-[0.88] contrast-[1.08]"
+          src={coachRunRosterImageUrl}
+          alt={`${coach.label} run roster coach card`}
+          className="absolute inset-0 h-full w-full object-contain"
           loading="lazy"
-          referrerPolicy="no-referrer"
+          draggable={false}
         />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,7,18,0.62),rgba(3,7,18,0.28)_48%,rgba(3,7,18,0.66)),linear-gradient(180deg,rgba(3,7,18,0.24),rgba(3,7,18,0.58))]" />
-
-        <div className="relative flex min-w-0 items-center gap-2">
-          <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full border border-white/16 bg-black/28 shadow-[0_8px_16px_rgba(0,0,0,0.22)]">
-            {coachImageUrl ? (
-              <img
-                src={coachImageUrl}
-                alt={coach.label}
-                className="h-full w-full object-cover object-top"
-                loading="lazy"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-slate-100">
-                {initials}
-              </div>
-            )}
-          </div>
-
-          <div className="min-w-0 flex-1 truncate font-display text-[12px] font-semibold leading-none tracking-normal text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.62)] sm:text-[13px]">
-            {coach.label}
-          </div>
-
-          {team?.logo ? (
-            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/24 p-1 shadow-[0_8px_16px_rgba(0,0,0,0.2)] backdrop-blur-[3px]">
-              <img
-                src={team.logo}
-                alt={`${team.name} logo`}
-                className="h-full w-full object-contain"
-                loading="lazy"
-                referrerPolicy="no-referrer"
-              />
-            </div>
-          ) : (
-            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/24 shadow-[0_8px_16px_rgba(0,0,0,0.2)] backdrop-blur-[3px]">
-              <Shield size={12} className="text-white/80" />
-            </div>
-          )}
-
-          {typeof boostedCount === "number" && typeof rosterCount === "number" ? (
-            <div className="shrink-0 whitespace-nowrap rounded-full border border-emerald-200/20 bg-emerald-300/10 px-2 py-1 text-[9px] font-semibold uppercase leading-none tracking-[0.12em] text-emerald-50">
-              {boostedCount}/{rosterCount} boosted
-            </div>
-          ) : null}
+        <div className="absolute right-[4.8%] top-[27%] flex h-[42%] w-[18.8%] items-center justify-center px-[1.2%] text-center text-[clamp(0.48rem,1.55vw,1.08rem)] font-black uppercase leading-[0.96] tracking-[0.08em] text-emerald-50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.72)]">
+          {boostLabel}
         </div>
-
-        <CardHoloOverlay enabled={holoOverlay} variant={holoVariant} className="opacity-[0.32]" />
-      </div>
-        </div>
+        <CardHoloOverlay enabled={holoOverlay} variant={holoVariant} className="opacity-[0.28]" />
       </div>
     </div>
   );

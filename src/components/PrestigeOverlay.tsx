@@ -41,7 +41,7 @@ export const PrestigeOverlay = ({
   const rogueBests = meta.roguePersonalBests;
 
   const overlay = (
-    <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/82 px-4 py-8 backdrop-blur-md">
+    <div data-tutorial-id="prestige-overlay" className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/82 px-4 py-8 backdrop-blur-md">
       <div className="w-full max-w-[1180px] rounded-[34px] border border-white/10 bg-[#070b12] p-6 shadow-[0_30px_90px_rgba(0,0,0,0.55)] lg:p-8">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -57,7 +57,7 @@ export const PrestigeOverlay = ({
               NBA Rogue Mode rewards, so every climb, boss clear, and hard-earned run result stays
               tied to the main experience.
             </p>
-            <div className="mt-5 inline-flex rounded-full border border-white/10 bg-white/5 p-1">
+            <div data-tutorial-id="prestige-tabs" className="mt-5 inline-flex rounded-full border border-white/10 bg-white/5 p-1">
               <button
                 type="button"
                 onClick={() => setView("overview")}
@@ -92,7 +92,7 @@ export const PrestigeOverlay = ({
           </button>
         </div>
 
-        <div className="mt-8 grid gap-4 lg:grid-cols-4">
+        <div data-tutorial-id="prestige-summary" className="mt-8 grid gap-4 lg:grid-cols-4">
           <div className="rounded-[24px] border border-amber-200/14 bg-amber-300/10 p-5">
             <div className="text-xs uppercase tracking-[0.22em] text-amber-100/70">Prestige Score</div>
             <div className="mt-2 text-4xl font-semibold text-white">{meta.prestige.score}</div>
@@ -121,7 +121,7 @@ export const PrestigeOverlay = ({
         </div>
 
         {view === "overview" ? (
-        <div className="mt-10 grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
+        <div data-tutorial-id="prestige-active-panel" className="mt-10 grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-6">
             <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
               <div className="flex items-center gap-3">
@@ -278,7 +278,7 @@ export const PrestigeOverlay = ({
           </div>
         </div>
         ) : view === "rewards" ? (
-          <div className="mt-10 space-y-8">
+          <div data-tutorial-id="prestige-active-panel" className="mt-10 space-y-8">
             <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-[24px] border border-fuchsia-300/14 bg-fuchsia-300/8 p-5">
                 <div className="text-xs uppercase tracking-[0.22em] text-fuchsia-100/70">Current Level</div>

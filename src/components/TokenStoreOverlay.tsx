@@ -1198,7 +1198,7 @@ export const TokenStoreOverlay = ({
   );
 
   const overlay = (
-    <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/82 px-3 py-4 backdrop-blur-md sm:px-4 sm:py-8">
+    <div data-tutorial-id="token-store-overlay" className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/82 px-3 py-4 backdrop-blur-md sm:px-4 sm:py-8">
       <div className="w-full max-w-[1240px] rounded-[28px] border border-white/10 bg-[#070b12] p-4 shadow-[0_30px_90px_rgba(0,0,0,0.55)] sm:p-6 lg:rounded-[34px] lg:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -1220,7 +1220,7 @@ export const TokenStoreOverlay = ({
           </button>
         </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+        <div data-tutorial-id="token-store-summary" className="mt-6 grid gap-4 lg:grid-cols-3">
           <div className="rounded-[26px] border border-amber-200/18 bg-amber-300/10 p-5">
             <div className="text-[10px] uppercase tracking-[0.22em] text-amber-100/72">Spendable Tokens</div>
             <div className="mt-2 text-4xl font-semibold text-white">{formatNumber(meta.tokens.balance)}</div>
@@ -1261,7 +1261,7 @@ export const TokenStoreOverlay = ({
           </div>
         </div>
 
-        <div className="mt-7 rounded-[28px] border border-white/12 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(15,23,42,0.42),rgba(5,8,14,0.72))] p-2 shadow-[0_18px_50px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.08)]">
+        <div data-tutorial-id="token-store-view-tabs" className="mt-7 rounded-[28px] border border-white/12 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(15,23,42,0.42),rgba(5,8,14,0.72))] p-2 shadow-[0_18px_50px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.08)]">
           <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
             <button
               type="button"
@@ -1393,7 +1393,7 @@ export const TokenStoreOverlay = ({
 
         {view === "store" ? (
           <>
-        <div className="mt-8">
+        <div data-tutorial-id="token-store-active-view" className="mt-8">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
@@ -1547,7 +1547,7 @@ export const TokenStoreOverlay = ({
         </div>
           </>
         ) : view === "vault" ? (
-          <div className="mt-8 space-y-7">
+          <div data-tutorial-id="token-store-active-view" className="mt-8 space-y-7">
             <div className="overflow-hidden rounded-[30px] border border-violet-200/18 bg-[linear-gradient(135deg,rgba(88,28,135,0.24),rgba(14,116,144,0.14),rgba(8,13,24,0.94))] p-6 shadow-[0_22px_54px_rgba(0,0,0,0.3)]">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -1600,7 +1600,7 @@ export const TokenStoreOverlay = ({
             </div>
           </div>
         ) : view === "tokens" ? (
-          <div className="mt-8 space-y-6">
+          <div data-tutorial-id="token-store-active-view" className="mt-8 space-y-6">
             <div className="rounded-[28px] border border-yellow-200/18 bg-[linear-gradient(135deg,rgba(250,204,21,0.14),rgba(8,13,24,0.94))] p-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -1637,7 +1637,7 @@ export const TokenStoreOverlay = ({
             </div>
           </div>
         ) : view === "collections" ? (
-          <div className="mt-8 space-y-8">
+          <div data-tutorial-id="token-store-active-view" className="mt-8 space-y-8">
             <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-[24px] border border-emerald-300/14 bg-emerald-300/8 p-5">
                 <div className="text-xs uppercase tracking-[0.22em] text-emerald-100/70">Collection Sets</div>

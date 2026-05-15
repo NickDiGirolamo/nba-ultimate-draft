@@ -1061,6 +1061,34 @@ const directImageOverrides: Record<string, string> = {
     "https://grantland.com/wp-content/uploads/2011/08/grant_g_d1_mullin_57611.jpg?w=750",
   "nate-thurmond-warriors":
     "https://i0.wp.com/www.ourweekly.com/wp-content/uploads/2016/07/nate-thurmond.jpg?fit=1200%2C1199&quality=89&ssl=1",
+  "jimmy-butler-timberwolves":
+    "https://e0.365dm.com/18/10/2048x1152/skysports-jimmy-butler-minnesota-timberwolves_4449819.jpg?20181011120959",
+  "pau-gasol-grizzlies":
+    "https://ca-times.brightspotcdn.com/dims4/default/62c7508/2147483647/strip/true/crop/313x425+0+0/resize/313x425!/quality/75/?url=https%3A%2F%2Fcalifornia-times-brightspot.s3.amazonaws.com%2Fec%2F34%2Fd017a581e3114bbec73e4a614681%2Flat-gasoltraded-jvkwtknc",
+  "vernon-maxwell-rockets":
+    "https://nypost.com/wp-content/uploads/sites/2/2022/08/vernon-maxwell.jpg",
+  "fred-vanvleet-rockets":
+    "https://library.sportingnews.com/styles/twitter_card_120x120/s3/2024-11/Fred%20VanVleet%20%28AP%29.jpg?itok=66_599-x",
+  "robert-horry-rockets":
+    "https://cdn.nba.com/teams/uploads/sites/1610612745/2024/11/GettyImages-531230174.jpg?im=Resize=(640)",
+  "vlade-divac-lakers":
+    "https://i.ebayimg.com/images/g/WPYAAOSwzTRcw2ZZ/s-l1200.jpg",
+  "mark-price-cavs":
+    "https://pbs.twimg.com/profile_images/1536172382536323073/_K_rtdqK_400x400.jpg",
+  "julius-randle-lakers":
+    "https://lakersdaily.com/wp-content/uploads/2021/02/oilwmx-randle.1223-e1613595253397.jpg",
+  "ray-allen-bucks":
+    "https://www.si.com/.image/t_share/MTY4MTU1MDcxNjM1OTI0MjQx/ray-allen-bucks-inlinejpg.jpg",
+  "deron-williams-cavaliers":
+    "https://legacymedia.sportsplatform.io/img/images/photos/003/661/945/hi-res-e4cd6d80b9aa418f9c89e55d4eaece2a_crop_north.jpg?1488430927&w=630&h=420",
+  "andrew-wiggins-timberwolves":
+    "https://www.usatoday.com/gcdn/-mm-/ddbf0548f4eff91a70e049889dee9a6b9de60b97/c=1612-0-3964-3136/local/-/media/2017/07/31/USATODAY/USATODAY/636371144767062813-USP-NBA--Golden-State-Warriors-at-Minnesota-Timber.jpg?width=660&height=880&fit=crop&format=pjpg&auto=webp",
+  "deron-williams-nets":
+    "https://upload.wikimedia.org/wikipedia/commons/5/55/Deron_Williams_Nets_2.jpg",
+  "jimmy-butler-76ers":
+    "https://heatnation.com/wp-content/uploads/2019/07/USATSI_12664977-e1562006264479.jpg",
+  "larry-nance-suns":
+    "https://cdn.nba.com/manage/2025/08/GettyImages-2512529-1ln.jpg",
 };
 
 const runtimeCache = new Map<string, string | null>();

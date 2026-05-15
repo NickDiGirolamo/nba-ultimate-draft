@@ -42,7 +42,7 @@ import { getPlayerTier, getPlayerTierLabel, playerTierRunRosterSurfaceStyles } f
 import { getPlayerArchetypeBehaviorProfile } from "../lib/playerArchetypeBehavior";
 import { getPlayerBadgeStates } from "../lib/dynamicDuos";
 import { mulberry32 } from "../lib/random";
-import { getCompletedRogueChallengeIdsForClear } from "../lib/rogueChallenges";
+import { getCompletedRogueChallengeIdsForClear, getRogueChallengeById } from "../lib/rogueChallenges";
 import { getPlayerTeamKey, getSameTeamChemistryBonusForPlayer } from "../lib/teamChemistry";
 import {
   buildRoguelikeOpponentLineup,
@@ -94,6 +94,7 @@ import { Player, PlayerTier, Position, RosterSlot } from "../types";
 import type { PlayerTypeBadge } from "../lib/playerTypeBadges";
 import type { RoguePersonalBests } from "../types";
 import { trackAnalyticsEventSoon } from "../lib/analytics";
+import { ULTIMATE_DRAFT_LOGO_SRC } from "../lib/brand";
 
 type RoguelikeStage =
   | "package-select"
@@ -217,6 +218,7 @@ interface RoguelikeRun {
   chanceWheelTeamName?: string | null;
   starterRevealPlayers: Player[];
   starterKeptIds?: string[];
+  recordedProgressPlayerIds?: string[];
   coachChoices: RoguelikeCoach[];
   hiredCoachId: string | null;
   revealedStarterIds: string[];
@@ -299,8 +301,12 @@ interface RoguelikeModeProps {
   onUseSilverStarterPack: () => boolean;
   onUseGoldStarterPack: () => boolean;
   onUsePlatinumStarterPack: () => boolean;
+  onRecordRunStarted: () => void;
+  onRecordRogueRunDraftedPlayers: (playerIds: string[]) => void;
   onRecordCollectionEntries: (playerIds: string[]) => void;
   onRecordRogueChallengeCompletions: (challengeIds: string[]) => void;
+  completedRogueChallengeIds: string[];
+  onOpenRogueChallenges: () => void;
   challengeSetupRequest?: {
     challengeId: string;
     settings: Partial<RoguelikeRunSettings>;
@@ -315,7 +321,15 @@ const ROGUELIKE_STORAGE_KEY = "legends-draft-roguelike-run-v1";
 const ROGUELIKE_PARKED_STORAGE_KEY = "legends-draft-roguelike-parked-v1";
 const CURRENT_ROGUELIKE_LADDER_VERSION = 7;
 
-const createSeed = () => Math.floor(Date.now() % 1_000_000) + Math.floor(Math.random() * 1000);
+const createSeed = () => {
+  if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
+    const values = new Uint32Array(1);
+    window.crypto.getRandomValues(values);
+    return values[0] % 1_000_000_000;
+  }
+
+  return Math.floor(Date.now() % 1_000_000_000) + Math.floor(Math.random() * 1_000_000_000);
+};
 
 const nextChoiceSeed = (seed: number, step: number) => seed + step * 97 + 13;
 
@@ -458,7 +472,7 @@ const LOCKER_ROOM_ITEM_PRICES: Record<LockerRoomItemId, number> = {
   "practice-defense": 22,
   "practice-playmaking": 22,
   "practice-offense": 22,
-  "special-stuff": 12,
+  "special-stuff": 20,
   "new-position-training": 34,
 };
 
@@ -748,6 +762,7 @@ const normalizeStoredRun = (parsed: Partial<RoguelikeRun>, activeRogueStarId: st
     chanceWheelTeamName:
       typeof parsed.chanceWheelTeamName === "string" ? parsed.chanceWheelTeamName : null,
     starterRevealPlayers,
+    recordedProgressPlayerIds: parsed.recordedProgressPlayerIds ?? [],
     coachChoices,
     hiredCoachId: parsed.hiredCoachId ?? null,
     revealedStarterIds: parsed.revealedStarterIds ?? [],
@@ -800,13 +815,27 @@ const getRevealedStarterPlayers = (run: RoguelikeRun) => {
   return revealedPlayers.length > 0 ? revealedPlayers : run.starterRevealPlayers;
 };
 
-const fillStarterRevealFallbackPlayers = (players: Player[], fallbackPool: Player[]) => {
+const starterIdentitySuffixPattern = /\s\([^)]*\)$/;
+const getStarterIdentity = (player: Player) =>
+  player.name.replace(starterIdentitySuffixPattern, "").trim().toLowerCase();
+
+const fillStarterRevealFallbackPlayers = (players: Player[], fallbackPool: Player[], seed = 0) => {
+  const rng = mulberry32(nextChoiceSeed(seed, 23));
   const seenIds = new Set(players.map((player) => player.id));
+  const seenIdentities = new Set(players.map(getStarterIdentity));
   const fallbackCandidates = fallbackPool.filter((player) => {
     if (seenIds.has(player.id)) return false;
-    const tier = getPlayerTier(player);
-    return tier === "Sapphire" || tier === "Emerald";
+    if (seenIdentities.has(getStarterIdentity(player))) return false;
+    return true;
   });
+
+  for (let index = fallbackCandidates.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(rng() * (index + 1));
+    [fallbackCandidates[index], fallbackCandidates[swapIndex]] = [
+      fallbackCandidates[swapIndex],
+      fallbackCandidates[index],
+    ];
+  }
 
   return [...players, ...fallbackCandidates.slice(0, Math.max(0, 3 - players.length))].slice(0, 3);
 };
@@ -845,7 +874,7 @@ const ensureVisibleStarterRevealPlayers = (
   const bestEffortResult =
     candidatePoolResult.length >= broaderFallback.length ? candidatePoolResult : broaderFallback;
 
-  return fillStarterRevealFallbackPlayers(bestEffortResult, candidatePool);
+  return fillStarterRevealFallbackPlayers(bestEffortResult, candidatePool, seed);
 };
 
 const addStarterChoicePlusOption = (
@@ -857,27 +886,21 @@ const addStarterChoicePlusOption = (
 ) => {
   if (starterRevealPlayers.length >= 4) return starterRevealPlayers.slice(0, 4);
 
-  const starterIdentitySuffixPattern = /\s\([^)]*\)$/;
-  const getStarterIdentity = (player: Player) =>
-    player.name.replace(starterIdentitySuffixPattern, "").trim().toLowerCase();
   const existingIds = new Set(starterRevealPlayers.map((player) => player.id));
   const existingIdentities = new Set(starterRevealPlayers.map(getStarterIdentity));
-  const minimumOverall = Math.max(60, targetAverageOverall - 5);
-  const maximumOverall = Math.min(99, targetAverageOverall + 5);
+  void targetAverageOverall;
   const rng = mulberry32(nextChoiceSeed(seed, 19));
   const candidates = candidatePool
     .filter((player) => player.id !== activeRogueStar?.id)
     .filter((player) => !existingIds.has(player.id))
-    .filter((player) => !existingIdentities.has(getStarterIdentity(player)))
-    .filter((player) => {
-      const tier = getPlayerTier(player);
-      return tier === "Sapphire" || tier === "Emerald";
-    })
-    .filter((player) => player.overall >= minimumOverall && player.overall <= maximumOverall)
-    .sort((a, b) => Math.abs(a.overall - targetAverageOverall) - Math.abs(b.overall - targetAverageOverall));
+    .filter((player) => !existingIdentities.has(getStarterIdentity(player)));
 
-  const choicePool = candidates.slice(0, 24);
-  const extraPlayer = choicePool[Math.floor(rng() * choicePool.length)] ?? candidates[0] ?? null;
+  for (let index = candidates.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(rng() * (index + 1));
+    [candidates[index], candidates[swapIndex]] = [candidates[swapIndex], candidates[index]];
+  }
+
+  const extraPlayer = candidates[0] ?? null;
 
   return extraPlayer ? [...starterRevealPlayers, extraPlayer] : starterRevealPlayers;
 };
@@ -3785,7 +3808,7 @@ const StarterRevealCard = ({
   onReveal: () => void;
   }) => {
     const shellRef = useRef<HTMLDivElement | null>(null);
-    const starterRevealBackLogo = "/nba-ultimate-draft-badge.png";
+    const starterRevealBackLogo = ULTIMATE_DRAFT_LOGO_SRC;
     const starterRevealCardScale = 0.43;
   const starterRevealBaseWidth = 380;
   const starterRevealBaseHeight = 920;
@@ -3862,11 +3885,11 @@ const StarterRevealCard = ({
                   <div className="relative flex min-h-[320px] items-center justify-center overflow-hidden rounded-[22px] border border-white/10 bg-[linear-gradient(160deg,rgba(95,58,28,0.82),rgba(63,36,17,0.92),rgba(30,18,10,0.98))] px-6 py-6">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.03),transparent_32%,rgba(0,0,0,0.28))]" />
                     <div className="absolute inset-[14px] rounded-[18px] border border-white/8" />
-                    <div className="relative flex items-center justify-center rounded-[28px] border border-white/10 bg-[radial-gradient(circle,rgba(255,255,255,0.06),rgba(255,255,255,0.01)_58%,transparent_78%)] px-8 py-8 shadow-[0_18px_40px_rgba(0,0,0,0.26)]">
+                    <div className="relative flex w-full max-w-[250px] items-center justify-center rounded-[28px] border border-white/10 bg-[radial-gradient(circle,rgba(255,255,255,0.06),rgba(255,255,255,0.01)_58%,transparent_78%)] px-4 py-7 shadow-[0_18px_40px_rgba(0,0,0,0.26)]">
                       <img
                         src={starterRevealBackLogo}
                         alt="NBA Ultimate Draft"
-                        className="h-auto w-full max-w-[240px] object-contain drop-shadow-[0_14px_28px_rgba(0,0,0,0.35)]"
+                        className="h-auto max-h-[130px] w-full object-contain drop-shadow-[0_14px_28px_rgba(0,0,0,0.35)]"
                         loading="eager"
                       />
                     </div>
@@ -4112,11 +4135,11 @@ const DraftChoiceRevealCard = ({
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.09),transparent_35%)]" />
             <div className="absolute inset-[10px] rounded-[22px] border border-white/8" />
             <div className="relative flex h-full items-center justify-center p-6">
-              <div className="relative flex items-center justify-center rounded-[24px] border border-white/10 bg-[radial-gradient(circle,rgba(255,255,255,0.06),rgba(255,255,255,0.01)_58%,transparent_78%)] px-6 py-6 shadow-[0_18px_40px_rgba(0,0,0,0.26)]">
+              <div className="relative flex w-full max-w-[210px] items-center justify-center rounded-[24px] border border-white/10 bg-[radial-gradient(circle,rgba(255,255,255,0.06),rgba(255,255,255,0.01)_58%,transparent_78%)] px-4 py-6 shadow-[0_18px_40px_rgba(0,0,0,0.26)]">
                 <img
-                  src="/nba-ultimate-draft-badge.png"
+                  src={ULTIMATE_DRAFT_LOGO_SRC}
                   alt="NBA Ultimate Draft"
-                  className="h-auto w-full max-w-[180px] object-contain drop-shadow-[0_14px_28px_rgba(0,0,0,0.35)]"
+                  className="h-auto max-h-[110px] w-full object-contain drop-shadow-[0_14px_28px_rgba(0,0,0,0.35)]"
                   loading="eager"
                 />
               </div>
@@ -4605,8 +4628,12 @@ export const RoguelikeMode = ({
   onUseSilverStarterPack,
   onUseGoldStarterPack,
   onUsePlatinumStarterPack,
+  onRecordRunStarted,
+  onRecordRogueRunDraftedPlayers,
   onRecordCollectionEntries,
   onRecordRogueChallengeCompletions,
+  completedRogueChallengeIds,
+  onOpenRogueChallenges,
   challengeSetupRequest,
   cloudSavedRunData,
   onCloudSaveRun,
@@ -4672,6 +4699,7 @@ export const RoguelikeMode = ({
   const [selectedRunSettings, setSelectedRunSettings] = useState<RoguelikeRunSettings>(
     DEFAULT_ROGUELIKE_RUN_SETTINGS,
   );
+  const [challengeCelebrationQueue, setChallengeCelebrationQueue] = useState<string[]>([]);
   const [showRunSettingsScreen, setShowRunSettingsScreen] = useState(() => !run || showPackSelectionHub);
   const [isMobileViewport, setIsMobileViewport] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth < 640 : false,
@@ -4689,7 +4717,7 @@ export const RoguelikeMode = ({
   const metrics = useMemo(() => {
     if (!run) return evaluateRoguelikeRoster([]);
     const coachTeamKey = getRoguelikeCoachTeamKey(run.hiredCoachId);
-    const ownedPlayerIds = getRunOwnedPlayers(run).map((player) => player.id);
+    const ownedPlayerIds = Array.from(new Set(getRunOwnedPlayers(run).map((player) => player.id)));
     if (run.stage !== "starter-reveal") {
       return evaluateRoguelikeLineup(run.lineup, ownedPlayerIds, run.trainedPlayerIds ?? [], coachTeamKey);
     }
@@ -4723,15 +4751,29 @@ export const RoguelikeMode = ({
       .map((slot) => slot.player)
       .filter((player): player is Player => Boolean(player));
 
-    onRecordRogueChallengeCompletions(
-      getCompletedRogueChallengeIdsForClear({
-        clearedNodeId: node.id,
-        settings: sourceRun.settings,
-        startingLineup,
-        rosterPlayers: sourceRun.roster,
-        hiredCoachId: sourceRun.hiredCoachId,
-      }),
+    const completedChallengeIds = getCompletedRogueChallengeIdsForClear({
+      clearedNodeId: node.id,
+      settings: sourceRun.settings,
+      startingLineup,
+      rosterPlayers: sourceRun.roster,
+      hiredCoachId: sourceRun.hiredCoachId,
+    });
+    const alreadyCompletedIds = new Set(completedRogueChallengeIds);
+    const newlyCompletedChallengeIds = completedChallengeIds.filter(
+      (challengeId) => !alreadyCompletedIds.has(challengeId),
     );
+
+    if (newlyCompletedChallengeIds.length > 0) {
+      setChallengeCelebrationQueue((currentQueue) => {
+        const queuedIds = new Set(currentQueue);
+        return [
+          ...currentQueue,
+          ...newlyCompletedChallengeIds.filter((challengeId) => !queuedIds.has(challengeId)),
+        ];
+      });
+    }
+
+    onRecordRogueChallengeCompletions(completedChallengeIds);
   };
   const runPlayerUniverse = useMemo(
     () => getRoguelikePlayerUniverse(activeRunSettings),
@@ -5027,6 +5069,8 @@ export const RoguelikeMode = ({
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
 
+    onRecordRunStarted();
+
     setRun({
       ladderVersion: CURRENT_ROGUELIKE_LADDER_VERSION,
       seed,
@@ -5040,6 +5084,7 @@ export const RoguelikeMode = ({
         choices: [],
         chanceWheelTeamName: null,
         starterRevealPlayers,
+        recordedProgressPlayerIds: [],
         coachChoices: [],
         hiredCoachId: null,
         revealedStarterIds: [],
@@ -7505,6 +7550,35 @@ export const RoguelikeMode = ({
   }, [onRecordCollectionEntries, run]);
 
   useEffect(() => {
+    if (!run) return;
+
+    const ownedPlayerIds = getRunOwnedPlayers(run).map((player) => player.id);
+    const recordedPlayerIds = new Set(run.recordedProgressPlayerIds ?? []);
+    const newlyDraftedPlayerIds = ownedPlayerIds.filter((playerId) => !recordedPlayerIds.has(playerId));
+    if (newlyDraftedPlayerIds.length === 0) return;
+
+    onRecordRogueRunDraftedPlayers(newlyDraftedPlayerIds);
+
+    setRun((currentRun) => {
+      if (!currentRun || currentRun.seed !== run.seed) return currentRun;
+
+      const currentOwnedPlayerIds = Array.from(new Set(getRunOwnedPlayers(currentRun).map((player) => player.id)));
+      const currentRecordedPlayerIds = new Set(currentRun.recordedProgressPlayerIds ?? []);
+      const currentNewlyDraftedPlayerIds = currentOwnedPlayerIds.filter(
+        (playerId) => !currentRecordedPlayerIds.has(playerId),
+      );
+      if (currentNewlyDraftedPlayerIds.length === 0) return currentRun;
+
+      return {
+        ...currentRun,
+        recordedProgressPlayerIds: Array.from(
+          new Set([...(currentRun.recordedProgressPlayerIds ?? []), ...currentNewlyDraftedPlayerIds]),
+        ),
+      };
+    });
+  }, [onRecordRogueRunDraftedPlayers, run]);
+
+  useEffect(() => {
     if (run?.stage !== "locker-room") {
       setLockerRoomInfoCard(null);
     }
@@ -7925,6 +7999,13 @@ export const RoguelikeMode = ({
     setShowOutcomeOverlay(false);
     setShowChallengeBreakdown(true);
   };
+  const dismissChallengeCelebration = () => {
+    setChallengeCelebrationQueue((currentQueue) => currentQueue.slice(1));
+  };
+  const viewChallengeCelebrationInTracker = () => {
+    dismissChallengeCelebration();
+    onOpenRogueChallenges();
+  };
   const updateRunSetting = <Key extends keyof RoguelikeRunSettings>(
     key: Key,
     value: RoguelikeRunSettings[Key],
@@ -7989,7 +8070,7 @@ export const RoguelikeMode = ({
 
   if (showRunSettingsScreen) {
     return (
-      <section className="space-y-4">
+      <section data-tutorial-id="rogue-mode-screen" className="space-y-4">
         <div className="glass-panel rounded-[34px] border border-white/14 bg-[linear-gradient(135deg,rgba(15,23,42,0.9),rgba(6,10,18,0.82),rgba(22,12,34,0.7))] p-5 shadow-[0_22px_60px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.06)] lg:p-6">
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
             <div>
@@ -8344,7 +8425,7 @@ export const RoguelikeMode = ({
 
   if (!run || showPackSelectionHub) {
     return (
-      <section className="space-y-3">
+      <section data-tutorial-id="rogue-mode-screen" className="space-y-3">
         <div className="glass-panel rounded-[34px] p-4 shadow-card lg:p-5">
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_500px] xl:items-start">
             <div className="min-w-0">
@@ -8540,7 +8621,7 @@ export const RoguelikeMode = ({
       allStarterCardsRevealed && (!starterChoicePlusActive || keptStarterCount === 3);
 
     return (
-      <section className="space-y-3">
+      <section data-tutorial-id="rogue-mode-screen" className="space-y-3">
         <div className="rounded-[26px] border border-white/14 bg-[linear-gradient(180deg,rgba(9,13,21,0.98),rgba(12,18,28,0.99))] px-5 py-4 shadow-card">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -8627,8 +8708,8 @@ export const RoguelikeMode = ({
 
       return (
         <>
-          <section className="space-y-5">
-            <div className="rounded-[30px] border border-white/14 bg-[linear-gradient(180deg,rgba(9,13,21,0.98),rgba(12,18,28,0.99))] p-6 shadow-card">
+          <section data-tutorial-id="rogue-mode-screen" className="space-y-5">
+            <div data-tutorial-id="rogue-coach-select-intro" className="rounded-[30px] border border-white/14 bg-[linear-gradient(180deg,rgba(9,13,21,0.98),rgba(12,18,28,0.99))] p-6 shadow-card">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="max-w-4xl">
                   <div className="text-xs uppercase tracking-[0.24em] text-emerald-100/80">Hire a Coach</div>
@@ -8653,6 +8734,7 @@ export const RoguelikeMode = ({
             </div>
 
             <div
+              data-tutorial-id="rogue-coach-select-options"
               className={clsx(
                 "gap-5",
                 isMobileViewport ? "grid grid-cols-5 gap-1.5" : "grid md:grid-cols-2 xl:grid-cols-5",
@@ -8736,7 +8818,7 @@ export const RoguelikeMode = ({
 
       return (
         <>
-          <section className="space-y-5">
+          <section data-tutorial-id="rogue-mode-screen" className="space-y-5">
             <div className="rounded-[30px] border border-white/14 bg-[linear-gradient(180deg,rgba(9,13,21,0.98),rgba(12,18,28,0.99))] p-6 shadow-card">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="max-w-4xl">
@@ -8888,6 +8970,28 @@ export const RoguelikeMode = ({
     }
 
   const activeNode = run.activeNode;
+  const activeChallengeCelebrationId = challengeCelebrationQueue[0] ?? null;
+  const activeChallengeCelebration = activeChallengeCelebrationId
+    ? getRogueChallengeById(activeChallengeCelebrationId)
+    : null;
+  const activeChallengeCelebrationCoach = activeChallengeCelebration?.rewardCoachId
+    ? getRoguelikeCoachById(activeChallengeCelebration.rewardCoachId)
+    : null;
+  const activeChallengeCelebrationPlayer = activeChallengeCelebration?.rewardPlayerId
+    ? allPlayers.find((player) => player.id === activeChallengeCelebration.rewardPlayerId) ?? null
+    : null;
+  const activeChallengeCelebrationUnlocks = [
+    activeChallengeCelebrationCoach?.name ?? null,
+    activeChallengeCelebrationPlayer
+      ? `${activeChallengeCelebrationPlayer.name} ${getPlayerTier(activeChallengeCelebrationPlayer)}`
+      : null,
+    activeChallengeCelebration?.rewardPackTier
+      ? `${activeChallengeCelebration.rewardPackTier} Pack`
+      : null,
+  ].filter((reward): reward is string => Boolean(reward));
+  const activeChallengeCelebrationTeam = activeChallengeCelebration?.requiredTeamName
+    ? getNbaTeamByName(activeChallengeCelebration.requiredTeamName)
+    : null;
   const displayedRun = getHydratedRun(run, runNodes);
   const runHiredCoach = run.hiredCoachId
     ? run.coachChoices.find((coach) => coach.id === run.hiredCoachId) ?? getRoguelikeCoachById(run.hiredCoachId)
@@ -9350,7 +9454,7 @@ export const RoguelikeMode = ({
       ? ALL_STAR_EVENT_CARDS.find((eventCard) => eventCard.key === mobileAllStarAssignmentKey) ?? null
       : null;
   const runRosterPanel = (
-    <div className="glass-panel rounded-[30px] p-6 shadow-card">
+    <div data-tutorial-id="rogue-roster-rail" className="glass-panel rounded-[30px] p-6 shadow-card">
       <div>
         <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Run Roster</div>
         {isMobileViewport && run.stage === "all-star-select" && mobileAllStarAssignmentEvent ? (
@@ -9818,7 +9922,7 @@ export const RoguelikeMode = ({
     showDraftRosterRail && !hideRightRail && run.stage !== "ladder-overview";
 
   return (
-    <section className={clsx("space-y-6", showMobileBottomNav && "pb-28")}>
+    <section data-tutorial-id="rogue-mode-screen" className={clsx("space-y-6", showMobileBottomNav && "pb-28")}>
       {showInlineRosterHeaderLayout ? null : headerPanel}
 
       <div
@@ -9831,10 +9935,10 @@ export const RoguelikeMode = ({
               : "xl:grid-cols-[minmax(0,1.58fr)_minmax(540px,0.92fr)]",
         )}
       >
-        <div className="space-y-6">
+        <div data-tutorial-id="rogue-mode-stage-panel" className="space-y-6">
           {showInlineRosterHeaderLayout ? headerPanel : null}
           {run.stage === "ladder-overview" && (
-            <div className="glass-panel rounded-[30px] p-6 shadow-card">
+            <div data-tutorial-id="rogue-ladder-map" className="glass-panel rounded-[30px] p-6 shadow-card">
               <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Run Ladder</div>
               <h2 className="mt-2 font-display text-4xl text-white">Map the climb before it starts</h2>
               <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-300">
@@ -11808,7 +11912,7 @@ export const RoguelikeMode = ({
             runRosterPanel
           ) : (
             <>
-              <div className="glass-panel rounded-[30px] p-6 shadow-card">
+              <div data-tutorial-id="rogue-ladder-map" className="glass-panel rounded-[30px] p-6 shadow-card">
                 <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Run Ladder</div>
                 <div
                   className={clsx(
@@ -12746,6 +12850,94 @@ export const RoguelikeMode = ({
               </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {activeChallengeCelebration ? (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/72 px-4 py-6 backdrop-blur-md">
+          <div className="relative w-full max-w-[780px] overflow-hidden rounded-[28px] border border-cyan-100/18 bg-[#071018]/96 p-4 shadow-[0_30px_90px_rgba(0,0,0,0.62),0_0_60px_rgba(34,211,238,0.12)] sm:p-5">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_50%,rgba(125,211,252,0.2),transparent_28%),radial-gradient(circle_at_82%_10%,rgba(251,191,36,0.14),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.055),transparent_42%)]" />
+            <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:linear-gradient(30deg,rgba(255,255,255,0.5)_12%,transparent_12.5%,transparent_87%,rgba(255,255,255,0.5)_87.5%,rgba(255,255,255,0.5)),linear-gradient(150deg,rgba(255,255,255,0.5)_12%,transparent_12.5%,transparent_87%,rgba(255,255,255,0.5)_87.5%,rgba(255,255,255,0.5)),linear-gradient(30deg,rgba(255,255,255,0.5)_12%,transparent_12.5%,transparent_87%,rgba(255,255,255,0.5)_87.5%,rgba(255,255,255,0.5)),linear-gradient(150deg,rgba(255,255,255,0.5)_12%,transparent_12.5%,transparent_87%,rgba(255,255,255,0.5)_87.5%,rgba(255,255,255,0.5))] [background-position:0_0,0_0,18px_31px,18px_31px] [background-size:36px_62px]" />
+
+            <div className="relative grid gap-5 md:grid-cols-[210px_minmax(0,1fr)] md:items-center">
+              <div className="flex justify-center">
+                <div className="relative grid h-[150px] w-[150px] place-items-center rounded-full border border-cyan-100/28 bg-black/24 shadow-[inset_0_0_30px_rgba(125,211,252,0.14),0_0_34px_rgba(34,211,238,0.2)] sm:h-[170px] sm:w-[170px]">
+                  <div className="absolute inset-3 rounded-full border border-cyan-200/18" />
+                  <div className="absolute inset-0 rounded-full border-[10px] border-cyan-200/16 border-r-amber-200/70 border-t-cyan-200/80" />
+                  <CheckCircle2 size={78} className="text-cyan-100 drop-shadow-[0_0_22px_rgba(125,211,252,0.55)]" />
+                </div>
+              </div>
+
+              <div className="min-w-0 rounded-[24px] border border-white/10 bg-black/28 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-5">
+                <div className="font-display text-[1.65rem] uppercase leading-none tracking-[0.04em] text-cyan-50 drop-shadow-[0_0_18px_rgba(125,211,252,0.32)] sm:text-[2.15rem]">
+                  Challenge Complete
+                </div>
+
+                <div className="mt-4 flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/6 px-3 py-3">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-amber-200/28 bg-amber-300/12 text-amber-100">
+                    {activeChallengeCelebrationTeam?.logo ? (
+                      <img
+                        src={activeChallengeCelebrationTeam.logo}
+                        alt=""
+                        className="h-7 w-7 object-contain"
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <Target size={22} />
+                    )}
+                  </div>
+                  <div className="min-w-0 text-lg font-semibold leading-6 text-white">
+                    {activeChallengeCelebration.title}
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-cyan-100/12 bg-cyan-300/8 px-4 py-3">
+                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-cyan-100/70">
+                      <Coins size={14} />
+                      Reward
+                    </div>
+                    <div className="mt-1 text-2xl font-semibold leading-none text-white">
+                      +{activeChallengeCelebration.reward.toLocaleString("en-US")}
+                    </div>
+                    <div className="mt-1 text-xs font-medium text-slate-300">Tokens</div>
+                  </div>
+                  <div className="rounded-2xl border border-cyan-100/12 bg-white/6 px-4 py-3">
+                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-cyan-100/70">
+                      <Users size={14} />
+                      Claim Includes
+                    </div>
+                    <div className="mt-1 break-words text-sm font-semibold leading-5 text-white sm:text-base sm:leading-6">
+                      {activeChallengeCelebrationUnlocks.length > 0
+                        ? activeChallengeCelebrationUnlocks.join(" + ")
+                        : "Challenge Reward"}
+                    </div>
+                    <div className="mt-1 text-xs font-medium text-slate-300">
+                      Ready to claim
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={dismissChallengeCelebration}
+                    className="rounded-xl bg-cyan-100 px-5 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_26px_rgba(125,211,252,0.2)] transition hover:scale-[1.02] hover:bg-white"
+                  >
+                    Continue
+                  </button>
+                  <button
+                    type="button"
+                    onClick={viewChallengeCelebrationInTracker}
+                    className="rounded-xl border border-cyan-100/24 bg-black/24 px-5 py-3 text-sm font-semibold text-cyan-50 transition hover:border-cyan-100/42 hover:bg-cyan-300/10"
+                  >
+                    View Challenges
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

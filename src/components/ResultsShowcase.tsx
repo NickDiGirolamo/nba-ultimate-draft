@@ -889,8 +889,8 @@ export const ResultsShowcase = ({
         {surpriseChallengeClear && <ChallengeOutcomeBanner result={result} surpriseClear />}
         {prestigeChallengeActive && <ChallengeOutcomeBanner result={result} />}
 
-        <div className="glass-panel overflow-hidden rounded-[28px] p-5 shadow-card sm:p-8 lg:rounded-[34px] lg:p-10">
-          <div className="relative flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
+        <div data-tutorial-id="results-main-panel" className="glass-panel overflow-hidden rounded-[28px] p-5 shadow-card sm:p-8 lg:rounded-[34px] lg:p-10">
+          <div data-tutorial-id="results-actions" className="relative flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-4xl">
               <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/85">
                 Category Focus Results
@@ -965,7 +965,7 @@ export const ResultsShowcase = ({
           </div>
         </div>
 
-        <div className="grid gap-8 xl:grid-cols-[1.05fr_0.95fr]">
+        <div data-tutorial-id="results-analysis-panel" className="grid gap-8 xl:grid-cols-[1.05fr_0.95fr]">
           <div className="space-y-8">
             <div className="glass-panel rounded-[30px] p-6 shadow-card">
               <div className="flex items-center justify-between gap-4">
@@ -1175,7 +1175,7 @@ export const ResultsShowcase = ({
 
   return (
     <section className="space-y-8">
-      <div className="flex justify-center">
+      <div data-tutorial-id="results-actions" className="flex justify-center">
         <div className="flex flex-wrap items-center justify-center gap-3">
           <button
             onClick={onDraftAgain}
@@ -1209,7 +1209,7 @@ export const ResultsShowcase = ({
         {prestigeChallengeActive && <ChallengeOutcomeBanner result={result} />}
 
       <div className="flex justify-center">
-        <div className="grid w-full max-w-[420px] grid-cols-2 rounded-[22px] border border-white/10 bg-white/5 p-1 sm:inline-flex sm:w-auto sm:rounded-full">
+        <div data-tutorial-id="results-tabs" className="grid w-full max-w-[420px] grid-cols-2 rounded-[22px] border border-white/10 bg-white/5 p-1 sm:inline-flex sm:w-auto sm:rounded-full">
           {[
             { id: "season" as const, label: "Season Outcome" },
             { id: "dashboard" as const, label: "Team Dashboard" },
@@ -1234,7 +1234,7 @@ export const ResultsShowcase = ({
       <div className={clsx("grid gap-8", resultsPage === "season" ? "xl:grid-cols-1" : "xl:grid-cols-[1.1fr_0.9fr]")}>
         <div className="space-y-8">
           {resultsPage === "dashboard" && (
-          <div className="glass-panel rounded-[28px] p-4 shadow-card sm:p-6 sm:rounded-[30px]">
+          <div data-tutorial-id="results-main-panel" className="glass-panel rounded-[28px] p-4 shadow-card sm:p-6 sm:rounded-[30px]">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-400">
@@ -1306,7 +1306,7 @@ export const ResultsShowcase = ({
           )}
 
           {resultsPage === "season" && (
-          <div className="glass-panel overflow-hidden rounded-[28px] p-5 shadow-card sm:p-8 lg:rounded-[34px] lg:p-10">
+          <div data-tutorial-id="results-main-panel" className="glass-panel overflow-hidden rounded-[28px] p-5 shadow-card sm:p-8 lg:rounded-[34px] lg:p-10">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.16),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(56,189,248,0.16),transparent_28%)]" />
 
             <div className="relative grid gap-8 xl:grid-cols-[minmax(0,1.25fr)_340px] xl:items-start">
@@ -1416,7 +1416,7 @@ export const ResultsShowcase = ({
           )}
 
           {resultsPage === "season" && (
-          <div className="grid gap-6 lg:grid-cols-[0.88fr_1.12fr]">
+          <div data-tutorial-id="results-analysis-panel" className="grid gap-6 lg:grid-cols-[0.88fr_1.12fr]">
             <div className="glass-panel rounded-[28px] p-4 shadow-card sm:p-6 sm:rounded-[30px]">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">
                 Championship Lens
@@ -1590,7 +1590,7 @@ export const ResultsShowcase = ({
         </div>
 
         {resultsPage === "dashboard" && (
-        <div className="space-y-8">
+        <div data-tutorial-id="results-analysis-panel" className="space-y-8">
           <div className="glass-panel rounded-[28px] p-4 shadow-card sm:p-6 sm:rounded-[30px]">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-[24px] border border-white/10 bg-black/15 p-5">

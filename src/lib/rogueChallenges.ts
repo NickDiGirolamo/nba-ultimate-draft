@@ -1,4 +1,5 @@
-import { Player, PlayerTier } from "../types";
+import { allPlayers } from "../data/players";
+import { MetaProgress, Player, PlayerTier } from "../types";
 import { teamChemistryGroups } from "./dynamicDuos";
 import { getPlayerTier } from "./playerTier";
 import {
@@ -17,10 +18,14 @@ export interface RogueChallengeDefinition {
   groupId: RogueChallengeGroupId;
   subgroupId?: RogueChallengeSubgroupId;
   rewardCoachId?: string;
+  rewardPlayerId?: string;
+  rewardPackTier?: PlayerTier;
   requiredTeamName?: string;
+  progress?: RogueChallengeProgressDefinition;
 }
 
 export type RogueChallengeGroupId =
+  | "milestones"
   | "rookie"
   | "pro"
   | "all-star"
@@ -28,7 +33,35 @@ export type RogueChallengeGroupId =
   | "hall-of-fame"
   | "team-takeovers";
 
-export type RogueChallengeSubgroupId = "year-one-takeovers" | "total-takeovers";
+export type RogueChallengeSubgroupId =
+  | "rogue-runs"
+  | "rogue-run-players"
+  | "collection"
+  | "year-one-takeovers"
+  | "year-two-takeovers"
+  | "total-takeovers";
+
+type RogueMilestoneMetric =
+  | "rogueRunsStarted"
+  | "rogueRunPlayersDrafted"
+  | "rogueRunUniquePlayersDrafted"
+  | "collectionPlayers";
+
+export interface RogueChallengeProgressDefinition {
+  metric: RogueMilestoneMetric;
+  target: number;
+  label: string;
+  unit: string;
+}
+
+export interface RogueChallengeProgress {
+  current: number;
+  target: number;
+  percent: number;
+  currentLabel: string;
+  targetLabel: string;
+  isComplete: boolean;
+}
 
 export interface RogueChallengeRunSettingsPreset {
   challengeId: string;
@@ -39,6 +72,87 @@ const slugifyTeamName = (teamName: string) =>
   teamName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 const YEAR_ONE_TAKEOVER_REQUIRED_TEAM_PLAYERS = 5;
+const YEAR_TWO_TAKEOVER_REQUIRED_TEAM_PLAYERS = 7;
+
+const rogueRunStartedThresholds = [5, 10, 15, 25, 50, 100, 250, 500];
+const rogueRunPlayerDraftThresholds = [25, 50, 100, 150, 250, 500, 750, 1000, 1250, 1500];
+const collectionPlayerThresholds = [5, 10, 25, 50, 75, 100, 150, 200, 250, 300, 350, 400, 450, 500];
+
+const thresholdReward = (threshold: number, multiplier: number, minimum: number) =>
+  Math.max(minimum, Math.round(threshold * multiplier));
+
+const getTeamTakeoverRewardPlayerId = (teamName: string, tier: PlayerTier) =>
+  allPlayers
+    .filter((player) => getPlayerTeamKey(player) === teamName)
+    .filter((player) => getPlayerTier(player) === tier)
+    .sort((left, right) => right.overall - left.overall || left.name.localeCompare(right.name))[0]?.id;
+
+const milestoneChallenges: RogueChallengeDefinition[] = [
+  ...rogueRunStartedThresholds.map<RogueChallengeDefinition>((threshold) => ({
+    id: `milestone-rogue-runs-${threshold}`,
+    title: `${threshold} Rogue Runs Started`,
+    description:
+      threshold === 5
+        ? `Start ${threshold} Rogue runs and earn an Emerald player pack.`
+        : `Start ${threshold} Rogue runs.`,
+    reward: thresholdReward(threshold, 20, 100),
+    requirement: `Start ${threshold} Rogue runs`,
+    groupId: "milestones",
+    subgroupId: "rogue-runs",
+    rewardPackTier: threshold === 5 ? "Emerald" : undefined,
+    progress: {
+      metric: "rogueRunsStarted",
+      target: threshold,
+      label: "Runs started",
+      unit: "runs",
+    },
+  })),
+  ...rogueRunPlayerDraftThresholds.map<RogueChallengeDefinition>((threshold) => ({
+    id: `milestone-rogue-run-players-${threshold}`,
+    title: `${threshold} Rogue Run Players Drafted`,
+    description: `Draft ${threshold} total players across Rogue runs.`,
+    reward: thresholdReward(threshold, 5, 250),
+    requirement: `Draft ${threshold} total Rogue run players`,
+    groupId: "milestones",
+    subgroupId: "rogue-run-players",
+    progress: {
+      metric: "rogueRunPlayersDrafted",
+      target: threshold,
+      label: "Players drafted",
+      unit: "players",
+    },
+  })),
+  {
+    id: "milestone-rogue-run-players-all",
+    title: "All Rogue Run Players Drafted",
+    description: "Draft every player in the Rogue run pool at least once.",
+    reward: 15_000,
+    requirement: "Draft every player in Rogue runs at least once",
+    groupId: "milestones",
+    subgroupId: "rogue-run-players",
+    progress: {
+      metric: "rogueRunUniquePlayersDrafted",
+      target: allPlayers.length,
+      label: "Unique players drafted",
+      unit: "players",
+    },
+  },
+  ...collectionPlayerThresholds.map<RogueChallengeDefinition>((threshold) => ({
+    id: `milestone-collection-${threshold}`,
+    title: `${threshold} Collection Players`,
+    description: `Add ${threshold} players to your permanent collection.`,
+    reward: thresholdReward(threshold, 20, 250),
+    requirement: `Add ${threshold} players to your collection`,
+    groupId: "milestones",
+    subgroupId: "collection",
+    progress: {
+      metric: "collectionPlayers",
+      target: threshold,
+      label: "Collection players",
+      unit: "players",
+    },
+  })),
+];
 
 const teamTakeoverChallenges: RogueChallengeDefinition[] = roguelikeCoaches.map((coach) => ({
   id: `${slugifyTeamName(coach.teamName)}-year-1-takeover`,
@@ -48,7 +162,19 @@ const teamTakeoverChallenges: RogueChallengeDefinition[] = roguelikeCoaches.map(
   requirement: `${YEAR_ONE_TAKEOVER_REQUIRED_TEAM_PLAYERS} ${coach.teamName} players in run roster, clear Year 1 Finals`,
   groupId: "team-takeovers",
   subgroupId: "year-one-takeovers",
-  rewardCoachId: coach.id,
+  rewardPlayerId: getTeamTakeoverRewardPlayerId(coach.teamName, "Emerald"),
+  requiredTeamName: coach.teamName,
+}));
+
+const yearTwoTakeoverChallenges: RogueChallengeDefinition[] = roguelikeCoaches.map((coach) => ({
+  id: `${slugifyTeamName(coach.teamName)}-year-2-takeover`,
+  title: `${coach.teamName} Year 2 Takeover`,
+  description: `Beat the Year 2 NBA Finals with ${YEAR_TWO_TAKEOVER_REQUIRED_TEAM_PLAYERS} ${coach.teamName} players in your run roster.`,
+  reward: 2_500,
+  requirement: `${YEAR_TWO_TAKEOVER_REQUIRED_TEAM_PLAYERS} ${coach.teamName} players in run roster, clear Year 2 Finals`,
+  groupId: "team-takeovers",
+  subgroupId: "year-two-takeovers",
+  rewardPlayerId: getTeamTakeoverRewardPlayerId(coach.teamName, "Sapphire"),
   requiredTeamName: coach.teamName,
 }));
 
@@ -60,10 +186,12 @@ const totalTakeoverChallenges: RogueChallengeDefinition[] = roguelikeCoaches.map
   requirement: `10 ${coach.teamName} players in run roster, clear GOAT node`,
   groupId: "team-takeovers",
   subgroupId: "total-takeovers",
+  rewardPlayerId: getTeamTakeoverRewardPlayerId(coach.teamName, "Ruby"),
   requiredTeamName: coach.teamName,
 }));
 
 export const ROGUE_CHALLENGES: RogueChallengeDefinition[] = [
+  ...milestoneChallenges,
   {
     id: "western-conference-takeover",
     title: "Western Conference Takeover",
@@ -129,6 +257,7 @@ export const ROGUE_CHALLENGES: RogueChallengeDefinition[] = [
     groupId: "superstar",
   },
   ...teamTakeoverChallenges,
+  ...yearTwoTakeoverChallenges,
   ...totalTakeoverChallenges,
 ];
 
@@ -156,6 +285,64 @@ export const getClaimedRogueChallengeRewardTotal = (claimedChallengeIds: string[
   );
 
 export const isValidRogueChallengeId = (challengeId: string) => challengeById.has(challengeId);
+
+const formatProgressNumber = (value: number) =>
+  Number.isInteger(value) ? `${value}` : value.toFixed(1);
+
+const formatProgressLabel = (value: number, definition: RogueChallengeProgressDefinition) => {
+  const formattedValue = formatProgressNumber(value);
+  if (definition.unit === "floor") return `Floor ${formattedValue}`;
+  return `${formattedValue} ${definition.unit}`;
+};
+
+export const getRogueChallengeProgress = (
+  challenge: RogueChallengeDefinition,
+  meta: Pick<MetaProgress, "rogueMilestones">,
+): RogueChallengeProgress => {
+  if (!challenge.progress) {
+    return {
+      current: 0,
+      target: 1,
+      percent: 0,
+      currentLabel: "0 / 1",
+      targetLabel: "1 clear",
+      isComplete: false,
+    };
+  }
+
+  const current = Math.max(
+    0,
+    challenge.progress.metric === "rogueRunsStarted"
+      ? meta.rogueMilestones.runsStarted
+      : challenge.progress.metric === "rogueRunPlayersDrafted"
+        ? meta.rogueMilestones.playersDrafted
+        : challenge.progress.metric === "rogueRunUniquePlayersDrafted"
+          ? meta.rogueMilestones.uniquePlayersDrafted
+          : meta.rogueMilestones.collectionPlayers,
+  );
+  const target = Math.max(1, challenge.progress.target);
+  const cappedCurrent = Math.min(current, target);
+  const percent = Math.max(0, Math.min(100, Math.round((cappedCurrent / target) * 100)));
+
+  return {
+    current,
+    target,
+    percent,
+    currentLabel: `${formatProgressLabel(cappedCurrent, challenge.progress)} / ${formatProgressLabel(
+      target,
+      challenge.progress,
+    )}`,
+    targetLabel: challenge.progress.label,
+    isComplete: current >= target,
+  };
+};
+
+export const getCompletedRogueMilestoneChallengeIds = (
+  meta: Pick<MetaProgress, "rogueMilestones">,
+) =>
+  milestoneChallenges
+    .filter((challenge) => getRogueChallengeProgress(challenge, meta).isComplete)
+    .map((challenge) => challenge.id);
 
 export const getRogueChallengeRunSettingsPreset = (
   challengeId: string,
@@ -288,6 +475,18 @@ export const getCompletedRogueChallengeIdsForClear = ({
     if (settings.disableTrainingNodes) completedIds.push("no-training-year-two-finals");
     if (hasFiveCoachTeamStarters(startingLineup, hiredCoachId)) completedIds.push("coach-team-finals-core");
     if (hasFiveSameTeamChemistryGroupStarters(startingLineup)) completedIds.push("iconic-team-chem-finals-core");
+    yearTwoTakeoverChallenges.forEach((challenge) => {
+      if (
+        challenge.requiredTeamName &&
+        hasAtLeastPlayersFromTeam(
+          rosterPlayers,
+          challenge.requiredTeamName,
+          YEAR_TWO_TAKEOVER_REQUIRED_TEAM_PLAYERS,
+        )
+      ) {
+        completedIds.push(challenge.id);
+      }
+    });
   }
 
   if (clearedNodeId === GOAT_NODE_ID) {

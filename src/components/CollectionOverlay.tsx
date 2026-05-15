@@ -110,7 +110,7 @@ export const CollectionOverlay = ({ ownedPlayerIds, onClose, starterSlotSelectio
   const unavailableStarterPlayerIds = new Set(starterSlotSelection?.selectedPlayerIds ?? []);
 
   const overlay = (
-    <div className="fixed inset-0 z-[1000] overflow-y-auto bg-[#030711]/94 px-4 py-5 text-white backdrop-blur-xl sm:px-6">
+    <div data-tutorial-id="collection-overlay" className="fixed inset-0 z-[1000] overflow-y-auto bg-[#030711]/94 px-4 py-5 text-white backdrop-blur-xl sm:px-6">
       <div className="mx-auto max-w-7xl">
         <div className="rounded-[30px] border border-white/12 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.13),transparent_34%),linear-gradient(180deg,rgba(12,17,28,0.98),rgba(5,9,17,0.98))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.42)] sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -137,7 +137,7 @@ export const CollectionOverlay = ({ ownedPlayerIds, onClose, starterSlotSelectio
             </button>
           </div>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <div data-tutorial-id="collection-summary" className="mt-6 grid gap-3 sm:grid-cols-3">
             <div className="rounded-[22px] border border-cyan-200/16 bg-cyan-300/8 p-4">
               <div className="text-[10px] uppercase tracking-[0.22em] text-cyan-100/68">Cards Owned</div>
               <div className="mt-2 text-3xl font-semibold text-white">{ownedPlayers.length}</div>
@@ -152,7 +152,7 @@ export const CollectionOverlay = ({ ownedPlayerIds, onClose, starterSlotSelectio
             </div>
           </div>
 
-          <div className="mt-6 rounded-[26px] border border-white/10 bg-black/18 p-4">
+          <div data-tutorial-id="collection-filters" className="mt-6 rounded-[26px] border border-white/10 bg-black/18 p-4">
             <div className="grid gap-3 lg:grid-cols-[minmax(180px,1.15fr)_minmax(160px,0.8fr)_minmax(160px,0.8fr)_minmax(160px,0.8fr)]">
               <label className="relative block">
                 <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -200,7 +200,7 @@ export const CollectionOverlay = ({ ownedPlayerIds, onClose, starterSlotSelectio
             </div>
           </div>
 
-          <div className="mt-6 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.018))] p-4">
+          <div data-tutorial-id="collection-grid" className="mt-6 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.018))] p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">
                 Showing {filteredPlayers.length} / {ownedPlayers.length}

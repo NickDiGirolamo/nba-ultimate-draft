@@ -1589,26 +1589,96 @@ const starterRevealSlots = [
   ["PF", "C"],
 ] as const;
 
-const scoreStarterRevealPlayer = (
-  player: Player,
-  packageId: RoguelikeStarterPackageId,
-) => {
-  const base = player.overall * 0.45;
-
-  if (packageId === "balanced-foundation") {
-    return base + player.offense * 0.18 + player.defense * 0.18 + player.playmaking * 0.08;
-  }
-
-  if (packageId === "defense-lab") {
-    return base + player.defense * 0.34 + player.rebounding * 0.12 + player.offense * 0.06;
-  }
-
-  return base + player.playmaking * 0.32 + player.offense * 0.16 + player.shooting * 0.08;
+const starterRevealPackageSeedOffsets: Record<RoguelikeStarterPackageId, number> = {
+  "balanced-foundation": 0,
+  "defense-lab": 118_681,
+  "creator-camp": 243_251,
 };
 
 const canFillStarterRevealSlot = (player: Player, slotPositions: readonly string[]) => {
   const positions = [player.primaryPosition, ...player.secondaryPositions];
   return positions.some((position) => slotPositions.includes(position));
+};
+
+const shuffleWithRng = <T,>(items: T[], rng: () => number) => {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(rng() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+};
+
+const findExactStarterRevealSelection = (
+  slotCandidatePools: Player[][],
+  targetTotalOverall: number,
+  rng: () => number,
+) => {
+  if (slotCandidatePools.length !== 3) return null;
+
+  const [firstSlot, secondSlot, thirdSlot] = slotCandidatePools.map((pool) => shuffleWithRng(pool, rng));
+  const thirdSlotByOverall = thirdSlot.reduce((groups, player) => {
+    const current = groups.get(player.overall) ?? [];
+    current.push(player);
+    groups.set(player.overall, current);
+    return groups;
+  }, new Map<number, Player[]>());
+
+  for (const firstPlayer of firstSlot) {
+    const firstIdentity = getPlayerIdentityKey(firstPlayer);
+
+    for (const secondPlayer of secondSlot) {
+      const secondIdentity = getPlayerIdentityKey(secondPlayer);
+      if (secondIdentity === firstIdentity) continue;
+
+      const neededOverall = targetTotalOverall - firstPlayer.overall - secondPlayer.overall;
+      const thirdCandidates = thirdSlotByOverall.get(neededOverall);
+      if (!thirdCandidates?.length) continue;
+
+      const thirdPlayer = thirdCandidates.find((candidate) => {
+        const identity = getPlayerIdentityKey(candidate);
+        return identity !== firstIdentity && identity !== secondIdentity;
+      });
+      if (thirdPlayer) return [firstPlayer, secondPlayer, thirdPlayer];
+    }
+  }
+
+  return null;
+};
+
+const drawClosestStarterRevealSelection = (
+  slotCandidatePools: Player[][],
+  targetTotalOverall: number,
+  rng: () => number,
+) => {
+  const shuffledPools = slotCandidatePools.map((pool) => shuffleWithRng(pool, rng));
+  let bestSelection: Player[] = [];
+  let bestDelta = Number.POSITIVE_INFINITY;
+
+  for (let attempt = 0; attempt < 2400; attempt += 1) {
+    const identities = new Set<string>();
+    const selected: Player[] = [];
+
+    for (const pool of shuffledPools) {
+      const viable = pool.filter((player) => !identities.has(getPlayerIdentityKey(player)));
+      if (viable.length === 0) continue;
+
+      const player = viable[Math.floor(rng() * viable.length)];
+      selected.push(player);
+      identities.add(getPlayerIdentityKey(player));
+    }
+
+    if (selected.length !== shuffledPools.length) continue;
+
+    const totalOverall = selected.reduce((sum, player) => sum + player.overall, 0);
+    const delta = Math.abs(totalOverall - targetTotalOverall);
+    if (delta < bestDelta) {
+      bestSelection = selected;
+      bestDelta = delta;
+    }
+  }
+
+  return bestSelection;
 };
 
 export const drawRoguelikeStarterRevealPlayers = (
@@ -1617,87 +1687,17 @@ export const drawRoguelikeStarterRevealPlayers = (
   targetAverageOverall = 80,
   candidatePool: Player[] = allPlayers,
 ) => {
-  const rng = mulberry32(seed);
-  const minimumOverall = Math.max(60, targetAverageOverall - 5);
-  const maximumOverall = Math.min(99, targetAverageOverall + 5);
+  const rng = mulberry32(seed + starterRevealPackageSeedOffsets[packageId]);
   const targetTotalOverall = targetAverageOverall * starterRevealSlots.length;
-  const eligible = uniqueByIdentity(
-    candidatePool.filter((player) => {
-      const tier = getPlayerTier(player);
-      return tier === "Sapphire" || tier === "Emerald";
-    }),
+  const eligible = uniqueByIdentity(candidatePool);
+  const slotCandidatePools = starterRevealSlots.map((slotPositions) =>
+    eligible.filter((player) => canFillStarterRevealSlot(player, slotPositions)),
   );
-  const selectedIds = new Set<string>();
-  const buildSlotCandidatePools = (maxCandidatesPerSlot?: number) =>
-    starterRevealSlots.map((slotPositions) => {
-      const pool = eligible
-        .filter((player) => canFillStarterRevealSlot(player, slotPositions))
-        .filter((player) => player.overall >= minimumOverall && player.overall <= maximumOverall)
-        .sort((a, b) => scoreStarterRevealPlayer(b, packageId) - scoreStarterRevealPlayer(a, packageId));
 
-      return typeof maxCandidatesPerSlot === "number" ? pool.slice(0, maxCandidatesPerSlot) : pool;
-    });
+  const exactSelection = findExactStarterRevealSelection(slotCandidatePools, targetTotalOverall, rng);
+  if (exactSelection) return exactSelection;
 
-  const findValidSelections = (slotCandidatePools: Player[][]) => {
-    const validSelections: Player[][] = [];
-    const currentSelection: Player[] = [];
-    selectedIds.clear();
-
-    const search = (slotIndex: number, totalOverall: number) => {
-      if (slotIndex === slotCandidatePools.length) {
-        if (totalOverall === targetTotalOverall) {
-          validSelections.push([...currentSelection]);
-        }
-        return;
-      }
-
-      const remainingSlots = slotCandidatePools.length - slotIndex - 1;
-      const candidates = slotCandidatePools[slotIndex] ?? [];
-
-      for (const candidate of candidates) {
-        if (selectedIds.has(candidate.id)) continue;
-
-        const nextTotal = totalOverall + candidate.overall;
-        const minPossible = nextTotal + remainingSlots * minimumOverall;
-        const maxPossible = nextTotal + remainingSlots * maximumOverall;
-        if (minPossible > targetTotalOverall || maxPossible < targetTotalOverall) {
-          continue;
-        }
-
-        currentSelection.push(candidate);
-        selectedIds.add(candidate.id);
-        search(slotIndex + 1, nextTotal);
-        currentSelection.pop();
-        selectedIds.delete(candidate.id);
-      }
-    };
-
-    search(0, 0);
-    return validSelections;
-  };
-
-  const preferredSlotCandidatePools = buildSlotCandidatePools(24);
-  let validSelections = findValidSelections(preferredSlotCandidatePools);
-
-  if (validSelections.length === 0) {
-    validSelections = findValidSelections(buildSlotCandidatePools());
-  }
-
-  if (validSelections.length > 0) {
-    const selectedIndex = Math.floor(rng() * validSelections.length);
-    return validSelections[selectedIndex] ?? validSelections[0];
-  }
-
-  const selected: Player[] = [];
-  selectedIds.clear();
-  preferredSlotCandidatePools.forEach((candidates) => {
-    const fallback = candidates.find((player) => !selectedIds.has(player.id));
-    if (!fallback) return;
-    selected.push(fallback);
-    selectedIds.add(fallback.id);
-  });
-
-  return selected;
+  return drawClosestStarterRevealSelection(slotCandidatePools, targetTotalOverall, rng);
 };
 
 export const getBundle = (bundleId: RoguelikeBundleId) =>

@@ -265,7 +265,7 @@ export const LineupReorderScreen = ({
   }, [dragPointer, draggingIndex, onMovePlayer]);
 
   return (
-    <section className="space-y-6 select-none">
+    <section data-tutorial-id="lineup-screen" className="space-y-6 select-none">
       <div className="grid gap-4 lg:grid-cols-[0.12fr_0.38fr_0.5fr]">
         <button
           type="button"
@@ -278,7 +278,7 @@ export const LineupReorderScreen = ({
           <span className="text-[10px] uppercase tracking-[0.22em] text-slate-200">Home</span>
         </button>
 
-        <div className="glass-panel rounded-[24px] p-4 shadow-card sm:p-5 sm:rounded-[28px]">
+        <div data-tutorial-id="lineup-intro" className="glass-panel rounded-[24px] p-4 shadow-card sm:p-5 sm:rounded-[28px]">
           <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Lineup Phase</div>
           <h1 className="mt-2 font-display text-[clamp(1.7rem,6vw,2.2rem)] text-white">Set Your Rotation</h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
@@ -286,7 +286,7 @@ export const LineupReorderScreen = ({
           </p>
         </div>
 
-        <div className="glass-panel rounded-[24px] p-4 shadow-card sm:p-5 sm:rounded-[28px]">
+        <div data-tutorial-id="lineup-summary" className="glass-panel rounded-[24px] p-4 shadow-card sm:p-5 sm:rounded-[28px]">
           <div className="flex h-full flex-col justify-between gap-4">
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
@@ -305,6 +305,7 @@ export const LineupReorderScreen = ({
 
             <button
               type="button"
+              data-tutorial-id="lineup-simulate"
               onClick={onSimulate}
               className="inline-flex min-h-[48px] items-center justify-center gap-2 self-stretch rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900 sm:self-start"
             >
@@ -316,7 +317,7 @@ export const LineupReorderScreen = ({
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="glass-panel rounded-[28px] p-4 shadow-card sm:p-5 sm:rounded-[34px]">
+        <div data-tutorial-id="lineup-starters" className="glass-panel rounded-[28px] p-4 shadow-card sm:p-5 sm:rounded-[34px]">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Starting Five</div>
@@ -382,7 +383,7 @@ export const LineupReorderScreen = ({
         </div>
 
         <div className="grid gap-6 xl:grid-rows-[1.4fr_0.7fr]">
-          <div className="glass-panel rounded-[24px] p-4 shadow-card sm:p-5 sm:rounded-[30px]">
+          <div data-tutorial-id="lineup-bench" className="glass-panel rounded-[24px] p-4 shadow-card sm:p-5 sm:rounded-[30px]">
             <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Bench Roles</div>
             <h3 className="mt-1 font-display text-2xl text-white">Primary Reserve Unit</h3>
 
@@ -408,7 +409,7 @@ export const LineupReorderScreen = ({
             </div>
           </div>
 
-          <div className="glass-panel rounded-[24px] p-4 shadow-card sm:p-5 sm:rounded-[30px]">
+          <div data-tutorial-id="lineup-utility" className="glass-panel rounded-[24px] p-4 shadow-card sm:p-5 sm:rounded-[30px]">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Utility Slots</div>

@@ -886,6 +886,13 @@ export const buildMetaProgress = (
       ...defaultRogueBests(),
       ...roguePersonalBests,
     },
+    rogueMilestones: {
+      runsStarted: 0,
+      playersDrafted: 0,
+      uniquePlayersDrafted: 0,
+      collectionPlayers: 0,
+      totalPlayers: allPlayers.length,
+    },
     leaderboards: buildLeaderboards(history),
     trophies: buildTrophies(history, collection),
     streaks: buildStreaks(history),

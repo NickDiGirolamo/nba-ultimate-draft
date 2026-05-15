@@ -11,7 +11,7 @@ export const PrestigeLevelUpModal = ({
   onClose,
 }: PrestigeLevelUpModalProps) => {
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/72 px-4 py-8 backdrop-blur-sm">
+    <div data-tutorial-id="prestige-level-up-modal" className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/72 px-4 py-8 backdrop-blur-sm">
       <div className="relative w-full max-w-3xl overflow-hidden rounded-[36px] border border-amber-200/18 bg-[#090c14] p-8 shadow-[0_30px_100px_rgba(0,0,0,0.65)]">
         <button
           type="button"
@@ -63,7 +63,7 @@ export const PrestigeLevelUpModal = ({
           </div>
         </div>
 
-        <div className="mt-8">
+        <div data-tutorial-id="prestige-level-up-rewards" className="mt-8">
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-slate-400">
             <Sparkles size={14} className="text-amber-200" />
             Unlocks At This Level
@@ -94,6 +94,7 @@ export const PrestigeLevelUpModal = ({
         <div className="mt-8 flex justify-end">
           <button
             type="button"
+            data-tutorial-id="prestige-level-up-continue"
             onClick={onClose}
             className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-amber-100"
           >

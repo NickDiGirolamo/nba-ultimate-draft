@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { ArrowRight, LockKeyhole, LogIn, Trophy, UserPlus } from "lucide-react";
+import { ArrowRight, LockKeyhole, LogIn, UserPlus } from "lucide-react";
+import { ULTIMATE_DRAFT_LOGO_SRC } from "../lib/brand";
 
 interface LoginPageProps {
   configured: boolean;
@@ -52,8 +53,13 @@ export const LoginPage = ({
       <div className="relative z-10 mx-auto flex min-h-screen max-w-[1180px] items-center px-5 py-8">
         <div className="grid w-full gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
           <section className="rounded-[28px] border border-white/12 bg-black/36 p-7 shadow-[0_24px_70px_rgba(0,0,0,0.42)] backdrop-blur md:p-9">
-            <div className="inline-flex items-center gap-3 rounded-full border border-amber-200/18 bg-amber-300/10 px-4 py-2 text-amber-100">
-              <Trophy size={18} />
+            <div className="inline-flex items-center gap-3 rounded-full border border-amber-200/18 bg-black/42 px-3 py-2 text-amber-100">
+              <img
+                src={ULTIMATE_DRAFT_LOGO_SRC}
+                alt=""
+                className="h-7 w-[78px] object-contain drop-shadow-[0_6px_14px_rgba(251,191,36,0.22)]"
+                draggable={false}
+              />
               <span className="text-xs font-semibold uppercase tracking-[0.22em]">NBA Ultimate Draft</span>
             </div>
             <h1 className="mt-7 font-display text-[clamp(2.6rem,6vw,5.25rem)] leading-none text-white">

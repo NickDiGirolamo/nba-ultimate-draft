@@ -335,24 +335,25 @@ export const LearnOverlay = ({ onClose }: LearnOverlayProps) => {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[130] bg-slate-950/74 backdrop-blur-md"
+      data-tutorial-id="learn-overlay"
+      className="fixed inset-0 z-[130] overflow-hidden bg-slate-950/74 backdrop-blur-md"
       onMouseDown={onClose}
     >
-      <div className="mx-auto flex h-screen max-w-[1360px] items-start justify-center overflow-y-auto px-3 py-4 sm:px-4 sm:py-8 md:px-6">
+      <div className="mx-auto flex h-full max-w-[1360px] items-center justify-center overflow-hidden px-3 py-3 sm:px-4 sm:py-4 md:px-6">
         <div
-          className="glass-panel my-auto w-full rounded-[28px] border border-white/14 bg-[linear-gradient(180deg,rgba(12,18,30,0.98),rgba(5,8,15,0.98))] p-4 shadow-[0_30px_90px_rgba(0,0,0,0.48)] sm:p-6 lg:rounded-[34px] lg:p-7"
+          className="glass-panel max-h-full w-full overflow-hidden rounded-[28px] border border-white/14 bg-[linear-gradient(180deg,rgba(12,18,30,0.98),rgba(5,8,15,0.98))] p-4 shadow-[0_30px_90px_rgba(0,0,0,0.48)] lg:rounded-[34px] lg:p-5"
           onMouseDown={(event) => event.stopPropagation()}
         >
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/16 bg-sky-300/10 px-3 py-1.5 text-xs uppercase tracking-[0.24em] text-sky-200/86">
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/16 bg-sky-300/10 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-sky-200/86">
                 <BookOpen size={14} />
                 Learn NBA Rogue Mode
               </div>
-              <h2 className="mt-3 font-display text-3xl text-white sm:text-4xl">
+              <h2 className="mt-2 font-display text-3xl leading-none text-white sm:text-4xl">
                 Rogue run guidebook
               </h2>
-              <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-300">
+              <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-300">
                 Use this as the in-game guide for reading cards, building chemistry, surviving boss battles,
                 spending locker room cash, and understanding what each run is asking from your team.
               </p>
@@ -368,12 +369,12 @@ export const LearnOverlay = ({ onClose }: LearnOverlayProps) => {
             </button>
           </div>
 
-          <div className="mt-6 grid gap-5 lg:grid-cols-[250px_minmax(0,1fr)]">
-            <div className="rounded-[26px] border border-white/10 bg-white/[0.035] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-              <div className="px-3 pb-2 pt-2 text-[10px] uppercase tracking-[0.22em] text-slate-500">
+          <div className="mt-4 grid min-h-0 gap-4 lg:grid-cols-[230px_minmax(0,1fr)]">
+            <div data-tutorial-id="learn-tabs" className="min-h-0 rounded-[24px] border border-white/10 bg-white/[0.035] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <div className="px-3 pb-1.5 pt-1 text-[10px] uppercase tracking-[0.22em] text-slate-500">
                 Topics
               </div>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+              <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-1">
                 {learnTabs.map((tab) => {
                   const selected = tab.id === activeTabId;
                   const TabIcon = tab.icon;
@@ -382,13 +383,13 @@ export const LearnOverlay = ({ onClose }: LearnOverlayProps) => {
                       key={tab.id}
                       type="button"
                       onClick={() => setActiveTabId(tab.id)}
-                      className={`flex items-center gap-3 rounded-[20px] border px-3 py-3 text-left text-sm font-semibold transition ${
+                      className={`flex items-center gap-3 rounded-[18px] border px-3 py-2.5 text-left text-sm font-semibold transition ${
                         selected
                           ? "border-sky-200/34 bg-[linear-gradient(135deg,rgba(56,189,248,0.2),rgba(255,255,255,0.07))] text-white shadow-[0_12px_28px_rgba(56,189,248,0.12)]"
                           : "border-white/8 bg-black/12 text-slate-300 hover:border-white/14 hover:bg-white/7 hover:text-white"
                       }`}
                     >
-                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border ${
+                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border ${
                         selected
                           ? "border-sky-100/28 bg-sky-300/12 text-sky-100"
                           : "border-white/10 bg-white/6 text-slate-300"
@@ -403,35 +404,35 @@ export const LearnOverlay = ({ onClose }: LearnOverlayProps) => {
             </div>
 
             <div className="min-w-0">
-              <div className="overflow-hidden rounded-[30px] border border-white/12 bg-[radial-gradient(circle_at_top_left,rgba(125,211,252,0.16),transparent_32%),linear-gradient(135deg,rgba(15,23,42,0.88),rgba(8,13,24,0.96))] p-5 shadow-[0_20px_54px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)]">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div data-tutorial-id="learn-content" className="overflow-hidden rounded-[28px] border border-white/12 bg-[radial-gradient(circle_at_top_left,rgba(125,211,252,0.16),transparent_32%),linear-gradient(135deg,rgba(15,23,42,0.88),rgba(8,13,24,0.96))] p-4 shadow-[0_20px_54px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)]">
+                <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                   <div>
                     <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/7 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-300">
                       <ActiveIcon size={13} />
                       {activeTab.label}
                     </div>
-                    <h3 className="mt-3 font-display text-3xl text-white">{activeTab.title}</h3>
-                    <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300">
+                    <h3 className="mt-2 font-display text-2xl leading-tight text-white sm:text-3xl">{activeTab.title}</h3>
+                    <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-300">
                       {activeTab.description}
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                <div className="mt-4 grid gap-2.5 md:grid-cols-2">
                   {sectionCards[activeTabId].map((card) => {
                     const CardIcon = card.icon;
                     return (
                       <div
                         key={card.title}
-                        className={`rounded-[24px] border p-4 shadow-[0_14px_34px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.05)] ${card.tone}`}
+                        className={`rounded-[22px] border p-3 shadow-[0_14px_34px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.05)] ${card.tone}`}
                       >
                         <div className="flex items-start gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-current/18 bg-black/18">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-current/18 bg-black/18">
                             <CardIcon size={17} />
                           </div>
                           <div>
                             <div className="font-semibold text-white">{card.title}</div>
-                            <p className="mt-2 text-sm leading-6 text-slate-200/88">
+                            <p className="mt-1.5 text-sm leading-5 text-slate-200/88">
                               {card.description}
                             </p>
                           </div>
@@ -441,15 +442,15 @@ export const LearnOverlay = ({ onClose }: LearnOverlayProps) => {
                   })}
                 </div>
 
-                <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">
+                <div data-tutorial-id="learn-reminders" className="mt-4 rounded-[22px] border border-white/10 bg-black/20 p-3">
                   <div className="text-[10px] uppercase tracking-[0.22em] text-slate-400">
                     Practical reminders
                   </div>
-                  <div className="mt-3 grid gap-2 md:grid-cols-3">
+                  <div className="mt-2.5 grid gap-2 md:grid-cols-3">
                     {tabNotes[activeTabId].map((note) => (
                       <div
                         key={note}
-                        className="rounded-[18px] border border-white/8 bg-white/[0.045] px-3 py-3 text-sm leading-6 text-slate-300"
+                        className="rounded-[18px] border border-white/8 bg-white/[0.045] px-3 py-2.5 text-sm leading-5 text-slate-300"
                       >
                         {note}
                       </div>

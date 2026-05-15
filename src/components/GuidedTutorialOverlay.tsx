@@ -155,7 +155,7 @@ export const GuidedTutorialOverlay = ({
     : step.waitingBody ?? "Finish the current action and the guide will pick back up when the next highlighted control appears.";
 
   const overlay = (
-    <div className="pointer-events-none fixed inset-0 z-[180]">
+    <div className="pointer-events-none fixed inset-0 z-[1200]">
       {highlight ? (
         <>
           <div className="fixed left-0 top-0 bg-slate-950/78 backdrop-blur-[2px]" style={{ right: 0, height: highlight.top }} />

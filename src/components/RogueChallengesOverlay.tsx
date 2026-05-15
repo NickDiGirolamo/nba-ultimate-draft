@@ -1,17 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, CheckCircle2, ChevronDown, Coins, Target, Trophy, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, Coins, Package2, Target, Trophy, X } from "lucide-react";
+import { allPlayers } from "../data/players";
 import { getNbaTeamByName } from "../data/nbaTeams";
+import { DraftPlayerCard } from "./DraftPlayerCard";
 import {
   ROGUE_CHALLENGES,
+  getRogueChallengeProgress,
   type RogueChallengeDefinition,
   type RogueChallengeGroupId,
   type RogueChallengeSubgroupId,
 } from "../lib/rogueChallenges";
 import { getRoguelikeCoachById } from "../lib/roguelike";
+import { getPlayerTier } from "../lib/playerTier";
 import { trackAnalyticsEventSoon } from "../lib/analytics";
+import type { MetaProgress, Player } from "../types";
 
 interface RogueChallengesOverlayProps {
+  meta: MetaProgress;
   completedRogueChallengeIds: string[];
   claimedRogueChallengeIds: string[];
   onClaimRogueChallengeReward: (challengeId: string) => boolean;
@@ -25,6 +31,43 @@ const formatNumber = (value: number | string) => {
   return normalized.toLocaleString("en-US");
 };
 
+const ChallengeRewardPlayerPreview = ({
+  player,
+  size = "compact",
+}: {
+  player: Player;
+  size?: "compact" | "large";
+}) => (
+  <div
+    className={`shrink-0 overflow-hidden border border-emerald-200/35 bg-emerald-300/10 shadow-[0_10px_24px_rgba(16,185,129,0.18)] [&>button]:!opacity-100 ${
+      size === "large" ? "h-[128px] w-[54px] rounded-[12px]" : "h-[96px] w-[40px] rounded-[9px]"
+  }`}
+    title={`${player.name} ${getPlayerTier(player)} reward`}
+    aria-label={`${player.name} ${getPlayerTier(player)} reward card`}
+  >
+    <DraftPlayerCard
+      player={player}
+      compact
+      compactScale={size === "large" ? 0.14 : 0.105}
+      disabled
+      rarityOverride={getPlayerTier(player)}
+    />
+  </div>
+);
+
+type ChallengeStatusFilter = "all" | "open" | "completed" | "ready" | "claimed";
+
+const challengeStatusFilters: Array<{
+  id: ChallengeStatusFilter;
+  label: string;
+}> = [
+  { id: "all", label: "All" },
+  { id: "open", label: "Open" },
+  { id: "completed", label: "Completed" },
+  { id: "ready", label: "Ready" },
+  { id: "claimed", label: "Claimed" },
+];
+
 const challengeGroups: Array<{
   id: RogueChallengeGroupId;
   label: string;
@@ -35,6 +78,28 @@ const challengeGroups: Array<{
     description: string;
   }>;
 }> = [
+  {
+    id: "milestones",
+    label: "Milestones",
+    description: "Persistent Rogue goals powered by saved run counts, Rogue drafted players, and collection size.",
+    subgroups: [
+      {
+        id: "rogue-runs",
+        label: "Rogue Runs",
+        description: "Start more Rogue runs and bank rewards for long-term momentum.",
+      },
+      {
+        id: "rogue-run-players",
+        label: "Rogue Run Players",
+        description: "Draft players across Rogue runs, including the full unique-player chase.",
+      },
+      {
+        id: "collection",
+        label: "Collection",
+        description: "Grow your permanent player collection through packs, purchases, and rewards.",
+      },
+    ],
+  },
   {
     id: "rookie",
     label: "Rookie",
@@ -71,6 +136,11 @@ const challengeGroups: Array<{
         description: "Beat the Year 1 Finals with a five-player team core.",
       },
       {
+        id: "year-two-takeovers",
+        label: "Year 2 Takeovers",
+        description: "Beat the Year 2 Finals with a seven-player team core.",
+      },
+      {
         id: "total-takeovers",
         label: "Total Takeovers",
         description: "Beat the GOAT node with a full single-team roster.",
@@ -80,14 +150,16 @@ const challengeGroups: Array<{
 ];
 
 export const RogueChallengesOverlay = ({
+  meta,
   completedRogueChallengeIds,
   claimedRogueChallengeIds,
   onClaimRogueChallengeReward,
   onRunRogueChallenge,
   onClose,
 }: RogueChallengesOverlayProps) => {
-  const [activeGroupId, setActiveGroupId] = useState<RogueChallengeGroupId>("rookie");
+  const [activeGroupId, setActiveGroupId] = useState<RogueChallengeGroupId>("milestones");
   const [activeSubgroupId, setActiveSubgroupId] = useState<RogueChallengeSubgroupId | null>(null);
+  const [statusFilter, setStatusFilter] = useState<ChallengeStatusFilter>("all");
   const completedChallengeIds = useMemo(
     () => new Set(completedRogueChallengeIds),
     [completedRogueChallengeIds],
@@ -118,6 +190,29 @@ export const RogueChallengesOverlay = ({
   const activeGroupReadyCount = activeGroupChallenges.filter(
     (challenge) => completedChallengeIds.has(challenge.id) && !claimedChallengeIds.has(challenge.id),
   ).length;
+  const activeGroupClaimedCount = activeGroupChallenges.filter((challenge) =>
+    claimedChallengeIds.has(challenge.id),
+  ).length;
+  const activeGroupOpenCount = activeGroupChallenges.filter((challenge) =>
+    !completedChallengeIds.has(challenge.id),
+  ).length;
+  const filteredActiveGroupChallenges = activeGroupChallenges.filter((challenge) => {
+    const completed = completedChallengeIds.has(challenge.id);
+    const claimed = claimedChallengeIds.has(challenge.id);
+
+    if (statusFilter === "open") return !completed;
+    if (statusFilter === "completed") return completed;
+    if (statusFilter === "ready") return completed && !claimed;
+    if (statusFilter === "claimed") return claimed;
+    return true;
+  });
+  const statusFilterCounts: Record<ChallengeStatusFilter, number> = {
+    all: activeGroupChallenges.length,
+    open: activeGroupOpenCount,
+    completed: activeGroupCompletedCount,
+    ready: activeGroupReadyCount,
+    claimed: activeGroupClaimedCount,
+  };
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -154,7 +249,7 @@ export const RogueChallengesOverlay = ({
   };
 
   const overlay = (
-    <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/82 px-3 py-4 backdrop-blur-md sm:px-4 sm:py-8">
+    <div data-tutorial-id="rogue-challenges-overlay" className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/82 px-3 py-4 backdrop-blur-md sm:px-4 sm:py-8">
       <div className="w-full max-w-[1360px] rounded-[28px] border border-white/10 bg-[#070b12] p-4 shadow-[0_30px_90px_rgba(0,0,0,0.55)] sm:p-6 lg:rounded-[34px] lg:p-7 xl:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -164,7 +259,7 @@ export const RogueChallengesOverlay = ({
             </div>
             <h2 className="mt-3 font-display text-3xl text-white sm:text-4xl">Challenge Tracker</h2>
             <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
-              Track one-time Rogue goals, launch challenge runs, and claim permanent token or coach rewards.
+              Track one-time Rogue goals, launch challenge runs, and claim permanent token, card, or coach rewards.
             </p>
           </div>
           <button
@@ -178,7 +273,7 @@ export const RogueChallengesOverlay = ({
         </div>
 
         <div className="mt-6 grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)]">
-          <nav className="rounded-[24px] border border-white/10 bg-white/5 p-2" aria-label="Challenge groups">
+          <nav data-tutorial-id="rogue-challenges-groups" className="rounded-[24px] border border-white/10 bg-white/5 p-2" aria-label="Challenge groups">
             {challengeGroups.map((group) => {
               const groupChallenges = challengesByGroup.get(group.id) ?? [];
               const completedCount = groupChallenges.filter((challenge) => completedChallengeIds.has(challenge.id)).length;
@@ -286,7 +381,7 @@ export const RogueChallengesOverlay = ({
 
           <section className="min-w-0">
             <div className="rounded-[24px] border border-white/10 bg-white/5 p-4 sm:p-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                 <div>
                   <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-sky-100/70">
                     <Target size={13} />
@@ -296,33 +391,64 @@ export const RogueChallengesOverlay = ({
                     {activeSubgroup?.description ?? activeGroup.description}
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="min-w-0 rounded-2xl border border-white/10 bg-black/18 px-3 py-2">
-                    <div className="text-lg font-semibold text-white">{activeGroupChallenges.length}</div>
-                    <div className="text-[9px] uppercase tracking-[0.14em] text-slate-400">Goals</div>
+                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                  <div data-tutorial-id="rogue-challenges-summary" className="grid grid-cols-2 gap-2 text-center">
+                    <div className="min-w-[82px] rounded-2xl border border-white/10 bg-black/18 px-3 py-2.5">
+                      <div className="text-xl font-semibold leading-none text-white">{activeGroupChallenges.length}</div>
+                      <div className="mt-1.5 whitespace-nowrap text-[9px] font-semibold uppercase leading-none tracking-[0.11em] text-slate-400">Goals</div>
+                    </div>
+                    <div className="min-w-[82px] rounded-2xl border border-emerald-300/14 bg-emerald-300/8 px-3 py-2.5">
+                      <div className="text-xl font-semibold leading-none text-white">{activeGroupCompletedCount}</div>
+                      <div className="mt-1.5 whitespace-nowrap text-[9px] font-semibold uppercase leading-none tracking-[0.11em] text-slate-400">Done</div>
+                    </div>
                   </div>
-                  <div className="min-w-0 rounded-2xl border border-emerald-300/14 bg-emerald-300/8 px-3 py-2">
-                    <div className="text-lg font-semibold text-white">{activeGroupCompletedCount}</div>
-                    <div className="text-[9px] uppercase tracking-[0.14em] text-slate-400">Done</div>
-                  </div>
-                  <div className="min-w-0 rounded-2xl border border-amber-200/14 bg-amber-300/8 px-3 py-2">
-                    <div className="text-lg font-semibold text-white">{activeGroupReadyCount}</div>
-                    <div className="text-[9px] uppercase tracking-[0.14em] text-slate-400">Ready</div>
+                  <div data-tutorial-id="rogue-challenges-filters" className="flex flex-wrap justify-start gap-1.5 rounded-2xl border border-white/10 bg-black/18 p-1.5 md:justify-end">
+                    {challengeStatusFilters.map((filter) => {
+                      const active = statusFilter === filter.id;
+
+                      return (
+                        <button
+                          key={filter.id}
+                          type="button"
+                          onClick={() => setStatusFilter(filter.id)}
+                          className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] transition ${
+                            active
+                              ? "bg-white text-slate-950"
+                              : "text-slate-300 hover:bg-white/8 hover:text-white"
+                          }`}
+                        >
+                          {filter.label} {statusFilterCounts[filter.id]}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 overflow-hidden rounded-[24px] border border-white/10 bg-black/18">
-              {activeGroupChallenges.map((challenge) => {
+            <div data-tutorial-id="rogue-challenges-list" className="mt-4 overflow-hidden rounded-[24px] border border-white/10 bg-black/18">
+              {filteredActiveGroupChallenges.length > 0 ? filteredActiveGroupChallenges.map((challenge) => {
             const completed = completedChallengeIds.has(challenge.id);
             const claimed = claimedChallengeIds.has(challenge.id);
             const canClaim = completed && !claimed;
             const rewardCoach = getRoguelikeCoachById(challenge.rewardCoachId);
+            const rewardPlayer = challenge.rewardPlayerId
+              ? allPlayers.find((player) => player.id === challenge.rewardPlayerId) ?? null
+              : null;
+            const rewardPackTier = challenge.rewardPackTier ?? null;
             const challengeTeam = challenge.requiredTeamName
               ? getNbaTeamByName(challenge.requiredTeamName)
               : null;
-            const progressValue = completed ? 100 : 0;
+            const progress = getRogueChallengeProgress(challenge, meta);
+            const progressValue = completed ? 100 : progress.percent;
+            const progressLabel = completed && challenge.progress
+              ? `${progress.targetLabel} reached`
+              : challenge.progress
+                ? progress.currentLabel
+                : completed
+                  ? "1 / 1"
+                  : "0 / 1";
+            const takeoverCardChallenge = challenge.groupId === "team-takeovers" && Boolean(rewardPlayer);
 
             return (
               <article
@@ -335,7 +461,13 @@ export const RogueChallengesOverlay = ({
                       : "bg-white/[0.03]"
                 }`}
               >
-                <div className="grid gap-4 xl:grid-cols-[minmax(230px,1.1fr)_minmax(190px,0.85fr)_minmax(104px,0.38fr)_minmax(112px,0.42fr)] xl:items-center xl:gap-3">
+                <div
+                  className={`grid gap-4 xl:items-center xl:gap-3 ${
+                    takeoverCardChallenge
+                      ? "xl:grid-cols-[minmax(250px,1.18fr)_minmax(74px,0.24fr)_minmax(104px,0.38fr)_minmax(112px,0.42fr)]"
+                      : "xl:grid-cols-[minmax(230px,1.1fr)_minmax(190px,0.85fr)_minmax(104px,0.38fr)_minmax(112px,0.42fr)]"
+                  }`}
+                >
                   <div className="flex min-w-0 items-start gap-3">
                     <div
                       className={`shrink-0 rounded-2xl border p-3 ${
@@ -367,37 +499,58 @@ export const RogueChallengesOverlay = ({
                       ) : null}
                     </div>
                   </div>
+                  {takeoverCardChallenge ? (
+                    <div className="flex min-w-0 items-center justify-start sm:justify-center">
+                      {rewardPlayer ? (
+                        <ChallengeRewardPlayerPreview player={rewardPlayer} size="large" />
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="min-w-0">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Progress</div>
+                        <div className="text-xs font-semibold text-white">{progressLabel}</div>
+                      </div>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full border border-white/10 bg-slate-700/70">
+                        <div
+                          className={`h-full rounded-full ${
+                            completed ? "bg-gradient-to-r from-emerald-300 to-amber-200" : "bg-sky-300/30"
+                          }`}
+                          style={{ width: `${progressValue}%` }}
+                        />
+                      </div>
+                      <div className="mt-2 text-xs leading-5 text-slate-300">{challenge.requirement}</div>
+                    </div>
+                  )}
                   <div className="min-w-0">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Progress</div>
-                      <div className="text-xs font-semibold text-white">{completed ? "1 / 1" : "0 / 1"}</div>
-                    </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full border border-white/10 bg-slate-700/70">
-                      <div
-                        className={`h-full rounded-full ${
-                          completed ? "bg-gradient-to-r from-emerald-300 to-amber-200" : "bg-sky-300/30"
-                        }`}
-                        style={{ width: `${progressValue}%` }}
-                      />
-                    </div>
-                    <div className="mt-2 text-xs leading-5 text-slate-300">{challenge.requirement}</div>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Reward</div>
-                    <div className="mt-1 flex items-center gap-2 text-lg font-semibold text-white">
-                      <Coins size={20} className="text-amber-200" />
-                      {formatNumber(challenge.reward)}
-                    </div>
-                    <div
-                      className={`mt-2 inline-flex rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.16em] ${
-                        claimed
-                          ? "border-emerald-300/18 bg-emerald-300/12 text-emerald-100"
-                          : completed
-                            ? "border-amber-200/24 bg-amber-300/12 text-amber-100"
-                            : "border-white/10 bg-black/20 text-slate-300"
-                      }`}
-                    >
-                      {claimed ? "Claimed" : completed ? "Complete" : "Open"}
+                    <div className="flex min-w-0 items-start gap-3">
+                      {rewardPlayer && !takeoverCardChallenge ? (
+                        <ChallengeRewardPlayerPreview player={rewardPlayer} />
+                      ) : null}
+                      <div className="min-w-0">
+                        <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Reward</div>
+                        <div className="mt-1 flex items-center gap-1.5 text-lg font-semibold text-white">
+                          <Coins size={18} className="shrink-0 text-amber-200" />
+                          {formatNumber(challenge.reward)}
+                        </div>
+                        {rewardPackTier ? (
+                          <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-200/24 bg-emerald-300/12 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-100">
+                            <Package2 size={13} />
+                            {rewardPackTier} Pack
+                          </div>
+                        ) : null}
+                        <div
+                          className={`mt-2 inline-flex rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.16em] ${
+                            claimed
+                              ? "border-emerald-300/18 bg-emerald-300/12 text-emerald-100"
+                              : completed
+                                ? "border-amber-200/24 bg-amber-300/12 text-amber-100"
+                                : "border-white/10 bg-black/20 text-slate-300"
+                          }`}
+                        >
+                          {claimed ? "Claimed" : completed ? "Complete" : "Open"}
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div className="flex min-w-0 flex-col gap-2 sm:flex-row xl:flex-col xl:items-stretch">
@@ -430,7 +583,16 @@ export const RogueChallengesOverlay = ({
                 </div>
               </article>
             );
-          })}
+          }) : (
+                <div className="p-6 text-center sm:p-8">
+                  <div className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-200">
+                    No {challengeStatusFilters.find((filter) => filter.id === statusFilter)?.label.toLowerCase()} challenges here
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    Switch filters or choose another challenge group to find more goals.
+                  </p>
+                </div>
+              )}
             </div>
           </section>
         </div>

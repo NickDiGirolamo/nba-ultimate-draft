@@ -1,8 +1,10 @@
-import { CheckCircle2, ChevronRight, Coins, Trophy } from "lucide-react";
+import { CheckCircle2, ChevronRight, Coins, Package2, Trophy } from "lucide-react";
 import { MetaProgress, RunHistoryEntry } from "../types";
+import { allPlayers } from "../data/players";
 import { getNbaTeamByName } from "../data/nbaTeams";
-import { ROGUE_CHALLENGES } from "../lib/rogueChallenges";
+import { ROGUE_CHALLENGES, getRogueChallengeProgress } from "../lib/rogueChallenges";
 import { getRoguelikeCoachById } from "../lib/roguelike";
+import { getPlayerTier } from "../lib/playerTier";
 import { RogueHero } from "./RogueHero";
 
 interface LandingHubProps {
@@ -25,6 +27,7 @@ export const LandingHub = ({
   onRunRogueChallenge,
   onClaimRogueChallengeReward,
   onRestartTutorial,
+  meta,
   completedRogueChallengeIds,
   claimedRogueChallengeIds,
 }: LandingHubProps) => {
@@ -54,7 +57,7 @@ export const LandingHub = ({
           onRestartTutorial={onRestartTutorial}
         />
 
-        <div className="glass-panel flex min-h-[460px] flex-col rounded-[28px] border border-sky-200/12 p-4 shadow-card lg:h-full lg:rounded-[30px] xl:p-5">
+        <div data-tutorial-id="home-challenge-panel" className="glass-panel flex min-h-[460px] flex-col rounded-[28px] border border-sky-200/12 p-4 shadow-card lg:h-full lg:rounded-[30px] xl:p-5">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl bg-sky-300/14 p-2.5 text-sky-200">
               <Trophy size={18} />
@@ -83,9 +86,15 @@ export const LandingHub = ({
               visibleChallenges.slice(0, 3).map((challenge) => {
                 const completed = completedChallengeIdSet.has(challenge.id);
                 const rewardCoach = getRoguelikeCoachById(challenge.rewardCoachId);
+                const rewardPlayer = challenge.rewardPlayerId
+                  ? allPlayers.find((player) => player.id === challenge.rewardPlayerId) ?? null
+                  : null;
+                const rewardPlayerTier = rewardPlayer ? getPlayerTier(rewardPlayer) : null;
+                const rewardPackTier = challenge.rewardPackTier ?? null;
                 const challengeTeam = challenge.requiredTeamName
                   ? getNbaTeamByName(challenge.requiredTeamName)
                   : null;
+                const progress = getRogueChallengeProgress(challenge, meta);
 
                 return (
                   <div
@@ -122,9 +131,30 @@ export const LandingHub = ({
                           </div>
                         </div>
                         <p className="mt-1 line-clamp-1 text-[11px] leading-4 text-slate-300">{challenge.description}</p>
+                        {challenge.progress ? (
+                          <div className="mt-1.5">
+                            <div className="flex items-center justify-between gap-2 text-[9px] font-semibold uppercase tracking-[0.13em] text-slate-400">
+                              <span>{progress.targetLabel}</span>
+                              <span className="text-slate-200">{completed ? "Reached" : progress.currentLabel}</span>
+                            </div>
+                            <div className="mt-1 h-1 overflow-hidden rounded-full bg-slate-700/70">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-sky-300 to-amber-200"
+                                style={{ width: `${completed ? 100 : progress.percent}%` }}
+                              />
+                            </div>
+                          </div>
+                        ) : null}
                         <div className="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-white">
                           <Coins size={12} className="text-amber-200" />
-                          {formatNumber(challenge.reward)} tokens{rewardCoach ? " + Coach" : ""}
+                          {formatNumber(challenge.reward)} tokens{rewardCoach ? " + Coach" : ""}{rewardPlayerTier ? ` + ${rewardPlayerTier}` : ""}
+                          {rewardPackTier ? (
+                            <span className="inline-flex items-center gap-1 text-emerald-100">
+                              +
+                              <Package2 size={12} />
+                              {rewardPackTier} Pack
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                       {completed ? (
