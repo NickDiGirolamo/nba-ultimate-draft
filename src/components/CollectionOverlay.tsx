@@ -16,6 +16,11 @@ interface CollectionOverlayProps {
     selectedPlayerIds: string[];
     onConfirm: (playerId: string) => void;
   };
+  exchangeSlotSelection?: {
+    slotNumber: number;
+    selectedPlayerIds: string[];
+    onConfirm: (playerId: string) => void;
+  };
 }
 
 const tierOptions: Array<PlayerTier | "all"> = [
@@ -38,13 +43,38 @@ const tierRank: Record<PlayerTier, number> = {
 
 const getPlayerTeamName = (player: Player) => getNbaTeamByName(player.teamLabel)?.name ?? player.teamLabel;
 
-export const CollectionOverlay = ({ ownedPlayerIds, onClose, starterSlotSelection }: CollectionOverlayProps) => {
+export const CollectionOverlay = ({
+  ownedPlayerIds,
+  onClose,
+  starterSlotSelection,
+  exchangeSlotSelection,
+}: CollectionOverlayProps) => {
   const [tierFilter, setTierFilter] = useState<PlayerTier | "all">("all");
   const [teamFilter, setTeamFilter] = useState("all");
   const [positionFilter, setPositionFilter] = useState<Position | "all">("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const starterMode = Boolean(starterSlotSelection);
+  const exchangeMode = Boolean(exchangeSlotSelection);
+  const selectionMode = starterMode || exchangeMode;
+  const selectionSlotNumber = starterSlotSelection?.slotNumber ?? exchangeSlotSelection?.slotNumber ?? null;
+  const selectedPlayerIdsForMode = starterSlotSelection?.selectedPlayerIds ?? exchangeSlotSelection?.selectedPlayerIds ?? [];
+  const selectionConfirm = starterSlotSelection?.onConfirm ?? exchangeSlotSelection?.onConfirm;
+  const headerKicker = starterMode
+    ? `Starter Slot ${selectionSlotNumber}`
+    : exchangeMode
+      ? `Exchange Slot ${selectionSlotNumber}`
+      : "Collection";
+  const headerTitle = starterMode ? "Choose From Collection" : exchangeMode ? "Choose Exchange Card" : "Owned Card Wall";
+  const headerDescription = starterMode
+    ? "Pick one permanent card you own forever, then add it to this Rogue starter slot."
+    : exchangeMode
+      ? "Pick one permanent collection card to trade into this exchange recipe."
+      : "Permanent cards you own forever from store purchases, packs, and permanent rewards appear here.";
+  const closeLabel = starterMode ? "Back to Rogue Starter Page" : exchangeMode ? "Back to Exchange" : "Close";
+  const footerKicker = starterMode ? `Starter Slot ${selectionSlotNumber}` : `Exchange Slot ${selectionSlotNumber}`;
+  const confirmLabel = starterMode ? "Add to Starter Slot" : "Add to Exchange";
+  const unavailableLabel = starterMode ? "Already slotted" : "Already selected";
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -59,7 +89,7 @@ export const CollectionOverlay = ({ ownedPlayerIds, onClose, starterSlotSelectio
 
   useEffect(() => {
     setSelectedPlayerId(null);
-  }, [starterSlotSelection?.slotNumber]);
+  }, [selectionSlotNumber]);
 
   const ownedPlayerIdSet = useMemo(() => new Set(ownedPlayerIds), [ownedPlayerIds]);
   const ownedPlayers = useMemo(
@@ -107,7 +137,7 @@ export const CollectionOverlay = ({ ownedPlayerIds, onClose, starterSlotSelectio
   const completionPercent =
     allPlayers.length > 0 ? Math.round((ownedPlayers.length / allPlayers.length) * 100) : 0;
   const selectedPlayer = selectedPlayerId ? ownedPlayers.find((player) => player.id === selectedPlayerId) ?? null : null;
-  const unavailableStarterPlayerIds = new Set(starterSlotSelection?.selectedPlayerIds ?? []);
+  const unavailableSelectionPlayerIds = new Set(selectedPlayerIdsForMode);
 
   const overlay = (
     <div data-tutorial-id="collection-overlay" className="fixed inset-0 z-[1000] overflow-y-auto bg-[#030711]/94 px-4 py-5 text-white backdrop-blur-xl sm:px-6">
@@ -116,15 +146,13 @@ export const CollectionOverlay = ({ ownedPlayerIds, onClose, starterSlotSelectio
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="text-xs uppercase tracking-[0.24em] text-cyan-100/70">
-                {starterMode ? `Starter Slot ${starterSlotSelection?.slotNumber}` : "Collection"}
+                {headerKicker}
               </div>
               <h2 className="mt-2 font-display text-4xl text-white">
-                {starterMode ? "Choose From Collection" : "Owned Card Wall"}
+                {headerTitle}
               </h2>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
-                {starterMode
-                  ? "Pick one permanent card you own forever, then add it to this Rogue starter slot."
-                  : "Permanent cards you own forever from store purchases, packs, and permanent rewards appear here."}
+                {headerDescription}
               </p>
             </div>
             <button
@@ -133,7 +161,7 @@ export const CollectionOverlay = ({ ownedPlayerIds, onClose, starterSlotSelectio
               className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/12"
             >
               <X size={16} />
-              {starterMode ? "Back to Rogue Starter Page" : "Close"}
+              {closeLabel}
             </button>
           </div>
 
@@ -222,17 +250,17 @@ export const CollectionOverlay = ({ ownedPlayerIds, onClose, starterSlotSelectio
             {filteredPlayers.length > 0 ? (
               <div className="mt-5 grid grid-cols-2 justify-items-center gap-x-2 gap-y-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {filteredPlayers.map((player) => {
-                  const selectedForStarter = player.id === selectedPlayerId;
-                  const unavailableForStarter = starterMode && unavailableStarterPlayerIds.has(player.id);
+                  const selectedForMode = player.id === selectedPlayerId;
+                  const unavailableForMode = selectionMode && unavailableSelectionPlayerIds.has(player.id);
 
                   return (
                     <div
                       key={player.id}
                       className={clsx(
                         "rounded-[24px] border bg-black/16 p-2 transition",
-                        selectedForStarter
+                        selectedForMode
                           ? "border-amber-200/80 shadow-[0_0_0_1px_rgba(251,191,36,0.55),0_22px_58px_rgba(251,191,36,0.14)]"
-                          : unavailableForStarter
+                          : unavailableForMode
                             ? "border-white/8 opacity-50"
                             : "border-white/8",
                       )}
@@ -242,16 +270,16 @@ export const CollectionOverlay = ({ ownedPlayerIds, onClose, starterSlotSelectio
                         compact
                         compactScale={0.42}
                         draftedPlayerIds={ownedPlayerIds}
-                        actionLabel={starterMode ? "Select" : "Owned"}
-                        selected={selectedForStarter}
-                        disabled={unavailableForStarter}
-                        onSelect={starterMode && !unavailableForStarter ? () => setSelectedPlayerId(player.id) : undefined}
+                        actionLabel={selectionMode ? "Select" : "Owned"}
+                        selected={selectedForMode}
+                        disabled={unavailableForMode}
+                        onSelect={selectionMode && !unavailableForMode ? () => setSelectedPlayerId(player.id) : undefined}
                       />
-                      {starterMode ? (
+                      {selectionMode ? (
                         <div className="mt-2 text-center text-[10px] font-semibold uppercase tracking-[0.16em]">
-                          {unavailableForStarter ? (
-                            <span className="text-slate-500">Already slotted</span>
-                          ) : selectedForStarter ? (
+                          {unavailableForMode ? (
+                            <span className="text-slate-500">{unavailableLabel}</span>
+                          ) : selectedForMode ? (
                             <span className="text-amber-100">Selected</span>
                           ) : (
                             <span className="text-slate-400">Click to choose</span>
@@ -271,12 +299,12 @@ export const CollectionOverlay = ({ ownedPlayerIds, onClose, starterSlotSelectio
               </div>
             )}
 
-            {starterMode ? (
+            {selectionMode ? (
               <div className="sticky bottom-4 z-10 mt-6 rounded-[24px] border border-amber-200/24 bg-[linear-gradient(135deg,rgba(35,25,10,0.96),rgba(7,12,22,0.96))] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="text-[10px] uppercase tracking-[0.22em] text-amber-100/70">
-                      Starter Slot {starterSlotSelection?.slotNumber}
+                      {footerKicker}
                     </div>
                     <div className="mt-1 text-lg font-semibold text-white">
                       {selectedPlayer ? selectedPlayer.name : "Choose a card above"}
@@ -289,12 +317,12 @@ export const CollectionOverlay = ({ ownedPlayerIds, onClose, starterSlotSelectio
                     type="button"
                     disabled={!selectedPlayerId}
                     onClick={() => {
-                      if (!selectedPlayerId || !starterSlotSelection) return;
-                      starterSlotSelection.onConfirm(selectedPlayerId);
+                      if (!selectedPlayerId || !selectionConfirm) return;
+                      selectionConfirm(selectedPlayerId);
                     }}
                     className="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:scale-100"
                   >
-                    Add to Starter Slot
+                    {confirmLabel}
                   </button>
                 </div>
               </div>

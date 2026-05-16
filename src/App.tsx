@@ -4,6 +4,7 @@ import { BookOpen, Coins, Crown, Flag, Images, Info, LifeBuoy, LogOut, Sparkles,
 import { CollectionOverlay } from "./components/CollectionOverlay";
 import { DraftBriefing } from "./components/DraftBriefing";
 import { DraftPlayerCard } from "./components/DraftPlayerCard";
+import { ExchangeOverlay } from "./components/ExchangeOverlay";
 import { GuidedTutorialOverlay, type GuidedTutorialStep } from "./components/GuidedTutorialOverlay";
 import { LandingHub } from "./components/LandingHub";
 import { LearnOverlay } from "./components/LearnOverlay";
@@ -22,6 +23,7 @@ import { getStoreUnlockQuantitiesForState, useDraftGame } from "./hooks/useDraft
 import { useSupabaseAuth } from "./hooks/useSupabaseAuth";
 import {
   deleteActiveRogueRun,
+  deleteUserCollectionCards,
   fetchActiveRogueRun,
   fetchUserCollectionCards,
   fetchUserStoreUnlocks,
@@ -31,17 +33,21 @@ import {
   upsertUserCollectionCards,
   upsertUserStoreUnlocks,
 } from "./lib/cloudSave";
-import { ROGUE_CHALLENGES, getRogueChallengeRunSettingsPreset } from "./lib/rogueChallenges";
+import { ONE_TIME_ROGUE_CHALLENGE_COUNT, ROGUE_CHALLENGES, getRogueChallengeRunSettingsPreset } from "./lib/rogueChallenges";
 import type { RoguelikeRunSettings } from "./lib/roguelike";
 import { getCategoryChallengeTarget } from "./lib/simulate";
 import { tokenStoreUtilityItems, type TokenStoreUtilityItem } from "./lib/tokenStore";
 import { trackAnalyticsEventSoon } from "./lib/analytics";
-import { ULTIMATE_DRAFT_LOGO_SRC } from "./lib/brand";
+import { ROGUE_CARD_BACK_LOGO_SRC, ROGUE_HOOPS_HOME_LOGO_SRC, ULTIMATE_DRAFT_LOGO_SRC } from "./lib/brand";
+import type { PlayerTier } from "./types";
 
 const ROGUELIKE_UI_STORAGE_KEY = "legends-draft-roguelike-ui-v1";
 const ROGUELIKE_RUN_STORAGE_KEY = "legends-draft-roguelike-run-v1";
 const ROGUELIKE_PARKED_STORAGE_KEY = "legends-draft-roguelike-parked-v1";
 const FIRST_RUN_TUTORIAL_STORAGE_KEY = "nba-ultimate-draft-first-run-tutorial-v1";
+const NEW_USER_INFO_PROMPT_STORAGE_KEY = "nba-ultimate-draft-new-user-info-prompt-v1";
+const NEW_USER_INFO_PROMPT_SIGNUP_STORAGE_KEY = "nba-ultimate-draft-new-user-info-prompt-signup-v1";
+const NEW_USER_INFO_PROMPT_CREATED_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const FEEDBACK_SUPPORT_EMAIL = "support@nbaultimatedraft.com";
 
 type TutorialMode = "first-run" | "context";
@@ -108,11 +114,44 @@ const hasVisibleTutorialTarget = (step: GuidedTutorialStep) => {
   return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
 };
 
+const getNewUserInfoPromptStorageKey = (userId: string) => `${NEW_USER_INFO_PROMPT_STORAGE_KEY}:${userId}`;
+
+const getNewUserInfoPromptSignupStorageKey = (email: string) =>
+  `${NEW_USER_INFO_PROMPT_SIGNUP_STORAGE_KEY}:${email.trim().toLowerCase()}`;
+
+const queueNewUserInfoPromptForEmail = (email: string) => {
+  if (typeof window === "undefined" || !email.trim()) return;
+
+  window.localStorage.setItem(getNewUserInfoPromptSignupStorageKey(email), String(Date.now()));
+};
+
+const clearQueuedNewUserInfoPromptForEmail = (email: string | null | undefined) => {
+  if (typeof window === "undefined" || !email?.trim()) return;
+
+  window.localStorage.removeItem(getNewUserInfoPromptSignupStorageKey(email));
+};
+
+const hasQueuedNewUserInfoPromptForEmail = (email: string | null | undefined) => {
+  if (typeof window === "undefined" || !email?.trim()) return false;
+
+  return Boolean(window.localStorage.getItem(getNewUserInfoPromptSignupStorageKey(email)));
+};
+
+const isRecentlyCreatedUser = (createdAt: string | undefined) => {
+  if (!createdAt) return false;
+
+  const createdAtTime = new Date(createdAt).getTime();
+  if (!Number.isFinite(createdAtTime)) return false;
+
+  return Date.now() - createdAtTime <= NEW_USER_INFO_PROMPT_CREATED_WINDOW_MS;
+};
+
 function App() {
   const auth = useSupabaseAuth();
   const {
     state,
     metaProgress,
+    completedDailyChallengeIds,
     teamAverage,
     draftChemistry,
     completedRoster,
@@ -131,11 +170,13 @@ function App() {
     updateRoguePersonalBests,
     recordRogueRunStarted,
     recordRogueRunDraftedPlayers,
+    recordDailyChallengeProgress,
     applyCloudAccountSnapshot,
     absorbCloudTokenBalance,
     absorbCloudCollectionPlayerIds,
     purchaseTrainingCampTicket,
     purchaseTradePhone,
+    purchaseMidSeasonCoachChange,
     purchaseSilverStarterPack,
     purchaseGoldStarterPack,
     purchasePlatinumStarterPack,
@@ -145,6 +186,7 @@ function App() {
     purchaseStarterPackChoicePlus,
     purchaseRogueStar,
     purchaseRoguePack,
+    completeCollectionExchange,
     ensureRoguePackPullOwned,
     setActiveRogueStar,
     recordRogueCollectionEntries,
@@ -153,6 +195,7 @@ function App() {
     claimRogueChallengeReward,
     useTrainingCampTicket,
     useTradePhone,
+    useMidSeasonCoachChange,
     useSilverStarterPack,
     useGoldStarterPack,
     usePlatinumStarterPack,
@@ -170,6 +213,7 @@ function App() {
   const [prestigeInitialView, setPrestigeInitialView] = useState<"overview" | "rewards">("overview");
   const [learnOpen, setLearnOpen] = useState(false);
   const [challengesOpen, setChallengesOpen] = useState(false);
+  const [exchangeOpen, setExchangeOpen] = useState(false);
   const [tokenStoreOpen, setTokenStoreOpen] = useState(false);
   const [tokenStoreInitialView, setTokenStoreInitialView] = useState<"store" | "vault" | "tokens" | "collections">("store");
   const [guestMode, setGuestMode] = useState(false);
@@ -179,15 +223,13 @@ function App() {
     requestId: number;
   } | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [tutorialOpen, setTutorialOpen] = useState(() => {
-    if (typeof window === "undefined") return false;
-
-    return window.localStorage.getItem(FIRST_RUN_TUTORIAL_STORAGE_KEY) !== "complete";
-  });
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const [tutorialMode, setTutorialMode] = useState<TutorialMode>("first-run");
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
   const [activeContextTutorialSteps, setActiveContextTutorialSteps] = useState<GuidedTutorialStep[]>([]);
+  const [newUserInfoPromptOpen, setNewUserInfoPromptOpen] = useState(false);
   const [cloudSavedRogueRun, setCloudSavedRogueRun] = useState<unknown | null>(null);
+  const [cloudRogueRunLoaded, setCloudRogueRunLoaded] = useState(false);
   const [cloudTokenBalanceLoaded, setCloudTokenBalanceLoaded] = useState(false);
   const [cloudCollectionLoaded, setCloudCollectionLoaded] = useState(false);
   const [cloudStoreUnlocksLoaded, setCloudStoreUnlocksLoaded] = useState(false);
@@ -202,12 +244,86 @@ function App() {
     () => Array.from(new Set(state.ownedCollectionPlayerIds)),
     [state.ownedCollectionPlayerIds],
   );
+  const hasMeaningfulPlayerProgress = useMemo(
+    () =>
+      state.history.length > 0 ||
+      state.unlockedPlayerIds.length > 0 ||
+      state.rogueRunsStarted > 0 ||
+      state.rogueRunPlayersDrafted > 0 ||
+      state.rogueRunDraftedPlayerIds.length > 0 ||
+      state.spentTokens > 0 ||
+      state.purchasedTokens > 0 ||
+      state.ownedTrainingCampTickets > 0 ||
+      state.ownedTradePhones > 0 ||
+      state.ownedMidSeasonCoachChanges > 0 ||
+      state.ownedSilverStarterPacks > 0 ||
+      state.ownedGoldStarterPacks > 0 ||
+      state.ownedPlatinumStarterPacks > 0 ||
+      state.ownedCoachRecruitment > 0 ||
+      state.ownedOpeningLockerCashTier > 0 ||
+      state.ownedExtraDraftShuffle > 0 ||
+      state.ownedStarterPackChoicePlus > 0 ||
+      state.ownedCoachIds.length > 0 ||
+      state.ownedRogueStarIds.length > 0 ||
+      ownedCollectionPlayerIds.length > 0 ||
+      state.rogueCollectedCollectionEntryIds.length > 0 ||
+      state.claimedCollectionRewardIds.length > 0 ||
+      state.completedRogueChallengeIds.length > 0 ||
+      state.claimedRogueChallengeIds.length > 0 ||
+      Object.keys(state.rogueChallengePackRewardPlayerIds).length > 0 ||
+      metaProgress.tokens.balance > 0 ||
+      metaProgress.tokens.lifetimeEarned > 0,
+    [
+      metaProgress.tokens.balance,
+      metaProgress.tokens.lifetimeEarned,
+      ownedCollectionPlayerIds.length,
+      state.claimedCollectionRewardIds.length,
+      state.claimedRogueChallengeIds.length,
+      state.completedRogueChallengeIds.length,
+      state.history.length,
+      state.ownedCoachIds.length,
+      state.ownedCoachRecruitment,
+      state.ownedExtraDraftShuffle,
+      state.ownedGoldStarterPacks,
+      state.ownedMidSeasonCoachChanges,
+      state.ownedOpeningLockerCashTier,
+      state.ownedPlatinumStarterPacks,
+      state.ownedRogueStarIds.length,
+      state.ownedSilverStarterPacks,
+      state.ownedStarterPackChoicePlus,
+      state.ownedTradePhones,
+      state.ownedTrainingCampTickets,
+      state.purchasedTokens,
+      state.rogueChallengePackRewardPlayerIds,
+      state.rogueCollectedCollectionEntryIds.length,
+      state.rogueRunDraftedPlayerIds.length,
+      state.rogueRunPlayersDrafted,
+      state.rogueRunsStarted,
+      state.spentTokens,
+      state.unlockedPlayerIds.length,
+    ],
+  );
   const readyRogueChallengeCount = useMemo(
     () =>
-      state.completedRogueChallengeIds.filter(
-        (challengeId) => !state.claimedRogueChallengeIds.includes(challengeId),
+      [...state.completedRogueChallengeIds, ...completedDailyChallengeIds].filter(
+        (challengeId) =>
+          !state.claimedRogueChallengeIds.includes(challengeId) &&
+          !state.claimedDailyChallengeIds.includes(challengeId),
       ).length,
-    [state.claimedRogueChallengeIds, state.completedRogueChallengeIds],
+    [
+      completedDailyChallengeIds,
+      state.claimedDailyChallengeIds,
+      state.claimedRogueChallengeIds,
+      state.completedRogueChallengeIds,
+    ],
+  );
+  const visibleCompletedRogueChallengeIds = useMemo(
+    () => Array.from(new Set([...state.completedRogueChallengeIds, ...completedDailyChallengeIds])),
+    [completedDailyChallengeIds, state.completedRogueChallengeIds],
+  );
+  const visibleClaimedRogueChallengeIds = useMemo(
+    () => Array.from(new Set([...state.claimedRogueChallengeIds, ...state.claimedDailyChallengeIds])),
+    [state.claimedDailyChallengeIds, state.claimedRogueChallengeIds],
   );
   const [roguelikeOpen, setRoguelikeOpen] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -811,7 +927,19 @@ function App() {
     }
   }, [tutorialMode]);
 
+  const markNewUserInfoPromptSeen = useCallback(() => {
+    setNewUserInfoPromptOpen(false);
+
+    if (typeof window === "undefined") return;
+    if (auth.user?.id) {
+      window.localStorage.setItem(getNewUserInfoPromptStorageKey(auth.user.id), "seen");
+    }
+    clearQueuedNewUserInfoPromptForEmail(auth.user?.email);
+  }, [auth.user?.email, auth.user?.id]);
+
   const openContextTutorial = useCallback(() => {
+    markNewUserInfoPromptSeen();
+
     const visibleSteps = contextTutorialCandidates.filter(hasVisibleTutorialTarget);
     const hasSpecificRogueStep = visibleSteps.some((step) =>
       step.id.startsWith("rogue-") && step.id !== "rogue-screen",
@@ -825,7 +953,7 @@ function App() {
     setActiveContextTutorialSteps(focusedVisibleSteps.length > 0 ? focusedVisibleSteps : contextTutorialCandidates);
     setTutorialStepIndex(0);
     setTutorialOpen(true);
-  }, [contextTutorialCandidates]);
+  }, [contextTutorialCandidates, markNewUserInfoPromptSeen]);
 
   const restartTutorial = useCallback(() => {
     setProfileMenuOpen(false);
@@ -834,6 +962,7 @@ function App() {
     setCollectionOpen(false);
     setLearnOpen(false);
     setChallengesOpen(false);
+    setExchangeOpen(false);
     setTutorialMode("first-run");
     setActiveContextTutorialSteps([]);
     setTutorialStepIndex(0);
@@ -845,13 +974,24 @@ function App() {
   }, []);
   const continueAsGuest = useCallback(() => {
     setGuestMode(true);
+    setNewUserInfoPromptOpen(false);
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
   }, []);
+
+  const signUpAndQueueInfoPrompt = useCallback(async (email: string, password: string) => {
+    const ok = await auth.signUp(email, password);
+    if (ok) {
+      queueNewUserInfoPromptForEmail(email);
+    }
+    return ok;
+  }, [auth.signUp]);
+
   const exitGuestMode = useCallback(() => {
     setProfileMenuOpen(false);
     setGuestMode(false);
+    setNewUserInfoPromptOpen(false);
     setRoguelikeOpen(false);
     resetDraft();
     if (typeof window !== "undefined") {
@@ -867,6 +1007,7 @@ function App() {
         isLoggedIn: Boolean(auth.user),
       },
     });
+    setExchangeOpen(false);
     setRoguelikeOpen(true);
 
     if (typeof window !== "undefined") {
@@ -878,6 +1019,7 @@ function App() {
     setTokenStoreInitialView(initialView);
     setChallengesOpen(false);
     setCollectionOpen(false);
+    setExchangeOpen(false);
     setLearnOpen(false);
     setTokenStoreOpen(true);
     trackAnalyticsEventSoon("token_store_opened", {
@@ -900,6 +1042,7 @@ function App() {
     setPrestigeOpen(false);
     setTokenStoreOpen(false);
     setChallengesOpen(false);
+    setExchangeOpen(false);
     setLearnOpen(false);
     setCollectionOpen(true);
 
@@ -926,11 +1069,56 @@ function App() {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
   }, [openRoguelike]);
+  const startExchangeChallenge = useCallback((challengeId: string) => {
+    if (challengeId !== "exchange-3x3") return;
+
+    setProfileMenuOpen(false);
+    setPrestigeOpen(false);
+    setTokenStoreOpen(false);
+    setCollectionOpen(false);
+    setLearnOpen(false);
+    setChallengesOpen(false);
+    setExchangeOpen(true);
+    trackAnalyticsEventSoon("exchange_challenge_started", {
+      payload: {
+        exchangeId: challengeId,
+        ownedCollectionCount: ownedCollectionPlayerIds.length,
+        isGuest: guestMode,
+        isLoggedIn: Boolean(auth.user),
+      },
+    });
+
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, [auth.user, guestMode, ownedCollectionPlayerIds.length]);
+  const completeExchangeChallenge = useCallback((playerIds: string[], rewardTier: PlayerTier) => {
+    const rewardPlayer = completeCollectionExchange(playerIds, rewardTier);
+    if (!rewardPlayer) return null;
+
+    trackAnalyticsEventSoon("exchange_challenge_completed", {
+      payload: {
+        exchangeId: "exchange-3x3",
+        consumedPlayerIds: playerIds,
+        rewardTier,
+        rewardPlayerId: rewardPlayer.id,
+        isGuest: guestMode,
+        isLoggedIn: Boolean(auth.user),
+      },
+    });
+
+    if (auth.user) {
+      void deleteUserCollectionCards(auth.user.id, playerIds);
+    }
+
+    return rewardPlayer;
+  }, [auth.user, completeCollectionExchange, guestMode]);
   const openRogueChallenges = useCallback(() => {
     setProfileMenuOpen(false);
     setPrestigeOpen(false);
     setTokenStoreOpen(false);
     setCollectionOpen(false);
+    setExchangeOpen(false);
     setLearnOpen(false);
     setChallengesOpen(true);
     trackAnalyticsEventSoon("token_store_opened", {
@@ -1053,13 +1241,16 @@ function App() {
   useEffect(() => {
     if (!auth.user) {
       setCloudSavedRogueRun(null);
+      setCloudRogueRunLoaded(false);
       return;
     }
 
+    setCloudRogueRunLoaded(false);
     let cancelled = false;
     fetchActiveRogueRun(auth.user.id).then((runData) => {
       if (!cancelled) {
         setCloudSavedRogueRun(runData);
+        setCloudRogueRunLoaded(true);
       }
     });
 
@@ -1259,11 +1450,18 @@ function App() {
   }, [auth.user?.id, cloudCollectionLoaded, state.ownedCollectionPlayerIds]);
 
   useEffect(() => {
+    if (!auth.user || !cloudCollectionLoaded || state.exchangedCollectionPlayerIds.length === 0) return;
+
+    void deleteUserCollectionCards(auth.user.id, state.exchangedCollectionPlayerIds);
+  }, [auth.user?.id, cloudCollectionLoaded, state.exchangedCollectionPlayerIds]);
+
+  useEffect(() => {
     if (!auth.user || !cloudStoreUnlocksLoaded) return;
 
     void upsertUserStoreUnlocks(auth.user.id, getStoreUnlockQuantitiesForState(state), {
       source: "local_store_unlock_sync",
       metadata: {
+        ownedMidSeasonCoachChanges: state.ownedMidSeasonCoachChanges,
         ownedSilverStarterPacks: state.ownedSilverStarterPacks,
         ownedGoldStarterPacks: state.ownedGoldStarterPacks,
         ownedPlatinumStarterPacks: state.ownedPlatinumStarterPacks,
@@ -1275,6 +1473,7 @@ function App() {
     cloudStoreUnlocksLoaded,
     state.ownedTrainingCampTickets,
     state.ownedTradePhones,
+    state.ownedMidSeasonCoachChanges,
     state.ownedSilverStarterPacks,
     state.ownedGoldStarterPacks,
     state.ownedPlatinumStarterPacks,
@@ -1282,6 +1481,48 @@ function App() {
     state.ownedOpeningLockerCashTier,
     state.ownedExtraDraftShuffle,
     state.ownedStarterPackChoicePlus,
+  ]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (auth.loading || guestMode || !auth.user) {
+      setNewUserInfoPromptOpen(false);
+      return;
+    }
+
+    if (!cloudRogueRunLoaded || !cloudTokenBalanceLoaded || !cloudCollectionLoaded || !cloudStoreUnlocksLoaded) return;
+
+    const promptStorageKey = getNewUserInfoPromptStorageKey(auth.user.id);
+    if (window.localStorage.getItem(promptStorageKey) === "seen") {
+      setNewUserInfoPromptOpen(false);
+      return;
+    }
+
+    if (hasMeaningfulPlayerProgress || cloudSavedRogueRun !== null) {
+      window.localStorage.setItem(promptStorageKey, "seen");
+      clearQueuedNewUserInfoPromptForEmail(auth.user.email);
+      setNewUserInfoPromptOpen(false);
+      return;
+    }
+
+    const shouldPrompt =
+      hasQueuedNewUserInfoPromptForEmail(auth.user.email) ||
+      isRecentlyCreatedUser(auth.user.created_at);
+
+    setNewUserInfoPromptOpen(shouldPrompt);
+  }, [
+    auth.loading,
+    auth.user?.created_at,
+    auth.user?.email,
+    auth.user?.id,
+    cloudCollectionLoaded,
+    cloudRogueRunLoaded,
+    cloudSavedRogueRun,
+    cloudStoreUnlocksLoaded,
+    cloudTokenBalanceLoaded,
+    guestMode,
+    hasMeaningfulPlayerProgress,
   ]);
 
   const saveCloudRogueRun = useCallback((runData: unknown) => {
@@ -1365,7 +1606,7 @@ function App() {
         loading={auth.loading}
         authError={auth.authError}
         onSignIn={auth.signIn}
-        onSignUp={auth.signUp}
+        onSignUp={signUpAndQueueInfoPrompt}
         onContinueAsGuest={continueAsGuest}
       />
     );
@@ -1401,8 +1642,8 @@ function App() {
             className="group col-span-1 flex min-h-[30px] min-w-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/18 p-1 transition hover:border-amber-200/22 hover:bg-black/24 lg:min-h-[64px] lg:max-w-none lg:p-1.5"
           >
             <img
-              src={ULTIMATE_DRAFT_LOGO_SRC}
-              alt="NBA Ultimate Draft"
+              src={ROGUE_HOOPS_HOME_LOGO_SRC}
+              alt="Rogue Hoops"
               className="h-[26px] w-full rounded-xl object-contain drop-shadow-[0_8px_18px_rgba(251,191,36,0.2)] lg:h-[58px] lg:rounded-2xl"
               draggable={false}
             />
@@ -1417,6 +1658,7 @@ function App() {
                 setTokenStoreOpen(false);
                 setCollectionOpen(false);
                 setChallengesOpen(false);
+                setExchangeOpen(false);
                 setLearnOpen(true);
               }}
               className="glass-panel group min-h-[30px] w-full min-w-0 rounded-2xl border border-sky-200/12 bg-[linear-gradient(135deg,rgba(9,18,34,0.96),rgba(16,26,46,0.92))] px-1.5 py-1 text-left shadow-[0_16px_32px_rgba(0,0,0,0.24)] transition hover:border-sky-200/28 hover:bg-[linear-gradient(135deg,rgba(12,24,44,0.98),rgba(20,34,58,0.94))] hover:shadow-[0_18px_36px_rgba(56,189,248,0.14)] sm:min-w-0 lg:min-h-[64px] lg:px-3 lg:py-2"
@@ -1466,7 +1708,7 @@ function App() {
                   style={{
                     width: `${Math.max(
                       6,
-                      Math.round((state.claimedRogueChallengeIds.length / Math.max(1, ROGUE_CHALLENGES.length)) * 100),
+                      Math.round((state.claimedRogueChallengeIds.length / Math.max(1, ONE_TIME_ROGUE_CHALLENGE_COUNT)) * 100),
                     )}%`,
                   }}
                 />
@@ -1609,6 +1851,7 @@ function App() {
             ownedCollectionPlayerIds={ownedCollectionPlayerIds}
             ownedTrainingCampTickets={state.ownedTrainingCampTickets}
             ownedTradePhones={state.ownedTradePhones}
+            ownedMidSeasonCoachChanges={state.ownedMidSeasonCoachChanges}
             ownedSilverStarterPacks={state.ownedSilverStarterPacks}
             ownedGoldStarterPacks={state.ownedGoldStarterPacks}
             ownedPlatinumStarterPacks={state.ownedPlatinumStarterPacks}
@@ -1620,14 +1863,16 @@ function App() {
             onUpdatePersonalBests={updateRoguePersonalBests}
             onRecordRunStarted={recordRogueRunStarted}
             onRecordRogueRunDraftedPlayers={recordRogueRunDraftedPlayers}
+            onRecordDailyChallengeProgress={recordDailyChallengeProgress}
             onUseTrainingCampTicket={useTrainingCampTicket}
             onUseTradePhone={useTradePhone}
+            onUseMidSeasonCoachChange={useMidSeasonCoachChange}
             onUseSilverStarterPack={useSilverStarterPack}
             onUseGoldStarterPack={useGoldStarterPack}
             onUsePlatinumStarterPack={usePlatinumStarterPack}
             onRecordCollectionEntries={recordRogueCollectionEntries}
             onRecordRogueChallengeCompletions={recordRogueChallengeCompletions}
-            completedRogueChallengeIds={state.completedRogueChallengeIds}
+            completedRogueChallengeIds={visibleCompletedRogueChallengeIds}
             onOpenRogueChallenges={openRogueChallenges}
             challengeSetupRequest={rogueChallengeSetupRequest}
             cloudSavedRunData={cloudSavedRogueRun}
@@ -1657,8 +1902,9 @@ function App() {
             onRestartTutorial={restartTutorial}
             history={state.history}
             meta={metaProgress}
-            completedRogueChallengeIds={state.completedRogueChallengeIds}
-            claimedRogueChallengeIds={state.claimedRogueChallengeIds}
+            dailyChallengeProgress={state.dailyChallengeProgress}
+            completedRogueChallengeIds={visibleCompletedRogueChallengeIds}
+            claimedRogueChallengeIds={visibleClaimedRogueChallengeIds}
           />
         )}
 
@@ -1770,8 +2016,8 @@ function App() {
                               <div className="choice-card-back h-full rounded-[18px] border border-white/10">
                                 <div className="choice-card-back__inner choice-card-back__inner--logo">
                                   <img
-                                    src={ULTIMATE_DRAFT_LOGO_SRC}
-                                    alt="NBA Ultimate Draft"
+                                    src={ROGUE_CARD_BACK_LOGO_SRC}
+                                    alt="Rogue Hoops"
                                     className="choice-card-back__logo"
                                     draggable={false}
                                   />
@@ -1846,8 +2092,8 @@ function App() {
                             <div className="choice-card-back h-full min-h-[1040px] rounded-[26px] border border-white/10">
                               <div className="choice-card-back__inner choice-card-back__inner--logo">
                                 <img
-                                  src={ULTIMATE_DRAFT_LOGO_SRC}
-                                  alt="NBA Ultimate Draft"
+                                  src={ROGUE_CARD_BACK_LOGO_SRC}
+                                  alt="Rogue Hoops"
                                   className="choice-card-back__logo"
                                   draggable={false}
                                 />
@@ -2027,6 +2273,7 @@ function App() {
           meta={metaProgress}
           ownedTrainingCampTickets={state.ownedTrainingCampTickets}
           ownedTradePhones={state.ownedTradePhones}
+          ownedMidSeasonCoachChanges={state.ownedMidSeasonCoachChanges}
           ownedSilverStarterPacks={state.ownedSilverStarterPacks}
           ownedGoldStarterPacks={state.ownedGoldStarterPacks}
           ownedPlatinumStarterPacks={state.ownedPlatinumStarterPacks}
@@ -2042,6 +2289,7 @@ function App() {
           initialView={tokenStoreInitialView}
           onBuyTrainingCampTicket={() => purchaseTrainingCampTicket(getTokenStoreUtilityPrice("training-camp-ticket"))}
           onBuyTradePhone={() => purchaseTradePhone(getTokenStoreUtilityPrice("trade-phone"))}
+          onBuyMidSeasonCoachChange={() => purchaseMidSeasonCoachChange(getTokenStoreUtilityPrice("mid-season-coach-change"))}
           onBuySilverStarterPack={() => purchaseSilverStarterPack(getTokenStoreUtilityPrice("silver-starter-pack"))}
           onBuyGoldStarterPack={() => purchaseGoldStarterPack(getTokenStoreUtilityPrice("gold-starter-pack"))}
           onBuyPlatinumStarterPack={() => purchasePlatinumStarterPack(getTokenStoreUtilityPrice("platinum-starter-pack"))}
@@ -2061,11 +2309,21 @@ function App() {
       {challengesOpen && (
         <RogueChallengesOverlay
           meta={metaProgress}
-          completedRogueChallengeIds={state.completedRogueChallengeIds}
-          claimedRogueChallengeIds={state.claimedRogueChallengeIds}
+          dailyChallengeProgress={state.dailyChallengeProgress}
+          completedRogueChallengeIds={visibleCompletedRogueChallengeIds}
+          claimedRogueChallengeIds={visibleClaimedRogueChallengeIds}
           onClaimRogueChallengeReward={claimRogueChallengeReward}
           onRunRogueChallenge={runRogueChallenge}
+          onStartExchangeChallenge={startExchangeChallenge}
           onClose={() => setChallengesOpen(false)}
+        />
+      )}
+
+      {exchangeOpen && (
+        <ExchangeOverlay
+          ownedPlayerIds={ownedCollectionPlayerIds}
+          onCompleteExchange={completeExchangeChallenge}
+          onClose={() => setExchangeOpen(false)}
         />
       )}
 
@@ -2077,6 +2335,44 @@ function App() {
           onClose={() => setShowPrestigeLevelUp(false)}
         />
       )}
+
+      {newUserInfoPromptOpen && !tutorialOpen && !auth.loading && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed w-[min(310px,calc(100vw-36px))] rounded-[24px] border border-amber-100/32 bg-[#080b12] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.58),0_0_34px_rgba(245,184,46,0.2)]"
+              style={{
+                bottom: "max(94px, calc(env(safe-area-inset-bottom, 0px) + 84px))",
+                right: "max(18px, calc(env(safe-area-inset-right, 0px) + 18px))",
+                zIndex: 2147483646,
+              }}
+              role="status"
+              aria-live="polite"
+            >
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-yellow-100/50 bg-[#f5b82e] text-slate-950 shadow-[0_0_24px_rgba(245,184,46,0.54)]">
+                  <Info size={18} />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-100/76">
+                    First time here?
+                  </div>
+                  <p className="mt-1 text-sm font-semibold leading-6 text-slate-100">
+                    Tap the gold info button below any time you want a guided walkthrough of the screen you are on.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={markNewUserInfoPromptSeen}
+                  className="shrink-0 rounded-full border border-white/10 bg-white/6 px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-300 transition hover:bg-white/10 hover:text-white"
+                  aria-label="Dismiss info button prompt"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       {!tutorialOpen && !auth.loading && typeof document !== "undefined"
         ? createPortal(

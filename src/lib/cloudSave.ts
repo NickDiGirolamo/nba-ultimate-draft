@@ -136,6 +136,28 @@ export const upsertUserCollectionCards = async (
   }
 };
 
+export const deleteUserCollectionCards = async (
+  userId: string,
+  playerIds: string[],
+) => {
+  if (!supabase) return;
+
+  const uniquePlayerIds = Array.from(
+    new Set(playerIds.filter((playerId): playerId is string => typeof playerId === "string" && playerId.length > 0)),
+  );
+  if (uniquePlayerIds.length === 0) return;
+
+  const { error } = await supabase
+    .from("user_collection_cards")
+    .delete()
+    .eq("user_id", userId)
+    .in("player_id", uniquePlayerIds);
+
+  if (error) {
+    console.warn("Unable to delete Supabase collection cards", error);
+  }
+};
+
 export const fetchUserStoreUnlocks = async (userId: string): Promise<UserStoreUnlockQuantities> => {
   if (!supabase) return {};
 

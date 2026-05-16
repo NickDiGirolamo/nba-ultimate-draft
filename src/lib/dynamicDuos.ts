@@ -75,8 +75,8 @@ interface RolePlayerPairDefinition {
 }
 
 export const dynamicDuos: PlayerBadgeDefinition[] = [
-  { id: "jerry-wilt", title: "Dynamic Duos: Jerry West + Wilt Chamberlain", type: "dynamic-duo", players: ["jerry-west", "wilt-chamberlain"] },
-  { id: "jerry-elgin", title: "Dynamic Duos: Jerry West + Elgin Baylor", type: "dynamic-duo", players: ["jerry-west", "elgin-baylor"] },
+  { id: "jerry-wilt", title: "Dynamic Duos: Jerry West (Lakers) + Wilt Chamberlain (Lakers)", type: "dynamic-duo", players: ["jerry-west", "wilt-chamberlain-lakers"] },
+  { id: "jerry-elgin", title: "Dynamic Duos: Jerry West (Lakers) + Elgin Baylor (Lakers)", type: "dynamic-duo", players: ["jerry-west", "elgin-baylor"] },
   { id: "heat-shaq-wade", title: "Dynamic Duos: Heat Shaq + Wade", type: "dynamic-duo", players: ["shaquille-o-neal-heat", "dwayne-wade-03-10"] },
   { id: "kobe-shaq", title: "Dynamic Duos: Kobe + Shaq", type: "dynamic-duo", players: ["kobe-bryant-8", "shaquille-o-neal-lakers"] },
   { id: "payton-kemp", title: "Dynamic Duos: Payton + Kemp", type: "dynamic-duo", players: ["gary-payton", "shawn-kemp"] },

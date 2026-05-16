@@ -1219,8 +1219,8 @@ textarea {
 .choice-card-back__logo {
   display: block;
   width: auto;
-  max-width: min(82%, 560px);
-  max-height: 42%;
+  max-width: min(76%, 480px);
+  max-height: 64%;
   object-fit: contain;
   pointer-events: none;
   user-select: none;
@@ -1638,7 +1638,7 @@ textarea {
 
   .choice-card-back__logo {
     max-width: 86%;
-    max-height: 46%;
+    max-height: 62%;
   }
 
   .choice-card-back__badge,

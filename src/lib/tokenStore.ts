@@ -6,6 +6,7 @@ export interface TokenStoreUtilityItem {
   id:
     | "training-camp-ticket"
     | "trade-phone"
+    | "mid-season-coach-change"
     | "silver-starter-pack"
     | "gold-starter-pack"
     | "platinum-starter-pack"
@@ -33,6 +34,13 @@ export const tokenStoreUtilityItems: TokenStoreUtilityItem[] = [
     title: "Trade Phone",
     description:
       "Give up one player from your Rogue run team for a fresh 1-of-5 player choice.",
+    price: 5_000,
+  },
+  {
+    id: "mid-season-coach-change",
+    title: "Mid-season Coach Change",
+    description:
+      "Fire your current Rogue coach and review a fresh 1-of-5 coach board, with the option to keep your current coach.",
     price: 5_000,
   },
   {
@@ -136,7 +144,7 @@ export const ROGUE_TOKEN_STORE_PACKS: RogueTokenStorePack[] = [
     id: "emerald-pack",
     name: "Emerald Pack",
     tier: "Emerald",
-    price: 30_000,
+    price: 15_000,
     wrapperImage: "/pack-art/emerald-pack-vivid-v1.png",
     playerImage: "/ai-card-art/players/al-horford-cutout.png",
     cardCount: "1",
@@ -149,7 +157,7 @@ export const ROGUE_TOKEN_STORE_PACKS: RogueTokenStorePack[] = [
     id: "sapphire-pack",
     name: "Sapphire Pack",
     tier: "Sapphire",
-    price: 50_000,
+    price: 40_000,
     wrapperImage: "/pack-art/sapphire-pack-vivid-v1.png",
     playerImage: "/pack-art/players/josh-hart-cutout.png",
     cardCount: "1",
@@ -162,7 +170,7 @@ export const ROGUE_TOKEN_STORE_PACKS: RogueTokenStorePack[] = [
     id: "ruby-pack",
     name: "Ruby Pack",
     tier: "Ruby",
-    price: 90_000,
+    price: 100_000,
     wrapperImage: "/pack-art/ruby-pack-vivid-v1.png",
     playerImage: "/pack-art/players/stephon-castle-cutout.png",
     cardCount: "1",
@@ -175,7 +183,7 @@ export const ROGUE_TOKEN_STORE_PACKS: RogueTokenStorePack[] = [
     id: "amethyst-pack",
     name: "Amethyst Pack",
     tier: "Amethyst",
-    price: 150_000,
+    price: 250_000,
     wrapperImage: "/pack-art/amethyst-pack-vivid-v1.png",
     playerImage: "/pack-art/players/victor-wembanyama-cutout.png",
     cardCount: "1",
@@ -188,7 +196,7 @@ export const ROGUE_TOKEN_STORE_PACKS: RogueTokenStorePack[] = [
     id: "galaxy-pack",
     name: "Galaxy Pack",
     tier: "Galaxy",
-    price: 250_000,
+    price: 1_000_000,
     wrapperImage: "/pack-art/galaxy-pack-vivid-v1.png",
     playerImage: "/pack-art/players/kobe-bryant-cutout.png",
     cardCount: "1",

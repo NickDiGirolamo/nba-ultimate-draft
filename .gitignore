@@ -10,3 +10,18 @@ Thumbs.db
 nba-ultimate-draft/
 
 .vercel
+
+# Local Codex scratch/worktree outputs. These are useful during development but
+# should never be staged for production deploys.
+.codex-matrix-tmp/
+.codex-matrix-tmp2/
+codex-mobile-deploy-temp/
+temp-calibration-check/
+temp-batch-update.cjs
+temp-batch-update.js
+temp-br-advanced.html
+temp-br-per-game.html
+temp-nba-api-*.py
+temp-nba-player-ids.json
+temp-ratings.txt
+tmp_player_names.txt

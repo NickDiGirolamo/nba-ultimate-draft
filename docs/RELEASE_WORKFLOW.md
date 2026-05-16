@@ -10,7 +10,7 @@ This project is already linked to Vercel and should treat `main` as the producti
 - Make code changes
 - Commit finished work
 - Open a preview deployment if you want a Vercel check before production
-- Do not push directly to production from a worker thread
+- Do not push `main` directly to production from a worker thread
 
 ### Release thread
 
@@ -25,6 +25,8 @@ This project is already linked to Vercel and should treat `main` as the producti
 Only the release thread should push `main`.
 
 That keeps Vercel production tied to one controlled branch and prevents multiple threads from racing in the same working tree.
+
+Direct pushing from a thread is still fine when that thread is intentionally acting as the release thread. The important distinction is not the button or terminal used to push; it is that the release thread owns the final status check, stages only intended product files, and pushes a verified `main` commit.
 
 ## Suggested release flow
 
@@ -44,6 +46,24 @@ git push origin main
 ```
 
 6. Vercel deploys the new `main` commit to the live site.
+
+## Staging guardrails
+
+Before staging a release, inspect both tracked and untracked changes:
+
+```bash
+git status --short --branch
+git diff --name-status
+git ls-files --others --exclude-standard
+```
+
+Avoid `git add -A` from the repository root when there are local scratch folders, generated temp files, or nested worktrees present. Stage the intended product files explicitly, especially newly referenced files such as components and assets under `public/`.
+
+If `npm run release:check -- -AllowDirty` passes, that only proves the current local files can build. Before production deploy, commit the intended changes and run the normal clean check:
+
+```bash
+npm run release:check
+```
 
 ## What `npm run release:check` does
 

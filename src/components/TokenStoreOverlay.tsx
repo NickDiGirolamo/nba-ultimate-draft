@@ -76,6 +76,7 @@ interface TokenStoreOverlayProps {
   meta: MetaProgress;
   ownedTrainingCampTickets: number;
   ownedTradePhones: number;
+  ownedMidSeasonCoachChanges: number;
   ownedSilverStarterPacks: number;
   ownedGoldStarterPacks: number;
   ownedPlatinumStarterPacks: number;
@@ -91,6 +92,7 @@ interface TokenStoreOverlayProps {
   initialView?: TokenStoreView;
   onBuyTrainingCampTicket: () => boolean | void;
   onBuyTradePhone: () => boolean | void;
+  onBuyMidSeasonCoachChange: () => boolean | void;
   onBuySilverStarterPack: () => boolean | void;
   onBuyGoldStarterPack: () => boolean | void;
   onBuyPlatinumStarterPack: () => boolean | void;
@@ -119,7 +121,7 @@ const formatCurrency = (usdCents: number, currency = "usd") =>
     currency: currency.toUpperCase(),
   }).format(usdCents / 100);
 const playersById = new Map(allPlayers.map((player) => [player.id, player]));
-const BEST_FIRST_PURCHASE_ID = "training-camp-ticket";
+const BEST_FIRST_PURCHASE_ID = "coach-recruitment";
 
 const vaultTierStyles: Record<
   StarterVaultTier,
@@ -176,6 +178,22 @@ const getTokenPackUseCase = (pack: TokenPackProduct) => {
   };
 
   return useCases[pack.slug] ?? "Good for: upgrading Rogue power before your next climb.";
+};
+
+const getTokenPackSavingsPercent = (
+  pack: TokenPackProduct,
+  baselinePack: TokenPackProduct | null,
+) => {
+  if (!baselinePack) return 0;
+  if (pack.id === baselinePack.id) return 0;
+  if (pack.tokenAmount <= baselinePack.tokenAmount) return 0;
+  if (pack.usdCents <= 0 || baselinePack.usdCents <= 0 || baselinePack.tokenAmount <= 0) return 0;
+
+  const baselineCentsPerToken = baselinePack.usdCents / baselinePack.tokenAmount;
+  const expectedCentsAtBaselineRate = pack.tokenAmount * baselineCentsPerToken;
+  if (expectedCentsAtBaselineRate <= 0) return 0;
+
+  return Math.max(0, Math.round((1 - pack.usdCents / expectedCentsAtBaselineRate) * 100));
 };
 
 const SmallCollectionPlayerCard = ({ player }: { player: Player }) => {
@@ -365,10 +383,12 @@ const StarterVaultPlayerCard = ({
 
 const TokenPackCard = ({
   pack,
+  savingsPercent,
   busy,
   onCheckout,
 }: {
   pack: TokenPackProduct;
+  savingsPercent: number;
   busy: boolean;
   onCheckout: () => void;
 }) => {
@@ -394,6 +414,11 @@ const TokenPackCard = ({
             {popular ? (
               <div className="rounded-full border border-amber-100/24 bg-amber-200/14 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-amber-100">
                 Popular
+              </div>
+            ) : null}
+            {savingsPercent > 0 ? (
+              <div className="rounded-full border border-yellow-100/40 bg-[linear-gradient(135deg,rgba(253,224,71,0.96),rgba(245,158,11,0.9))] px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-950 shadow-[0_0_18px_rgba(250,204,21,0.34)]">
+                Save {savingsPercent}%
               </div>
             ) : null}
           </div>
@@ -840,6 +865,7 @@ export const TokenStoreOverlay = ({
   meta,
   ownedTrainingCampTickets,
   ownedTradePhones,
+  ownedMidSeasonCoachChanges,
   ownedSilverStarterPacks,
   ownedGoldStarterPacks,
   ownedPlatinumStarterPacks,
@@ -854,6 +880,7 @@ export const TokenStoreOverlay = ({
   initialView = "store",
   onBuyTrainingCampTicket,
   onBuyTradePhone,
+  onBuyMidSeasonCoachChange,
   onBuySilverStarterPack,
   onBuyGoldStarterPack,
   onBuyPlatinumStarterPack,
@@ -902,6 +929,10 @@ export const TokenStoreOverlay = ({
   const tokenStoreItemById = useMemo(
     () => new Map(tokenStoreUtilityItems.map((item) => [item.id, item])),
     [],
+  );
+  const tokenPackSavingsBaseline = useMemo(
+    () => tokenPacks.find((pack) => pack.tokenAmount === 10_000) ?? null,
+    [tokenPacks],
   );
 
   const startTokenPackCheckout = async (pack: TokenPackProduct) => {
@@ -1033,9 +1064,12 @@ export const TokenStoreOverlay = ({
 
   const utilityCards = [
     {
-      item: tokenStoreUtilityItems[0],
+      item: tokenStoreItemById.get("training-camp-ticket")!,
       owned: ownedTrainingCampTickets,
-      onBuy: () => buyStoreItem(tokenStoreUtilityItems[0].id, tokenStoreUtilityItems[0].price, onBuyTrainingCampTicket),
+      onBuy: () => {
+        const item = tokenStoreItemById.get("training-camp-ticket")!;
+        buyStoreItem(item.id, item.price, onBuyTrainingCampTicket);
+      },
       icon: ShieldPlus,
       cardClass:
         "border-sky-200/18 bg-[linear-gradient(135deg,rgba(19,45,83,0.34),rgba(9,17,31,0.92))]",
@@ -1044,9 +1078,12 @@ export const TokenStoreOverlay = ({
       iconClass: "text-sky-200",
     },
     {
-      item: tokenStoreUtilityItems[1],
+      item: tokenStoreItemById.get("trade-phone")!,
       owned: ownedTradePhones,
-      onBuy: () => buyStoreItem(tokenStoreUtilityItems[1].id, tokenStoreUtilityItems[1].price, onBuyTradePhone),
+      onBuy: () => {
+        const item = tokenStoreItemById.get("trade-phone")!;
+        buyStoreItem(item.id, item.price, onBuyTradePhone);
+      },
       icon: Ticket,
       cardClass:
         "border-fuchsia-200/18 bg-[linear-gradient(135deg,rgba(74,23,96,0.32),rgba(11,13,24,0.92))]",
@@ -1054,12 +1091,29 @@ export const TokenStoreOverlay = ({
         "border-fuchsia-200/20 bg-fuchsia-300/10 text-fuchsia-100",
       iconClass: "text-fuchsia-200",
     },
+    {
+      item: tokenStoreItemById.get("mid-season-coach-change")!,
+      owned: ownedMidSeasonCoachChanges,
+      onBuy: () => {
+        const item = tokenStoreItemById.get("mid-season-coach-change")!;
+        buyStoreItem(item.id, item.price, onBuyMidSeasonCoachChange);
+      },
+      icon: Users2,
+      cardClass:
+        "border-cyan-200/18 bg-[linear-gradient(135deg,rgba(21,94,117,0.32),rgba(8,13,24,0.92))]",
+      badgeClass:
+        "border-cyan-200/20 bg-cyan-300/10 text-cyan-100",
+      iconClass: "text-cyan-200",
+    },
   ];
   const starterPackCards = [
     {
-      item: tokenStoreUtilityItems[2],
+      item: tokenStoreItemById.get("silver-starter-pack")!,
       owned: ownedSilverStarterPacks,
-      onBuy: () => buyStoreItem(tokenStoreUtilityItems[2].id, tokenStoreUtilityItems[2].price, onBuySilverStarterPack),
+      onBuy: () => {
+        const item = tokenStoreItemById.get("silver-starter-pack")!;
+        buyStoreItem(item.id, item.price, onBuySilverStarterPack);
+      },
       cardClass:
         "border-slate-200/18 bg-[linear-gradient(135deg,rgba(75,85,99,0.34),rgba(10,15,24,0.92))]",
       badgeClass:
@@ -1068,9 +1122,12 @@ export const TokenStoreOverlay = ({
       uplift: "+1 Avg OVR",
     },
     {
-      item: tokenStoreUtilityItems[3],
+      item: tokenStoreItemById.get("gold-starter-pack")!,
       owned: ownedGoldStarterPacks,
-      onBuy: () => buyStoreItem(tokenStoreUtilityItems[3].id, tokenStoreUtilityItems[3].price, onBuyGoldStarterPack),
+      onBuy: () => {
+        const item = tokenStoreItemById.get("gold-starter-pack")!;
+        buyStoreItem(item.id, item.price, onBuyGoldStarterPack);
+      },
       cardClass:
         "border-amber-200/18 bg-[linear-gradient(135deg,rgba(92,67,12,0.34),rgba(15,14,22,0.92))]",
       badgeClass:
@@ -1079,9 +1136,12 @@ export const TokenStoreOverlay = ({
       uplift: "+2 Avg OVR",
     },
     {
-      item: tokenStoreUtilityItems[4],
+      item: tokenStoreItemById.get("platinum-starter-pack")!,
       owned: ownedPlatinumStarterPacks,
-      onBuy: () => buyStoreItem(tokenStoreUtilityItems[4].id, tokenStoreUtilityItems[4].price, onBuyPlatinumStarterPack),
+      onBuy: () => {
+        const item = tokenStoreItemById.get("platinum-starter-pack")!;
+        buyStoreItem(item.id, item.price, onBuyPlatinumStarterPack);
+      },
       cardClass:
         "border-cyan-200/18 bg-[linear-gradient(135deg,rgba(34,93,112,0.3),rgba(9,13,24,0.92))]",
       badgeClass:
@@ -1254,9 +1314,9 @@ export const TokenStoreOverlay = ({
           </div>
           <div className="rounded-[26px] border border-emerald-200/18 bg-[linear-gradient(135deg,rgba(16,185,129,0.16),rgba(8,13,24,0.9))] p-5">
             <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-emerald-100/74">Best First Buy</div>
-            <div className="mt-2 text-2xl font-semibold text-white">Training Camp Ticket</div>
+            <div className="mt-2 text-2xl font-semibold text-white">Coach Recruitment</div>
             <p className="mt-3 text-sm leading-7 text-slate-200">
-              Cheap, flexible, and useful in almost every run. Use it to turn one core player into a stronger boss-game answer.
+              Unlock the coach-team draft floor once, then every future Rogue run gets an extra team-focused player board after your opening five.
             </p>
           </div>
         </div>
@@ -1397,63 +1457,13 @@ export const TokenStoreOverlay = ({
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
-                <Sparkles size={14} className="text-sky-200" />
-                Run-Only Items
+                <Handshake size={14} className="text-emerald-200" />
+                Permanent Rogue Upgrades
               </div>
-              <div className="mt-2 text-sm leading-7 text-slate-300">
-                Bought with tokens, then spent during a single Rogue run when the matchup demands it.
+              <div className="mt-3 text-sm leading-7 text-slate-300">
+                Unlock once, then every future Rogue run starts with more agency, more cash, or more control.
               </div>
             </div>
-            <div className="w-fit rounded-full border border-sky-200/16 bg-sky-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-100">
-              Best for right now
-            </div>
-          </div>
-          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {utilityCards.map(({ item, owned, onBuy, icon: Icon, cardClass, badgeClass, iconClass }) => (
-              <div key={item.id} className={`rounded-[28px] border p-5 ${cardClass}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2 text-xl font-semibold text-white">
-                      <Icon size={18} className={iconClass} />
-                      {item.title}
-                      {item.id === BEST_FIRST_PURCHASE_ID ? (
-                        <span className="rounded-full border border-emerald-200/20 bg-emerald-300/12 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-emerald-100">
-                          Best First Buy
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="mt-3 text-sm leading-7 text-slate-300">{item.description}</div>
-                    <div className="mt-3 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
-                      Run-only
-                    </div>
-                  </div>
-                  <div className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${badgeClass}`}>
-                    Owned {owned}
-                  </div>
-                </div>
-                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-2xl font-semibold text-white">{formatNumber(item.price)}</div>
-                  <button
-                    type="button"
-                    onClick={onBuy}
-                    disabled={meta.tokens.balance < item.price}
-                    className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48 sm:w-auto sm:py-2.5"
-                  >
-                    Buy
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-10">
-          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
-            <Handshake size={14} className="text-emerald-200" />
-            Permanent Rogue Upgrades
-          </div>
-          <div className="mt-3 text-sm leading-7 text-slate-300">
-            Unlock once, then every future Rogue run starts with more agency, more cash, or more control.
           </div>
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {rogueUpgradeCards.map(({ item, owned, requiredTier, onBuy, icon: Icon, cardClass, badgeClass, iconClass, uplift }) => {
@@ -1464,9 +1474,14 @@ export const TokenStoreOverlay = ({
                 <div key={item.id} className={`rounded-[28px] border p-5 ${cardClass}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="flex items-center gap-2 text-xl font-semibold text-white">
+                      <div className="flex flex-wrap items-center gap-2 text-xl font-semibold text-white">
                         <Icon size={18} className={iconClass} />
                         {item.title}
+                        {item.id === BEST_FIRST_PURCHASE_ID ? (
+                          <span className="rounded-full border border-emerald-200/20 bg-emerald-300/12 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-emerald-100">
+                            Best First Buy
+                          </span>
+                        ) : null}
                       </div>
                       <div className="mt-2 text-[11px] uppercase tracking-[0.22em] text-white/58">
                         {uplift}
@@ -1494,6 +1509,55 @@ export const TokenStoreOverlay = ({
                 </div>
               );
             })}
+          </div>
+        </div>
+
+        <div className="mt-10">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
+                <Sparkles size={14} className="text-sky-200" />
+                Run-Only Items
+              </div>
+              <div className="mt-2 text-sm leading-7 text-slate-300">
+                Bought with tokens, then spent during a single Rogue run when the matchup demands it.
+              </div>
+            </div>
+            <div className="w-fit rounded-full border border-sky-200/16 bg-sky-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-100">
+              Best for right now
+            </div>
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {utilityCards.map(({ item, owned, onBuy, icon: Icon, cardClass, badgeClass, iconClass }) => (
+              <div key={item.id} className={`rounded-[28px] border p-5 ${cardClass}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2 text-xl font-semibold text-white">
+                      <Icon size={18} className={iconClass} />
+                      {item.title}
+                    </div>
+                    <div className="mt-3 text-sm leading-7 text-slate-300">{item.description}</div>
+                    <div className="mt-3 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
+                      Run-only
+                    </div>
+                  </div>
+                  <div className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${badgeClass}`}>
+                    Owned {owned}
+                  </div>
+                </div>
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-2xl font-semibold text-white">{formatNumber(item.price)}</div>
+                  <button
+                    type="button"
+                    onClick={onBuy}
+                    disabled={meta.tokens.balance < item.price}
+                    className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48 sm:w-auto sm:py-2.5"
+                  >
+                    Buy
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -1630,6 +1694,7 @@ export const TokenStoreOverlay = ({
                 <TokenPackCard
                   key={pack.slug}
                   pack={pack}
+                  savingsPercent={getTokenPackSavingsPercent(pack, tokenPackSavingsBaseline)}
                   busy={checkoutBusySlug === pack.slug}
                   onCheckout={() => void startTokenPackCheckout(pack)}
                 />

@@ -60,7 +60,6 @@ export interface RoguelikeCoach {
 }
 
 export interface RoguelikeRunSettings {
-  conferenceFilter: RoguelikeConferenceFilter;
   excludeGalaxyCards: boolean;
   currentSeasonOnly: boolean;
   difficulty: RoguelikeDifficulty;
@@ -201,6 +200,25 @@ export interface RoguelikeClearRewards {
   tokenReward: number;
 }
 
+export type RoguelikeRunForecastTone = "pressure" | "advantage" | "neutral";
+
+export interface RoguelikeRunForecastDriver {
+  label: string;
+  detail: string;
+  score: number;
+  tone: RoguelikeRunForecastTone;
+}
+
+export interface RoguelikeRunForecast {
+  pressureScore: number;
+  rewardScore: number;
+  pressureLabel: string;
+  tokenMultiplier: number;
+  tokenBonusPercent: number;
+  drivers: RoguelikeRunForecastDriver[];
+  advantages: RoguelikeRunForecastDriver[];
+}
+
 export interface RoguelikeBonusBadgeAssignment {
   playerId: string;
   badgeType: PlayerTypeBadge;
@@ -255,13 +273,125 @@ export const getRoguelikeDifficultyTokenMultiplier = (
   return multiplierByDifficulty[difficulty] ?? 1;
 };
 
+const getRoguelikeRunPressureLabel = (pressureScore: number) => {
+  if (pressureScore >= 85) return "Hall of Fame";
+  if (pressureScore >= 60) return "Legendary";
+  if (pressureScore >= 30) return "Brutal";
+  if (pressureScore >= 12) return "Tough";
+  return "Standard";
+};
+
+export const calculateRoguelikeRunForecast = (
+  settings?: Partial<RoguelikeRunSettings> | null,
+  options: {
+    starterRevealTargetAverage?: number | null;
+  } = {},
+): RoguelikeRunForecast => {
+  const normalizedSettings = normalizeRoguelikeRunSettings(settings);
+  const drivers: RoguelikeRunForecastDriver[] = [];
+  const advantages: RoguelikeRunForecastDriver[] = [];
+
+  const addDriver = (
+    condition: boolean,
+    driver: RoguelikeRunForecastDriver,
+  ) => {
+    if (condition) drivers.push(driver);
+  };
+  const addAdvantage = (
+    condition: boolean,
+    advantage: RoguelikeRunForecastDriver,
+  ) => {
+    if (condition) advantages.push(advantage);
+  };
+
+  const difficultyScoreByDifficulty: Record<RoguelikeDifficulty, number> = {
+    normal: 0,
+    "all-star": 16,
+    superstar: 32,
+    "all-time": 48,
+    goat: 64,
+  };
+  const difficultyScore = difficultyScoreByDifficulty[normalizedSettings.difficulty] ?? 0;
+
+  addDriver(difficultyScore > 0, {
+    label: `${normalizedSettings.difficulty.replace("-", " ")} bosses`,
+    detail: "Boss teams get stronger average OVR.",
+    score: difficultyScore,
+    tone: "pressure",
+  });
+  addDriver(normalizedSettings.excludeGalaxyCards, {
+    label: "No Galaxy cards",
+    detail: "The highest tier is removed from the run pool.",
+    score: 8,
+    tone: "pressure",
+  });
+  addDriver(normalizedSettings.currentSeasonOnly, {
+    label: "Current season only",
+    detail: "All-time cards are removed from the run pool.",
+    score: 6,
+    tone: "pressure",
+  });
+  addDriver(normalizedSettings.disableTrainingNodes, {
+    label: "No training camps",
+    detail: "Permanent run boosts from training floors are unavailable.",
+    score: 8,
+    tone: "pressure",
+  });
+  addDriver(normalizedSettings.disableTradeNodes, {
+    label: "No trades",
+    detail: "You cannot use trade floors to repair roster gaps.",
+    score: 8,
+    tone: "pressure",
+  });
+  addDriver(!normalizedSettings.enableCoaches, {
+    label: "No coach boost",
+    detail: "Team-based +1 OVR boosts are unavailable.",
+    score: 5,
+    tone: "pressure",
+  });
+
+  addAdvantage(normalizedSettings.enableCoaches, {
+    label: "Coach boost available",
+    detail: "Coach-linked players can receive +1 OVR.",
+    score: 5,
+    tone: "advantage",
+  });
+  const starterRevealTargetAverage = options.starterRevealTargetAverage ?? 80;
+  const starterUpgradeScore = Math.max(0, Math.round((starterRevealTargetAverage - 80) * 4));
+  addAdvantage(starterUpgradeScore > 0, {
+    label: `${starterRevealTargetAverage} starter avg`,
+    detail: "A stronger starter reveal makes the opening climb cleaner.",
+    score: starterUpgradeScore,
+    tone: "advantage",
+  });
+
+  const rewardScore = drivers.reduce((sum, driver) => sum + driver.score, 0);
+  const advantageScore = advantages.reduce((sum, advantage) => sum + advantage.score, 0);
+  const pressureScore = Math.max(0, Math.min(100, Math.round(rewardScore - advantageScore * 0.35)));
+  const tokenMultiplier = Math.max(1, Math.min(2.25, Math.round((1 + rewardScore / 160) * 100) / 100));
+
+  return {
+    pressureScore,
+    rewardScore,
+    pressureLabel: getRoguelikeRunPressureLabel(pressureScore),
+    tokenMultiplier,
+    tokenBonusPercent: Math.round((tokenMultiplier - 1) * 100),
+    drivers,
+    advantages,
+  };
+};
+
+export const getRoguelikeRunTokenMultiplier = (
+  settings?: Partial<RoguelikeRunSettings> | null,
+) => calculateRoguelikeRunForecast(settings).tokenMultiplier;
+
 export const doesRoguelikeNodeAwardClearRewards = (
   node: Pick<RoguelikeNode, "type" | "act" | "eliminationOnLoss">,
 ) => node.type === "challenge" || Boolean(node.eliminationOnLoss);
 
 export const getRoguelikeClearRewards = (
   node: Pick<RoguelikeNode, "act" | "type" | "eliminationOnLoss" | "clearRewardsOverride">,
-  settings?: Pick<RoguelikeRunSettings, "difficulty"> | null,
+  settings?: Partial<RoguelikeRunSettings> | null,
 ): RoguelikeClearRewards => {
   const baseRewards = (() => {
     if (node.clearRewardsOverride) {
@@ -299,11 +429,11 @@ export const getRoguelikeClearRewards = (
     };
   })();
 
-  const difficultyMultiplier = getRoguelikeDifficultyTokenMultiplier(settings?.difficulty ?? "normal");
+  const runTokenMultiplier = getRoguelikeRunTokenMultiplier(settings);
 
   return {
     prestigeXpAward: baseRewards.prestigeXpAward,
-    tokenReward: Math.round(baseRewards.tokenReward * difficultyMultiplier),
+    tokenReward: Math.round(baseRewards.tokenReward * runTokenMultiplier),
   };
 };
 
@@ -421,7 +551,6 @@ export const getRoguelikeCoachTeamKey = (coachId: string | null | undefined) =>
   getRoguelikeCoachById(coachId)?.teamName ?? null;
 
 export const DEFAULT_ROGUELIKE_RUN_SETTINGS: RoguelikeRunSettings = {
-  conferenceFilter: "both",
   excludeGalaxyCards: false,
   currentSeasonOnly: false,
   difficulty: "normal",
@@ -441,7 +570,6 @@ const getBossAverageOverallForFloor = (floor: number, fallback?: number) =>
 export const normalizeRoguelikeRunSettings = (
   settings?: Partial<RoguelikeRunSettings> | null,
 ): RoguelikeRunSettings => ({
-  conferenceFilter: settings?.conferenceFilter ?? DEFAULT_ROGUELIKE_RUN_SETTINGS.conferenceFilter,
   excludeGalaxyCards: settings?.excludeGalaxyCards ?? DEFAULT_ROGUELIKE_RUN_SETTINGS.excludeGalaxyCards,
   currentSeasonOnly: settings?.currentSeasonOnly ?? DEFAULT_ROGUELIKE_RUN_SETTINGS.currentSeasonOnly,
   difficulty: settings?.difficulty ?? DEFAULT_ROGUELIKE_RUN_SETTINGS.difficulty,
@@ -456,12 +584,9 @@ export const drawRoguelikeCoachChoices = (
   count = 5,
   excludedCoachIds: string[] = [],
 ) => {
-  const normalizedSettings = normalizeRoguelikeRunSettings(settings);
   const excludedIds = new Set(excludedCoachIds.filter(Boolean));
   const filteredCoaches = roguelikeCoaches.filter((coach) => {
-    if (excludedIds.has(coach.id)) return false;
-    if (normalizedSettings.conferenceFilter === "both") return true;
-    return coach.conference === normalizedSettings.conferenceFilter;
+    return !excludedIds.has(coach.id);
   });
   const random = mulberry32(seed);
   const shuffled = [...filteredCoaches];
@@ -1349,15 +1474,6 @@ export const roguelikeNodes: RoguelikeNode[] = [
 
 const isCurrentSeasonPlayer = (player: Player) => player.era === "2025-26";
 
-const matchesConferenceFilter = (player: Player, conferenceFilter: RoguelikeConferenceFilter) => {
-  if (conferenceFilter === "both") return true;
-
-  const conference = getNbaTeamByName(player.teamLabel)?.conference;
-  if (!conference) return true;
-
-  return conferenceFilter === "east" ? conference === "East" : conference === "West";
-};
-
 export const getRoguelikePlayerUniverse = (
   settings?: Partial<RoguelikeRunSettings> | null,
   sourcePlayers: Player[] = allPlayers,
@@ -1367,7 +1483,6 @@ export const getRoguelikePlayerUniverse = (
   return sourcePlayers.filter((player) => {
     if (normalizedSettings.currentSeasonOnly && !isCurrentSeasonPlayer(player)) return false;
     if (normalizedSettings.excludeGalaxyCards && getPlayerTier(player) === "Galaxy") return false;
-    if (!matchesConferenceFilter(player, normalizedSettings.conferenceFilter)) return false;
     return true;
   });
 };

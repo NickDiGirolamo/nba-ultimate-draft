@@ -1,5 +1,5 @@
 import { CheckCircle2, ChevronRight, Coins, Package2, Trophy } from "lucide-react";
-import { MetaProgress, RunHistoryEntry } from "../types";
+import { DailyRogueChallengeProgress, MetaProgress, RunHistoryEntry } from "../types";
 import { allPlayers } from "../data/players";
 import { getNbaTeamByName } from "../data/nbaTeams";
 import { ROGUE_CHALLENGES, getRogueChallengeProgress } from "../lib/rogueChallenges";
@@ -16,6 +16,7 @@ interface LandingHubProps {
   onRestartTutorial: () => void;
   history: RunHistoryEntry[];
   meta: MetaProgress;
+  dailyChallengeProgress: DailyRogueChallengeProgress;
   completedRogueChallengeIds: string[];
   claimedRogueChallengeIds: string[];
 }
@@ -28,6 +29,7 @@ export const LandingHub = ({
   onClaimRogueChallengeReward,
   onRestartTutorial,
   meta,
+  dailyChallengeProgress,
   completedRogueChallengeIds,
   claimedRogueChallengeIds,
 }: LandingHubProps) => {
@@ -57,7 +59,7 @@ export const LandingHub = ({
           onRestartTutorial={onRestartTutorial}
         />
 
-        <div data-tutorial-id="home-challenge-panel" className="glass-panel flex min-h-[460px] flex-col rounded-[28px] border border-sky-200/12 p-4 shadow-card lg:h-full lg:rounded-[30px] xl:p-5">
+        <div data-tutorial-id="home-challenge-panel" className="glass-panel flex min-h-[460px] flex-col rounded-[28px] border border-sky-200/12 p-3 shadow-card lg:h-full lg:rounded-[30px] xl:p-4">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl bg-sky-300/14 p-2.5 text-sky-200">
               <Trophy size={18} />
@@ -70,20 +72,20 @@ export const LandingHub = ({
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-2.5">
-            <div className="rounded-2xl border border-amber-200/14 bg-amber-300/8 px-3 py-2.5">
-              <div className="text-[9px] uppercase tracking-[0.18em] text-slate-400">Ready</div>
-              <div className="mt-0.5 text-xl font-semibold text-white">{claimableChallengeCount}</div>
+          <div className="mt-2.5 grid grid-cols-2 gap-2">
+            <div className="rounded-2xl border border-amber-200/14 bg-amber-300/8 px-3 py-2">
+              <div className="text-[8px] uppercase tracking-[0.17em] text-slate-400">Ready</div>
+              <div className="mt-0.5 text-lg font-semibold leading-none text-white">{claimableChallengeCount}</div>
             </div>
-            <div className="rounded-2xl border border-emerald-200/14 bg-emerald-300/8 px-3 py-2.5">
-              <div className="text-[9px] uppercase tracking-[0.18em] text-slate-400">Claimed</div>
-              <div className="mt-0.5 text-xl font-semibold text-white">{claimedChallengeCount}</div>
+            <div className="rounded-2xl border border-emerald-200/14 bg-emerald-300/8 px-3 py-2">
+              <div className="text-[8px] uppercase tracking-[0.17em] text-slate-400">Claimed</div>
+              <div className="mt-0.5 text-lg font-semibold leading-none text-white">{claimedChallengeCount}</div>
             </div>
           </div>
 
-          <div className="mt-3 grid flex-1 grid-rows-3 gap-2">
+          <div className="mt-2.5 flex flex-1 flex-col gap-1.5 overflow-hidden">
             {visibleChallenges.length > 0 ? (
-              visibleChallenges.slice(0, 3).map((challenge) => {
+              visibleChallenges.slice(0, 6).map((challenge) => {
                 const completed = completedChallengeIdSet.has(challenge.id);
                 const rewardCoach = getRoguelikeCoachById(challenge.rewardCoachId);
                 const rewardPlayer = challenge.rewardPlayerId
@@ -94,22 +96,23 @@ export const LandingHub = ({
                 const challengeTeam = challenge.requiredTeamName
                   ? getNbaTeamByName(challenge.requiredTeamName)
                   : null;
-                const progress = getRogueChallengeProgress(challenge, meta);
+                const progress = getRogueChallengeProgress(challenge, meta, dailyChallengeProgress);
+                const hasTokenReward = challenge.reward > 0;
 
                 return (
                   <div
                     key={challenge.id}
-                    className={`flex min-h-0 rounded-[18px] border px-3 py-2.5 ${
+                    className={`flex min-h-0 rounded-[16px] border px-3 py-2 ${
                       completed
                         ? "border-amber-200/26 bg-[linear-gradient(135deg,rgba(251,191,36,0.14),rgba(8,13,24,0.88))]"
                         : "border-white/10 bg-white/5"
                     }`}
                   >
-                    <div className="grid w-full gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                    <div className="grid w-full gap-1.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                       <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           {challengeTeam?.logo ? (
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/8 p-1">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/8 p-1">
                               <img
                                 src={challengeTeam.logo}
                                 alt=""
@@ -119,10 +122,10 @@ export const LandingHub = ({
                               />
                             </span>
                           ) : null}
-                          <div className="min-w-0 flex-1 text-sm font-semibold leading-tight text-white">
+                          <div className="min-w-0 flex-1 text-[13px] font-semibold leading-tight text-white">
                             {challenge.title}
                           </div>
-                          <div className={`shrink-0 rounded-full border px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] ${
+                          <div className={`shrink-0 rounded-full border px-2 py-0.5 text-[7px] font-semibold uppercase tracking-[0.13em] ${
                             completed
                               ? "border-amber-200/24 bg-amber-300/12 text-amber-100"
                               : "border-white/10 bg-black/20 text-slate-300"
@@ -130,14 +133,14 @@ export const LandingHub = ({
                             {completed ? "Ready" : "Open"}
                           </div>
                         </div>
-                        <p className="mt-1 line-clamp-1 text-[11px] leading-4 text-slate-300">{challenge.description}</p>
+                        <p className="mt-0.5 line-clamp-1 text-[10px] leading-4 text-slate-300">{challenge.description}</p>
                         {challenge.progress ? (
-                          <div className="mt-1.5">
-                            <div className="flex items-center justify-between gap-2 text-[9px] font-semibold uppercase tracking-[0.13em] text-slate-400">
+                          <div className="mt-1">
+                            <div className="flex items-center justify-between gap-2 text-[8px] font-semibold uppercase tracking-[0.12em] text-slate-400">
                               <span>{progress.targetLabel}</span>
                               <span className="text-slate-200">{completed ? "Reached" : progress.currentLabel}</span>
                             </div>
-                            <div className="mt-1 h-1 overflow-hidden rounded-full bg-slate-700/70">
+                            <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-slate-700/70">
                               <div
                                 className="h-full rounded-full bg-gradient-to-r from-sky-300 to-amber-200"
                                 style={{ width: `${completed ? 100 : progress.percent}%` }}
@@ -145,13 +148,19 @@ export const LandingHub = ({
                             </div>
                           </div>
                         ) : null}
-                        <div className="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-white">
-                          <Coins size={12} className="text-amber-200" />
-                          {formatNumber(challenge.reward)} tokens{rewardCoach ? " + Coach" : ""}{rewardPlayerTier ? ` + ${rewardPlayerTier}` : ""}
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] font-semibold leading-tight text-white">
+                          {hasTokenReward ? (
+                            <>
+                              <Coins size={11} className="text-amber-200" />
+                              {formatNumber(challenge.reward)} tokens{rewardCoach ? " + Coach" : ""}{rewardPlayerTier ? ` + ${rewardPlayerTier}` : ""}
+                            </>
+                          ) : rewardCoach || rewardPlayerTier ? (
+                            <>{rewardCoach ? "Coach" : rewardPlayerTier}</>
+                          ) : null}
                           {rewardPackTier ? (
                             <span className="inline-flex items-center gap-1 text-emerald-100">
-                              +
-                              <Package2 size={12} />
+                              {hasTokenReward || rewardCoach || rewardPlayerTier ? "+" : null}
+                              <Package2 size={11} />
                               {rewardPackTier} Pack
                             </span>
                           ) : null}
@@ -161,19 +170,19 @@ export const LandingHub = ({
                         <button
                           type="button"
                           onClick={() => onClaimRogueChallengeReward(challenge.id)}
-                          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-950 transition hover:scale-[1.02] sm:w-auto"
+                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-950 transition hover:scale-[1.02] sm:w-auto"
                         >
-                          <CheckCircle2 size={15} />
+                          <CheckCircle2 size={13} />
                           Claim
                         </button>
                       ) : (
                         <button
                           type="button"
                           onClick={() => onRunRogueChallenge(challenge.id)}
-                          className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-sky-200/24 bg-sky-300/12 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-50 transition hover:scale-[1.02] hover:bg-sky-300/18 sm:w-auto"
+                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-sky-200/24 bg-sky-300/12 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-sky-50 transition hover:scale-[1.02] hover:bg-sky-300/18 sm:w-auto"
                         >
                           Run
-                          <ChevronRight size={15} />
+                          <ChevronRight size={13} />
                         </button>
                       )}
                     </div>

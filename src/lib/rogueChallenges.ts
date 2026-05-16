@@ -1,5 +1,5 @@
 import { allPlayers } from "../data/players";
-import { MetaProgress, Player, PlayerTier } from "../types";
+import { DailyRogueChallengeProgress, MetaProgress, Player, PlayerTier } from "../types";
 import { teamChemistryGroups } from "./dynamicDuos";
 import { getPlayerTier } from "./playerTier";
 import {
@@ -16,6 +16,7 @@ export interface RogueChallengeDefinition {
   reward: number;
   requirement: string;
   groupId: RogueChallengeGroupId;
+  kind?: "goal" | "exchange";
   subgroupId?: RogueChallengeSubgroupId;
   rewardCoachId?: string;
   rewardPlayerId?: string;
@@ -25,13 +26,15 @@ export interface RogueChallengeDefinition {
 }
 
 export type RogueChallengeGroupId =
+  | "daily"
   | "milestones"
   | "rookie"
   | "pro"
   | "all-star"
   | "superstar"
   | "hall-of-fame"
-  | "team-takeovers";
+  | "team-takeovers"
+  | "exchanges";
 
 export type RogueChallengeSubgroupId =
   | "rogue-runs"
@@ -41,14 +44,18 @@ export type RogueChallengeSubgroupId =
   | "year-two-takeovers"
   | "total-takeovers";
 
-type RogueMilestoneMetric =
+type RogueChallengeProgressMetric =
   | "rogueRunsStarted"
   | "rogueRunPlayersDrafted"
   | "rogueRunUniquePlayersDrafted"
-  | "collectionPlayers";
+  | "collectionPlayers"
+  | "dailyLogin"
+  | "dailyBossWins"
+  | "dailyPacksOpened"
+  | "dailyYearTwoFinalsClears";
 
 export interface RogueChallengeProgressDefinition {
-  metric: RogueMilestoneMetric;
+  metric: RogueChallengeProgressMetric;
   target: number;
   label: string;
   unit: string;
@@ -109,16 +116,16 @@ const milestoneChallenges: RogueChallengeDefinition[] = [
   })),
   ...rogueRunPlayerDraftThresholds.map<RogueChallengeDefinition>((threshold) => ({
     id: `milestone-rogue-run-players-${threshold}`,
-    title: `${threshold} Rogue Run Players Drafted`,
-    description: `Draft ${threshold} total players across Rogue runs.`,
+    title: `${threshold} Unique Rogue Run Players Drafted`,
+    description: `Draft ${threshold} unique players across Rogue runs.`,
     reward: thresholdReward(threshold, 5, 250),
-    requirement: `Draft ${threshold} total Rogue run players`,
+    requirement: `Draft ${threshold} unique Rogue run players`,
     groupId: "milestones",
     subgroupId: "rogue-run-players",
     progress: {
-      metric: "rogueRunPlayersDrafted",
+      metric: "rogueRunUniquePlayersDrafted",
       target: threshold,
-      label: "Players drafted",
+      label: "Unique players drafted",
       unit: "players",
     },
   })),
@@ -152,6 +159,101 @@ const milestoneChallenges: RogueChallengeDefinition[] = [
       unit: "players",
     },
   })),
+];
+
+export const createDefaultDailyRogueChallengeProgress = (): DailyRogueChallengeProgress => ({
+  login: 1,
+  bossWins: 0,
+  packsOpened: 0,
+  yearTwoFinalsClears: 0,
+});
+
+export const getLocalDailyChallengeDate = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+export const normalizeDailyRogueChallengeProgress = (
+  progress: Partial<DailyRogueChallengeProgress> | null | undefined,
+): DailyRogueChallengeProgress => ({
+  login: Math.max(1, Math.floor(progress?.login ?? 1)),
+  bossWins: Math.max(0, Math.floor(progress?.bossWins ?? 0)),
+  packsOpened: Math.max(0, Math.floor(progress?.packsOpened ?? 0)),
+  yearTwoFinalsClears: Math.max(0, Math.floor(progress?.yearTwoFinalsClears ?? 0)),
+});
+
+const dailyChallenges: RogueChallengeDefinition[] = [
+  {
+    id: "daily-login",
+    title: "Daily Login",
+    description: "Visit NBA Ultimate Draft today and claim your daily login bonus.",
+    reward: 100,
+    requirement: "Open the game website today",
+    groupId: "daily",
+    progress: {
+      metric: "dailyLogin",
+      target: 1,
+      label: "Daily visit",
+      unit: "visit",
+    },
+  },
+  {
+    id: "daily-boss-wins-5",
+    title: "Daily Boss Hunt",
+    description: "Win 5 boss battles across Rogue runs today.",
+    reward: 250,
+    requirement: "Win 5 Rogue boss battles today",
+    groupId: "daily",
+    progress: {
+      metric: "dailyBossWins",
+      target: 5,
+      label: "Boss wins",
+      unit: "wins",
+    },
+  },
+  {
+    id: "daily-open-pack",
+    title: "Daily Pack Rip",
+    description: "Open any Rogue starter or token-store pack today.",
+    reward: 500,
+    requirement: "Open 1 pack today",
+    groupId: "daily",
+    progress: {
+      metric: "dailyPacksOpened",
+      target: 1,
+      label: "Packs opened",
+      unit: "packs",
+    },
+  },
+  {
+    id: "daily-year-2-finals",
+    title: "Daily Finals Push",
+    description: "Beat the Year 2 NBA Finals in a Rogue run today.",
+    reward: 1_000,
+    requirement: "Clear Year 2 NBA Finals today",
+    groupId: "daily",
+    progress: {
+      metric: "dailyYearTwoFinalsClears",
+      target: 1,
+      label: "Year 2 Finals clears",
+      unit: "clears",
+    },
+  },
+];
+
+const exchangeChallenges: RogueChallengeDefinition[] = [
+  {
+    id: "exchange-3x3",
+    title: "3x3",
+    description: "Exchange any 3 permanent collection players for one Sapphire player pack.",
+    reward: 0,
+    requirement: "Trade in any 3 collection players",
+    groupId: "exchanges",
+    kind: "exchange",
+    rewardPackTier: "Sapphire",
+  },
 ];
 
 const teamTakeoverChallenges: RogueChallengeDefinition[] = roguelikeCoaches.map((coach) => ({
@@ -191,30 +293,27 @@ const totalTakeoverChallenges: RogueChallengeDefinition[] = roguelikeCoaches.map
 }));
 
 export const ROGUE_CHALLENGES: RogueChallengeDefinition[] = [
+  ...dailyChallenges,
+  ...exchangeChallenges,
   ...milestoneChallenges,
   {
-    id: "western-conference-takeover",
-    title: "Western Conference Takeover",
-    description: "Use the West-only player pool and get past the Year 1 NBA Finals.",
-    reward: 250,
-    requirement: "West-only player pool, clear Year 1 Finals",
+    id: "first-championship",
+    title: "First Championship",
+    description: "Beat the Year 1 NBA Finals in a Rogue run and earn an Emerald player pack.",
+    reward: 0,
+    requirement: "Clear Year 1 NBA Finals",
     groupId: "rookie",
-  },
-  {
-    id: "eastern-conference-takeover",
-    title: "Eastern Conference Takeover",
-    description: "Use the East-only player pool and get past the Year 1 NBA Finals.",
-    reward: 250,
-    requirement: "East-only player pool, clear Year 1 Finals",
-    groupId: "rookie",
+    rewardPackTier: "Emerald",
   },
   {
     id: "sapphire-year-two-round-one",
     title: "Sapphire Playoff Push",
-    description: "Beat the Year 2 NBA Playoffs Round 1 without any Ruby or higher players in your starting lineup.",
-    reward: 1000,
+    description:
+      "Beat the Year 2 NBA Playoffs Round 1 without any Ruby or higher players in your starting lineup and earn a Sapphire pack.",
+    reward: 2_500,
     requirement: "Starting lineup only: Emerald/Sapphire players, clear Year 2 Round 1",
-    groupId: "pro",
+    groupId: "superstar",
+    rewardPackTier: "Sapphire",
   },
   {
     id: "no-trades-year-two-finals",
@@ -262,6 +361,11 @@ export const ROGUE_CHALLENGES: RogueChallengeDefinition[] = [
 ];
 
 const challengeById = new Map(ROGUE_CHALLENGES.map((challenge) => [challenge.id, challenge]));
+const dailyChallengeIdSet = new Set(dailyChallenges.map((challenge) => challenge.id));
+
+export const ONE_TIME_ROGUE_CHALLENGE_COUNT = ROGUE_CHALLENGES.filter(
+  (challenge) => !dailyChallengeIdSet.has(challenge.id) && challenge.kind !== "exchange",
+).length;
 
 const tierRank: Record<PlayerTier, number> = {
   Emerald: 0,
@@ -286,6 +390,8 @@ export const getClaimedRogueChallengeRewardTotal = (claimedChallengeIds: string[
 
 export const isValidRogueChallengeId = (challengeId: string) => challengeById.has(challengeId);
 
+export const isDailyRogueChallengeId = (challengeId: string) => dailyChallengeIdSet.has(challengeId);
+
 const formatProgressNumber = (value: number) =>
   Number.isInteger(value) ? `${value}` : value.toFixed(1);
 
@@ -298,6 +404,7 @@ const formatProgressLabel = (value: number, definition: RogueChallengeProgressDe
 export const getRogueChallengeProgress = (
   challenge: RogueChallengeDefinition,
   meta: Pick<MetaProgress, "rogueMilestones">,
+  dailyProgress: DailyRogueChallengeProgress = createDefaultDailyRogueChallengeProgress(),
 ): RogueChallengeProgress => {
   if (!challenge.progress) {
     return {
@@ -318,7 +425,15 @@ export const getRogueChallengeProgress = (
         ? meta.rogueMilestones.playersDrafted
         : challenge.progress.metric === "rogueRunUniquePlayersDrafted"
           ? meta.rogueMilestones.uniquePlayersDrafted
-          : meta.rogueMilestones.collectionPlayers,
+          : challenge.progress.metric === "collectionPlayers"
+            ? meta.rogueMilestones.collectionPlayers
+            : challenge.progress.metric === "dailyLogin"
+              ? dailyProgress.login
+              : challenge.progress.metric === "dailyBossWins"
+                ? dailyProgress.bossWins
+                : challenge.progress.metric === "dailyPacksOpened"
+                  ? dailyProgress.packsOpened
+                  : dailyProgress.yearTwoFinalsClears,
   );
   const target = Math.max(1, challenge.progress.target);
   const cappedCurrent = Math.min(current, target);
@@ -344,24 +459,31 @@ export const getCompletedRogueMilestoneChallengeIds = (
     .filter((challenge) => getRogueChallengeProgress(challenge, meta).isComplete)
     .map((challenge) => challenge.id);
 
+export const getCompletedDailyRogueChallengeIds = (
+  dailyProgress: DailyRogueChallengeProgress,
+) =>
+  dailyChallenges
+    .filter((challenge) =>
+      getRogueChallengeProgress(
+        challenge,
+        {
+          rogueMilestones: {
+            runsStarted: 0,
+            playersDrafted: 0,
+            uniquePlayersDrafted: 0,
+            collectionPlayers: 0,
+            totalPlayers: 0,
+          },
+        },
+        dailyProgress,
+      ).isComplete,
+    )
+    .map((challenge) => challenge.id);
+
 export const getRogueChallengeRunSettingsPreset = (
   challengeId: string,
 ): RogueChallengeRunSettingsPreset => {
   switch (challengeId) {
-    case "western-conference-takeover":
-      return {
-        challengeId,
-        settings: {
-          conferenceFilter: "west",
-        },
-      };
-    case "eastern-conference-takeover":
-      return {
-        challengeId,
-        settings: {
-          conferenceFilter: "east",
-        },
-      };
     case "no-trades-year-two-finals":
       return {
         challengeId,
@@ -446,8 +568,7 @@ export const getCompletedRogueChallengeIdsForClear = ({
   const completedIds: string[] = [];
 
   if (clearedNodeId === YEAR_ONE_FINALS_NODE_ID) {
-    if (settings.conferenceFilter === "west") completedIds.push("western-conference-takeover");
-    if (settings.conferenceFilter === "east") completedIds.push("eastern-conference-takeover");
+    completedIds.push("first-championship");
     if (hasNoRubyOrHigherStarters(startingLineup)) completedIds.push("sapphire-year-one-finals");
     teamTakeoverChallenges.forEach((challenge) => {
       if (

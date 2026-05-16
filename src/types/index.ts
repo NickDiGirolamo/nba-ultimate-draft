@@ -400,6 +400,13 @@ export interface MetaProgress {
   collection: CollectionGoals;
 }
 
+export interface DailyRogueChallengeProgress {
+  login: number;
+  bossWins: number;
+  packsOpened: number;
+  yearTwoFinalsClears: number;
+}
+
 export interface DraftState {
   screen: Screen;
   roster: RosterSlot[];
@@ -437,6 +444,7 @@ export interface DraftState {
   purchasedTokens: number;
   ownedTrainingCampTickets: number;
   ownedTradePhones: number;
+  ownedMidSeasonCoachChanges: number;
   ownedSilverStarterPacks: number;
   ownedGoldStarterPacks: number;
   ownedPlatinumStarterPacks: number;
@@ -448,10 +456,14 @@ export interface DraftState {
   ownedRogueStarIds: string[];
   activeRogueStarId: string | null;
   ownedCollectionPlayerIds: string[];
+  exchangedCollectionPlayerIds: string[];
   rogueCollectedCollectionEntryIds: string[];
   claimedCollectionRewardIds: string[];
   completedRogueChallengeIds: string[];
   claimedRogueChallengeIds: string[];
   rogueChallengePackRewardPlayerIds: Record<string, string>;
+  dailyChallengeDate: string;
+  dailyChallengeProgress: DailyRogueChallengeProgress;
+  claimedDailyChallengeIds: string[];
   seed: number;
 }

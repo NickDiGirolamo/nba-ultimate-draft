@@ -17,7 +17,9 @@ export type AnalyticsEventName =
   | "purchase_returned"
   | "token_balance_synced"
   | "store_item_purchased"
-  | "store_reward_claimed";
+  | "store_reward_claimed"
+  | "exchange_challenge_started"
+  | "exchange_challenge_completed";
 
 type AnalyticsPayload = Record<string, unknown>;
 

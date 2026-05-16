@@ -110,7 +110,7 @@ const sectionCards: Record<LearnTabId, LearnCard[]> = {
     {
       title: "Settings shape the run",
       description:
-        "Difficulty, conferences, coaches, Galaxy cards, training camps, and trades all change the ladder before the run starts.",
+        "Difficulty, coaches, Galaxy cards, training camps, and trades all change the ladder before the run starts.",
       icon: Gauge,
       tone: "border-violet-200/16 bg-violet-300/10 text-violet-100",
     },

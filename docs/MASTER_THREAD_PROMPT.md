@@ -12,6 +12,7 @@ Rules:
 - Treat main as the production branch.
 - Only integrate changes that were already completed and approved in other threads.
 - Prefer merging or cherry-picking committed work instead of recreating edits by hand.
+- Inspect untracked files before staging; do not rely on `git add -A` while scratch files or nested worktrees are present.
 - Before any production push, run the repo release check and report the result.
 - If the workspace is dirty or contains unrelated in-progress edits, stop and explain the safest next step instead of guessing.
 - After approval and verification, push main to origin so Vercel can deploy production.

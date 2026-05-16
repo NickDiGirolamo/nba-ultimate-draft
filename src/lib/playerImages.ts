@@ -705,6 +705,8 @@ const directImageOverrides: Record<string, string> = {
     "https://platform.blazersedge.com/wp-content/uploads/sites/34/chorus/uploads/chorus_asset/file/13347065/96329185.jpg.jpg?quality=90&strip=all&crop=16.733333333333,0,66.533333333333,100",
   "norm-nixon-lakers":
     "https://www.legendsofbasketball.com/wp-content/uploads/2012/02/Norm_Nixon_display_image.jpg",
+  "norman-powell-raptors":
+    "https://cdn.nba.com/teams/legacy/www.nba.com/raptors/sites/raptors/files/powell-756-1_2.jpg",
   "nate-robinson":
     "https://images.nymag.com/images/2/daily/2010/01/20100119_naterobinson_250x375.jpg",
   "moses-malone":
@@ -947,6 +949,8 @@ const directImageOverrides: Record<string, string> = {
     "https://media.gettyimages.com/id/494769984/photo/baltimore-md-sidney-wicks-of-the-portland-trail-blazers-looks-to-pass-the-ball-against-the.jpg?s=612x612&w=gi&k=20&c=zgX3_TJjPXlTN6-edflsHwURQ4h-x3ohVdB-ZSJCUgQ=",
   "sam-cassell":
     "https://cdn3.sbnation.com/imported_assets/590084/51824836.jpg.13789.0_display_image.jpg",
+  "sam-cassell-bucks":
+    "https://static.wikia.nocookie.net/nba-basketball/images/d/da/Sam_Cassell.JPG/revision/latest/scale-to-width-down/263?cb=20161020165934",
   "sam-cassell-clippers":
     "https://www.ocregister.com/wp-content/uploads/migration/kpj/kpjck4-28clipno1large.jpg?w=640",
   "stromile-swift":
@@ -999,6 +1003,8 @@ const directImageOverrides: Record<string, string> = {
     "https://gbaike-image.cdn.bcebos.com/9e3df8dcd100baa1cd1107067148ae12c8fcc3ce804c/9e3df8dcd100baa1cd1107067148ae12c8fcc3ce804c_1_1?x-bce-process=image/format,f_auto",
   "terry-cummings-bucks":
     "https://www.legendsofbasketball.com/wp-content/uploads/2015/02/TerryCummings.jpg",
+  "terrell-brandon-cavs":
+    "https://cdn.nba.com/teams/legacy/www.nba.com/cavaliers/sites/cavaliers/files/1992-93-cavs-6.jpg",
   "terry-porter-blazers":
     "https://www.statesmanjournal.com/gcdn/-mm-/e5de92747012ea697323b87035ea8da1294bd134/c=0-70-2421-3298/local/-/media/2016/01/08/Salem/Salem/635878540438801272-GettyImages-2118155.jpg?width=458&height=610&fit=crop&format=pjpg&auto=webp",
   "tony-parker":
@@ -1021,6 +1027,8 @@ const directImageOverrides: Record<string, string> = {
     "https://pbs.twimg.com/media/CN7ap0OWoAAZO2X.jpg",
   "wilt-chamberlain-lakers":
     "https://a.espncdn.com/photo/2017/1221/r305324_1296x729_16-9.jpg",
+  "joe-johnson-nets":
+    "https://www.usatoday.com/gcdn/media/USATODAY/USATODAY/2013/01/21/01-21-2013-joe-johnson-3_4.jpg?width=660&height=879&fit=crop&format=pjpg&auto=webp",
   "joe-johnson-suns":
     "https://i.pinimg.com/736x/69/e3/0c/69e30c29d0904e041509f8a07aade4bd.jpg",
   "dwight-howard-lakers":

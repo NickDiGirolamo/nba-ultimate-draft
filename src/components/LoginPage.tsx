@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { ArrowRight, LockKeyhole, LogIn, UserPlus } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, LockKeyhole, LogIn, UserPlus } from "lucide-react";
 import { ULTIMATE_DRAFT_LOGO_SRC } from "../lib/brand";
 
 interface LoginPageProps {
@@ -23,6 +23,7 @@ export const LoginPage = ({
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -107,15 +108,27 @@ export const LoginPage = ({
                 </label>
                 <label className="block text-sm font-semibold text-slate-200">
                   Password
-                  <input
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    className="login-auth-input pointer-events-auto mt-2 w-full rounded-2xl border border-white/12 px-4 py-3 text-base outline-none transition placeholder:text-slate-500 focus:border-cyan-200/45"
-                    type="password"
-                    autoComplete={mode === "login" ? "current-password" : "new-password"}
-                    placeholder="Password"
-                    disabled={submitting}
-                  />
+                  <div className="relative mt-2">
+                    <input
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      className="login-auth-input pointer-events-auto w-full rounded-2xl border border-white/12 px-4 py-3 pr-12 text-base outline-none transition placeholder:text-slate-500 focus:border-cyan-200/45"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete={mode === "login" ? "current-password" : "new-password"}
+                      placeholder="Password"
+                      disabled={submitting}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((current) => !current)}
+                      disabled={submitting}
+                      className="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-white/8 text-slate-300 transition hover:bg-white/12 hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-pressed={showPassword}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </label>
 
                 {authError || notice ? (
