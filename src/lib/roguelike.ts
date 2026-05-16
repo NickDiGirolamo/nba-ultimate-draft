@@ -17,6 +17,7 @@ import { evaluateDraftChemistry } from "./simulate";
 import { getPlayerTeamKey, getSameTeamChemistryBonusForPlayer } from "./teamChemistry";
 import { Player, PlayerTier, Position, RosterSlot, RosterSlotType } from "../types";
 import { getPlayerTier } from "./playerTier";
+import { PLAYER_RATING_CAP } from "./playerRatings";
 import { getNbaTeamByName } from "../data/nbaTeams";
 
 export type RoguelikeStarterPackageId =
@@ -227,7 +228,7 @@ export interface RoguelikeBonusBadgeAssignment {
 const VERSION_SUFFIX_PATTERN = /\s\([^)]*\)$/;
 const STARTING_FIVE_POSITIONS: Position[] = ["PG", "SG", "SF", "PF", "C"];
 const DEFAULT_FACEOFF_TARGET_AVERAGE = 84;
-export const ROGUELIKE_MAX_OVERALL = 99;
+export const ROGUELIKE_MAX_OVERALL = PLAYER_RATING_CAP;
 const BOSS_AVERAGE_OVERRIDES_BY_FLOOR: Partial<Record<number, number>> = {
   4: 79,
   6: 81,
@@ -2390,7 +2391,7 @@ export const generateFaceoffOpponentPlayerIds = (
     candidatePool,
   );
   const minimumRemainingOverall = Math.max(80, targetAverageOverall - 2);
-  const maximumRemainingOverall = Math.min(99, targetAverageOverall + 4);
+  const maximumRemainingOverall = Math.min(ROGUELIKE_MAX_OVERALL, targetAverageOverall + 4);
   const minimumTargetTotal = Math.ceil(minimumRemainingOverall * STARTING_FIVE_POSITIONS.length);
   const maximumTargetTotal = Math.floor(maximumRemainingOverall * STARTING_FIVE_POSITIONS.length);
   const rawTargetTotalOverall = targetAverageOverall * STARTING_FIVE_POSITIONS.length;

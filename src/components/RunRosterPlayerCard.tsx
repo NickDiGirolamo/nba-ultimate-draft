@@ -6,6 +6,7 @@ import { usePlayerImage } from "../hooks/usePlayerImage";
 import { getPlayerDisplayLines } from "../lib/playerDisplay";
 import type { PlayerTypeBadgeDefinition } from "../lib/playerTypeBadges";
 import { getPlayerTier, playerTierRunRosterSurfaceStyles } from "../lib/playerTier";
+import { ROGUELIKE_MAX_OVERALL } from "../lib/roguelike";
 import { isSameTeamChemistryActiveForPlayer } from "../lib/teamChemistry";
 import { Player } from "../types";
 import { HoverTooltip } from "./HoverTooltip";
@@ -248,7 +249,7 @@ export const RunRosterPlayerCard = ({
 
             <div
               className="flex w-[60px] flex-col items-center justify-center rounded-[calc(18px*var(--run-roster-scale))] border border-white/12 bg-[linear-gradient(180deg,rgba(4,8,18,0.68),rgba(4,8,18,0.84))] px-[calc(8px*var(--run-roster-scale))] py-[calc(8px*var(--run-roster-scale))] text-center shadow-[0_12px_26px_rgba(0,0,0,0.26)] backdrop-blur-[4px]"
-              title={typeof overallValue === "number" && overallValue >= 99 ? "Rogue overall cap: 99 max" : undefined}
+              title={typeof overallValue === "number" && overallValue >= ROGUELIKE_MAX_OVERALL ? `Rogue overall cap: ${ROGUELIKE_MAX_OVERALL} max` : undefined}
             >
               <div className="font-display text-[calc(30px*var(--run-roster-scale))] font-semibold leading-none text-white">{overallValue}</div>
               <div className="mt-[calc(-2px*var(--run-roster-scale))] text-[calc(10px*var(--run-roster-scale))] font-semibold uppercase tracking-[0.18em] text-slate-300">OVR</div>

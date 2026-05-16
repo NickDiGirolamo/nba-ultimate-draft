@@ -248,10 +248,11 @@ const rate = (rawValue, min, max) =>
   roundInt(clamp(min + rawValue * (max - min), min, max));
 
 const getTier = (overall) => {
-  if (overall >= 94) return "S";
-  if (overall >= 88) return "A";
-  if (overall >= 80) return "B";
-  return "C";
+  if (overall >= 96) return "S";
+  if (overall >= 91) return "A";
+  if (overall >= 86) return "B";
+  if (overall >= 80) return "C";
+  return "D";
 };
 
 const getPrimaryPosition = (positions, raw) => {
@@ -574,12 +575,12 @@ const buildPlayerSeeds = () => {
     const offense = rate(player.rawScores.offenseRaw, 70, 98);
     const defense = rate(player.rawScores.defenseRaw, 70, 97);
     const playmaking = rate(player.rawScores.playmakingRaw, 70, 98);
-    const shooting = rate(player.rawScores.shootingRaw, 70, 99);
-    const rebounding = rate(player.rawScores.reboundingRaw, 70, 99);
+    const shooting = rate(player.rawScores.shootingRaw, 70, 100);
+    const rebounding = rate(player.rawScores.reboundingRaw, 70, 100);
     const athleticism = rate(player.rawScores.athleticismRaw, 70, 97);
     const intangibles = rate(player.rawScores.intangiblesRaw, 70, 98);
     const durability = rate(player.rawScores.durabilityRaw, 68, 98);
-    const ballDominance = rate(player.rawScores.ballDominanceRaw, 25, 99);
+    const ballDominance = rate(player.rawScores.ballDominanceRaw, 25, 100);
 
     let perimeterDefense = rate(player.rawScores.perimeterDefenseRaw, 64, 98);
     let interiorDefense = rate(player.rawScores.interiorDefenseRaw, 60, 98);
@@ -612,8 +613,8 @@ const buildPlayerSeeds = () => {
       shortDescription: "",
       badges: [],
       ballDominance,
-      interiorDefense: roundInt(clamp(interiorDefense, 40, 99)),
-      perimeterDefense: roundInt(clamp(perimeterDefense, 35, 99)),
+      interiorDefense: roundInt(clamp(interiorDefense, 40, 100)),
+      perimeterDefense: roundInt(clamp(perimeterDefense, 35, 100)),
     };
 
     seed.archetype = buildArchetype(seed);

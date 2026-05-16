@@ -70,6 +70,8 @@ const createEmptyProfile = (): RatingsProfile => ({
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
+export const PLAYER_RATING_CAP = 100;
+
 const average = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / (values.length || 1);
 
 const standardDeviation = (values: number[]) => {
@@ -232,7 +234,7 @@ const clampProfileValue = (
     (overall >= 95 ? 8 : overall >= 90 ? 8.5 : overall >= 85 ? 9.5 : 10.5) +
     weaknessAllowance +
     Math.max(0, -modeledLift);
-  const upperBound = Math.min(99, overall + distanceAbove);
+  const upperBound = Math.min(PLAYER_RATING_CAP, overall + distanceAbove);
   const lowerBound = Math.max(25, overall - distanceBelow);
   return clamp(value, lowerBound, upperBound);
 };
@@ -253,7 +255,9 @@ const finalizeBudget = (values: RatingsProfile, overall: number, seed: RatingSee
       .filter(({ value, index }) => {
         const category = backendRatingCategories[index];
         const clampedValue = clampProfileValue(value, overall, seed, category, modelProfile);
-        return delta > 0 ? clampedValue < 99 && value < 99 : clampedValue > 25 && value > 25;
+        return delta > 0
+          ? clampedValue < PLAYER_RATING_CAP && value < PLAYER_RATING_CAP
+          : clampedValue > 25 && value > 25;
       })
       .map(({ index }) => index);
 
@@ -295,7 +299,7 @@ const finalizeBudget = (values: RatingsProfile, overall: number, seed: RatingSee
   }
 
   return backendRatingCategories.reduce((accumulator, category, index) => {
-    accumulator[category] = clamp(floors[index], 25, 99);
+    accumulator[category] = clamp(floors[index], 25, PLAYER_RATING_CAP);
     return accumulator;
   }, createEmptyProfile());
 };
@@ -350,7 +354,7 @@ const buildBallDominance = (seed: RatingSeed, ratings: RatingsProfile) => {
     (ratings.athleticism - seed.athleticism) * 0.1 +
     positionBias;
 
-  return clamp(roundToInt(value), 8, 99);
+  return clamp(roundToInt(value), 8, PLAYER_RATING_CAP);
 };
 
 const buildInteriorDefense = (seed: RatingSeed, ratings: RatingsProfile) => {
@@ -370,7 +374,7 @@ const buildInteriorDefense = (seed: RatingSeed, ratings: RatingsProfile) => {
     (ratings.athleticism - seed.athleticism) * 0.08 +
     bigBias;
 
-  return clamp(roundToInt(value), 8, 99);
+  return clamp(roundToInt(value), 8, PLAYER_RATING_CAP);
 };
 
 const buildPerimeterDefense = (seed: RatingSeed, ratings: RatingsProfile) => {
@@ -390,7 +394,7 @@ const buildPerimeterDefense = (seed: RatingSeed, ratings: RatingsProfile) => {
     (ratings.intangibles - seed.intangibles) * 0.08 +
     wingBias;
 
-  return clamp(roundToInt(value), 8, 99);
+  return clamp(roundToInt(value), 8, PLAYER_RATING_CAP);
 };
 
 export const normalizePlayerSeedRatings = (seed: RatingSeed) => {

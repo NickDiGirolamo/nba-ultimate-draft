@@ -10,7 +10,7 @@ import { usePlayerImage } from "../hooks/usePlayerImage";
 import { getNbaTeamByName } from "../data/nbaTeams";
 import { isSameTeamChemistryPreviewActiveForPlayer } from "../lib/teamChemistry";
 import { isCurrentSeasonCard } from "../lib/playerCardLine";
-import { capRoguelikeOverall } from "../lib/roguelike";
+import { ROGUELIKE_MAX_OVERALL, capRoguelikeOverall } from "../lib/roguelike";
 import {
   getPlayerTier,
   getPlayerTierLabelFromTier,
@@ -210,7 +210,7 @@ export const DraftPlayerCard = ({
               <div className="rounded-[24px] border border-white/12 bg-black/45 px-5 py-3.5 shadow-[0_12px_28px_rgba(0,0,0,0.16)] backdrop-blur-[2px]">
                 <div
                   className="text-center font-display text-[3rem] font-semibold leading-none text-white"
-                  title={displayOverallCapped ? "Rogue overall cap: 99 max" : undefined}
+                  title={displayOverallCapped ? `Rogue overall cap: ${ROGUELIKE_MAX_OVERALL} max` : undefined}
                 >
                   {displayOverall}
                 </div>

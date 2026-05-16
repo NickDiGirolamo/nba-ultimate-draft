@@ -130,7 +130,7 @@ export const cardLabFocusPlayers: CardLabFocusPlayerConfig[] = [
       teamLabel: "Chicago Bulls",
       primaryPosition: "SG",
       secondaryPositions: ["SF"],
-      overall: 99,
+      overall: 100,
       offense: 99,
       defense: 96,
       playmaking: 89,

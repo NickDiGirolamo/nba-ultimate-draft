@@ -126,7 +126,7 @@ const approvedReferenceCards = [
     title: "Michael Jordan",
     subtitle: "Approved Galaxy Rogue card direction",
     imageUrl: "/ai-card-art/references/michael-jordan-galaxy-approved.png",
-    details: "99 OVR / SG-SF / Two-Way Scoring Titan / Sniper, Slasher, Lockdown, Playmaker, Board Man",
+    details: "100 OVR / SG-SF / Two-Way Scoring Titan / Sniper, Slasher, Lockdown, Playmaker, Board Man",
   },
   {
     id: "al-horford-warriors-emerald-approved",

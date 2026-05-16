@@ -1,4 +1,5 @@
 import { Player } from "../types";
+import { PLAYER_RATING_CAP } from "./playerRatings";
 
 export type PlayerBadgeType =
   | "dynamic-duo"
@@ -916,17 +917,17 @@ const applyBoost = (
     boostedIds.has(player.id)
       ? {
           ...player,
-          overall: Math.min(99, player.overall + boost.overall),
-          offense: Math.min(99, player.offense + boost.offense),
-          defense: Math.min(99, player.defense + boost.defense),
-          playmaking: Math.min(99, player.playmaking + boost.playmaking),
-          shooting: Math.min(99, player.shooting + boost.shooting),
-          rebounding: Math.min(99, player.rebounding + boost.rebounding),
-          athleticism: Math.min(99, player.athleticism + boost.athleticism),
-          intangibles: Math.min(99, player.intangibles + boost.intangibles),
-          ballDominance: Math.min(99, player.ballDominance + boost.ballDominance),
-          interiorDefense: Math.min(99, player.interiorDefense + boost.interiorDefense),
-          perimeterDefense: Math.min(99, player.perimeterDefense + boost.perimeterDefense),
+          overall: Math.min(PLAYER_RATING_CAP, player.overall + boost.overall),
+          offense: Math.min(PLAYER_RATING_CAP, player.offense + boost.offense),
+          defense: Math.min(PLAYER_RATING_CAP, player.defense + boost.defense),
+          playmaking: Math.min(PLAYER_RATING_CAP, player.playmaking + boost.playmaking),
+          shooting: Math.min(PLAYER_RATING_CAP, player.shooting + boost.shooting),
+          rebounding: Math.min(PLAYER_RATING_CAP, player.rebounding + boost.rebounding),
+          athleticism: Math.min(PLAYER_RATING_CAP, player.athleticism + boost.athleticism),
+          intangibles: Math.min(PLAYER_RATING_CAP, player.intangibles + boost.intangibles),
+          ballDominance: Math.min(PLAYER_RATING_CAP, player.ballDominance + boost.ballDominance),
+          interiorDefense: Math.min(PLAYER_RATING_CAP, player.interiorDefense + boost.interiorDefense),
+          perimeterDefense: Math.min(PLAYER_RATING_CAP, player.perimeterDefense + boost.perimeterDefense),
         }
       : player,
   );

@@ -464,10 +464,10 @@ const LOCKER_ROOM_SPECIAL_STUFF_NODE: RoguelikeNode = {
   act: 0,
   type: "training",
   title: "Special Stuff",
-  description: "Choose 1 player below 99 OVR to gain up to +3 OVR for one boss game in this run.",
+  description: `Choose 1 player below ${ROGUELIKE_MAX_OVERALL} OVR to gain up to +3 OVR for one boss game in this run.`,
   rewardBundleId: "elite-closers",
   rewardChoices: 0,
-  targetLabel: "Select 1 player below 99 OVR to gain up to +3 OVR for one boss game",
+  targetLabel: `Select 1 player below ${ROGUELIKE_MAX_OVERALL} OVR to gain up to +3 OVR for one boss game`,
 };
 
 const SPECIAL_STUFF_BOOST_AMOUNT = 3;
@@ -9513,7 +9513,7 @@ export const RoguelikeMode = ({
                 : activeNode?.id === LOCKER_ROOM_SPECIAL_STUFF_NODE.id
                   ? {
                       eyebrow: "Locker Room Boost",
-                      description: `Choose 1 player below 99 OVR to gain up to +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for one boss game in this run.`,
+                      description: `Choose 1 player below ${ROGUELIKE_MAX_OVERALL} OVR to gain up to +${SPECIAL_STUFF_BOOST_AMOUNT} OVR for one boss game in this run.`,
                       detail: run.activeSpecialStuffPlayerId
                         ? "Changing the selected player will keep using the same purchased Special Stuff. The boost still expires after the boss game where it is used."
                         : "This consumes 1 owned Special Stuff, does not count as permanent training, and expires after the boss game where it is used.",
@@ -11070,7 +11070,7 @@ export const RoguelikeMode = ({
                       />
                       {trainingWouldExceedCap ? (
                         <div className="max-w-[180px] rounded-full border border-amber-200/18 bg-amber-300/10 px-3 py-1 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-100">
-                          99 OVR cap
+                          {ROGUELIKE_MAX_OVERALL} OVR cap
                         </div>
                       ) : isSpecialStuffSelection ? (
                         <div className="max-w-[180px] rounded-full border border-cyan-200/18 bg-cyan-300/10 px-3 py-1 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-100">
