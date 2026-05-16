@@ -1513,55 +1513,6 @@ export const TokenStoreOverlay = ({
         </div>
 
         <div className="mt-10">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
-                <Sparkles size={14} className="text-sky-200" />
-                Run-Only Items
-              </div>
-              <div className="mt-2 text-sm leading-7 text-slate-300">
-                Bought with tokens, then spent during a single Rogue run when the matchup demands it.
-              </div>
-            </div>
-            <div className="w-fit rounded-full border border-sky-200/16 bg-sky-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-100">
-              Best for right now
-            </div>
-          </div>
-          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {utilityCards.map(({ item, owned, onBuy, icon: Icon, cardClass, badgeClass, iconClass }) => (
-              <div key={item.id} className={`rounded-[28px] border p-5 ${cardClass}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2 text-xl font-semibold text-white">
-                      <Icon size={18} className={iconClass} />
-                      {item.title}
-                    </div>
-                    <div className="mt-3 text-sm leading-7 text-slate-300">{item.description}</div>
-                    <div className="mt-3 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
-                      Run-only
-                    </div>
-                  </div>
-                  <div className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${badgeClass}`}>
-                    Owned {owned}
-                  </div>
-                </div>
-                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-2xl font-semibold text-white">{formatNumber(item.price)}</div>
-                  <button
-                    type="button"
-                    onClick={onBuy}
-                    disabled={meta.tokens.balance < item.price}
-                    className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48 sm:w-auto sm:py-2.5"
-                  >
-                    Buy
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-10">
           <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
             <Package2 size={14} className="text-amber-200" />
             Rogue Starter Pack Upgrades
@@ -1607,6 +1558,55 @@ export const TokenStoreOverlay = ({
               </div>
               );
             })}
+          </div>
+        </div>
+
+        <div className="mt-10">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
+                <Sparkles size={14} className="text-sky-200" />
+                Run-Only Items
+              </div>
+              <div className="mt-2 text-sm leading-7 text-slate-300">
+                Bought with tokens, then spent during a single Rogue run when the matchup demands it.
+              </div>
+            </div>
+            <div className="w-fit rounded-full border border-sky-200/16 bg-sky-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-100">
+              Best for right now
+            </div>
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {utilityCards.map(({ item, owned, onBuy, icon: Icon, cardClass, badgeClass, iconClass }) => (
+              <div key={item.id} className={`rounded-[28px] border p-5 ${cardClass}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2 text-xl font-semibold text-white">
+                      <Icon size={18} className={iconClass} />
+                      {item.title}
+                    </div>
+                    <div className="mt-3 text-sm leading-7 text-slate-300">{item.description}</div>
+                    <div className="mt-3 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
+                      Run-only
+                    </div>
+                  </div>
+                  <div className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${badgeClass}`}>
+                    Owned {owned}
+                  </div>
+                </div>
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-2xl font-semibold text-white">{formatNumber(item.price)}</div>
+                  <button
+                    type="button"
+                    onClick={onBuy}
+                    disabled={meta.tokens.balance < item.price}
+                    className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/48 sm:w-auto sm:py-2.5"
+                  >
+                    Buy
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
           </>

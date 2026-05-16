@@ -510,7 +510,8 @@ const getDifficultyTokenRewardLabel = (difficulty: RoguelikeDifficulty) => {
   return rewardBonusPercent > 0 ? `+${rewardBonusPercent}% token reward` : "Base token reward";
 };
 
-const formatRunTokenMultiplier = (multiplier: number) => `${multiplier.toFixed(2)}x`;
+const formatRunTokenMultiplier = (multiplier: number) =>
+  `${Number.isInteger(multiplier) ? multiplier.toFixed(0) : multiplier.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")}x`;
 
 const getRunTokenBonusLabel = (bonusPercent: number) =>
   bonusPercent > 0 ? `+${bonusPercent}% token rewards` : "Base token rewards";
@@ -8271,7 +8272,7 @@ export const RoguelikeMode = ({
                   ))}
                 </div>
                 <div className="mt-3 text-xs leading-5 text-slate-300/78">
-                  Reward bonuses come from difficulty and optional restrictions. Stronger starter packs lower pressure, but do not reduce earned tokens.
+                  Token rewards scale from difficulty. Optional restrictions raise pressure, and stronger starter packs lower pressure, but neither changes the token multiplier.
                 </div>
               </div>
 

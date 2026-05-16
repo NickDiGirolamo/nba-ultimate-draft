@@ -264,10 +264,10 @@ export const getRoguelikeDifficultyTokenMultiplier = (
 ) => {
   const multiplierByDifficulty: Record<RoguelikeDifficulty, number> = {
     normal: 1,
-    "all-star": 1.1,
-    superstar: 1.2,
-    "all-time": 1.3,
-    goat: 1.4,
+    "all-star": 1.5,
+    superstar: 3,
+    "all-time": 5,
+    goat: 10,
   };
 
   return multiplierByDifficulty[difficulty] ?? 1;
@@ -368,7 +368,7 @@ export const calculateRoguelikeRunForecast = (
   const rewardScore = drivers.reduce((sum, driver) => sum + driver.score, 0);
   const advantageScore = advantages.reduce((sum, advantage) => sum + advantage.score, 0);
   const pressureScore = Math.max(0, Math.min(100, Math.round(rewardScore - advantageScore * 0.35)));
-  const tokenMultiplier = Math.max(1, Math.min(2.25, Math.round((1 + rewardScore / 160) * 100) / 100));
+  const tokenMultiplier = getRoguelikeDifficultyTokenMultiplier(normalizedSettings.difficulty);
 
   return {
     pressureScore,
