@@ -306,16 +306,10 @@ export const getWeeklyStarterVaultCards = (nowMs = Date.now()) => {
 
 export const getRoguePackPlayerPool = (tier: RoguePackTier, ownedPlayerIds: string[] = []) => {
   const ownedIds = new Set(ownedPlayerIds);
-  const seenIdentityKeys = new Set<string>();
 
   return allPlayers
     .filter((player) => getPlayerTier(player) === tier)
-    .filter((player) => {
-      const identityKey = getVaultIdentityKey(player);
-      if (seenIdentityKeys.has(identityKey)) return false;
-      seenIdentityKeys.add(identityKey);
-      return !ownedIds.has(player.id);
-    })
+    .filter((player) => !ownedIds.has(player.id))
     .sort((a, b) => b.overall - a.overall || a.name.localeCompare(b.name));
 };
 

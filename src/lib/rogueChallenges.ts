@@ -247,12 +247,11 @@ const exchangeChallenges: RogueChallengeDefinition[] = [
   {
     id: "exchange-3x3",
     title: "3x3",
-    description: "Exchange any 3 permanent collection players for one Sapphire player pack.",
+    description: "Exchange 3 same-tier Emerald, Sapphire, or Ruby collection players for a pack one tier higher.",
     reward: 0,
-    requirement: "Trade in any 3 collection players",
+    requirement: "3 Emeralds -> Sapphire Pack, 3 Sapphires -> Ruby Pack, 3 Rubies -> Amethyst Pack",
     groupId: "exchanges",
     kind: "exchange",
-    rewardPackTier: "Sapphire",
   },
 ];
 

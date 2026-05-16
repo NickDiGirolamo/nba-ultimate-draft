@@ -533,7 +533,7 @@ export const RogueChallengesOverlay = ({
                       </div>
                       {exchangeChallenge ? (
                         <div className="mt-2 inline-flex rounded-full border border-sky-200/22 bg-sky-300/10 px-4 py-2 text-sm font-black uppercase tracking-[0.1em] text-sky-50">
-                          Any 3 Players
+                          3 Same-Tier Cards
                         </div>
                       ) : (
                         <div className="mt-2 h-2 overflow-hidden rounded-full border border-white/10 bg-slate-700/70">
@@ -568,7 +568,7 @@ export const RogueChallengesOverlay = ({
                             {formatNumber(challenge.reward)}
                           </div>
                         ) : null}
-                        {rewardPackTier ? (
+                        {rewardPackTier || exchangeChallenge ? (
                           <div
                             className={`${
                               hasTokenReward ? "mt-2" : "mt-1"
@@ -588,7 +588,9 @@ export const RogueChallengesOverlay = ({
                             ) : (
                               <Package2 size={13} />
                             )}
-                            {exchangeChallenge ? `1 x ${rewardPackTier} Pack` : `${rewardPackTier} Pack`}
+                            {exchangeChallenge
+                              ? "Tier Upgrade Pack"
+                              : `${rewardPackTier} Pack`}
                           </div>
                         ) : null}
                         {!exchangeChallenge ? (

@@ -41,6 +41,7 @@ import {
 } from "../lib/rogueChallenges";
 import { roguelikeCoaches } from "../lib/roguelike";
 import { getRoguePackPlayerPool } from "../lib/tokenStore";
+import { getPlayerTier } from "../lib/playerTier";
 import type { UserStoreUnlockQuantities } from "../lib/cloudSave";
 
 const HISTORY_LIMIT = 24;
@@ -218,6 +219,11 @@ const LEGACY_PLAYER_NAME_MIGRATIONS: Record<string, string> = {
 const canonicalPlayersById = new Map(allPlayers.map((player) => [player.id, player]));
 const canonicalPlayersByName = new Map(allPlayers.map((player) => [player.name, player]));
 const validRoguelikeCoachIds = new Set(roguelikeCoaches.map((coach) => coach.id));
+const exchangeRewardTierByInputTier: Partial<Record<PlayerTier, PlayerTier>> = {
+  Emerald: "Sapphire",
+  Sapphire: "Ruby",
+  Ruby: "Amethyst",
+};
 
 const normalizePlayer = (player: Player | null | undefined): Player | null => {
   if (!player) return null;
@@ -1954,6 +1960,14 @@ export const useDraftGame = () => {
     const uniquePlayerIds = Array.from(new Set(normalizedPlayerIds));
     if (uniquePlayerIds.length !== normalizedPlayerIds.length || uniquePlayerIds.length !== 3) return null;
     if (uniquePlayerIds.some((playerId) => !state.ownedCollectionPlayerIds.includes(playerId))) return null;
+    const exchangedPlayers = uniquePlayerIds
+      .map((playerId) => canonicalPlayersById.get(playerId) ?? null)
+      .filter((player): player is Player => Boolean(player));
+    if (exchangedPlayers.length !== 3) return null;
+    const exchangedTiers = exchangedPlayers.map(getPlayerTier);
+    const inputTier = exchangedTiers[0];
+    if (!exchangedTiers.every((tier) => tier === inputTier)) return null;
+    if (exchangeRewardTierByInputTier[inputTier] !== rewardTier) return null;
 
     const consumedPlayerIdSet = new Set(uniquePlayerIds);
     const remainingCollectionPlayerIds = state.ownedCollectionPlayerIds.filter(

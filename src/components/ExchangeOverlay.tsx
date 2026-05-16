@@ -15,12 +15,27 @@ interface ExchangeOverlayProps {
 }
 
 const EXCHANGE_SLOT_COUNT = 3;
-const EXCHANGE_REWARD_TIER: PlayerTier = "Sapphire";
 const PACK_OPENING_FINISH_DELAY_MS = 5_650;
 const packWidth = 318;
 const packHeight = 636;
 
 type ExchangePackStage = "ready" | "opening";
+
+const exchangeRewardTierByInputTier: Partial<Record<PlayerTier, PlayerTier>> = {
+  Emerald: "Sapphire",
+  Sapphire: "Ruby",
+  Ruby: "Amethyst",
+};
+
+const getExchangeRewardTier = (players: Array<Player | null>) => {
+  if (players.length !== EXCHANGE_SLOT_COUNT || players.some((player) => !player)) return null;
+
+  const tiers = players.map((player) => getPlayerTier(player!));
+  const inputTier = tiers[0];
+  if (!tiers.every((tier) => tier === inputTier)) return null;
+
+  return exchangeRewardTierByInputTier[inputTier] ?? null;
+};
 
 const formatPlayerMeta = (player: Player) =>
   `${player.overall} OVR / ${getPlayerTier(player)} / ${player.primaryPosition}${
@@ -96,9 +111,23 @@ export const ExchangeOverlay = ({ ownedPlayerIds, onCompleteExchange, onClose }:
     [selectedPlayerIds],
   );
   const filledPlayerIds = selectedPlayerIds.filter((playerId): playerId is string => Boolean(playerId));
-  const readyToExchange = filledPlayerIds.length === EXCHANGE_SLOT_COUNT;
-  const rewardPack = ROGUE_TOKEN_STORE_PACKS.find((pack) => pack.tier === EXCHANGE_REWARD_TIER);
+  const selectedInputTier = selectedPlayers.find((player): player is Player => Boolean(player))
+    ? getPlayerTier(selectedPlayers.find((player): player is Player => Boolean(player))!)
+    : null;
+  const rewardTier = getExchangeRewardTier(selectedPlayers);
+  const readyToExchange = filledPlayerIds.length === EXCHANGE_SLOT_COUNT && Boolean(rewardTier);
+  const rewardPack = rewardTier
+    ? ROGUE_TOKEN_STORE_PACKS.find((pack) => pack.tier === rewardTier)
+    : null;
   const rewardCloseLocked = Boolean(exchangeRewardPlayer && (packStage !== "opening" || !packOpeningCanFinish));
+  const exchangeRuleMessage =
+    filledPlayerIds.length === 0
+      ? "Submit 3 Emeralds for Sapphire, 3 Sapphires for Ruby, or 3 Rubies for Amethyst."
+      : rewardTier
+        ? `This exchange will award 1 ${rewardTier} Pack.`
+        : selectedPlayers.some((player) => player && !exchangeRewardTierByInputTier[getPlayerTier(player)])
+          ? "Galaxy and Amethyst cards are not eligible for this 3x3 exchange."
+          : "All 3 submitted cards must be the same eligible tier.";
 
   useEffect(() => {
     if (packStage !== "opening") return;
@@ -138,9 +167,15 @@ export const ExchangeOverlay = ({ ownedPlayerIds, onCompleteExchange, onClose }:
       return;
     }
 
-    const rewardPlayer = onCompleteExchange(playerIds, EXCHANGE_REWARD_TIER);
+    if (!rewardTier) {
+      setExchangeError("Choose exactly 3 Emerald, 3 Sapphire, or 3 Ruby cards to complete this exchange.");
+      setConfirmingExchange(false);
+      return;
+    }
+
+    const rewardPlayer = onCompleteExchange(playerIds, rewardTier);
     if (!rewardPlayer) {
-      setExchangeError("This exchange could not be completed because no Sapphire reward card is available right now.");
+      setExchangeError(`This exchange could not be completed because no ${rewardTier} reward card is available right now.`);
       setConfirmingExchange(false);
       return;
     }
@@ -167,7 +202,7 @@ export const ExchangeOverlay = ({ ownedPlayerIds, onCompleteExchange, onClose }:
             </div>
             <h2 className="mt-3 font-display text-4xl text-white sm:text-5xl">3x3 Exchange</h2>
             <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
-              Trade any 3 permanent collection players for one Sapphire player pack. Pick carefully: cards used in an exchange leave your collection.
+              Trade 3 permanent collection cards of the same eligible tier for a pack one tier higher. Pick carefully: cards used in an exchange leave your collection.
             </p>
           </div>
           <button
@@ -187,7 +222,7 @@ export const ExchangeOverlay = ({ ownedPlayerIds, onCompleteExchange, onClose }:
               <div className="pack-reveal-stage relative h-[680px] min-h-[620px] overflow-hidden">
                 <div className="absolute inset-x-0 top-6 z-[7] px-5 text-center">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-sky-100/74">
-                    Sapphire Pack Opening
+                    {rewardTier ?? "Reward"} Pack Opening
                   </div>
                   <h3 className="mt-2 font-display text-3xl text-white">Revealing Your Exchange Reward</h3>
                 </div>
@@ -223,7 +258,7 @@ export const ExchangeOverlay = ({ ownedPlayerIds, onCompleteExchange, onClose }:
                       actionLabel="Pulled"
                       selected
                       disabled
-                      rarityOverride={EXCHANGE_REWARD_TIER}
+                      rarityOverride={rewardTier ?? getPlayerTier(exchangeRewardPlayer)}
                     />
                   </div>
                 </div>
@@ -254,9 +289,9 @@ export const ExchangeOverlay = ({ ownedPlayerIds, onCompleteExchange, onClose }:
               <div className="mt-4 text-[10px] font-semibold uppercase tracking-[0.26em] text-sky-100/72">
                 Exchange Complete
               </div>
-              <h3 className="mt-2 font-display text-3xl text-white">Your Sapphire Pack Is Ready</h3>
+              <h3 className="mt-2 font-display text-3xl text-white">Your {rewardTier ?? "Reward"} Pack Is Ready</h3>
               <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-                The three exchanged players were removed from your collection. Open this pack to reveal the Sapphire reward card you earned.
+                The three exchanged players were removed from your collection. Open this pack to reveal the {rewardTier ?? "reward"} card you earned.
               </p>
               {rewardPack ? (
                 <div className="relative mx-auto mt-5 w-fit">
@@ -294,7 +329,7 @@ export const ExchangeOverlay = ({ ownedPlayerIds, onCompleteExchange, onClose }:
                     </div>
                   </div>
                   <div className="rounded-full border border-white/10 bg-black/24 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">
-                    Any collection players
+                    Same-tier cards only
                   </div>
                 </div>
 
@@ -354,9 +389,9 @@ export const ExchangeOverlay = ({ ownedPlayerIds, onCompleteExchange, onClose }:
 
               <aside className="rounded-[28px] border border-sky-200/16 bg-[linear-gradient(180deg,rgba(14,37,62,0.62),rgba(6,10,18,0.96))] p-5 shadow-[0_20px_60px_rgba(14,165,233,0.1)]">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-sky-100/72">Reward</div>
-                <h3 className="mt-2 font-display text-3xl text-white">Sapphire Pack</h3>
+                <h3 className="mt-2 font-display text-3xl text-white">{rewardTier ?? "Tier Upgrade"} Pack</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-300">
-                  Completing 3x3 opens one random Sapphire player card and adds it to your collection.
+                  {exchangeRuleMessage}
                 </p>
                 {rewardPack ? (
                   <div className="mt-4 overflow-hidden rounded-[24px] border border-sky-100/18 bg-black/24 p-3">
@@ -405,6 +440,7 @@ export const ExchangeOverlay = ({ ownedPlayerIds, onCompleteExchange, onClose }:
           exchangeSlotSelection={{
             slotNumber: selectingSlotIndex + 1,
             selectedPlayerIds: filledPlayerIds,
+            requiredTier: selectedInputTier,
             onConfirm: assignExchangeSlot,
           }}
         />
@@ -427,7 +463,7 @@ export const ExchangeOverlay = ({ ownedPlayerIds, onCompleteExchange, onClose }:
               <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-100/70">Reward</div>
               <div className="mt-1 flex items-center gap-2 text-lg font-semibold text-white">
                 <Package2 size={18} className="text-sky-100" />
-                1 Sapphire Pack
+                1 {rewardTier ?? "Reward"} Pack
               </div>
             </div>
             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">

@@ -19,6 +19,7 @@ interface CollectionOverlayProps {
   exchangeSlotSelection?: {
     slotNumber: number;
     selectedPlayerIds: string[];
+    requiredTier?: PlayerTier | null;
     onConfirm: (playerId: string) => void;
   };
 }
@@ -40,6 +41,7 @@ const tierRank: Record<PlayerTier, number> = {
   Amethyst: 4,
   Galaxy: 5,
 };
+const exchangeEligibleTiers = new Set<PlayerTier>(["Emerald", "Sapphire", "Ruby"]);
 
 const getPlayerTeamName = (player: Player) => getNbaTeamByName(player.teamLabel)?.name ?? player.teamLabel;
 
@@ -60,6 +62,7 @@ export const CollectionOverlay = ({
   const selectionSlotNumber = starterSlotSelection?.slotNumber ?? exchangeSlotSelection?.slotNumber ?? null;
   const selectedPlayerIdsForMode = starterSlotSelection?.selectedPlayerIds ?? exchangeSlotSelection?.selectedPlayerIds ?? [];
   const selectionConfirm = starterSlotSelection?.onConfirm ?? exchangeSlotSelection?.onConfirm;
+  const exchangeRequiredTier = exchangeSlotSelection?.requiredTier ?? null;
   const headerKicker = starterMode
     ? `Starter Slot ${selectionSlotNumber}`
     : exchangeMode
@@ -69,7 +72,9 @@ export const CollectionOverlay = ({
   const headerDescription = starterMode
     ? "Pick one permanent card you own forever, then add it to this Rogue starter slot."
     : exchangeMode
-      ? "Pick one permanent collection card to trade into this exchange recipe."
+      ? exchangeRequiredTier
+        ? `Pick one ${exchangeRequiredTier} collection card to keep this 3x3 exchange valid.`
+        : "Pick an Emerald, Sapphire, or Ruby collection card to start this exchange recipe."
       : "Permanent cards you own forever from store purchases, packs, and permanent rewards appear here.";
   const closeLabel = starterMode ? "Back to Rogue Starter Page" : exchangeMode ? "Back to Exchange" : "Close";
   const footerKicker = starterMode ? `Starter Slot ${selectionSlotNumber}` : `Exchange Slot ${selectionSlotNumber}`;
@@ -251,7 +256,14 @@ export const CollectionOverlay = ({
               <div className="mt-5 grid grid-cols-2 justify-items-center gap-x-2 gap-y-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {filteredPlayers.map((player) => {
                   const selectedForMode = player.id === selectedPlayerId;
-                  const unavailableForMode = selectionMode && unavailableSelectionPlayerIds.has(player.id);
+                  const playerTier = getPlayerTier(player);
+                  const unavailableForExchange =
+                    exchangeMode &&
+                    (!exchangeEligibleTiers.has(playerTier) ||
+                      (exchangeRequiredTier !== null && playerTier !== exchangeRequiredTier));
+                  const unavailableForMode =
+                    selectionMode &&
+                    (unavailableSelectionPlayerIds.has(player.id) || unavailableForExchange);
 
                   return (
                     <div
@@ -278,7 +290,15 @@ export const CollectionOverlay = ({
                       {selectionMode ? (
                         <div className="mt-2 text-center text-[10px] font-semibold uppercase tracking-[0.16em]">
                           {unavailableForMode ? (
-                            <span className="text-slate-500">{unavailableLabel}</span>
+                            <span className="text-slate-500">
+                              {unavailableForExchange
+                                ? !exchangeEligibleTiers.has(playerTier)
+                                  ? "Not eligible"
+                                  : exchangeRequiredTier
+                                  ? `Needs ${exchangeRequiredTier}`
+                                  : "Not eligible"
+                                : unavailableLabel}
+                            </span>
                           ) : selectedForMode ? (
                             <span className="text-amber-100">Selected</span>
                           ) : (
