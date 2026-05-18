@@ -25,3 +25,4 @@ temp-nba-api-*.py
 temp-nba-player-ids.json
 temp-ratings.txt
 tmp_player_names.txt
+supabase/.temp/

@@ -1699,6 +1699,12 @@ export const buildOpeningDraftPool = (sourcePlayers: Player[] = allPlayers) =>
     ),
   );
 
+const starterRevealAllowedTiers: PlayerTier[] = ["Emerald", "Sapphire"];
+
+export const isStarterRevealEligiblePlayer = (
+  player: Pick<Player, "overall" | "hallOfFameTier">,
+) => starterRevealAllowedTiers.includes(getPlayerTier(player));
+
 const starterRevealSlots = [
   ["PG", "SG"],
   ["SG", "SF", "PF"],
@@ -1805,7 +1811,7 @@ export const drawRoguelikeStarterRevealPlayers = (
 ) => {
   const rng = mulberry32(seed + starterRevealPackageSeedOffsets[packageId]);
   const targetTotalOverall = targetAverageOverall * starterRevealSlots.length;
-  const eligible = uniqueByIdentity(candidatePool);
+  const eligible = uniqueByIdentity(candidatePool).filter(isStarterRevealEligiblePlayer);
   const slotCandidatePools = starterRevealSlots.map((slotPositions) =>
     eligible.filter((player) => canFillStarterRevealSlot(player, slotPositions)),
   );

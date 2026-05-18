@@ -42,7 +42,11 @@ import { getPlayerTier, getPlayerTierLabel, playerTierRunRosterSurfaceStyles } f
 import { getPlayerArchetypeBehaviorProfile } from "../lib/playerArchetypeBehavior";
 import { getPlayerBadgeStates } from "../lib/dynamicDuos";
 import { mulberry32 } from "../lib/random";
-import { getCompletedRogueChallengeIdsForClear, getRogueChallengeById } from "../lib/rogueChallenges";
+import {
+  getCompletedRogueChallengeIdsForClear,
+  getRogueChallengeById,
+  type RogueChallengeGroupId,
+} from "../lib/rogueChallenges";
 import { getPlayerTeamKey, getSameTeamChemistryBonusForPlayer } from "../lib/teamChemistry";
 import {
   buildRoguelikeOpponentLineup,
@@ -63,6 +67,7 @@ import {
   getRoguelikeEvolutionOptions,
   getRoguelikeEvolutionRewardPool,
   getRoguelikeLockerRoomCashReward,
+  isStarterRevealEligiblePlayer,
   getRoguelikeAdjustedOffenseForSlot,
   getRoguelikeAdjustedReboundingForSlot,
   evaluateRoguelikeLineup,
@@ -96,6 +101,7 @@ import type { PlayerTypeBadge } from "../lib/playerTypeBadges";
 import type { RoguePersonalBests } from "../types";
 import { trackAnalyticsEventSoon } from "../lib/analytics";
 import { ROGUE_CARD_BACK_LOGO_SRC } from "../lib/brand";
+import { ROGUE_TOKEN_STORE_PACKS } from "../lib/tokenStore";
 
 type RoguelikeStage =
   | "package-select"
@@ -241,6 +247,7 @@ interface RoguelikeRun {
   unlockedBundleIds: string[];
   scoutedBossNodeIds: string[];
   trainedPlayerIds: string[];
+  completedTradeCount: number;
   specialStuffInventoryCount: number;
   activeSpecialStuffPlayerId: string | null;
   allStarBonusBadges: RoguelikeBonusBadgeAssignment[];
@@ -324,7 +331,57 @@ interface RoguelikeModeProps {
 const ROGUELIKE_STORAGE_KEY = "legends-draft-roguelike-run-v1";
 const ROGUELIKE_PARKED_STORAGE_KEY = "legends-draft-roguelike-parked-v1";
 const CURRENT_ROGUELIKE_LADDER_VERSION = 7;
-const CHALLENGE_CELEBRATION_BACKGROUND_SRC = "/ui/challenge-complete-premium-bg.png";
+
+const CHALLENGE_CELEBRATION_THEMES: Record<RogueChallengeGroupId, { src: string; label: string; accent: string }> = {
+  daily: {
+    src: "/ui/challenge-complete-emerald-triumph.png",
+    label: "Emerald Triumph",
+    accent: "#7bd957",
+  },
+  exchanges: {
+    src: "/ui/challenge-complete-sapphire-spotlight.png",
+    label: "Sapphire Spotlight",
+    accent: "#38bdf8",
+  },
+  milestones: {
+    src: "/ui/challenge-complete-gold-celebration.png",
+    label: "Gold Celebration",
+    accent: "#facc15",
+  },
+  rookie: {
+    src: "/ui/challenge-complete-sapphire-spotlight.png",
+    label: "Sapphire Spotlight",
+    accent: "#38bdf8",
+  },
+  pro: {
+    src: "/ui/challenge-complete-emerald-triumph.png",
+    label: "Emerald Triumph",
+    accent: "#7bd957",
+  },
+  "all-star": {
+    src: "/ui/challenge-complete-ruby-explosion.png",
+    label: "Ruby Explosion",
+    accent: "#ef4444",
+  },
+  superstar: {
+    src: "/ui/challenge-complete-amethyst-energy.png",
+    label: "Amethyst Energy",
+    accent: "#a855f7",
+  },
+  "hall-of-fame": {
+    src: "/ui/challenge-complete-galaxy-legendary.png",
+    label: "Galaxy Legendary",
+    accent: "#facc15",
+  },
+  "team-takeovers": {
+    src: "/ui/challenge-complete-gold-celebration.png",
+    label: "Gold Celebration",
+    accent: "#facc15",
+  },
+};
+
+const getChallengeCelebrationTheme = (groupId: RogueChallengeGroupId) =>
+  CHALLENGE_CELEBRATION_THEMES[groupId] ?? CHALLENGE_CELEBRATION_THEMES.milestones;
 
 const createSeed = () => {
   if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
@@ -791,6 +848,7 @@ const normalizeStoredRun = (parsed: Partial<RoguelikeRun>, activeRogueStarId: st
     unlockedBundleIds: parsed.unlockedBundleIds ?? [],
     scoutedBossNodeIds: parsed.scoutedBossNodeIds ?? [],
     trainedPlayerIds: parsed.trainedPlayerIds ?? [],
+    completedTradeCount: Math.max(0, Math.floor(parsed.completedTradeCount ?? 0)),
     specialStuffInventoryCount: parsed.specialStuffInventoryCount ?? 0,
     activeSpecialStuffPlayerId: parsed.activeSpecialStuffPlayerId ?? null,
     allStarBonusBadges: parsed.allStarBonusBadges ?? [],
@@ -838,6 +896,7 @@ const fillStarterRevealFallbackPlayers = (players: Player[], fallbackPool: Playe
   const seenIds = new Set(players.map((player) => player.id));
   const seenIdentities = new Set(players.map(getStarterIdentity));
   const fallbackCandidates = fallbackPool.filter((player) => {
+    if (!isStarterRevealEligiblePlayer(player)) return false;
     if (seenIds.has(player.id)) return false;
     if (seenIdentities.has(getStarterIdentity(player))) return false;
     return true;
@@ -906,6 +965,7 @@ const addStarterChoicePlusOption = (
   const rng = mulberry32(nextChoiceSeed(seed, 19));
   const candidates = candidatePool
     .filter((player) => player.id !== activeRogueStar?.id)
+    .filter(isStarterRevealEligiblePlayer)
     .filter((player) => !existingIds.has(player.id))
     .filter((player) => !existingIdentities.has(getStarterIdentity(player)));
 
@@ -4774,6 +4834,8 @@ export const RoguelikeMode = ({
       startingLineup,
       rosterPlayers: sourceRun.roster,
       hiredCoachId: sourceRun.hiredCoachId,
+      trainingSessionCount: sourceRun.trainedPlayerIds.length,
+      completedTradeCount: sourceRun.completedTradeCount ?? 0,
     });
     const alreadyCompletedIds = new Set(completedRogueChallengeIds);
     const newlyCompletedChallengeIds = completedChallengeIds.filter(
@@ -5060,7 +5122,6 @@ export const RoguelikeMode = ({
         rogueStarterSlotIds: selectedRogueStarterSlotIds.filter((playerId): playerId is string => Boolean(playerId)),
       },
     });
-    onRecordDailyChallengeProgress({ packsOpened: 1 });
     const selectedRogueStarterPlayersForRun = selectedRogueStarterSlotIds
       .map((playerId) => getPlayerById(playerId))
       .filter((player): player is Player => player !== null)
@@ -5138,6 +5199,7 @@ export const RoguelikeMode = ({
       selectedNaturalPosition: null,
       allStarAssignments: { ...DEFAULT_ALL_STAR_ASSIGNMENTS },
       trainedPlayerIds: [],
+      completedTradeCount: 0,
       specialStuffInventoryCount: 0,
       activeSpecialStuffPlayerId: null,
       allStarBonusBadges: [],
@@ -5400,12 +5462,20 @@ export const RoguelikeMode = ({
     nextRoster: Player[],
     nextLineup: RosterSlot[],
   ) => {
+    const completedTradeDelta =
+      sourceRun.pendingTradeState &&
+      nextRoster.map((player) => player.id).join("|") !==
+        sourceRun.pendingTradeState.originalRoster.map((player) => player.id).join("|")
+        ? 1
+        : 0;
+
     if (sourceRun.activeNode?.id === STORE_TRADE_NODE.id) {
       setRun(
         restoreUtilityReturnState({
           ...sourceRun,
           roster: nextRoster,
           lineup: nextLineup,
+          completedTradeCount: (sourceRun.completedTradeCount ?? 0) + completedTradeDelta,
           choices: [],
           chanceWheelTeamName: null,
           nodeResult: null,
@@ -5427,6 +5497,7 @@ export const RoguelikeMode = ({
       ...sourceRun,
       roster: nextRoster,
       lineup: nextLineup,
+      completedTradeCount: (sourceRun.completedTradeCount ?? 0) + completedTradeDelta,
       choices: [],
       chanceWheelTeamName: null,
       floorIndex: nextFloorIndex,
@@ -8169,7 +8240,12 @@ export const RoguelikeMode = ({
     return (
       <section data-tutorial-id="rogue-mode-screen" className="space-y-4">
         <div className="glass-panel rounded-[34px] border border-white/14 bg-[linear-gradient(135deg,rgba(15,23,42,0.9),rgba(6,10,18,0.82),rgba(22,12,34,0.7))] p-4 shadow-[0_22px_60px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.06)] lg:p-5">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_430px] xl:items-stretch">
+          <div
+            className={clsx(
+              "grid gap-4 xl:grid-cols-[minmax(0,1fr)_430px] xl:items-stretch",
+              run && "2xl:grid-cols-[minmax(560px,1fr)_minmax(300px,360px)_430px]",
+            )}
+          >
             <div className="min-w-0">
               <div className="inline-flex rounded-full border border-fuchsia-200/18 bg-fuchsia-300/10 px-3 py-1 text-xs tracking-[0.18em] text-fuchsia-100">
                 NBA Rogue Mode
@@ -8201,8 +8277,42 @@ export const RoguelikeMode = ({
               ) : null}
             </div>
 
-            <div className="grid min-w-0 gap-3">
-              <div className="rounded-[28px] border border-amber-100/24 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.28),transparent_42%),linear-gradient(135deg,rgba(22,16,9,0.98),rgba(12,18,30,0.94),rgba(4,9,17,0.98))] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.38),0_0_36px_rgba(251,191,36,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]">
+            <div className={clsx("grid min-w-0 gap-3", run && "2xl:contents")}>
+              {run ? (
+                <div className="order-2 flex flex-col rounded-[24px] border border-emerald-200/18 bg-[linear-gradient(135deg,rgba(10,49,41,0.96),rgba(14,80,65,0.9),rgba(10,25,44,0.94))] px-5 py-4 xl:self-start 2xl:order-1 2xl:col-start-2 2xl:row-start-1 2xl:h-full 2xl:self-stretch">
+                  <div className="text-[10px] uppercase tracking-[0.22em] text-emerald-100/78">Saved Run</div>
+                  <div className="mt-1 text-[1.15rem] font-semibold text-white">Resume Rogue Run</div>
+                  <div className="mt-1.5 text-sm leading-6 text-emerald-50/82">
+                    Your unfinished climb is still parked and ready.
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-emerald-100/78">
+                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1.5">
+                      Year {Math.min(run.activeNode?.act ?? runNodes[Math.min(run.floorIndex, runNodes.length - 1)]?.act ?? 1, 4)}
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1.5">
+                      Floor {Math.min(run.floorIndex + 1, runNodes.length)}
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1.5">
+                      {getRunOwnedPlayers(run).length} Players Owned
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={resumeRun}
+                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-emerald-50 2xl:mt-auto"
+                  >
+                    Resume Rogue Run
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
+              ) : null}
+
+              <div
+                className={clsx(
+                  "order-1 rounded-[28px] border border-amber-100/24 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.28),transparent_42%),linear-gradient(135deg,rgba(22,16,9,0.98),rgba(12,18,30,0.94),rgba(4,9,17,0.98))] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.38),0_0_36px_rgba(251,191,36,0.08),inset_0_1px_0_rgba(255,255,255,0.08)]",
+                  run && "2xl:order-2 2xl:col-start-3 2xl:row-start-1",
+                )}
+              >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="text-[10px] uppercase tracking-[0.24em] text-amber-100/78">Run Forecast</div>
@@ -8276,34 +8386,6 @@ export const RoguelikeMode = ({
                 </div>
               </div>
 
-              {run ? (
-                <div className="rounded-[24px] border border-emerald-200/18 bg-[linear-gradient(135deg,rgba(10,49,41,0.96),rgba(14,80,65,0.9),rgba(10,25,44,0.94))] px-5 py-4 xl:self-start">
-                  <div className="text-[10px] uppercase tracking-[0.22em] text-emerald-100/78">Saved Run</div>
-                  <div className="mt-1 text-[1.15rem] font-semibold text-white">Resume Rogue Run</div>
-                  <div className="mt-1.5 text-sm leading-6 text-emerald-50/82">
-                    Your unfinished climb is still parked and ready.
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-emerald-100/78">
-                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1.5">
-                      Year {Math.min(run.activeNode?.act ?? runNodes[Math.min(run.floorIndex, runNodes.length - 1)]?.act ?? 1, 4)}
-                    </span>
-                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1.5">
-                      Floor {Math.min(run.floorIndex + 1, runNodes.length)}
-                    </span>
-                    <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1.5">
-                      {getRunOwnedPlayers(run).length} Players Owned
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={resumeRun}
-                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-emerald-50"
-                  >
-                    Resume Rogue Run
-                    <ArrowRight size={16} />
-                  </button>
-                </div>
-              ) : null}
             </div>
           </div>
         </div>
@@ -9126,20 +9208,43 @@ export const RoguelikeMode = ({
   const activeChallengeCelebrationPlayer = activeChallengeCelebration?.rewardPlayerId
     ? allPlayers.find((player) => player.id === activeChallengeCelebration.rewardPlayerId) ?? null
     : null;
+  const activeChallengeCelebrationPackTiers = [
+    activeChallengeCelebration?.rewardPackTier ?? null,
+    ...(activeChallengeCelebration?.rewardPackTiers ?? []),
+  ].filter((tier): tier is PlayerTier => Boolean(tier));
   const activeChallengeCelebrationUnlocks = [
     activeChallengeCelebrationCoach?.name ?? null,
     activeChallengeCelebrationPlayer
       ? `${activeChallengeCelebrationPlayer.name} ${getPlayerTier(activeChallengeCelebrationPlayer)}`
       : null,
-    activeChallengeCelebration?.rewardPackTier
-      ? `${activeChallengeCelebration.rewardPackTier} Pack`
-      : null,
+    activeChallengeCelebration?.rewardPlayerPool?.label ?? null,
+    ...activeChallengeCelebrationPackTiers.map((tier) => `${tier} Pack`),
   ].filter((reward): reward is string => Boolean(reward));
-  const activeChallengeCelebrationHasTokenReward =
-    Boolean(activeChallengeCelebration && activeChallengeCelebration.reward > 0);
-  const activeChallengeCelebrationTeam = activeChallengeCelebration?.requiredTeamName
-    ? getNbaTeamByName(activeChallengeCelebration.requiredTeamName)
+  const activeChallengeCelebrationTheme = activeChallengeCelebration
+    ? getChallengeCelebrationTheme(activeChallengeCelebration.groupId)
+    : CHALLENGE_CELEBRATION_THEMES.milestones;
+  const activeChallengeCelebrationPack = activeChallengeCelebrationPackTiers[0]
+    ? ROGUE_TOKEN_STORE_PACKS.find((pack) => pack.tier === activeChallengeCelebrationPackTiers[0]) ?? null
     : null;
+  const activeChallengeCelebrationRewards = [
+    activeChallengeCelebration && activeChallengeCelebration.reward > 0
+      ? `${activeChallengeCelebration.reward.toLocaleString("en-US")} tokens`
+      : null,
+    ...activeChallengeCelebrationUnlocks,
+  ].filter((reward): reward is string => Boolean(reward));
+  const activeChallengeCelebrationLabel = activeChallengeCelebration
+    ? `Challenge complete: ${activeChallengeCelebration.title}. ${
+        activeChallengeCelebrationRewards.length > 0
+          ? `Rewards: ${activeChallengeCelebrationRewards.join(", ")}.`
+          : "Reward ready to claim."
+      }`
+    : "Challenge complete.";
+  const activeChallengeCelebrationRewardCount =
+    (activeChallengeCelebration?.reward && activeChallengeCelebration.reward > 0 ? 1 : 0) +
+    activeChallengeCelebrationPackTiers.length +
+    (activeChallengeCelebrationPlayer || activeChallengeCelebration?.rewardPlayerPool ? 1 : 0) +
+    (activeChallengeCelebrationCoach ? 1 : 0);
+  const activeChallengeCelebrationAccent = activeChallengeCelebrationTheme.accent;
   const displayedRun = getHydratedRun(run, runNodes);
   const runHiredCoach = run.hiredCoachId
     ? run.coachChoices.find((coach) => coach.id === run.hiredCoachId) ?? getRoguelikeCoachById(run.hiredCoachId)
@@ -13055,94 +13160,195 @@ export const RoguelikeMode = ({
       ) : null}
 
       {activeChallengeCelebration ? (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/72 px-4 py-6 backdrop-blur-md">
-          <div className="relative min-h-[650px] w-full max-w-[1180px] overflow-hidden rounded-[30px] shadow-[0_34px_110px_rgba(0,0,0,0.72),0_0_70px_rgba(34,211,238,0.14)] md:aspect-[1600/760] md:min-h-0">
-            <img
-              src={CHALLENGE_CELEBRATION_BACKGROUND_SRC}
-              alt=""
-              className="pointer-events-none absolute inset-0 h-full w-full object-cover md:object-fill"
-              draggable={false}
-            />
-            <div className="pointer-events-none absolute inset-0 bg-black/10 md:bg-transparent" />
-
-            <div className="relative z-10 grid h-full min-h-[650px] gap-5 px-5 py-7 md:min-h-0 md:grid-cols-[34%_minmax(0,1fr)] md:items-center md:px-8 md:py-6">
-              <div className="hidden md:block" aria-hidden="true" />
-
-              <div className="flex min-w-0 flex-col gap-5 self-center md:pr-6">
-                <div className="flex min-h-[82px] items-center justify-center px-5 text-center md:min-h-[92px]">
-                  <div className="font-display text-[clamp(2rem,4.35vw,3.9rem)] uppercase leading-none tracking-[0.1em] text-cyan-50 drop-shadow-[0_0_22px_rgba(125,211,252,0.38)]">
-                  Challenge Complete
+        <div className="fixed inset-0 z-[150] grid place-items-center bg-black/84 px-4 py-5 backdrop-blur-md">
+          <div
+            className="flex flex-col items-center justify-center"
+            style={{ width: "min(88vw, calc((100dvh - 7.75rem) * 0.8), 512px)" }}
+          >
+            <div
+              className="relative aspect-[4/5] w-full rounded-[28px] shadow-[0_34px_120px_rgba(0,0,0,0.82),0_0_80px_rgba(250,204,21,0.18)]"
+            >
+              <img
+                src={activeChallengeCelebrationTheme.src}
+                alt={`${activeChallengeCelebrationTheme.label} challenge complete`}
+                className="pointer-events-none absolute inset-0 h-full w-full rounded-[28px] object-contain"
+                draggable={false}
+              />
+              <div
+                className="absolute bottom-[18.5%] left-1/2 top-[39%] w-[76%] -translate-x-1/2 rounded-[22px] px-4 py-3 text-center"
+                style={{
+                  background:
+                    "linear-gradient(180deg,rgba(3,5,8,0.985),rgba(5,5,6,0.995) 48%,rgba(3,4,6,0.99))",
+                  border: `1px solid ${activeChallengeCelebrationAccent}8c`,
+                  boxShadow: `0 18px 42px rgba(0,0,0,0.72), inset 0 1px 0 ${activeChallengeCelebrationAccent}55, inset 0 -1px 0 rgba(255,255,255,0.08), 0 0 24px ${activeChallengeCelebrationAccent}2b`,
+                }}
+              >
+                <div
+                  className="absolute inset-x-6 top-3 h-px"
+                  style={{
+                    background: `linear-gradient(90deg,transparent,${activeChallengeCelebrationAccent},transparent)`,
+                  }}
+                />
+                <div className="relative flex h-full flex-col">
+                  <div className="pt-2">
+                    <div
+                      className="text-[10px] font-black uppercase tracking-[0.2em]"
+                      style={{ color: activeChallengeCelebrationAccent }}
+                    >
+                      Rogue Challenge
+                    </div>
+                    <div className="mx-auto mt-1 max-w-[92%] text-[clamp(1rem,3.6vw,1.32rem)] font-black leading-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
+                      {activeChallengeCelebration.title}
+                    </div>
+                    <div className="mx-auto mt-1 line-clamp-2 max-w-[92%] text-[clamp(0.68rem,2.45vw,0.82rem)] font-semibold leading-snug text-white/76">
+                      {activeChallengeCelebration.requirement}
+                    </div>
                   </div>
+                  <div className="my-2 flex items-center gap-2">
+                    <div
+                      className="h-px flex-1"
+                      style={{
+                        background: `linear-gradient(90deg,transparent,${activeChallengeCelebrationAccent}99)`,
+                      }}
+                    />
+                    <div
+                      className="text-[10px] font-black uppercase tracking-[0.22em]"
+                      style={{ color: activeChallengeCelebrationAccent }}
+                    >
+                      Rewards
+                    </div>
+                    <div
+                      className="h-px flex-1"
+                      style={{
+                        background: `linear-gradient(90deg,${activeChallengeCelebrationAccent}99,transparent)`,
+                      }}
+                    />
+                  </div>
+                <div
+                  className={clsx(
+                    "grid flex-1 items-stretch gap-2",
+                    activeChallengeCelebrationRewardCount <= 1
+                      ? "grid-cols-1"
+                      : activeChallengeCelebrationRewardCount === 2
+                        ? "grid-cols-2"
+                        : "grid-cols-3",
+                  )}
+                >
+                  {activeChallengeCelebration.reward > 0 ? (
+                    <div
+                      className="flex min-w-0 flex-col items-center justify-center rounded-[14px] px-2 py-2"
+                      style={{
+                        background: "linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025))",
+                        border: `1px solid ${activeChallengeCelebrationAccent}55`,
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
+                      }}
+                    >
+                      <Coins className="mx-auto text-amber-200 drop-shadow-[0_0_10px_rgba(251,191,36,0.42)]" size={22} />
+                      <div className="mt-1 truncate text-[clamp(0.95rem,3.2vw,1.18rem)] font-black leading-none text-white">
+                        {activeChallengeCelebration.reward.toLocaleString("en-US")}
+                      </div>
+                      <div className="mt-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-white/62">
+                        Tokens
+                      </div>
+                    </div>
+                  ) : null}
+                  {activeChallengeCelebrationPackTiers.map((packTier, packIndex) => {
+                    const celebrationPack =
+                      ROGUE_TOKEN_STORE_PACKS.find((pack) => pack.tier === packTier) ?? activeChallengeCelebrationPack;
+                    return celebrationPack ? (
+                      <div
+                        key={`${packTier}-${packIndex}`}
+                        className="flex min-w-0 flex-col items-center justify-center rounded-[14px] px-2 py-2"
+                        style={{
+                          background: "linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025))",
+                          border: `1px solid ${activeChallengeCelebrationAccent}55`,
+                          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        <img
+                          src={celebrationPack.wrapperImage}
+                          alt=""
+                          className="mx-auto h-7 w-6 object-contain drop-shadow-[0_0_12px_rgba(56,189,248,0.42)]"
+                          loading="lazy"
+                        />
+                        <div className="mt-1 truncate text-[clamp(0.78rem,2.45vw,0.94rem)] font-black leading-none text-white">
+                          {packTier}
+                        </div>
+                        <div className="mt-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-white/62">
+                          Pack
+                        </div>
+                      </div>
+                    ) : null;
+                  })}
+                  {activeChallengeCelebrationPlayer ? (
+                    <div
+                      className="flex min-w-0 flex-col items-center justify-center rounded-[14px] px-2 py-2"
+                      style={{
+                        background: "linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025))",
+                        border: `1px solid ${activeChallengeCelebrationAccent}55`,
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
+                      }}
+                    >
+                      <Trophy className="mx-auto text-emerald-200 drop-shadow-[0_0_10px_rgba(16,185,129,0.38)]" size={22} />
+                      <div className="mt-1 line-clamp-2 text-[clamp(0.72rem,2.2vw,0.86rem)] font-black leading-tight text-white">
+                        {activeChallengeCelebrationPlayer.name}
+                      </div>
+                      <div className="mt-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-white/62">
+                        {getPlayerTier(activeChallengeCelebrationPlayer)}
+                      </div>
+                    </div>
+                  ) : null}
+                  {activeChallengeCelebrationCoach ? (
+                    <div
+                      className="flex min-w-0 flex-col items-center justify-center rounded-[14px] px-2 py-2"
+                      style={{
+                        background: "linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025))",
+                        border: `1px solid ${activeChallengeCelebrationAccent}55`,
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
+                      }}
+                    >
+                      <Users className="mx-auto text-cyan-100 drop-shadow-[0_0_10px_rgba(125,211,252,0.38)]" size={22} />
+                      <div className="mt-1 line-clamp-2 text-[clamp(0.72rem,2.2vw,0.86rem)] font-black leading-tight text-white">
+                        {activeChallengeCelebrationCoach.name}
+                      </div>
+                      <div className="mt-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-white/62">
+                        Coach
+                      </div>
+                    </div>
+                  ) : null}
+                  {activeChallengeCelebrationRewardCount === 0 ? (
+                    <div
+                      className="flex items-center justify-center rounded-[14px] px-3 py-3 text-sm font-black uppercase tracking-[0.12em] text-white"
+                      style={{
+                        background: "linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025))",
+                        border: `1px solid ${activeChallengeCelebrationAccent}55`,
+                      }}
+                    >
+                      Reward Ready
+                    </div>
+                  ) : null}
                 </div>
-
-                <div className="flex min-h-[88px] min-w-0 items-center gap-4 px-5 py-3">
-                  <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full border border-amber-100/42 bg-black/36 text-amber-100 shadow-[0_0_20px_rgba(251,191,36,0.16)]">
-                    {activeChallengeCelebrationTeam?.logo ? (
-                      <img
-                        src={activeChallengeCelebrationTeam.logo}
-                        alt=""
-                        className="h-9 w-9 object-contain"
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <Target size={25} />
-                    )}
-                  </div>
-                  <div className="min-w-0 text-xl font-semibold leading-7 text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.65)] md:text-2xl">
-                    {activeChallengeCelebration.title}
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="min-h-[112px] px-5 py-4">
-                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-cyan-100/72">
-                      {activeChallengeCelebrationHasTokenReward ? <Coins size={14} /> : <Package2 size={14} />}
-                      Reward
-                    </div>
-                    <div className="mt-2 text-[clamp(1.35rem,2.7vw,2.15rem)] font-semibold leading-none text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.62)]">
-                      {activeChallengeCelebrationHasTokenReward
-                        ? `+${activeChallengeCelebration.reward.toLocaleString("en-US")}`
-                        : activeChallengeCelebrationUnlocks[0] ?? "Reward"}
-                    </div>
-                    <div className="mt-2 text-sm font-medium text-slate-200/88">
-                      {activeChallengeCelebrationHasTokenReward ? "Tokens" : "Pack reward"}
-                    </div>
-                  </div>
-                  <div className="min-h-[112px] px-5 py-4">
-                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-cyan-100/72">
-                      <Users size={14} />
-                      Claim Includes
-                    </div>
-                    <div className="mt-2 break-words text-base font-semibold leading-6 text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.62)] md:text-lg">
-                      {activeChallengeCelebrationUnlocks.length > 0
-                        ? activeChallengeCelebrationUnlocks.join(" + ")
-                        : "Challenge Reward"}
-                    </div>
-                    <div className="mt-2 text-sm font-medium text-slate-200/88">
-                      Ready to claim
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={dismissChallengeCelebration}
-                    className="min-h-[58px] rounded-[22px] bg-cyan-100 px-5 py-3 text-sm font-black uppercase tracking-[0.12em] text-slate-950 shadow-[0_0_26px_rgba(125,211,252,0.24)] transition hover:scale-[1.02] hover:bg-white"
-                  >
-                    Continue
-                  </button>
-                  <button
-                    type="button"
-                    onClick={viewChallengeCelebrationInTracker}
-                    className="min-h-[58px] rounded-[22px] border border-cyan-100/28 bg-black/24 px-5 py-3 text-sm font-black uppercase tracking-[0.08em] text-cyan-50 shadow-[0_0_22px_rgba(0,0,0,0.22)] transition hover:border-cyan-100/52 hover:bg-cyan-300/10"
-                  >
-                    View Challenges
-                  </button>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={dismissChallengeCelebration}
+                className="absolute bottom-[7%] left-[27%] right-[27%] h-[9.5%] rounded-[12px] outline-none transition focus-visible:ring-4 focus-visible:ring-white/80"
+                aria-label={activeChallengeCelebrationLabel}
+              >
+                <span className="sr-only">Continue</span>
+              </button>
+              <div className="sr-only" aria-live="polite">
+                {activeChallengeCelebrationLabel}
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={viewChallengeCelebrationInTracker}
+              className="mt-4 whitespace-nowrap rounded-full border border-white/18 bg-white/8 px-5 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-white/86 shadow-[0_14px_42px_rgba(0,0,0,0.36)] transition hover:border-white/38 hover:bg-white/14"
+            >
+              View Challenges
+            </button>
           </div>
         </div>
       ) : null}

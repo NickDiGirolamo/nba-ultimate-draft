@@ -92,7 +92,11 @@ export const LandingHub = ({
                   ? allPlayers.find((player) => player.id === challenge.rewardPlayerId) ?? null
                   : null;
                 const rewardPlayerTier = rewardPlayer ? getPlayerTier(rewardPlayer) : null;
-                const rewardPackTier = challenge.rewardPackTier ?? null;
+                const rewardPlayerPool = challenge.rewardPlayerPool ?? null;
+                const rewardPackTiers = [
+                  challenge.rewardPackTier ?? null,
+                  ...(challenge.rewardPackTiers ?? []),
+                ].filter((tier): tier is NonNullable<typeof challenge.rewardPackTier> => Boolean(tier));
                 const challengeTeam = challenge.requiredTeamName
                   ? getNbaTeamByName(challenge.requiredTeamName)
                   : null;
@@ -156,14 +160,16 @@ export const LandingHub = ({
                             </>
                           ) : rewardCoach || rewardPlayerTier ? (
                             <>{rewardCoach ? "Coach" : rewardPlayerTier}</>
+                          ) : rewardPlayerPool ? (
+                            <>{rewardPlayerPool.label}</>
                           ) : null}
-                          {rewardPackTier ? (
-                            <span className="inline-flex items-center gap-1 text-emerald-100">
-                              {hasTokenReward || rewardCoach || rewardPlayerTier ? "+" : null}
+                          {rewardPackTiers.map((rewardPackTier, packIndex) => (
+                            <span key={`${challenge.id}-pack-${packIndex}`} className="inline-flex items-center gap-1 text-emerald-100">
+                              {hasTokenReward || rewardCoach || rewardPlayerTier || rewardPlayerPool || packIndex > 0 ? "+" : null}
                               <Package2 size={11} />
                               {rewardPackTier} Pack
                             </span>
-                          ) : null}
+                          ))}
                         </div>
                       </div>
                       {completed ? (

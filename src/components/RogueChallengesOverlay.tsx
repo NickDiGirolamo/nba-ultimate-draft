@@ -291,6 +291,7 @@ export const RogueChallengesOverlay = ({
                 : 0;
               const active = group.id === activeGroup.id;
               const expanded = active && Boolean(group.subgroups?.length);
+              const exchangeGroup = group.id === "exchanges";
 
               return (
                 <div key={group.id} className="mb-1 last:mb-0">
@@ -320,16 +321,25 @@ export const RogueChallengesOverlay = ({
                         ) : null}
                       </div>
                     </div>
-                    <div className="mt-2 flex items-center justify-between gap-2 text-[10px] uppercase tracking-[0.12em] text-slate-400">
-                      <span>{completedCount} / {groupChallenges.length}</span>
-                      <span>{groupProgress}%</span>
-                    </div>
-                    <div className="mt-2 h-1 overflow-hidden rounded-full bg-slate-700/70">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-sky-300 via-cyan-200 to-amber-200"
-                        style={{ width: `${Math.max(groupProgress ? 6 : 0, groupProgress)}%` }}
-                      />
-                    </div>
+                    {exchangeGroup ? (
+                      <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                        {groupChallenges.length.toLocaleString("en-US")} exchange{" "}
+                        {groupChallenges.length === 1 ? "challenge" : "challenges"}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="mt-2 flex items-center justify-between gap-2 text-[10px] uppercase tracking-[0.12em] text-slate-400">
+                          <span>{completedCount} / {groupChallenges.length}</span>
+                          <span>{groupProgress}%</span>
+                        </div>
+                        <div className="mt-2 h-1 overflow-hidden rounded-full bg-slate-700/70">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-sky-300 via-cyan-200 to-amber-200"
+                            style={{ width: `${Math.max(groupProgress ? 6 : 0, groupProgress)}%` }}
+                          />
+                        </div>
+                      </>
+                    )}
                   </button>
 
                   {expanded ? (
@@ -441,7 +451,12 @@ export const RogueChallengesOverlay = ({
             const rewardPlayer = challenge.rewardPlayerId
               ? allPlayers.find((player) => player.id === challenge.rewardPlayerId) ?? null
               : null;
-            const rewardPackTier = challenge.rewardPackTier ?? null;
+            const rewardPlayerPool = challenge.rewardPlayerPool ?? null;
+            const rewardPackTiers = [
+              challenge.rewardPackTier ?? null,
+              ...(challenge.rewardPackTiers ?? []),
+            ].filter((tier): tier is NonNullable<typeof challenge.rewardPackTier> => Boolean(tier));
+            const rewardPackTier = rewardPackTiers[0] ?? null;
             const challengeTeam = challenge.requiredTeamName
               ? getNbaTeamByName(challenge.requiredTeamName)
               : null;
@@ -461,6 +476,30 @@ export const RogueChallengesOverlay = ({
               exchangeChallenge && rewardPackTier
                 ? ROGUE_TOKEN_STORE_PACKS.find((pack) => pack.tier === rewardPackTier) ?? null
                 : null;
+
+            if (challenge.id === "exchange-3x3") {
+              return (
+                <article
+                  key={challenge.id}
+                  className="border-b border-white/10 bg-black/18 p-2 last:border-b-0 sm:p-3"
+                >
+                  <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-black shadow-[0_18px_52px_rgba(0,0,0,0.36)]">
+                    <img
+                      src="/ui/exchange-3x3-challenge-object.png"
+                      alt="3x3 Exchange Challenge. Exchange 3 same-tier Emerald, Sapphire, or Ruby collection players for a tier upgrade pack."
+                      className="block w-full select-none"
+                      draggable={false}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => onStartExchangeChallenge(challenge.id)}
+                      className="absolute left-[68.2%] top-[63.2%] h-[15.2%] w-[27.5%] rounded-[12px] bg-transparent outline-none transition focus-visible:ring-4 focus-visible:ring-amber-100/80"
+                      aria-label="Start 3x3 exchange challenge"
+                    />
+                  </div>
+                </article>
+              );
+            }
 
             return (
               <article
@@ -568,29 +607,40 @@ export const RogueChallengesOverlay = ({
                             {formatNumber(challenge.reward)}
                           </div>
                         ) : null}
-                        {rewardPackTier || exchangeChallenge ? (
+                        {rewardPackTiers.length > 0 || exchangeChallenge ? (
+                          <div className={`${hasTokenReward ? "mt-2" : "mt-1"} flex flex-wrap gap-2`}>
+                            {(exchangeChallenge ? [rewardPackTier] : rewardPackTiers).map((packTier, packIndex) => (
+                              <div
+                                key={`${challenge.id}-pack-${packIndex}-${packTier ?? "exchange"}`}
+                                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                                  exchangeChallenge
+                                    ? "border-sky-200/28 bg-sky-300/12 text-sky-50"
+                                    : "border-emerald-200/24 bg-emerald-300/12 text-emerald-100"
+                                }`}
+                              >
+                                {exchangeRewardPack ? (
+                                  <img
+                                    src={exchangeRewardPack.wrapperImage}
+                                    alt=""
+                                    className="h-8 w-6 shrink-0 object-contain drop-shadow-[0_6px_10px_rgba(56,189,248,0.28)]"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <Package2 size={13} />
+                                )}
+                                {exchangeChallenge ? "Tier Upgrade Pack" : `${packTier} Pack`}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                        {rewardPlayerPool ? (
                           <div
                             className={`${
-                              hasTokenReward ? "mt-2" : "mt-1"
-                            } inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
-                              exchangeChallenge
-                                ? "border-sky-200/28 bg-sky-300/12 text-sky-50"
-                                : "border-emerald-200/24 bg-emerald-300/12 text-emerald-100"
-                            }`}
+                              hasTokenReward || rewardPackTier ? "mt-2" : "mt-1"
+                            } inline-flex items-center gap-2 rounded-full border border-emerald-200/24 bg-emerald-300/12 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-100`}
                           >
-                            {exchangeRewardPack ? (
-                              <img
-                                src={exchangeRewardPack.wrapperImage}
-                                alt=""
-                                className="h-8 w-6 shrink-0 object-contain drop-shadow-[0_6px_10px_rgba(56,189,248,0.28)]"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <Package2 size={13} />
-                            )}
-                            {exchangeChallenge
-                              ? "Tier Upgrade Pack"
-                              : `${rewardPackTier} Pack`}
+                            <Package2 size={13} />
+                            {rewardPlayerPool.label}
                           </div>
                         ) : null}
                         {!exchangeChallenge ? (

@@ -5,6 +5,7 @@ import { CollectionOverlay } from "./components/CollectionOverlay";
 import { DraftBriefing } from "./components/DraftBriefing";
 import { DraftPlayerCard } from "./components/DraftPlayerCard";
 import { ExchangeOverlay } from "./components/ExchangeOverlay";
+import { FeedbackSupportModal, type FeedbackSupportDiagnostics } from "./components/FeedbackSupportModal";
 import { GuidedTutorialOverlay, type GuidedTutorialStep } from "./components/GuidedTutorialOverlay";
 import { LandingHub } from "./components/LandingHub";
 import { LearnOverlay } from "./components/LearnOverlay";
@@ -18,7 +19,8 @@ import { RogueChallengesOverlay } from "./components/RogueChallengesOverlay";
 import { RoguelikeMode } from "./components/RoguelikeMode";
 import { RosterSidebar } from "./components/RosterSidebar";
 import { SimulationScreen } from "./components/SimulationScreen";
-import { TokenStoreOverlay } from "./components/TokenStoreOverlay";
+import { PackOpeningOverlay, PurchasedPackOverlay, TokenStoreOverlay } from "./components/TokenStoreOverlay";
+import { allPlayers } from "./data/players";
 import { getStoreUnlockQuantitiesForState, useDraftGame } from "./hooks/useDraftGame";
 import { useSupabaseAuth } from "./hooks/useSupabaseAuth";
 import {
@@ -36,10 +38,10 @@ import {
 import { ONE_TIME_ROGUE_CHALLENGE_COUNT, ROGUE_CHALLENGES, getRogueChallengeRunSettingsPreset } from "./lib/rogueChallenges";
 import type { RoguelikeRunSettings } from "./lib/roguelike";
 import { getCategoryChallengeTarget } from "./lib/simulate";
-import { tokenStoreUtilityItems, type TokenStoreUtilityItem } from "./lib/tokenStore";
+import { ROGUE_TOKEN_STORE_PACKS, tokenStoreUtilityItems, type RogueTokenStorePack, type TokenStoreUtilityItem } from "./lib/tokenStore";
 import { trackAnalyticsEventSoon } from "./lib/analytics";
 import { ROGUE_CARD_BACK_LOGO_SRC, ROGUE_HOOPS_HOME_LOGO_SRC, ULTIMATE_DRAFT_LOGO_SRC } from "./lib/brand";
-import type { PlayerTier } from "./types";
+import type { Player, PlayerTier } from "./types";
 
 const ROGUELIKE_UI_STORAGE_KEY = "legends-draft-roguelike-ui-v1";
 const ROGUELIKE_RUN_STORAGE_KEY = "legends-draft-roguelike-run-v1";
@@ -48,31 +50,11 @@ const FIRST_RUN_TUTORIAL_STORAGE_KEY = "nba-ultimate-draft-first-run-tutorial-v1
 const NEW_USER_INFO_PROMPT_STORAGE_KEY = "nba-ultimate-draft-new-user-info-prompt-v1";
 const NEW_USER_INFO_PROMPT_SIGNUP_STORAGE_KEY = "nba-ultimate-draft-new-user-info-prompt-signup-v1";
 const NEW_USER_INFO_PROMPT_CREATED_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-const FEEDBACK_SUPPORT_EMAIL = "support@nbaultimatedraft.com";
 
 type TutorialMode = "first-run" | "context";
 
 const getTokenStoreUtilityPrice = (id: TokenStoreUtilityItem["id"]) =>
   tokenStoreUtilityItems.find((item) => item.id === id)?.price ?? 0;
-
-const openFeedbackSupportEmail = (email: string | null | undefined, guestMode: boolean) => {
-  if (typeof window === "undefined") return;
-
-  const subject = encodeURIComponent("NBA Ultimate Draft feedback/support");
-  const body = encodeURIComponent(
-    [
-      "Tell us what happened, what you expected, and what screen you were on:",
-      "",
-      "",
-      "Troubleshooting details:",
-      `Account: ${guestMode ? "Guest Mode" : email ?? "Signed in"}`,
-      `Page: ${window.location.href}`,
-      `Browser: ${window.navigator.userAgent}`,
-    ].join("\n"),
-  );
-
-  window.location.href = `mailto:${FEEDBACK_SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
-};
 
 const challengeStrategyMap: Record<string, string> = {
   "classic": "Take the best long-term team, not the flashiest individual player.",
@@ -216,6 +198,18 @@ function App() {
   const [exchangeOpen, setExchangeOpen] = useState(false);
   const [tokenStoreOpen, setTokenStoreOpen] = useState(false);
   const [tokenStoreInitialView, setTokenStoreInitialView] = useState<"store" | "vault" | "tokens" | "collections">("store");
+  const [challengePackPending, setChallengePackPending] = useState<{
+    pack: RogueTokenStorePack;
+    player: Player;
+  } | null>(null);
+  const [challengePackReveal, setChallengePackReveal] = useState<{
+    pack: RogueTokenStorePack;
+    player: Player;
+  } | null>(null);
+  const [challengePackQueue, setChallengePackQueue] = useState<Array<{
+    pack: RogueTokenStorePack;
+    player: Player;
+  }>>([]);
   const [guestMode, setGuestMode] = useState(false);
   const [rogueChallengeSetupRequest, setRogueChallengeSetupRequest] = useState<{
     challengeId: string;
@@ -223,6 +217,7 @@ function App() {
     requestId: number;
   } | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [feedbackSupportOpen, setFeedbackSupportOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [tutorialMode, setTutorialMode] = useState<TutorialMode>("first-run");
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
@@ -337,6 +332,60 @@ function App() {
       return false;
     }
   });
+  const currentSupportArea = useMemo(() => {
+    if (tokenStoreOpen) return "Token Store";
+    if (collectionOpen) return "Collection";
+    if (challengesOpen) return "Challenge Tracker";
+    if (exchangeOpen) return "Exchange Challenge";
+    if (learnOpen) return "Learn Guide";
+    if (prestigeOpen || showPrestigeLevelUp) return "Prestige";
+    if (roguelikeOpen) return "NBA Rogue Mode";
+
+    switch (state.screen) {
+      case "briefing":
+        return "Draft Briefing";
+      case "draft":
+        return "Draft Board";
+      case "lineup":
+        return "Lineup";
+      case "simulating":
+        return "Season Simulation";
+      case "results":
+        return "Results";
+      default:
+        return "Home";
+    }
+  }, [
+    challengesOpen,
+    collectionOpen,
+    exchangeOpen,
+    learnOpen,
+    prestigeOpen,
+    roguelikeOpen,
+    showPrestigeLevelUp,
+    state.screen,
+    tokenStoreOpen,
+  ]);
+  const feedbackSupportDiagnostics = useMemo<FeedbackSupportDiagnostics>(
+    () => ({
+      accountLabel: guestMode ? "Guest Mode" : auth.user?.email ?? "Signed in",
+      currentArea: currentSupportArea,
+      currentScreen: roguelikeOpen ? `Rogue Mode / ${state.screen}` : state.screen,
+      isGuest: guestMode,
+      isLoggedIn: Boolean(auth.user),
+      lifetimeTokensEarned: metaProgress.tokens.lifetimeEarned,
+      tokenBalance: metaProgress.tokens.balance,
+    }),
+    [
+      auth.user,
+      currentSupportArea,
+      guestMode,
+      metaProgress.tokens.balance,
+      metaProgress.tokens.lifetimeEarned,
+      roguelikeOpen,
+      state.screen,
+    ],
+  );
   const firstRunTutorialSteps = useMemo<GuidedTutorialStep[]>(() => {
     const steps: GuidedTutorialStep[] = [
       {
@@ -1113,6 +1162,33 @@ function App() {
 
     return rewardPlayer;
   }, [auth.user, completeCollectionExchange, guestMode]);
+  const claimRogueChallengeRewardWithPackOpening = useCallback((challengeId: string) => {
+    const claimResult = claimRogueChallengeReward(challengeId);
+    if (!claimResult) return false;
+
+    const packRewards = claimResult.packRewards ?? (claimResult.packReward ? [claimResult.packReward] : []);
+    const packsToOpen = packRewards
+      .map((packReward) => {
+        const pack = ROGUE_TOKEN_STORE_PACKS.find((candidate) => candidate.tier === packReward.tier) ?? null;
+        const player = allPlayers.find((candidate) => candidate.id === packReward.playerId) ?? null;
+        return pack && player ? { pack, player } : null;
+      })
+      .filter((reward): reward is { pack: RogueTokenStorePack; player: Player } => Boolean(reward));
+
+    if (packsToOpen.length > 0) {
+      setChallengePackReveal(null);
+      setChallengePackPending(packsToOpen[0]);
+      setChallengePackQueue(packsToOpen.slice(1));
+    }
+
+    return true;
+  }, [claimRogueChallengeReward]);
+  const closeChallengePackReveal = useCallback(() => {
+    setChallengePackReveal(null);
+    const [nextPack, ...remainingQueue] = challengePackQueue;
+    setChallengePackQueue(remainingQueue);
+    if (nextPack) setChallengePackPending(nextPack);
+  }, [challengePackQueue]);
   const openRogueChallenges = useCallback(() => {
     setProfileMenuOpen(false);
     setPrestigeOpen(false);
@@ -1804,7 +1880,7 @@ function App() {
                     type="button"
                     onClick={() => {
                       setProfileMenuOpen(false);
-                      openFeedbackSupportEmail(auth.user?.email, guestMode);
+                      setFeedbackSupportOpen(true);
                     }}
                     className="mt-4 group relative inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl border border-amber-100/45 bg-[linear-gradient(135deg,rgba(251,191,36,0.98),rgba(250,204,21,0.9),rgba(16,185,129,0.78))] px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-950 shadow-[0_16px_34px_rgba(251,191,36,0.28),0_0_28px_rgba(52,211,153,0.12)] transition hover:scale-[1.02] hover:shadow-[0_18px_38px_rgba(251,191,36,0.36),0_0_34px_rgba(52,211,153,0.18)]"
                   >
@@ -1898,7 +1974,7 @@ function App() {
             onOpenRoguelike={() => openRoguelike("landing")}
             onOpenRogueChallenges={openRogueChallenges}
             onRunRogueChallenge={runRogueChallenge}
-            onClaimRogueChallengeReward={claimRogueChallengeReward}
+            onClaimRogueChallengeReward={claimRogueChallengeRewardWithPackOpening}
             onRestartTutorial={restartTutorial}
             history={state.history}
             meta={metaProgress}
@@ -2312,7 +2388,7 @@ function App() {
           dailyChallengeProgress={state.dailyChallengeProgress}
           completedRogueChallengeIds={visibleCompletedRogueChallengeIds}
           claimedRogueChallengeIds={visibleClaimedRogueChallengeIds}
-          onClaimRogueChallengeReward={claimRogueChallengeReward}
+          onClaimRogueChallengeReward={claimRogueChallengeRewardWithPackOpening}
           onRunRogueChallenge={runRogueChallenge}
           onStartExchangeChallenge={startExchangeChallenge}
           onClose={() => setChallengesOpen(false)}
@@ -2327,7 +2403,34 @@ function App() {
         />
       )}
 
+      {challengePackPending ? (
+        <PurchasedPackOverlay
+          pack={challengePackPending.pack}
+          kicker="Challenge Reward"
+          onOpen={() => {
+            setChallengePackReveal(challengePackPending);
+            setChallengePackPending(null);
+          }}
+        />
+      ) : null}
+
+      {challengePackReveal ? (
+        <PackOpeningOverlay
+          pack={challengePackReveal.pack}
+          player={challengePackReveal.player}
+          onClose={closeChallengePackReveal}
+        />
+      ) : null}
+
       {learnOpen && <LearnOverlay onClose={() => setLearnOpen(false)} />}
+
+      {feedbackSupportOpen && (
+        <FeedbackSupportModal
+          accountEmail={auth.user?.email}
+          diagnostics={feedbackSupportDiagnostics}
+          onClose={() => setFeedbackSupportOpen(false)}
+        />
+      )}
 
       {showPrestigeLevelUp && state.simulationResult?.prestigeLevelUp && (
         <PrestigeLevelUpModal
@@ -2336,7 +2439,7 @@ function App() {
         />
       )}
 
-      {newUserInfoPromptOpen && !tutorialOpen && !auth.loading && typeof document !== "undefined"
+      {newUserInfoPromptOpen && !tutorialOpen && !feedbackSupportOpen && !auth.loading && typeof document !== "undefined"
         ? createPortal(
             <div
               className="fixed w-[min(310px,calc(100vw-36px))] rounded-[24px] border border-amber-100/32 bg-[#080b12] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.58),0_0_34px_rgba(245,184,46,0.2)]"
@@ -2374,7 +2477,7 @@ function App() {
           )
         : null}
 
-      {!tutorialOpen && !auth.loading && typeof document !== "undefined"
+      {!tutorialOpen && !feedbackSupportOpen && !auth.loading && typeof document !== "undefined"
         ? createPortal(
             <button
               type="button"

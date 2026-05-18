@@ -1,0 +1,39 @@
+{
+  "totalCards": 1037,
+  "exactAnchorCards": 79,
+  "activeAnchorCards": 17,
+  "proxyModelCards": 941,
+  "manualReviewCandidates": 966,
+  "tierChanges": 337,
+  "onlyHundred": [
+    "Michael Jordan"
+  ],
+  "proposedOverallDistribution": {
+    "75": 20,
+    "76": 134,
+    "77": 64,
+    "78": 67,
+    "79": 62,
+    "80": 56,
+    "81": 74,
+    "82": 74,
+    "83": 85,
+    "84": 83,
+    "85": 63,
+    "86": 48,
+    "87": 51,
+    "88": 35,
+    "89": 21,
+    "90": 12,
+    "91": 10,
+    "92": 10,
+    "93": 18,
+    "94": 12,
+    "95": 8,
+    "96": 12,
+    "97": 6,
+    "98": 10,
+    "99": 1,
+    "100": 1
+  }
+}

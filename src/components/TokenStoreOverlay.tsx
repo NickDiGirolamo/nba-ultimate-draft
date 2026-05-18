@@ -587,7 +587,7 @@ const RoguePackStoreCard = ({
   );
 };
 
-const PackOpeningOverlay = ({
+export const PackOpeningOverlay = ({
   pack,
   player,
   onClose,
@@ -647,19 +647,21 @@ const PackOpeningOverlay = ({
   </div>
 );
 
-const PurchasedPackOverlay = ({
+export const PurchasedPackOverlay = ({
   pack,
   onOpen,
+  kicker = "Pack Purchased",
 }: {
   pack: RogueTokenStorePack;
   onOpen: () => void;
+  kicker?: string;
 }) => (
   <div className="fixed inset-0 z-[215] flex items-center justify-center overflow-y-auto bg-slate-950/88 px-3 py-3 backdrop-blur-lg">
     <div className="relative max-h-[calc(100vh-24px)] w-full max-w-xl overflow-hidden rounded-[30px] border border-amber-100/18 bg-[radial-gradient(circle_at_50%_34%,rgba(253,224,71,0.44),transparent_24%),radial-gradient(circle_at_50%_46%,rgba(245,158,11,0.22),transparent_48%),linear-gradient(135deg,rgba(8,13,24,0.98),rgba(15,23,42,0.96))] p-5 text-center text-white shadow-[0_34px_120px_rgba(0,0,0,0.76)]">
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(254,249,195,0.36),rgba(250,204,21,0.12)_38%,transparent_68%)] blur-sm" />
       <div className="pointer-events-none absolute left-1/2 top-[44%] h-[520px] w-20 -translate-x-1/2 -translate-y-1/2 rotate-12 bg-white/18 blur-2xl" />
       <div className="relative">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-100/76">Pack Purchased</div>
+        <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-100/76">{kicker}</div>
         <h3 className="mt-2 font-display text-3xl text-white">{pack.name}</h3>
         <div className="mx-auto mt-4 w-fit drop-shadow-[0_28px_70px_rgba(250,204,21,0.36)]">
           <RoguePackVisual pack={pack} scale={0.48} />

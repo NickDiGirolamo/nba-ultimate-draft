@@ -1,0 +1,1038 @@
+player_name,team,current_ovr,tier_literal,factory,source_file,source_line
+Michael Jordan,Chicago Bulls,100,S,makePlayer,src/data/players.ts,367
+Kareem Abdul-Jabbar (Bucks),Milwaukee Bucks,99,S,makePlayer,src/data/players.ts,373
+Kobe Bryant (#24),Los Angeles Lakers,99,S,makePlayer,src/data/players.ts,380
+LeBron James ('14 - '18),Cleveland Cavaliers,99,S,makePlayer,src/data/players.ts,372
+Shaquille O'Neal (Lakers),Los Angeles Lakers,99,S,makePlayer,src/data/players.ts,382
+Hakeem Olajuwon,Houston Rockets,98,S,makePlayer,src/data/players.ts,385
+Kevin Durant (Warriors),Golden State Warriors,98,S,makePlayer,src/data/players.ts,390
+Kobe Bryant (#8),Los Angeles Lakers,98,S,makePlayer,src/data/players.ts,379
+Larry Bird,Boston Celtics,98,S,makePlayer,src/data/players.ts,376
+Magic Johnson,Los Angeles Lakers,98,S,makePlayer,src/data/players.ts,375
+Nikola Jokic (2023),Denver Nuggets,98,S,makePlayer,src/data/players.ts,391
+Steph Curry,Golden State Warriors,98,S,makePlayer,src/data/players.ts,388
+Tim Duncan,San Antonio Spurs,98,S,makePlayer,src/data/players.ts,384
+Wilt Chamberlain,Golden State Warriors,98,S,makePlayer,src/data/players.ts,386
+Bill Russell,Boston Celtics,97,S,makePlayer,src/data/players.ts,387
+Kareem Abdul-Jabbar (Lakers),Los Angeles Lakers,97,S,makePlayer,src/data/players.ts,374
+LeBron James (Heat),Miami Heat,97,S,makePlayer,src/data/players.ts,371
+Nikola Jokic (2025-26),Denver Nuggets,97,S,makePlayer,src/data/players-current-2026.ts,205
+Dwayne Wade ('03 - '10),Miami Heat,96,S,makePlayer,src/data/players.ts,407
+Jerry West,Los Angeles Lakers,96,S,makePlayer,src/data/players.ts,395
+Kevin Durant (Thunder),Oklahoma City Thunder,96,S,makePlayer,src/data/players.ts,389
+Kevin Garnett (Timberwolves),Minnesota Timberwolves,96,S,makePlayer,src/data/players.ts,402
+LeBron James ('03 - '10),Cleveland Cavaliers,96,S,makePlayer,src/data/players.ts,370
+Luka Doncic (Mavs),Dallas Mavericks,96,S,makePlayer,src/data/players.ts,492
+Oscar Robertson,Milwaukee Bucks,96,S,makePlayer,src/data/players.ts,392
+Shai Gilgeous-Alexander (2025-26),Oklahoma City Thunder,96,S,makePlayer,src/data/players-current-2026.ts,206
+Shaquille O'Neal (Magic),Orlando Magic,96,S,makePlayer,src/data/players.ts,381
+Wilt Chamberlain (Lakers),Los Angeles Lakers,96,S,makePlayer,src/data/players.ts,872
+Charles Barkley (Suns),Phoenix Suns,95,A,makePlayer,src/data/players.ts,406
+Chris Paul (Clippers),Los Angeles Clippers,95,A,makePlayer,src/data/players.ts,415
+Dirk Nowitzki,Dallas Mavericks,95,A,makePlayer,src/data/players.ts,401
+Elvin Hayes (Bullets),Washington Wizards,95,,makeHistoricalVariant,src/data/players.ts,735
+Giannis Antetokounmpo (2025-26),Milwaukee Bucks,95,A,makePlayer,src/data/players-current-2026.ts,207
+James Harden (Rockets),Houston Rockets,95,A,makePlayer,src/data/players.ts,431
+Julius Erving,Philadelphia 76ers,95,A,makePlayer,src/data/players.ts,399
+Luka Doncic (2025-26),Los Angeles Lakers,95,A,makePlayer,src/data/players-current-2026.ts,208
+Tracy McGrady (Rockets),Houston Rockets,95,A,makePlayer,src/data/players.ts,447
+Victor Wembanyama (2025-26),San Antonio Spurs,95,A,makePlayer,src/data/players-current-2026.ts,209
+Allen Iverson (76ers),Philadelphia 76ers,94,A,makePlayer,src/data/players.ts,418
+Anthony Edwards (2025-26),Minnesota Timberwolves,94,A,makePlayer,src/data/players-current-2026.ts,213
+David Robinson,San Antonio Spurs,94,A,makePlayer,src/data/players.ts,411
+Dolph Schayes (Nationals),Philadelphia 76ers,94,,makeHistoricalVariant,src/data/players.ts,736
+George Mikan,Los Angeles Lakers,94,A,makePlayer,src/data/players.ts,396
+Karl Malone,Utah Jazz,94,A,makePlayer,src/data/players.ts,410
+Moses Malone,Philadelphia 76ers,94,A,makePlayer,src/data/players.ts,404
+Scottie Pippen,Chicago Bulls,94,A,makePlayer,src/data/players.ts,409
+Anthony Davis (Pelicans),New Orleans Pelicans,93,A,makePlayer,src/data/players.ts,467
+Billy Cunningham (76ers),Philadelphia 76ers,93,,makeHistoricalVariant,src/data/players.ts,737
+Cade Cunningham (2025-26),Detroit Pistons,93,A,makePlayer,src/data/players-current-2026.ts,218
+Charles Barkley (76ers),Philadelphia 76ers,93,A,makePlayer,src/data/players.ts,405
+Clyde Drexler (Blazers),Portland Trail Blazers,93,A,makePlayer,src/data/players.ts,426
+Derrick Rose,Chicago Bulls,93,A,makePlayer,src/data/players.ts,509
+Dwayne Wade ('10 - '14),Miami Heat,93,A,makePlayer,src/data/players.ts,408
+Elgin Baylor,Los Angeles Lakers,93,A,makePlayer,src/data/players.ts,423
+Isiah Thomas,Detroit Pistons,93,A,makePlayer,src/data/players.ts,412
+Jason Kidd,Brooklyn Nets,93,A,makePlayer,src/data/players.ts,505
+John Havlicek,Boston Celtics,93,A,makePlayer,src/data/players.ts,397
+John Stockton,Utah Jazz,93,A,makePlayer,src/data/players.ts,413
+Julius Erving (Nets),Brooklyn Nets,93,,makeHistoricalVariant,src/data/players.ts,738
+Kawhi Leonard (Raptors),Toronto Raptors,93,A,makePlayer,src/data/players.ts,422
+Kevin Garnett (Celtics),Boston Celtics,93,A,makePlayer,src/data/players.ts,403
+Nate Thurmond (Warriors),Golden State Warriors,93,,makeHistoricalVariant,src/data/players.ts,739
+Paul Arizin (Warriors),Golden State Warriors,93,,makeHistoricalVariant,src/data/players.ts,740
+Steve Nash,Phoenix Suns,93,A,makePlayer,src/data/players.ts,420
+Tracy McGrady (Magic),Orlando Magic,93,A,makePlayer,src/data/players.ts,446
+Tyrese Maxey (2025-26),Philadelphia 76ers,93,A,makePlayer,src/data/players-current-2026.ts,262
+Vince Carter (Raptors),Toronto Raptors,93,A,makePlayer,src/data/players.ts,445
+Anthony Davis (2025-26),Washington Wizards,92,A,makePlayer,src/data/players-current-2026.ts,333
+Anthony Davis (Lakers),Los Angeles Lakers,92,A,makePlayer,src/data/players.ts,468
+Arvydas Sabonis (Blazers),Portland Trail Blazers,92,,makeHistoricalVariant,src/data/players.ts,741
+Bill Walton,Portland Trail Blazers,92,A,makePlayer,src/data/players.ts,551
+Bob Cousy,Boston Celtics,92,A,makePlayer,src/data/players.ts,393
+Carmelo Anthony (Nuggets),Denver Nuggets,92,A,makePlayer,src/data/players.ts,474
+Chris Paul (Hornets),Charlotte Hornets,92,A,makePlayer,src/data/players.ts,414
+Dave Bing (Pistons),Detroit Pistons,92,,makeHistoricalVariant,src/data/players.ts,742
+Dave DeBusschere (Knicks),New York Knicks,92,,makeHistoricalVariant,src/data/players.ts,743
+Donovan Mitchell (2025-26),Cleveland Cavaliers,92,A,makePlayer,src/data/players-current-2026.ts,228
+Hal Greer (76ers),Philadelphia 76ers,92,,makeHistoricalVariant,src/data/players.ts,744
+Jalen Johnson (2025-26),Atlanta Hawks,92,A,makePlayer,src/data/players-current-2026.ts,234
+Jaylen Brown (2025-26),Boston Celtics,92,A,makePlayer,src/data/players-current-2026.ts,237
+Jimmy Butler,Miami Heat,92,A,makePlayer,src/data/players.ts,507
+Kawhi Leonard (2025-26),Los Angeles Clippers,92,A,makePlayer,src/data/players-current-2026.ts,242
+Kevin Durant (Nets),Brooklyn Nets,92,A,makePlayer,src/data/players.ts,849
+Kevin McHale,Boston Celtics,92,A,makePlayer,src/data/players.ts,377
+Kyrie Irving (Celtics),Boston Celtics,92,A,makePlayer,src/data/players.ts,852
+Nate Archibald,Sacramento Kings,92,A,makePlayer,src/data/players.ts,552
+Pete Maravich,Utah Jazz,92,A,makePlayer,src/data/players.ts,424
+Ray Allen (Sonics),Oklahoma City Thunder,92,A,makePlayer,src/data/players.ts,440
+Russell Westbrook,Oklahoma City Thunder,92,A,makePlayer,src/data/players.ts,434
+Shaquille O'Neal (Heat),Miami Heat,92,A,makePlayer,src/data/players.ts,383
+Bob Lanier (Pistons),Detroit Pistons,91,,makeHistoricalVariant,src/data/players.ts,745
+Chet Holmgren (2025-26),Oklahoma City Thunder,91,A,makePlayer,src/data/players-current-2026.ts,219
+Chris Paul (Rockets),Houston Rockets,91,A,makePlayer,src/data/players.ts,416
+Cooper Flagg (2025-26),Dallas Mavericks,91,A,makePlayer,src/data/players-current-2026.ts,221
+Damian Lillard,Portland Trail Blazers,91,A,makePlayer,src/data/players.ts,465
+Devin Booker (2025-26),Phoenix Suns,91,A,makePlayer,src/data/players-current-2026.ts,226
+Dominique Wilkins,Atlanta Hawks,91,A,makePlayer,src/data/players.ts,428
+Donovan Mitchell,Utah Jazz,91,A,makePlayer,src/data/players.ts,555
+Gail Goodrich (Lakers),Los Angeles Lakers,91,,makeHistoricalVariant,src/data/players.ts,746
+George Gervin,San Antonio Spurs,91,A,makePlayer,src/data/players.ts,425
+George McGinnis (Pacers),Indiana Pacers,91,,makeHistoricalVariant,src/data/players.ts,747
+Grant Hill (Pistons),Detroit Pistons,91,,makeHistoricalVariant,src/data/players.ts,748
+Jalen Brunson (2025-26),New York Knicks,91,A,makePlayer,src/data/players-current-2026.ts,232
+James Harden (Nets),Brooklyn Nets,91,A,makePlayer,src/data/players.ts,432
+Jayson Tatum (2025-26),Boston Celtics,91,A,makePlayer,src/data/players-current-2026.ts,369
+Kawhi Leonard (Spurs),San Antonio Spurs,91,A,makePlayer,src/data/players.ts,421
+Kevin Durant (2025-26),Houston Rockets,91,A,makePlayer,src/data/players-current-2026.ts,243
+Kyrie Irving (Cavs),Cleveland Cavaliers,91,A,makePlayer,src/data/players.ts,490
+Kyrie Irving (Nets),Brooklyn Nets,91,A,makePlayer,src/data/players.ts,851
+Patrick Ewing,New York Knicks,91,A,makePlayer,src/data/players.ts,435
+Sidney Moncrief,Milwaukee Bucks,91,A,makePlayer,src/data/players.ts,713
+Spencer Haywood (SuperSonics),Oklahoma City Thunder,91,,makeHistoricalVariant,src/data/players.ts,749
+Stephen Curry (2025-26),Golden State Warriors,91,A,makePlayer,src/data/players-current-2026.ts,284
+Alperen Sengün (2025-26),Houston Rockets,90,B,makePlayer,src/data/players-current-2026.ts,210
+Bam Adebayo (2025-26),Miami Heat,90,B,makePlayer,src/data/players-current-2026.ts,215
+Bob Pettit,Atlanta Hawks,90,B,makePlayer,src/data/players.ts,453
+Brandon Roy,Portland Trail Blazers,90,B,makePlayer,src/data/players.ts,558
+Chris Mullin,Golden State Warriors,90,B,makePlayer,src/data/players.ts,473
+Clyde Drexler (Rockets),Houston Rockets,90,B,makePlayer,src/data/players.ts,427
+David Thompson,Denver Nuggets,90,B,makePlayer,src/data/players.ts,560
+DeMarcus Cousins (Kings),Sacramento Kings,90,B,makePlayer,src/data/players.ts,858
+Deni Avdija (2025-26),Portland Trail Blazers,90,B,makePlayer,src/data/players-current-2026.ts,223
+Dennis Johnson,Boston Celtics,90,B,makePlayer,src/data/players.ts,716
+Dennis Rodman (Bulls),Chicago Bulls,90,B,makePlayer,src/data/players.ts,461
+Dwight Howard,Orlando Magic,90,B,makePlayer,src/data/players.ts,450
+Evan Mobley (2025-26),Cleveland Cavaliers,90,B,makePlayer,src/data/players-current-2026.ts,229
+Gary Payton,Oklahoma City Thunder,90,B,makePlayer,src/data/players.ts,437
+Jalen Duren (2025-26),Detroit Pistons,90,B,makePlayer,src/data/players-current-2026.ts,233
+Jamal Murray (2025-26),Denver Nuggets,90,B,makePlayer,src/data/players-current-2026.ts,235
+James Harden (Clippers),Los Angeles Clippers,90,B,makePlayer,src/data/players.ts,433
+James Worthy,Los Angeles Lakers,90,B,makePlayer,src/data/players.ts,400
+Jaren Jackson Jr. (2025-26),Utah Jazz,90,B,makePlayer,src/data/players-current-2026.ts,325
+Karl-Anthony Towns (2025-26),New York Knicks,90,B,makePlayer,src/data/players-current-2026.ts,241
+Kevin Durant (Suns),Phoenix Suns,90,B,makePlayer,src/data/players.ts,850
+Keyonte George (2025-26),Utah Jazz,90,B,makePlayer,src/data/players-current-2026.ts,301
+LaMelo Ball (2025-26),Charlotte Hornets,90,B,makePlayer,src/data/players-current-2026.ts,245
+Paolo Banchero (2025-26),Orlando Magic,90,B,makePlayer,src/data/players-current-2026.ts,254
+Rajon Rondo,Boston Celtics,90,B,makePlayer,src/data/players.ts,417
+Rick Barry,Golden State Warriors,90,B,makePlayer,src/data/players.ts,454
+Sam Jones,Boston Celtics,90,B,makePlayer,src/data/players.ts,715
+Scottie Barnes (2025-26),Toronto Raptors,90,B,makePlayer,src/data/players-current-2026.ts,259
+Tim Hardaway (Heat),Miami Heat,90,,makeHistoricalVariant,src/data/players.ts,750
+Walt Frazier,New York Knicks,90,B,makePlayer,src/data/players.ts,436
+Alex English,Denver Nuggets,89,B,makePlayer,src/data/players.ts,561
+Allen Iverson (Nuggets),Denver Nuggets,89,B,makePlayer,src/data/players.ts,419
+Alonzo Mourning (Hornets),Charlotte Hornets,89,B,makePlayer,src/data/players.ts,477
+Amar'e Stoudemire (Suns),Phoenix Suns,89,B,makePlayer,src/data/players.ts,496
+Artis Gilmore,Chicago Bulls,89,B,makePlayer,src/data/players.ts,581
+Austin Reaves (2025-26),Los Angeles Lakers,89,B,makePlayer,src/data/players-current-2026.ts,214
+Blake Griffin,Los Angeles Clippers,89,B,makePlayer,src/data/players.ts,501
+Bob Love (Bulls),Chicago Bulls,89,,makeHistoricalVariant,src/data/players.ts,751
+Bobby Dandridge (Bucks),Milwaukee Bucks,89,,makeHistoricalVariant,src/data/players.ts,752
+Brad Daugherty (Cavs),Cleveland Cavaliers,89,,makeHistoricalVariant,src/data/players.ts,753
+Buck Williams (Nets),Brooklyn Nets,89,,makeHistoricalVariant,src/data/players.ts,754
+Carmelo Anthony (Knicks),New York Knicks,89,B,makePlayer,src/data/players.ts,475
+Chris Webber,Sacramento Kings,89,B,makePlayer,src/data/players.ts,502
+De'Aaron Fox (Kings),Sacramento Kings,89,B,makePlayer,src/data/players.ts,859
+DeMarcus Cousins,New Orleans Pelicans,89,B,makePlayer,src/data/players.ts,556
+Dennis Johnson (SuperSonics),Oklahoma City Thunder,89,,makeHistoricalVariant,src/data/players.ts,755
+Dikembe Mutombo (Hawks),Atlanta Hawks,89,,makeHistoricalVariant,src/data/players.ts,756
+Draymond Green,Golden State Warriors,89,B,makePlayer,src/data/players.ts,462
+Earl Monroe,New York Knicks,89,B,makePlayer,src/data/players.ts,398
+Jack Sikma (SuperSonics),Oklahoma City Thunder,89,,makeHistoricalVariant,src/data/players.ts,757
+Jalen Williams (2025-26),Oklahoma City Thunder,89,B,makePlayer,src/data/players-current-2026.ts,340
+James Harden (2025-26),Cleveland Cavaliers,89,B,makePlayer,src/data/players-current-2026.ts,236
+Jimmy Butler (2025-26),Golden State Warriors,89,B,makePlayer,src/data/players-current-2026.ts,270
+Joel Embiid (2025-26),Philadelphia 76ers,89,B,makePlayer,src/data/players-current-2026.ts,271
+John Wall,Washington Wizards,89,B,makePlayer,src/data/players.ts,514
+Kevin Johnson,Phoenix Suns,89,B,makePlayer,src/data/players.ts,484
+Klay Thompson,Golden State Warriors,89,B,makePlayer,src/data/players.ts,463
+Kristaps Porzingis (Celtics),Boston Celtics,89,B,makePlayer,src/data/players.ts,855
+Kyrie Irving (Mavs),Dallas Mavericks,89,B,makePlayer,src/data/players.ts,491
+Larry Nance (Cavs),Cleveland Cavaliers,89,,makeHistoricalVariant,src/data/players.ts,758
+Larry Nance (Suns),Phoenix Suns,89,,makeHistoricalVariant,src/data/players.ts,759
+Lauri Markkanen (2025-26),Utah Jazz,89,B,makePlayer,src/data/players-current-2026.ts,274
+LeBron James (2025-26),Los Angeles Lakers,89,B,makePlayer,src/data/players-current-2026.ts,246
+Mark Price (Cavs),Cleveland Cavaliers,89,B,makePlayer,src/data/players.ts,871
+Maurice Lucas (Blazers),Portland Trail Blazers,89,,makeHistoricalVariant,src/data/players.ts,760
+Pau Gasol (Grizzlies),Memphis Grizzlies,89,,makeHistoricalVariant,src/data/players.ts,761
+Paul George,Indiana Pacers,89,B,makePlayer,src/data/players.ts,469
+Paul Pierce,Boston Celtics,89,B,makePlayer,src/data/players.ts,443
+Ray Allen (Bucks),Milwaukee Bucks,89,,makeHistoricalVariant,src/data/players.ts,762
+Ray Allen (Celtics),Boston Celtics,89,B,makePlayer,src/data/players.ts,441
+Reggie Miller,Indiana Pacers,89,B,makePlayer,src/data/players.ts,439
+Rip Hamilton,Detroit Pistons,89,B,makePlayer,src/data/players.ts,520
+Robert Parish,Boston Celtics,89,B,makePlayer,src/data/players.ts,378
+Tony Parker,San Antonio Spurs,89,B,makePlayer,src/data/players.ts,449
+Trey Murphy III (2025-26),New Orleans Pelicans,89,B,makePlayer,src/data/players-current-2026.ts,261
+Vince Carter (Nets),Brooklyn Nets,89,,makeHistoricalVariant,src/data/players.ts,763
+Zion Williamson (2025-26),New Orleans Pelicans,89,B,makePlayer,src/data/players-current-2026.ts,263
+Alex Sarr (2025-26),Washington Wizards,88,B,makePlayer,src/data/players-current-2026.ts,311
+Baron Davis,Golden State Warriors,88,B,makePlayer,src/data/players.ts,563
+Chauncey Billups,Detroit Pistons,88,B,makePlayer,src/data/players.ts,480
+Chet Walker (76ers),Philadelphia 76ers,88,,makeHistoricalVariant,src/data/players.ts,764
+Chris Bosh (Raptors),Toronto Raptors,88,B,makePlayer,src/data/players.ts,498
+Chris Mullin (Pacers),Indiana Pacers,88,,makeHistoricalVariant,src/data/players.ts,765
+Dan Issel,Denver Nuggets,88,B,makePlayer,src/data/players.ts,562
+De'Aaron Fox (2025-26),San Antonio Spurs,88,B,makePlayer,src/data/players-current-2026.ts,222
+Dennis Rodman (Pistons),Detroit Pistons,88,B,makePlayer,src/data/players.ts,460
+Deron Williams,Utah Jazz,88,B,makePlayer,src/data/players.ts,535
+Domantas Sabonis (2025-26),Sacramento Kings,88,B,makePlayer,src/data/players-current-2026.ts,412
+Domantas Sabonis (Pacers),Indiana Pacers,88,B,makePlayer,src/data/players.ts,857
+Elton Brand,Los Angeles Clippers,88,B,makePlayer,src/data/players.ts,682
+Fat Lever,Denver Nuggets,88,B,makePlayer,src/data/players.ts,714
+Franz Wagner (2025-26),Orlando Magic,88,B,makePlayer,src/data/players-current-2026.ts,321
+Gus Williams (Sonics),Oklahoma City Thunder,88,,makeHistoricalVariant,src/data/players.ts,766
+Jalen Williams,Oklahoma City Thunder,88,B,makePlayer,src/data/players.ts,617
+Jason Kidd (Suns),Phoenix Suns,88,,makeHistoricalVariant,src/data/players.ts,767
+Jimmy Butler (76ers),Philadelphia 76ers,88,B,makePlayer,src/data/players.ts,875
+Jimmy Butler (Timberwolves),Minnesota Timberwolves,88,B,makePlayer,src/data/players.ts,874
+Joe Dumars,Detroit Pistons,88,B,makePlayer,src/data/players.ts,606
+Josh Giddey (2025-26),Chicago Bulls,88,B,makePlayer,src/data/players-current-2026.ts,238
+Julius Randle (2025-26),Minnesota Timberwolves,88,B,makePlayer,src/data/players-current-2026.ts,240
+Karl-Anthony Towns (Wolves),Minnesota Timberwolves,88,B,makePlayer,src/data/players.ts,841
+Kemba Walker (Celtics),Boston Celtics,88,B,makePlayer,src/data/players.ts,853
+Kyle Lowry (Raptors),Toronto Raptors,88,B,makePlayer,src/data/players.ts,727
+LaMarcus Aldridge,Portland Trail Blazers,88,B,makePlayer,src/data/players.ts,559
+Manu Ginobili,San Antonio Spurs,88,B,makePlayer,src/data/players.ts,448
+Maurice Cheeks,Philadelphia 76ers,88,B,makePlayer,src/data/players.ts,710
+Michael Porter Jr. (2025-26),Brooklyn Nets,88,B,makePlayer,src/data/players-current-2026.ts,247
+Nickeil Alexander-Walker (2025-26),Atlanta Hawks,88,B,makePlayer,src/data/players-current-2026.ts,251
+Onyeka Okongwu (2025-26),Atlanta Hawks,88,B,makePlayer,src/data/players-current-2026.ts,253
+Pascal Siakam (2025-26),Indiana Pacers,88,B,makePlayer,src/data/players-current-2026.ts,255
+Patrick Ewing (2000 Knicks),New York Knicks,88,B,makePlayer,src/data/players.ts,724
+Pau Gasol,Los Angeles Lakers,88,B,makePlayer,src/data/players.ts,451
+Paul George (Clippers),Los Angeles Clippers,88,B,makePlayer,src/data/players.ts,860
+Penny Hardaway,Orlando Magic,88,B,makePlayer,src/data/players.ts,482
+Rasheed Wallace (Blazers),Portland Trail Blazers,88,,makeHistoricalVariant,src/data/players.ts,768
+Ron Artest (Pacers),Indiana Pacers,88,B,makePlayer,src/data/players.ts,518
+Stephon Castle (2025-26),San Antonio Spurs,88,B,makePlayer,src/data/players-current-2026.ts,260
+Terry Cummings (Bucks),Milwaukee Bucks,88,,makeHistoricalVariant,src/data/players.ts,769
+Tim Hardaway,Golden State Warriors,88,B,makePlayer,src/data/players.ts,510
+Tom Heinsohn,Boston Celtics,88,B,makePlayer,src/data/players.ts,394
+Tyrese Haliburton,Indiana Pacers,88,B,makePlayer,src/data/players.ts,554
+Willis Reed,New York Knicks,88,B,makePlayer,src/data/players.ts,455
+Yao Ming,Houston Rockets,88,B,makePlayer,src/data/players.ts,452
+Adrian Dantley,Utah Jazz,87,B,makePlayer,src/data/players.ts,458
+Al Horford (Celtics),Boston Celtics,87,B,makePlayer,src/data/players.ts,856
+Alonzo Mourning,Miami Heat,87,B,makePlayer,src/data/players.ts,476
+Alvin Robertson,Milwaukee Bucks,87,B,makePlayer,src/data/players.ts,670
+Amen Thompson (2025-26),Houston Rockets,87,B,makePlayer,src/data/players-current-2026.ts,211
+Andrew Toney (76ers),Philadelphia 76ers,87,,makeHistoricalVariant,src/data/players.ts,770
+Antawn Jamison,Washington Wizards,87,B,makePlayer,src/data/players.ts,625
+Bernard King,New York Knicks,87,B,makePlayer,src/data/players.ts,459
+Bob McAdoo,Los Angeles Clippers,87,B,makePlayer,src/data/players.ts,457
+Brandon Ingram (2025-26),Toronto Raptors,87,B,makePlayer,src/data/players-current-2026.ts,216
+Carlos Boozer,Utah Jazz,87,B,makePlayer,src/data/players.ts,536
+Chauncey Billups (Nuggets),Denver Nuggets,87,,makeHistoricalVariant,src/data/players.ts,771
+CJ McCollum (2025-26),Atlanta Hawks,87,B,makePlayer,src/data/players-current-2026.ts,289
+CJ McCollum (Blazers),Portland Trail Blazers,87,B,makePlayer,src/data/players.ts,466
+Dave Cowens,Boston Celtics,87,B,makePlayer,src/data/players.ts,456
+DeMar DeRozan (2025-26),Sacramento Kings,87,B,makePlayer,src/data/players-current-2026.ts,290
+DeMar DeRozan (Bulls),Chicago Bulls,87,B,makePlayer,src/data/players.ts,865
+Derrick White (2025-26),Boston Celtics,87,B,makePlayer,src/data/players-current-2026.ts,224
+Desmond Bane (2025-26),Orlando Magic,87,B,makePlayer,src/data/players-current-2026.ts,225
+Dikembe Mutombo (Nuggets),Denver Nuggets,87,B,makePlayer,src/data/players.ts,479
+Dillon Brooks (2025-26),Phoenix Suns,87,B,makePlayer,src/data/players-current-2026.ts,385
+Donovan Clingan (2025-26),Portland Trail Blazers,87,B,makePlayer,src/data/players-current-2026.ts,227
+Drazen Petrovic,Brooklyn Nets,87,B,makePlayer,src/data/players.ts,572
+Gilbert Arenas,Washington Wizards,87,B,makePlayer,src/data/players.ts,549
+Glenn Robinson,Milwaukee Bucks,87,B,makePlayer,src/data/players.ts,629
+Grant Hill,Phoenix Suns,87,B,makePlayer,src/data/players.ts,481
+Ivica Zubac (2025-26),Indiana Pacers,87,B,makePlayer,src/data/players-current-2026.ts,338
+Ja Morant (2025-26),Memphis Grizzlies,87,B,makePlayer,src/data/players-current-2026.ts,457
+Jabari Smith Jr. (2025-26),Houston Rockets,87,B,makePlayer,src/data/players-current-2026.ts,268
+Jamal Mashburn,Dallas Mavericks,87,B,makePlayer,src/data/players.ts,564
+Jamal Wilkes,Los Angeles Lakers,87,B,makePlayer,src/data/players.ts,610
+Jaren Jackson Jr.,Memphis Grizzlies,87,B,makePlayer,src/data/players.ts,585
+Jarrett Allen (2025-26),Cleveland Cavaliers,87,B,makePlayer,src/data/players-current-2026.ts,269
+Jermaine O'Neal,Indiana Pacers,87,B,makePlayer,src/data/players.ts,513
+Jrue Holiday (Bucks),Milwaukee Bucks,87,,makeHistoricalVariant,src/data/players.ts,772
+Jrue Holiday (Celtics),Boston Celtics,87,B,makePlayer,src/data/players.ts,867
+Kevin Love (Timberwolves),Minnesota Timberwolves,87,B,makePlayer,src/data/players.ts,531
+Kevin Porter Jr. (2025-26),Milwaukee Bucks,87,B,makePlayer,src/data/players-current-2026.ts,300
+Kiki Vandeweghe (Nuggets),Denver Nuggets,87,,makeHistoricalVariant,src/data/players.ts,773
+Kon Knueppel (2025-26),Charlotte Hornets,87,B,makePlayer,src/data/players-current-2026.ts,244
+LaMarcus Aldridge (Spurs),San Antonio Spurs,87,,makeHistoricalVariant,src/data/players.ts,774
+Latrell Sprewell,New York Knicks,87,B,makePlayer,src/data/players.ts,614
+Marc Gasol,Memphis Grizzlies,87,B,makePlayer,src/data/players.ts,512
+Marcus Camby,Denver Nuggets,87,B,makePlayer,src/data/players.ts,626
+Mark Aguirre,Dallas Mavericks,87,B,makePlayer,src/data/players.ts,575
+Matas Buzelis (2025-26),Chicago Bulls,87,B,makePlayer,src/data/players-current-2026.ts,276
+Mitch Richmond,Golden State Warriors,87,B,makePlayer,src/data/players.ts,511
+Mookie Blaylock (Hawks),Atlanta Hawks,87,,makeHistoricalVariant,src/data/players.ts,775
+Norm Nixon (Lakers),Los Angeles Lakers,87,,makeHistoricalVariant,src/data/players.ts,776
+Norman Powell (2025-26),Miami Heat,87,B,makePlayer,src/data/players-current-2026.ts,304
+Otis Birdsong (Nets),Brooklyn Nets,87,,makeHistoricalVariant,src/data/players.ts,777
+Pascal Siakam (Raptors),Toronto Raptors,87,B,makePlayer,src/data/players.ts,508
+Paul George (2025-26),Philadelphia 76ers,87,B,makePlayer,src/data/players-current-2026.ts,329
+Paul Millsap,Atlanta Hawks,87,B,makePlayer,src/data/players.ts,591
+Rashard Lewis (SuperSonics),Oklahoma City Thunder,87,,makeHistoricalVariant,src/data/players.ts,778
+RJ Barrett (2025-26),Toronto Raptors,87,B,makePlayer,src/data/players-current-2026.ts,305
+Rod Strickland (Bullets),Washington Wizards,87,,makeHistoricalVariant,src/data/players.ts,779
+Ron Artest (Rockets),Houston Rockets,87,B,makePlayer,src/data/players.ts,848
+Sam Cassell (Bucks),Milwaukee Bucks,87,,makeHistoricalVariant,src/data/players.ts,780
+Sidney Wicks (Blazers),Portland Trail Blazers,87,,makeHistoricalVariant,src/data/players.ts,781
+Steve Francis,Houston Rockets,87,B,makePlayer,src/data/players.ts,683
+Terry Porter (Blazers),Portland Trail Blazers,87,,makeHistoricalVariant,src/data/players.ts,782
+Tom Chambers,Phoenix Suns,87,B,makePlayer,src/data/players.ts,570
+Trae Young (2025-26),Washington Wizards,87,B,makePlayer,src/data/players-current-2026.ts,443
+Tyler Herro (2025-26),Miami Heat,87,B,makePlayer,src/data/players-current-2026.ts,356
+VJ Edgecombe (2025-26),Philadelphia 76ers,87,B,makePlayer,src/data/players-current-2026.ts,285
+World B. Free (Cavs),Cleveland Cavaliers,87,,makeHistoricalVariant,src/data/players.ts,783
+Zion Williamson,New Orleans Pelicans,87,B,makePlayer,src/data/players.ts,557
+Aaron Gordon (2025-26),Denver Nuggets,86,B,makePlayer,src/data/players-current-2026.ts,310
+Al Horford (Hawks),Atlanta Hawks,86,B,makePlayer,src/data/players.ts,592
+Al Jefferson,Minnesota Timberwolves,86,B,makePlayer,src/data/players.ts,689
+Al Jefferson (Bobcats),Charlotte Hornets,86,,makeHistoricalVariant,src/data/players.ts,784
+Allan Houston,New York Knicks,86,B,makePlayer,src/data/players.ts,615
+Amar'e Stoudemire (Knicks),New York Knicks,86,B,makePlayer,src/data/players.ts,497
+Andre Iguodala,Philadelphia 76ers,86,B,makePlayer,src/data/players.ts,524
+Andrew Bynum,Los Angeles Lakers,86,B,makePlayer,src/data/players.ts,653
+Andrew Nembhard (2025-26),Indiana Pacers,86,B,makePlayer,src/data/players-current-2026.ts,357
+Anthony Mason (Hornets),Charlotte Hornets,86,B,makePlayer,src/data/players.ts,873
+Ben Wallace,Detroit Pistons,86,B,makePlayer,src/data/players.ts,495
+Brandon Ingram (Pelicans),New Orleans Pelicans,86,B,makePlayer,src/data/players.ts,843
+Brandon Miller (2025-26),Charlotte Hornets,86,B,makePlayer,src/data/players-current-2026.ts,217
+Brook Lopez (Nets),Brooklyn Nets,86,,makeHistoricalVariant,src/data/players.ts,785
+Chris Bosh (Heat),Miami Heat,86,B,makePlayer,src/data/players.ts,500
+Clifford Robinson (Blazers),Portland Trail Blazers,86,,makeHistoricalVariant,src/data/players.ts,786
+Danny Granger,Indiana Pacers,86,B,makePlayer,src/data/players.ts,571
+Darius Garland (2025-26),Los Angeles Clippers,86,B,makePlayer,src/data/players-current-2026.ts,360
+DeAndre Jordan,Los Angeles Clippers,86,B,makePlayer,src/data/players.ts,667
+Dejounte Murray (2025-26),New Orleans Pelicans,86,B,makePlayer,src/data/players-current-2026.ts,411
+DeMar DeRozan (Spurs),San Antonio Spurs,86,,makeHistoricalVariant,src/data/players.ts,787
+Detlef Schrempf,Oklahoma City Thunder,86,B,makePlayer,src/data/players.ts,613
+Detlef Schrempf (Pacers),Indiana Pacers,86,,makeHistoricalVariant,src/data/players.ts,788
+Dikembe Mutombo,Philadelphia 76ers,86,B,makePlayer,src/data/players.ts,478
+Dyson Daniels (2025-26),Atlanta Hawks,86,B,makePlayer,src/data/players-current-2026.ts,267
+Eddie Jones,Los Angeles Lakers,86,B,makePlayer,src/data/players.ts,516
+Gerald Wallace,Charlotte Hornets,86,B,makePlayer,src/data/players.ts,711
+Glen Rice,Charlotte Hornets,86,B,makePlayer,src/data/players.ts,515
+Goran Dragic (Suns),Phoenix Suns,86,,makeHistoricalVariant,src/data/players.ts,789
+Gordon Hayward (Jazz),Utah Jazz,86,B,makePlayer,src/data/players.ts,854
+Immanuel Quickley (2025-26),Toronto Raptors,86,B,makePlayer,src/data/players-current-2026.ts,230
+Jaden McDaniels (2025-26),Minnesota Timberwolves,86,B,makePlayer,src/data/players-current-2026.ts,231
+Jamal Mashburn (Heat),Miami Heat,86,,makeHistoricalVariant,src/data/players.ts,790
+Jason Williams (Kings),Sacramento Kings,86,B,makePlayer,src/data/players.ts,876
+Jerami Grant (2025-26),Portland Trail Blazers,86,B,makePlayer,src/data/players-current-2026.ts,296
+Joe Johnson,Atlanta Hawks,86,B,makePlayer,src/data/players.ts,589
+Jusuf Nurkic (Blazers),Portland Trail Blazers,86,B,makePlayer,src/data/players.ts,861
+Kemba Walker,Charlotte Hornets,86,B,makePlayer,src/data/players.ts,493
+Kevin Love (Cavs),Cleveland Cavaliers,86,B,makePlayer,src/data/players.ts,532
+Khris Middleton (Bucks),Milwaukee Bucks,86,B,makePlayer,src/data/players.ts,519
+Kristaps Porziņģis (2025-26),Golden State Warriors,86,B,makePlayer,src/data/players-current-2026.ts,346
+Kyshawn George (2025-26),Washington Wizards,86,B,makePlayer,src/data/players-current-2026.ts,347
+Larry Johnson,Charlotte Hornets,86,B,makePlayer,src/data/players.ts,533
+Marcus Smart (Celtics),Boston Celtics,86,B,makePlayer,src/data/players.ts,836
+Mark Jackson,Indiana Pacers,86,B,makePlayer,src/data/players.ts,619
+Michael Finley,Dallas Mavericks,86,B,makePlayer,src/data/players.ts,576
+Michael Jordan (Wizards),Washington Wizards,86,B,makePlayer,src/data/players.ts,847
+Michael Redd,Milwaukee Bucks,86,B,makePlayer,src/data/players.ts,685
+Mikal Bridges (2025-26),New York Knicks,86,B,makePlayer,src/data/players-current-2026.ts,248
+Miles Bridges (2025-26),Charlotte Hornets,86,B,makePlayer,src/data/players-current-2026.ts,249
+Naz Reid (2025-26),Minnesota Timberwolves,86,B,makePlayer,src/data/players-current-2026.ts,278
+OG Anunoby (2025-26),New York Knicks,86,B,makePlayer,src/data/players-current-2026.ts,252
+Payton Pritchard (2025-26),Boston Celtics,86,B,makePlayer,src/data/players-current-2026.ts,256
+Ralph Sampson,Houston Rockets,86,B,makePlayer,src/data/players.ts,547
+Ray Allen (Heat),Miami Heat,86,B,makePlayer,src/data/players.ts,442
+Rik Smits,Indiana Pacers,86,B,makePlayer,src/data/players.ts,543
+Rod Strickland (Blazers),Portland Trail Blazers,86,,makeHistoricalVariant,src/data/players.ts,791
+Ron Artest,Los Angeles Lakers,86,B,makePlayer,src/data/players.ts,517
+Ron Harper (Cavs),Cleveland Cavaliers,86,,makeHistoricalVariant,src/data/players.ts,792
+Rudy Gobert,Utah Jazz,86,B,makePlayer,src/data/players.ts,503
+Rudy Gobert (2025-26),Minnesota Timberwolves,86,B,makePlayer,src/data/players-current-2026.ts,282
+Ryan Rollins (2025-26),Milwaukee Bucks,86,B,makePlayer,src/data/players-current-2026.ts,257
+Saddiq Bey (2025-26),New Orleans Pelicans,86,B,makePlayer,src/data/players-current-2026.ts,283
+Santi Aldama (2025-26),Memphis Grizzlies,86,B,makePlayer,src/data/players-current-2026.ts,332
+Serge Ibaka,Oklahoma City Thunder,86,B,makePlayer,src/data/players.ts,660
+Shaedon Sharpe (2025-26),Portland Trail Blazers,86,B,makePlayer,src/data/players-current-2026.ts,378
+Shawn Marion,Phoenix Suns,86,B,makePlayer,src/data/players.ts,483
+Toumani Camara (2025-26),Portland Trail Blazers,86,B,makePlayer,src/data/players-current-2026.ts,308
+Victor Oladipo (Pacers),Indiana Pacers,86,,makeHistoricalVariant,src/data/players.ts,793
+Walker Kessler (2025-26),Utah Jazz,86,B,makePlayer,src/data/players-current-2026.ts,402
+Zach LaVine (Bulls),Chicago Bulls,86,B,makePlayer,src/data/players.ts,864
+Ace Bailey (2025-26),Utah Jazz,85,C,makePlayer,src/data/players-current-2026.ts,427
+Ajay Mitchell (2025-26),Oklahoma City Thunder,85,C,makePlayer,src/data/players-current-2026.ts,287
+Andre Drummond,Detroit Pistons,85,C,makePlayer,src/data/players.ts,668
+Andre Iguodala (Warriors),Golden State Warriors,85,C,makePlayer,src/data/players.ts,525
+Andrei Kirilenko,Utah Jazz,85,C,makePlayer,src/data/players.ts,539
+Andrew Bogut (Bucks),Milwaukee Bucks,85,,makeHistoricalVariant,src/data/players.ts,794
+Andrew Wiggins (2025-26),Miami Heat,85,C,makePlayer,src/data/players-current-2026.ts,212
+Andrew Wiggins (Timberwolves),Minnesota Timberwolves,85,C,makePlayer,src/data/players.ts,840
+Anthony Black (2025-26),Orlando Magic,85,C,makePlayer,src/data/players-current-2026.ts,312
+Antoine Walker,Boston Celtics,85,C,makePlayer,src/data/players.ts,630
+Antonio McDyess,Denver Nuggets,85,C,makePlayer,src/data/players.ts,681
+Ausar Thompson (2025-26),Detroit Pistons,85,C,makePlayer,src/data/players-current-2026.ts,288
+Ben Gordon (Bulls),Chicago Bulls,85,,makeHistoricalVariant,src/data/players.ts,795
+Ben Simmons,Philadelphia 76ers,85,C,makePlayer,src/data/players.ts,698
+Bennedict Mathurin (2025-26),Los Angeles Clippers,85,C,makePlayer,src/data/players-current-2026.ts,381
+Bill Laimbeer,Detroit Pistons,85,C,makePlayer,src/data/players.ts,471
+Bradley Beal,Washington Wizards,85,C,makePlayer,src/data/players.ts,550
+Calvin Murphy,Houston Rockets,85,C,makePlayer,src/data/players.ts,611
+Caron Butler (Mavs),Dallas Mavericks,85,C,makePlayer,src/data/players.ts,578
+Caron Butler (Wizards),Washington Wizards,85,,makeHistoricalVariant,src/data/players.ts,796
+Cedric Ceballos (Suns),Phoenix Suns,85,,makeHistoricalVariant,src/data/players.ts,797
+Cedric Coward (2025-26),Memphis Grizzlies,85,C,makePlayer,src/data/players-current-2026.ts,315
+Charles Oakley (Knicks),New York Knicks,85,,makeHistoricalVariant,src/data/players.ts,798
+Collin Gillespie (2025-26),Phoenix Suns,85,C,makePlayer,src/data/players-current-2026.ts,220
+Collin Sexton (2025-26),Chicago Bulls,85,C,makePlayer,src/data/players-current-2026.ts,316
+Cutino Mobley,Houston Rockets,85,C,makePlayer,src/data/players.ts,684
+Darryl Dawkins,Philadelphia 76ers,85,C,makePlayer,src/data/players.ts,609
+David Lee,New York Knicks,85,C,makePlayer,src/data/players.ts,664
+Dejounte Murray (Spurs),San Antonio Spurs,85,C,makePlayer,src/data/players.ts,868
+Derik Queen (2025-26),New Orleans Pelicans,85,C,makePlayer,src/data/players-current-2026.ts,291
+Deron Williams (Nets),Brooklyn Nets,85,,makeHistoricalVariant,src/data/players.ts,799
+Devin Vassell (2025-26),San Antonio Spurs,85,C,makePlayer,src/data/players-current-2026.ts,292
+Doug Christie,Sacramento Kings,85,C,makePlayer,src/data/players.ts,633
+Dwight Howard (Lakers),Los Angeles Lakers,85,,makeHistoricalVariant,src/data/players.ts,800
+Dylan Harper (2025-26),San Antonio Spurs,85,C,makePlayer,src/data/players-current-2026.ts,320
+Egor Dёmin (2025-26),Brooklyn Nets,85,C,makePlayer,src/data/players-current-2026.ts,432
+Fred Van Vleet (Raptors),Toronto Raptors,85,C,makePlayer,src/data/players.ts,730
+Fred VanVleet (Rockets),Houston Rockets,85,,makeHistoricalVariant,src/data/players.ts,801
+Goran Dragic (Heat),Miami Heat,85,,makeHistoricalVariant,src/data/players.ts,802
+Grayson Allen (2025-26),Phoenix Suns,85,C,makePlayer,src/data/players-current-2026.ts,322
+Hersey Hawkins,Oklahoma City Thunder,85,C,makePlayer,src/data/players.ts,438
+Horace Grant,Chicago Bulls,85,C,makePlayer,src/data/players.ts,671
+Isaiah Hartenstein (2025-26),Oklahoma City Thunder,85,C,makePlayer,src/data/players-current-2026.ts,323
+Isaiah Thomas,Boston Celtics,85,C,makePlayer,src/data/players.ts,527
+Jaime Jaquez Jr. (2025-26),Miami Heat,85,C,makePlayer,src/data/players-current-2026.ts,293
+Jalen Green (2025-26),Phoenix Suns,85,C,makePlayer,src/data/players-current-2026.ts,435
+Jalen Rose,Indiana Pacers,85,C,makePlayer,src/data/players.ts,616
+Jalen Suggs (2025-26),Orlando Magic,85,C,makePlayer,src/data/players-current-2026.ts,294
+Jason Kidd (Mavericks),Dallas Mavericks,85,C,makePlayer,src/data/players.ts,506
+Jason Richardson,Golden State Warriors,85,C,makePlayer,src/data/players.ts,687
+Jeff Hornacek,Phoenix Suns,85,C,makePlayer,src/data/players.ts,485
+Jeff Hornacek (Jazz),Utah Jazz,85,,makeHistoricalVariant,src/data/players.ts,803
+Jeremiah Fears (2025-26),New Orleans Pelicans,85,C,makePlayer,src/data/players-current-2026.ts,390
+Joakim Noah,Chicago Bulls,85,C,makePlayer,src/data/players.ts,522
+Joe Johnson (Nets),Brooklyn Nets,85,,makeHistoricalVariant,src/data/players.ts,804
+Josh Hart (2025-26),New York Knicks,85,C,makePlayer,src/data/players-current-2026.ts,239
+Josh Smith (Hawks),Atlanta Hawks,85,C,makePlayer,src/data/players.ts,590
+Jrue Holiday (2025-26),Portland Trail Blazers,85,C,makePlayer,src/data/players-current-2026.ts,298
+Julius Randle (Pelicans),New Orleans Pelicans,85,C,makePlayer,src/data/players.ts,838
+Kel'el Ware (2025-26),Miami Heat,85,C,makePlayer,src/data/players-current-2026.ts,273
+Kenyon Martin,Brooklyn Nets,85,C,makePlayer,src/data/players.ts,574
+Kenyon Martin (Nuggets),Denver Nuggets,85,,makeHistoricalVariant,src/data/players.ts,805
+Kevin Martin,Sacramento Kings,85,C,makePlayer,src/data/players.ts,688
+Latrell Sprewell (Timberwolves),Minnesota Timberwolves,85,,makeHistoricalVariant,src/data/players.ts,806
+Marc Gasol (Raptors),Toronto Raptors,85,,makeHistoricalVariant,src/data/players.ts,807
+Mehmet Okur,Utah Jazz,85,C,makePlayer,src/data/players.ts,540
+Michael Cooper,Los Angeles Lakers,85,C,makePlayer,src/data/players.ts,674
+Mike Conley,Memphis Grizzlies,85,C,makePlayer,src/data/players.ts,586
+Monta Ellis,Golden State Warriors,85,C,makePlayer,src/data/players.ts,665
+Nic Claxton (2025-26),Brooklyn Nets,85,C,makePlayer,src/data/players-current-2026.ts,279
+Nikola Vucevic (2025-26),Boston Celtics,85,C,makePlayer,src/data/players-current-2026.ts,280
+Otis Thorpe (Rockets),Houston Rockets,85,,makeHistoricalVariant,src/data/players.ts,808
+P.J. Washington (2025-26),Dallas Mavericks,85,C,makePlayer,src/data/players-current-2026.ts,352
+Pau Gasol (Bulls),Chicago Bulls,85,,makeHistoricalVariant,src/data/players.ts,809
+Paul Millsap (Jazz),Utah Jazz,85,,makeHistoricalVariant,src/data/players.ts,810
+Peja Stojakovic,Sacramento Kings,85,C,makePlayer,src/data/players.ts,486
+Peyton Watson (2025-26),Denver Nuggets,85,C,makePlayer,src/data/players-current-2026.ts,331
+Rashard Lewis,Orlando Magic,85,C,makePlayer,src/data/players.ts,582
+Rasheed Wallace,Detroit Pistons,85,C,makePlayer,src/data/players.ts,494
+Reed Sheppard (2025-26),Houston Rockets,85,C,makePlayer,src/data/players-current-2026.ts,281
+Robert Horry (Rockets),Houston Rockets,85,C,makePlayer,src/data/players.ts,862
+Roy Hibbert,Indiana Pacers,85,C,makePlayer,src/data/players.ts,470
+Rudy Gay,Memphis Grizzlies,85,C,makePlayer,src/data/players.ts,588
+Russell Westbrook (2025-26),Sacramento Kings,85,C,makePlayer,src/data/players-current-2026.ts,355
+Sam Cassell,Minnesota Timberwolves,85,C,makePlayer,src/data/players.ts,600
+Sam Cassell (Clippers),Los Angeles Clippers,85,,makeHistoricalVariant,src/data/players.ts,811
+Sean Elliott (Spurs),San Antonio Spurs,85,,makeHistoricalVariant,src/data/players.ts,812
+Shawn Kemp,Oklahoma City Thunder,85,C,makePlayer,src/data/players.ts,504
+Shawn Marion (Mavs),Dallas Mavericks,85,C,makePlayer,src/data/players.ts,566
+Stephon Marbury,Minnesota Timberwolves,85,C,makePlayer,src/data/players.ts,669
+Steve Francis (Magic),Orlando Magic,85,,makeHistoricalVariant,src/data/players.ts,813
+Tayshaun Prince,Detroit Pistons,85,C,makePlayer,src/data/players.ts,521
+Terrell Brandon (Cavs),Cleveland Cavaliers,85,,makeHistoricalVariant,src/data/players.ts,814
+Tobias Harris (2025-26),Detroit Pistons,85,C,makePlayer,src/data/players-current-2026.ts,307
+Tom Chambers (SuperSonics),Oklahoma City Thunder,85,,makeHistoricalVariant,src/data/players.ts,815
+Tony Kukoc,Chicago Bulls,85,C,makePlayer,src/data/players.ts,368
+Tracy McGrady (Raptors),Toronto Raptors,85,C,makePlayer,src/data/players.ts,444
+Trevor Ariza,Los Angeles Lakers,85,C,makePlayer,src/data/players.ts,654
+Tyson Chandler,Dallas Mavericks,85,C,makePlayer,src/data/players.ts,565
+Vlade Divac,Sacramento Kings,85,C,makePlayer,src/data/players.ts,580
+Wendell Carter Jr. (2025-26),Orlando Magic,85,C,makePlayer,src/data/players-current-2026.ts,286
+Zach Randolph,Memphis Grizzlies,85,C,makePlayer,src/data/players.ts,544
+Zydrunas Ilgauskas,Cleveland Cavaliers,85,C,makePlayer,src/data/players.ts,637
+Aaron Nesmith (2025-26),Indiana Pacers,84,C,makePlayer,src/data/players-current-2026.ts,450
+Andre Miller (Nuggets),Denver Nuggets,84,,makeHistoricalVariant,src/data/players.ts,816
+Andrew Bogut,Golden State Warriors,84,C,makePlayer,src/data/players.ts,663
+Anfernee Simons (2025-26),Chicago Bulls,84,C,makePlayer,src/data/players-current-2026.ts,403
+Ayo Dosunmu (2025-26),Minnesota Timberwolves,84,C,makePlayer,src/data/players-current-2026.ts,264
+Bobby Portis (2025-26),Milwaukee Bucks,84,C,makePlayer,src/data/players-current-2026.ts,313
+Brandon Williams (2025-26),Dallas Mavericks,84,C,makePlayer,src/data/players-current-2026.ts,358
+Cameron Johnson (2025-26),Denver Nuggets,84,C,makePlayer,src/data/players-current-2026.ts,334
+Carlos Boozer (Bulls),Chicago Bulls,84,C,makePlayer,src/data/players.ts,537
+Chris Kaman (Clippers),Los Angeles Clippers,84,C,makePlayer,src/data/players.ts,877
+Clint Capela,Houston Rockets,84,C,makePlayer,src/data/players.ts,597
+Coby White (2025-26),Charlotte Hornets,84,C,makePlayer,src/data/players-current-2026.ts,409
+Dan Majerle,Phoenix Suns,84,C,makePlayer,src/data/players.ts,672
+Deandre Ayton (2025-26),Los Angeles Lakers,84,C,makePlayer,src/data/players-current-2026.ts,318
+Draymond Green (2025-26),Golden State Warriors,84,C,makePlayer,src/data/players-current-2026.ts,387
+Emeka Okafor,Charlotte Hornets,84,C,makePlayer,src/data/players.ts,712
+Hassan Whiteside (Heat),Miami Heat,84,,makeHistoricalVariant,src/data/players.ts,817
+Hedo Turkoglu,Orlando Magic,84,C,makePlayer,src/data/players.ts,583
+J.J. Redick (Clippers),Los Angeles Clippers,84,C,makePlayer,src/data/players.ts,656
+J.R. Smith (Knicks),New York Knicks,84,,makeHistoricalVariant,src/data/players.ts,818
+Jamal Crawford,Los Angeles Clippers,84,C,makePlayer,src/data/players.ts,692
+Jamal Crawford (Hawks),Atlanta Hawks,84,,makeHistoricalVariant,src/data/players.ts,819
+Jameer Nelson,Orlando Magic,84,C,makePlayer,src/data/players.ts,646
+Jason Terry,Dallas Mavericks,84,C,makePlayer,src/data/players.ts,577
+Jaylon Tyson (2025-26),Cleveland Cavaliers,84,C,makePlayer,src/data/players-current-2026.ts,295
+Jerome Kersey (Blazers),Portland Trail Blazers,84,,makeHistoricalVariant,src/data/players.ts,820
+Joe Johnson (Suns),Phoenix Suns,84,,makeHistoricalVariant,src/data/players.ts,821
+John Collins (2025-26),Los Angeles Clippers,84,C,makePlayer,src/data/players-current-2026.ts,297
+John Starks,New York Knicks,84,C,makePlayer,src/data/players.ts,612
+Josh Howard,Dallas Mavericks,84,C,makePlayer,src/data/players.ts,631
+Jrue Holiday (Pelicans),New Orleans Pelicans,84,C,makePlayer,src/data/players.ts,842
+Keegan Murray (2025-26),Sacramento Kings,84,C,makePlayer,src/data/players-current-2026.ts,499
+Keldon Johnson (2025-26),San Antonio Spurs,84,C,makePlayer,src/data/players-current-2026.ts,299
+Kevin Willis,Atlanta Hawks,84,C,makePlayer,src/data/players.ts,430
+Klay Thompson (2025-26),Dallas Mavericks,84,C,makePlayer,src/data/players-current-2026.ts,481
+Kyle Filipowski (2025-26),Utah Jazz,84,C,makePlayer,src/data/players-current-2026.ts,302
+Lamar Odom,Los Angeles Lakers,84,C,makePlayer,src/data/players.ts,541
+Larry Johnson (Knicks),New York Knicks,84,C,makePlayer,src/data/players.ts,534
+Lonzo Ball (Pelicans),New Orleans Pelicans,84,C,makePlayer,src/data/players.ts,866
+Luguentz Dort (2025-26),Oklahoma City Thunder,84,C,makePlayer,src/data/players-current-2026.ts,483
+Luis Scola,Houston Rockets,84,C,makePlayer,src/data/players.ts,604
+Luol Deng,Chicago Bulls,84,C,makePlayer,src/data/players.ts,523
+Marcus Camby (Knicks),New York Knicks,84,C,makePlayer,src/data/players.ts,722
+Mark Eaton,Utah Jazz,84,C,makePlayer,src/data/players.ts,584
+Mark Williams (2025-26),Phoenix Suns,84,C,makePlayer,src/data/players-current-2026.ts,275
+Mike Bibby,Sacramento Kings,84,C,makePlayer,src/data/players.ts,579
+Moses Moody (2025-26),Golden State Warriors,84,C,makePlayer,src/data/players-current-2026.ts,350
+Myles Turner (2025-26),Milwaukee Bucks,84,C,makePlayer,src/data/players-current-2026.ts,328
+Naji Marshall (2025-26),Dallas Mavericks,84,C,makePlayer,src/data/players-current-2026.ts,303
+Nicolas Batum (Blazers),Portland Trail Blazers,84,,makeHistoricalVariant,src/data/players.ts,822
+Noah Clowney (2025-26),Brooklyn Nets,84,C,makePlayer,src/data/players-current-2026.ts,420
+OG Anunoby (Raptors),Toronto Raptors,84,C,makePlayer,src/data/players.ts,729
+Otis Thorpe,Houston Rockets,84,C,makePlayer,src/data/players.ts,603
+Quentin Grimes (2025-26),Philadelphia 76ers,84,C,makePlayer,src/data/players-current-2026.ts,353
+Rex Chapman (Suns),Phoenix Suns,84,,makeHistoricalVariant,src/data/players.ts,823
+Richard Jefferson,Brooklyn Nets,84,C,makePlayer,src/data/players.ts,573
+Ricky Rubio (Timberwolves),Minnesota Timberwolves,84,C,makePlayer,src/data/players.ts,601
+Rip Hamilton (Wizards),Washington Wizards,84,C,makePlayer,src/data/players.ts,846
+Robert Horry (Spurs),San Antonio Spurs,84,C,makePlayer,src/data/players.ts,863
+Rui Hachimura (2025-26),Los Angeles Lakers,84,C,makePlayer,src/data/players-current-2026.ts,422
+Scoot Henderson (2025-26),Portland Trail Blazers,84,C,makePlayer,src/data/players-current-2026.ts,466
+Serge Ibaka (Raptors),Toronto Raptors,84,C,makePlayer,src/data/players.ts,731
+Shareef Abdour-Rahim,Memphis Grizzlies,84,C,makePlayer,src/data/players.ts,680
+Tari Eason (2025-26),Houston Rockets,84,C,makePlayer,src/data/players-current-2026.ts,399
+Tony Allen,Memphis Grizzlies,84,C,makePlayer,src/data/players.ts,569
+Tre Jones (2025-26),Chicago Bulls,84,C,makePlayer,src/data/players-current-2026.ts,309
+Trevor Ariza (Rockets),Houston Rockets,84,C,makePlayer,src/data/players.ts,655
+Tyson Chandler (Hornets),New Orleans Pelicans,84,C,makePlayer,src/data/players.ts,488
+Tyson Chandler (Knicks),New York Knicks,84,,makeHistoricalVariant,src/data/players.ts,824
+Vin Baker,Milwaukee Bucks,84,C,makePlayer,src/data/players.ts,675
+Wesley Matthews (Blazers),Portland Trail Blazers,84,,makeHistoricalVariant,src/data/players.ts,825
+Zach LaVine (2025-26),Sacramento Kings,84,C,makePlayer,src/data/players-current-2026.ts,425
+A.C. Green (Lakers),Los Angeles Lakers,83,,makeHistoricalVariant,src/data/players.ts,826
+A.J. Green (2025-26),Milwaukee Bucks,83,C,makePlayer,src/data/players-current-2026.ts,449
+Aaron Brooks (Rockets),Houston Rockets,83,,makeHistoricalVariant,src/data/players.ts,827
+Aaron Wiggins (2025-26),Oklahoma City Thunder,83,C,makePlayer,src/data/players-current-2026.ts,426
+Al Harrington (Knicks),New York Knicks,83,C,makePlayer,src/data/players.ts,623
+Al Harrington (Warriors),Golden State Warriors,83,C,makePlayer,src/data/players.ts,624
+Alex Caruso (2025-26),Oklahoma City Thunder,83,C,makePlayer,src/data/players-current-2026.ts,471
+Andray Blatche (Wizards),Washington Wizards,83,C,makePlayer,src/data/players.ts,845
+Andrei Kirilenko (Nets),Brooklyn Nets,83,,makeHistoricalVariant,src/data/players.ts,828
+Anthony McKie (76ers),Philadelphia 76ers,83,C,makePlayer,src/data/players.ts,720
+Antonio Davis (Pacers),Indiana Pacers,83,,makeHistoricalVariant,src/data/players.ts,829
+Avery Bradley,Boston Celtics,83,C,makePlayer,src/data/players.ts,528
+Avery Johnson (Spurs),San Antonio Spurs,83,,makeHistoricalVariant,src/data/players.ts,830
+Bilal Coulibaly (2025-26),Washington Wizards,83,C,makePlayer,src/data/players-current-2026.ts,405
+Boris Diaw,Phoenix Suns,83,C,makePlayer,src/data/players.ts,526
+Brandin Podziemski (2025-26),Golden State Warriors,83,C,makePlayer,src/data/players-current-2026.ts,265
+Brandon Jennings,Milwaukee Bucks,83,C,makePlayer,src/data/players.ts,701
+Brice Sensabaugh (2025-26),Utah Jazz,83,C,makePlayer,src/data/players-current-2026.ts,407
+Byron Scott,Los Angeles Lakers,83,C,makePlayer,src/data/players.ts,673
+Cam Spencer (2025-26),Memphis Grizzlies,83,C,makePlayer,src/data/players-current-2026.ts,314
+Cason Wallace (2025-26),Oklahoma City Thunder,83,C,makePlayer,src/data/players-current-2026.ts,359
+Chandler Parsons (Rockets),Houston Rockets,83,,makeHistoricalVariant,src/data/players.ts,831
+Christian Braun (2025-26),Denver Nuggets,83,C,makePlayer,src/data/players-current-2026.ts,382
+Corey Maggette,Los Angeles Clippers,83,C,makePlayer,src/data/players.ts,686
+Dale Davis,Indiana Pacers,83,C,makePlayer,src/data/players.ts,621
+Damon Stoudamire (Raptors),Toronto Raptors,83,,makeHistoricalVariant,src/data/players.ts,832
+Daniel Gafford (2025-26),Dallas Mavericks,83,C,makePlayer,src/data/players-current-2026.ts,336
+David West,New Orleans Pelicans,83,C,makePlayer,src/data/players.ts,545
+David West (Pacers),Indiana Pacers,83,,makeHistoricalVariant,src/data/players.ts,833
+Davion Mitchell (2025-26),Miami Heat,83,C,makePlayer,src/data/players-current-2026.ts,383
+Dennis Scott,Orlando Magic,83,C,makePlayer,src/data/players.ts,679
+Derrick White (Spurs),San Antonio Spurs,83,C,makePlayer,src/data/players.ts,869
+Donte DiVincenzo (2025-26),Minnesota Timberwolves,83,C,makePlayer,src/data/players-current-2026.ts,266
+Eric Gordon,Houston Rockets,83,C,makePlayer,src/data/players.ts,690
+Eric Gordon (Clippers),Los Angeles Clippers,83,,makeHistoricalVariant,src/data/players.ts,834
+Gordon Hayward (Celtics),Boston Celtics,83,,makeHistoricalVariant,src/data/players.ts,835
+Harrison Barnes (Kings),Sacramento Kings,83,,makeHistoricalVariant,src/data/players.ts,878
+Harrison Barnes (Warriors),Golden State Warriors,83,C,makePlayer,src/data/players.ts,464
+Herbert Jones (2025-26),New Orleans Pelicans,83,C,makePlayer,src/data/players-current-2026.ts,477
+J.J. Redick,Orlando Magic,83,C,makePlayer,src/data/players.ts,649
+J.R. Smith (Nuggets),Denver Nuggets,83,,makeHistoricalVariant,src/data/players.ts,879
+Jake LaRavia (2025-26),Los Angeles Lakers,83,C,makePlayer,src/data/players-current-2026.ts,365
+Jakob Poeltl (2025-26),Toronto Raptors,83,C,makePlayer,src/data/players-current-2026.ts,339
+Jamal Tinsley,Indiana Pacers,83,C,makePlayer,src/data/players.ts,620
+Jaylen Wells (2025-26),Memphis Grizzlies,83,C,makePlayer,src/data/players-current-2026.ts,459
+Jeff Teague,Atlanta Hawks,83,C,makePlayer,src/data/players.ts,593
+Jerry Stackhouse,Dallas Mavericks,83,C,makePlayer,src/data/players.ts,632
+Jonathan Kuminga (2025-26),Atlanta Hawks,83,C,makePlayer,src/data/players-current-2026.ts,437
+Jose Alvarado (2025-26),New York Knicks,83,C,makePlayer,src/data/players-current-2026.ts,479
+Keith Van Horn,Brooklyn Nets,83,C,makePlayer,src/data/players.ts,628
+Kevin Garnett (Nets),Brooklyn Nets,83,,makeHistoricalVariant,src/data/players.ts,880
+Kyle Korver,Atlanta Hawks,83,C,makePlayer,src/data/players.ts,594
+Kyle Lowry (Heat),Miami Heat,83,,makeHistoricalVariant,src/data/players.ts,881
+Leandro Barbosa (Suns),Phoenix Suns,83,C,makePlayer,src/data/players.ts,725
+Mahmoud Abdul-Rauf,Denver Nuggets,83,C,makePlayer,src/data/players.ts,677
+Max Christie (2025-26),Dallas Mavericks,83,C,makePlayer,src/data/players-current-2026.ts,396
+Miles McBride (2025-26),New York Knicks,83,C,makePlayer,src/data/players-current-2026.ts,419
+Mitchell Robinson (2025-26),New York Knicks,83,C,makePlayer,src/data/players-current-2026.ts,349
+Mo Williams,Cleveland Cavaliers,83,C,makePlayer,src/data/players.ts,640
+Nene (Nuggets),Denver Nuggets,83,,makeHistoricalVariant,src/data/players.ts,882
+Nikola Pekovic,Minnesota Timberwolves,83,C,makePlayer,src/data/players.ts,602
+O.J. Mayo,Memphis Grizzlies,83,C,makePlayer,src/data/players.ts,530
+Otto Porter Jr.,Washington Wizards,83,C,makePlayer,src/data/players.ts,734
+P.J. Brown,New Orleans Pelicans,83,C,makePlayer,src/data/players.ts,546
+Peja Stojakovic (Hornets),New Orleans Pelicans,83,C,makePlayer,src/data/players.ts,487
+Raja Bell (Suns),Phoenix Suns,83,C,makePlayer,src/data/players.ts,726
+Robert Horry,Los Angeles Lakers,83,C,makePlayer,src/data/players.ts,608
+Rudy Gay (Raptors),Toronto Raptors,83,,makeHistoricalVariant,src/data/players.ts,883
+Ryan Dunn (2025-26),Phoenix Suns,83,C,makePlayer,src/data/players-current-2026.ts,465
+Sam Perkins (Sonics),Oklahoma City Thunder,83,C,makePlayer,src/data/players.ts,717
+Shane Battier,Houston Rockets,83,C,makePlayer,src/data/players.ts,708
+Stephen Jackson (Bobcats),Charlotte Hornets,83,,makeHistoricalVariant,src/data/players.ts,884
+Steve Nash (Lakers),Los Angeles Lakers,83,,makeHistoricalVariant,src/data/players.ts,885
+Steve Smith (Spurs),San Antonio Spurs,83,,makeHistoricalVariant,src/data/players.ts,886
+Steven Adams (2025-26),Houston Rockets,83,C,makePlayer,src/data/players-current-2026.ts,503
+Taj Gibson,Chicago Bulls,83,C,makePlayer,src/data/players.ts,538
+Theo Ratliff (76ers),Philadelphia 76ers,83,C,makePlayer,src/data/players.ts,719
+Tim Hardaway Jr. (2025-26),Denver Nuggets,83,C,makePlayer,src/data/players-current-2026.ts,400
+Tom Gugliotta (Timberwolves),Minnesota Timberwolves,83,,makeHistoricalVariant,src/data/players.ts,887
+Tre Johnson (2025-26),Washington Wizards,83,C,makePlayer,src/data/players-current-2026.ts,544
+Tyreke Evans,Sacramento Kings,83,C,makePlayer,src/data/players.ts,529
+Vernon Maxwell (Rockets),Houston Rockets,83,,makeHistoricalVariant,src/data/players.ts,888
+Vlade Divac (Lakers),Los Angeles Lakers,83,,makeHistoricalVariant,src/data/players.ts,889
+Wally Szczerbiak,Minnesota Timberwolves,83,C,makePlayer,src/data/players.ts,599
+Zach Edey (2025-26),Memphis Grizzlies,83,C,makePlayer,src/data/players-current-2026.ts,447
+Zach LaVine (Timberwolves),Minnesota Timberwolves,83,C,makePlayer,src/data/players.ts,839
+Al Harrington,Indiana Pacers,82,C,makePlayer,src/data/players.ts,622
+Andre Drummond (2025-26),Philadelphia 76ers,82,C,makePlayer,src/data/players-current-2026.ts,428
+Andrea Bargnani,Toronto Raptors,82,C,makePlayer,src/data/players.ts,499
+Andris Biedrins,Golden State Warriors,82,C,makePlayer,src/data/players.ts,666
+Boris Diaw (Spurs),San Antonio Spurs,82,,makeHistoricalVariant,src/data/players.ts,890
+Bruce Brown (2025-26),Denver Nuggets,82,C,makePlayer,src/data/players-current-2026.ts,429
+Bryant Reeves,Memphis Grizzlies,82,C,makePlayer,src/data/players.ts,587
+Bub Carrington (2025-26),Washington Wizards,82,C,makePlayer,src/data/players-current-2026.ts,491
+Cam Thomas (2025-26),Milwaukee Bucks,82,C,makePlayer,src/data/players-current-2026.ts,577
+Collin Murray-Boyles (2025-26),Toronto Raptors,82,C,makePlayer,src/data/players-current-2026.ts,335
+Craig Ehlo (Cavs),Cleveland Cavaliers,82,C,makePlayer,src/data/players.ts,870
+Danilo Gallinari (Knicks),New York Knicks,82,,makeHistoricalVariant,src/data/players.ts,891
+Daniss Jenkins (2025-26),Detroit Pistons,82,C,makePlayer,src/data/players-current-2026.ts,410
+Danny Green,San Antonio Spurs,82,C,makePlayer,src/data/players.ts,661
+Danny Wolf (2025-26),Brooklyn Nets,82,C,makePlayer,src/data/players-current-2026.ts,453
+Day'Ron Sharpe (2025-26),Brooklyn Nets,82,C,makePlayer,src/data/players-current-2026.ts,317
+Dennis Rodman (Spurs),San Antonio Spurs,82,,makeHistoricalVariant,src/data/players.ts,892
+Dereck Lively II (2025-26),Dallas Mavericks,82,C,makePlayer,src/data/players-current-2026.ts,495
+Doc Rivers,Atlanta Hawks,82,C,makePlayer,src/data/players.ts,429
+Dominick Barlow (2025-26),Philadelphia 76ers,82,C,makePlayer,src/data/players-current-2026.ts,386
+Duncan Robinson (2025-26),Detroit Pistons,82,C,makePlayer,src/data/players-current-2026.ts,319
+Dylan Cardwell (2025-26),Sacramento Kings,82,C,makePlayer,src/data/players-current-2026.ts,456
+Eric Snow (76ers),Philadelphia 76ers,82,C,makePlayer,src/data/players.ts,721
+GG Jackson II (2025-26),Memphis Grizzlies,82,C,makePlayer,src/data/players-current-2026.ts,388
+Gui Santos (2025-26),Golden State Warriors,82,C,makePlayer,src/data/players-current-2026.ts,337
+Harrison Barnes (2025-26),San Antonio Spurs,82,C,makePlayer,src/data/players-current-2026.ts,363
+Isaiah Collier (2025-26),Utah Jazz,82,C,makePlayer,src/data/players-current-2026.ts,434
+Isaiah Stewart (2025-26),Detroit Pistons,82,C,makePlayer,src/data/players-current-2026.ts,364
+Jaden Ivey (2025-26),Chicago Bulls,82,C,makePlayer,src/data/players-current-2026.ts,458
+Jae Crowder (Celtics),Boston Celtics,82,,makeHistoricalVariant,src/data/players.ts,893
+Jalen Smith (2025-26),Chicago Bulls,82,C,makePlayer,src/data/players-current-2026.ts,389
+Jared McCain (2025-26),Oklahoma City Thunder,82,C,makePlayer,src/data/players-current-2026.ts,533
+Jeremy Lin,New York Knicks,82,C,makePlayer,src/data/players.ts,691
+Jose Calderon (Raptors),Toronto Raptors,82,,makeHistoricalVariant,src/data/players.ts,894
+Julian Champagnie (2025-26),San Antonio Spurs,82,C,makePlayer,src/data/players-current-2026.ts,272
+Julius Randle (Lakers),Los Angeles Lakers,82,C,makePlayer,src/data/players.ts,837
+Jusuf Nurkic (2025-26),Utah Jazz,82,C,makePlayer,src/data/players-current-2026.ts,344
+Kelly Oubre Jr. (2025-26),Philadelphia 76ers,82,C,makePlayer,src/data/players-current-2026.ts,345
+Kendrick Perkins,Boston Celtics,82,C,makePlayer,src/data/players.ts,643
+Kenny Smith,Houston Rockets,82,C,makePlayer,src/data/players.ts,605
+Kerry Kittles,Brooklyn Nets,82,C,makePlayer,src/data/players.ts,627
+Kirk Hinrich (Bulls),Chicago Bulls,82,,makeHistoricalVariant,src/data/players.ts,895
+Kyle Korver (Jazz),Utah Jazz,82,,makeHistoricalVariant,src/data/players.ts,896
+Lance Stephenson,Indiana Pacers,82,C,makePlayer,src/data/players.ts,472
+Lou Williams (Hawks),Atlanta Hawks,82,,makeHistoricalVariant,src/data/players.ts,897
+Marcin Gortat,Washington Wizards,82,C,makePlayer,src/data/players.ts,651
+Marcus Smart (2025-26),Los Angeles Lakers,82,C,makePlayer,src/data/players-current-2026.ts,464
+Matt Barnes (Clippers),Los Angeles Clippers,82,C,makePlayer,src/data/players.ts,657
+Max Strus (2025-26),Cleveland Cavaliers,82,C,makePlayer,src/data/players-current-2026.ts,484
+Mehmet Okur (Pistons),Detroit Pistons,82,,makeHistoricalVariant,src/data/players.ts,898
+Mike Miller (Grizzlies),Memphis Grizzlies,82,,makeHistoricalVariant,src/data/players.ts,899
+Moussa Diabaté (2025-26),Charlotte Hornets,82,C,makePlayer,src/data/players-current-2026.ts,277
+Muggsy Bogues,Charlotte Hornets,82,C,makePlayer,src/data/players.ts,553
+Neemias Queta (2025-26),Boston Celtics,82,C,makePlayer,src/data/players-current-2026.ts,250
+Nick Young (Wizards),Washington Wizards,82,C,makePlayer,src/data/players.ts,844
+Obi Toppin (2025-26),Indiana Pacers,82,C,makePlayer,src/data/players-current-2026.ts,421
+Paul Pierce (Nets),Brooklyn Nets,82,,makeHistoricalVariant,src/data/players.ts,900
+Paul Reed (2025-26),Detroit Pistons,82,C,makePlayer,src/data/players-current-2026.ts,330
+Rajon Rondo (Lakers),Los Angeles Lakers,82,,makeHistoricalVariant,src/data/players.ts,901
+Robert Williams (2025-26),Portland Trail Blazers,82,C,makePlayer,src/data/players-current-2026.ts,354
+Royce O'Neale (2025-26),Phoenix Suns,82,C,makePlayer,src/data/players-current-2026.ts,306
+Sam Hauser (2025-26),Boston Celtics,82,C,makePlayer,src/data/players-current-2026.ts,377
+Sandro Mamukelashvili (2025-26),Toronto Raptors,82,C,makePlayer,src/data/players-current-2026.ts,258
+Shane Battier (Heat),Miami Heat,82,C,makePlayer,src/data/players.ts,709
+Shawn Bradley,Dallas Mavericks,82,C,makePlayer,src/data/players.ts,676
+Shawn Marion (Heat),Miami Heat,82,,makeHistoricalVariant,src/data/players.ts,902
+Stephen Jackson,Golden State Warriors,82,C,makePlayer,src/data/players.ts,542
+Taylor Hendricks (2025-26),Memphis Grizzlies,82,C,makePlayer,src/data/players-current-2026.ts,504
+Tayshaun Prince (Grizzlies),Memphis Grizzlies,82,,makeHistoricalVariant,src/data/players.ts,903
+Trevor Ariza (Wizards),Washington Wizards,82,C,makePlayer,src/data/players.ts,733
+Tristan Thompson,Cleveland Cavaliers,82,C,makePlayer,src/data/players.ts,639
+Tristan Vukcevic (2025-26),Washington Wizards,82,C,makePlayer,src/data/players-current-2026.ts,444
+Ty Jerome (2025-26),Memphis Grizzlies,82,C,makePlayer,src/data/players-current-2026.ts,401
+Ziaire Williams (2025-26),Brooklyn Nets,82,C,makePlayer,src/data/players-current-2026.ts,448
+Anderson Varejao,Cleveland Cavaliers,81,C,makePlayer,src/data/players.ts,638
+Andray Blatche (Nets),Brooklyn Nets,81,,makeHistoricalVariant,src/data/players.ts,904
+Andrea Bargnani (Knicks),New York Knicks,81,,makeHistoricalVariant,src/data/players.ts,905
+Baylor Scheierman (2025-26),Boston Celtics,81,C,makePlayer,src/data/players-current-2026.ts,404
+Brook Lopez (2025-26),Los Angeles Clippers,81,C,makePlayer,src/data/players-current-2026.ts,408
+Bruce Bowen,San Antonio Spurs,81,C,makePlayer,src/data/players.ts,607
+Caris LeVert (2025-26),Detroit Pistons,81,C,makePlayer,src/data/players-current-2026.ts,473
+Chris Andersen,Miami Heat,81,C,makePlayer,src/data/players.ts,618
+Clint Capela (2025-26),Houston Rockets,81,C,makePlayer,src/data/players-current-2026.ts,451
+Danny Green (Raptors),Toronto Raptors,81,C,makePlayer,src/data/players.ts,728
+De'Andre Hunter (2025-26),Sacramento Kings,81,C,makePlayer,src/data/players-current-2026.ts,494
+De'Anthony Melton (2025-26),Golden State Warriors,81,C,makePlayer,src/data/players-current-2026.ts,430
+Dean Wade (2025-26),Cleveland Cavaliers,81,C,makePlayer,src/data/players-current-2026.ts,431
+Dell Curry,Charlotte Hornets,81,C,makePlayer,src/data/players.ts,568
+Dennis Schröder (2025-26),Cleveland Cavaliers,81,C,makePlayer,src/data/players-current-2026.ts,454
+Derrick Jones Jr. (2025-26),Los Angeles Clippers,81,C,makePlayer,src/data/players-current-2026.ts,384
+Devin Harris,Brooklyn Nets,81,C,makePlayer,src/data/players.ts,634
+Gary Trent Jr. (2025-26),Milwaukee Bucks,81,C,makePlayer,src/data/players-current-2026.ts,655
+Glen Davis,Boston Celtics,81,C,makePlayer,src/data/players.ts,645
+Goga Bitadze (2025-26),Orlando Magic,81,C,makePlayer,src/data/players-current-2026.ts,362
+Grant Williams (2025-26),Charlotte Hornets,81,C,makePlayer,src/data/players-current-2026.ts,433
+Iman Shumpert (Knicks),New York Knicks,81,,makeHistoricalVariant,src/data/players.ts,906
+Isaiah Jackson (2025-26),Los Angeles Clippers,81,C,makePlayer,src/data/players-current-2026.ts,413
+Isaiah Joe (2025-26),Oklahoma City Thunder,81,C,makePlayer,src/data/players-current-2026.ts,324
+Jamal Shead (2025-26),Toronto Raptors,81,C,makePlayer,src/data/players-current-2026.ts,531
+Jarace Walker (2025-26),Indiana Pacers,81,C,makePlayer,src/data/players-current-2026.ts,415
+Javonte Green (2025-26),Detroit Pistons,81,C,makePlayer,src/data/players-current-2026.ts,366
+Jay Huff (2025-26),Indiana Pacers,81,C,makePlayer,src/data/players-current-2026.ts,341
+Jaylin Williams (2025-26),Oklahoma City Thunder,81,C,makePlayer,src/data/players-current-2026.ts,368
+Jonas Valanciœnas (2025-26),Denver Nuggets,81,C,makePlayer,src/data/players-current-2026.ts,417
+Jordan Miller (2025-26),Los Angeles Clippers,81,C,makePlayer,src/data/players-current-2026.ts,391
+Jordan Poole (2025-26),New Orleans Pelicans,81,C,makePlayer,src/data/players-current-2026.ts,517
+Kevin Love (2025-26),Utah Jazz,81,C,makePlayer,src/data/players-current-2026.ts,480
+Khris Middleton (2025-26),Dallas Mavericks,81,C,makePlayer,src/data/players-current-2026.ts,500
+Kris Dunn (2025-26),Los Angeles Clippers,81,C,makePlayer,src/data/players-current-2026.ts,394
+Kurt Rambis (Lakers),Los Angeles Lakers,81,,makeHistoricalVariant,src/data/players.ts,907
+Kyle Korver (Bulls),Chicago Bulls,81,C,makePlayer,src/data/players.ts,595
+Landry Shamet (2025-26),New York Knicks,81,C,makePlayer,src/data/players-current-2026.ts,463
+Larry Hughes,Cleveland Cavaliers,81,C,makePlayer,src/data/players.ts,635
+Lou Williams,Los Angeles Clippers,81,C,makePlayer,src/data/players.ts,693
+Luke Kennard (2025-26),Los Angeles Lakers,81,C,makePlayer,src/data/players-current-2026.ts,395
+Luke Kornet (2025-26),San Antonio Spurs,81,C,makePlayer,src/data/players-current-2026.ts,326
+Malik Monk (2025-26),Sacramento Kings,81,C,makePlayer,src/data/players-current-2026.ts,440
+Manute Bol,Golden State Warriors,81,C,makePlayer,src/data/players.ts,548
+Mario Elie (Rockets),Houston Rockets,81,,makeHistoricalVariant,src/data/players.ts,908
+Marvin Bagley III (2025-26),Dallas Mavericks,81,C,makePlayer,src/data/players-current-2026.ts,327
+Matt Harpring (Jazz),Utah Jazz,81,,makeHistoricalVariant,src/data/players.ts,909
+Maxime Raynaud (2025-26),Sacramento Kings,81,C,makePlayer,src/data/players-current-2026.ts,372
+Michael Beasley (Heat),Miami Heat,81,,makeHistoricalVariant,src/data/players.ts,910
+Michael Finley (Spurs),San Antonio Spurs,81,,makeHistoricalVariant,src/data/players.ts,911
+Mike Bibby (Hawks),Atlanta Hawks,81,,makeHistoricalVariant,src/data/players.ts,912
+Moritz Wagner (2025-26),Orlando Magic,81,C,makePlayer,src/data/players-current-2026.ts,554
+Mouhamed Gueye (2025-26),Atlanta Hawks,81,C,makePlayer,src/data/players-current-2026.ts,502
+Nate Robinson (Knicks),New York Knicks,81,,makeHistoricalVariant,src/data/players.ts,913
+Nene,Washington Wizards,81,C,makePlayer,src/data/players.ts,650
+Nick Richards (2025-26),Chicago Bulls,81,C,makePlayer,src/data/players-current-2026.ts,588
+Nikola Jovic (2025-26),Miami Heat,81,C,makePlayer,src/data/players-current-2026.ts,555
+Nique Clifford (2025-26),Sacramento Kings,81,C,makePlayer,src/data/players-current-2026.ts,556
+Noah Penda (2025-26),Orlando Magic,81,C,makePlayer,src/data/players-current-2026.ts,569
+Nolan Traoré (2025-26),Brooklyn Nets,81,C,makePlayer,src/data/players-current-2026.ts,589
+Norman Powell (Raptors),Toronto Raptors,81,,makeHistoricalVariant,src/data/players.ts,914
+Quinten Post (2025-26),Golden State Warriors,81,C,makePlayer,src/data/players-current-2026.ts,441
+Reggie Evans,Sacramento Kings,81,C,makePlayer,src/data/players.ts,703
+Ron Holland (2025-26),Detroit Pistons,81,C,makePlayer,src/data/players-current-2026.ts,442
+Ryan Kalkbrenner (2025-26),Charlotte Hornets,81,C,makePlayer,src/data/players-current-2026.ts,376
+Ryan Nembhard (2025-26),Dallas Mavericks,81,C,makePlayer,src/data/players-current-2026.ts,637
+Sam Merrill (2025-26),Cleveland Cavaliers,81,C,makePlayer,src/data/players-current-2026.ts,398
+Scotty Pippen Jr. (2025-26),Memphis Grizzlies,81,C,makePlayer,src/data/players-current-2026.ts,525
+Shaun Livingston (Nets),Brooklyn Nets,81,,makeHistoricalVariant,src/data/players.ts,915
+Simone Fontecchio (2025-26),Miami Heat,81,C,makePlayer,src/data/players-current-2026.ts,423
+Sion James (2025-26),Charlotte Hornets,81,C,makePlayer,src/data/players-current-2026.ts,526
+Steve Kerr,Chicago Bulls,81,C,makePlayer,src/data/players.ts,369
+Stromile Swift,Memphis Grizzlies,81,C,makePlayer,src/data/players.ts,705
+T.J. McConnell (2025-26),Indiana Pacers,81,C,makePlayer,src/data/players-current-2026.ts,424
+Tidjane Salaün (2025-26),Charlotte Hornets,81,C,makePlayer,src/data/players-current-2026.ts,506
+Tristan Da Silva (2025-26),Orlando Magic,81,C,makePlayer,src/data/players-current-2026.ts,379
+Vít Krejcí (2025-26),Portland Trail Blazers,81,C,makePlayer,src/data/players-current-2026.ts,445
+Will Richard (2025-26),Golden State Warriors,81,C,makePlayer,src/data/players-current-2026.ts,488
+Wilson Chandler (Knicks),New York Knicks,81,,makeHistoricalVariant,src/data/players.ts,916
+Yanic Konan Niederhäuser (2025-26),Los Angeles Clippers,81,C,makePlayer,src/data/players-current-2026.ts,545
+Yves Missi (2025-26),New Orleans Pelicans,81,C,makePlayer,src/data/players-current-2026.ts,489
+Zaccharie Risacher (2025-26),Atlanta Hawks,81,C,makePlayer,src/data/players-current-2026.ts,446
+Zach Collins (2025-26),Chicago Bulls,81,C,makePlayer,src/data/players-current-2026.ts,469
+Adem Bona (2025-26),Philadelphia 76ers,80,C,makePlayer,src/data/players-current-2026.ts,470
+Al Horford (2025-26),Golden State Warriors,80,C,makePlayer,src/data/players-current-2026.ts,380
+Ben Sheppard (2025-26),Indiana Pacers,80,C,makePlayer,src/data/players-current-2026.ts,529
+Bogdan Bogdanovic (2025-26),Los Angeles Clippers,80,C,makePlayer,src/data/players-current-2026.ts,593
+Bones Hyland (2025-26),Minnesota Timberwolves,80,C,makePlayer,src/data/players-current-2026.ts,406
+Caleb Love (2025-26),Portland Trail Blazers,80,C,makePlayer,src/data/players-current-2026.ts,546
+Caleb Martin (2025-26),Dallas Mavericks,80,C,makePlayer,src/data/players-current-2026.ts,576
+Carter Bryant (2025-26),San Antonio Spurs,80,C,makePlayer,src/data/players-current-2026.ts,611
+Cole Anthony (2025-26),Milwaukee Bucks,80,C,makePlayer,src/data/players-current-2026.ts,579
+Corey Kispert (2025-26),Atlanta Hawks,80,C,makePlayer,src/data/players-current-2026.ts,475
+Courtney Lee (Magic),Orlando Magic,80,C,makePlayer,src/data/players.ts,718
+Dalton Knecht (2025-26),Los Angeles Lakers,80,C,makePlayer,src/data/players-current-2026.ts,646
+DeMarre Carroll,Atlanta Hawks,80,C,makePlayer,src/data/players.ts,596
+Derek Fisher,Los Angeles Lakers,80,C,makePlayer,src/data/players.ts,652
+Deron Williams (Cavaliers),Cleveland Cavaliers,80,,makeHistoricalVariant,src/data/players.ts,917
+Drake Powell (2025-26),Brooklyn Nets,80,C,makePlayer,src/data/players-current-2026.ts,654
+Dru Smith (2025-26),Miami Heat,80,C,makePlayer,src/data/players-current-2026.ts,455
+Gary Payton II (2025-26),Golden State Warriors,80,C,makePlayer,src/data/players-current-2026.ts,361
+Gheorghe Muresan,Washington Wizards,80,C,makePlayer,src/data/players.ts,678
+Gradey Dick (2025-26),Toronto Raptors,80,C,makePlayer,src/data/players-current-2026.ts,597
+Guerschon Yabusele (2025-26),Chicago Bulls,80,C,makePlayer,src/data/players-current-2026.ts,548
+Haywood Highsmith (2025-26),Phoenix Suns,80,C,makePlayer,src/data/players-current-2026.ts,496
+Hugo González (2025-26),Boston Celtics,80,C,makePlayer,src/data/players-current-2026.ts,530
+Isaac Okoro (2025-26),Chicago Bulls,80,C,makePlayer,src/data/players-current-2026.ts,497
+J.R. Smith,Cleveland Cavaliers,80,C,makePlayer,src/data/players.ts,662
+Ja'Kobe Walter (2025-26),Toronto Raptors,80,C,makePlayer,src/data/players-current-2026.ts,414
+Jamaree Bouyea (2025-26),Phoenix Suns,80,C,makePlayer,src/data/players-current-2026.ts,532
+Jarred Vanderbilt (2025-26),Los Angeles Lakers,80,C,makePlayer,src/data/players-current-2026.ts,515
+Jason Terry (Celtics),Boston Celtics,80,,makeHistoricalVariant,src/data/players.ts,918
+Javon Small (2025-26),Memphis Grizzlies,80,C,makePlayer,src/data/players-current-2026.ts,416
+Jay Williams,Chicago Bulls,80,C,makePlayer,src/data/players.ts,704
+Jeremy Sochan (2025-26),New York Knicks,80,C,makePlayer,src/data/players-current-2026.ts,564
+Jimmer Fredette,Sacramento Kings,80,C,makePlayer,src/data/players.ts,702
+Jock Landale (2025-26),Atlanta Hawks,80,C,makePlayer,src/data/players-current-2026.ts,342
+Jordan Clarkson (2025-26),New York Knicks,80,C,makePlayer,src/data/players-current-2026.ts,549
+Jordan Goodwin (2025-26),Phoenix Suns,80,C,makePlayer,src/data/players-current-2026.ts,343
+Jordan Walsh (2025-26),Boston Celtics,80,C,makePlayer,src/data/players-current-2026.ts,418
+Josh Okogie (2025-26),Houston Rockets,80,C,makePlayer,src/data/players-current-2026.ts,518
+Julian Strawther (2025-26),Denver Nuggets,80,C,makePlayer,src/data/players-current-2026.ts,536
+Justin Champagnie (2025-26),Washington Wizards,80,C,makePlayer,src/data/players-current-2026.ts,370
+Justin Edwards (2025-26),Philadelphia 76ers,80,C,makePlayer,src/data/players-current-2026.ts,519
+Kasparas Jakucionis (2025-26),Miami Heat,80,C,makePlayer,src/data/players-current-2026.ts,460
+Kelly Olynyk (2025-26),San Antonio Spurs,80,C,makePlayer,src/data/players-current-2026.ts,550
+Kendrick Perkins (Thunder),Oklahoma City Thunder,80,,makeHistoricalVariant,src/data/players.ts,919
+Keon Ellis (2025-26),Cleveland Cavaliers,80,C,makePlayer,src/data/players-current-2026.ts,462
+Kevin Huerter (2025-26),Detroit Pistons,80,C,makePlayer,src/data/players-current-2026.ts,393
+Khaman Maluach (2025-26),Phoenix Suns,80,C,makePlayer,src/data/players-current-2026.ts,603
+Kyle Kuzma (2025-26),Milwaukee Bucks,80,C,makePlayer,src/data/players-current-2026.ts,371
+Leonard Miller (2025-26),Chicago Bulls,80,C,makePlayer,src/data/players-current-2026.ts,482
+Lonzo Ball (2025-26),Cleveland Cavaliers,80,C,makePlayer,src/data/players-current-2026.ts,552
+Marcus Sasser (2025-26),Detroit Pistons,80,C,makePlayer,src/data/players-current-2026.ts,587
+Mario Chalmers,Miami Heat,80,C,makePlayer,src/data/players.ts,659
+Matisse Thybulle (2025-26),Portland Trail Blazers,80,C,makePlayer,src/data/players-current-2026.ts,501
+Mike Bibby (Grizzlies),Memphis Grizzlies,80,,makeHistoricalVariant,src/data/players.ts,920
+Mike Conley (2025-26),Minnesota Timberwolves,80,C,makePlayer,src/data/players-current-2026.ts,568
+Morris Peterson (Hornets),New Orleans Pelicans,80,C,makePlayer,src/data/players.ts,489
+Moussa Cisse (2025-26),Dallas Mavericks,80,C,makePlayer,src/data/players-current-2026.ts,538
+Nae'Qwan Tomlin (2025-26),Cleveland Cavaliers,80,C,makePlayer,src/data/players-current-2026.ts,523
+Nate Robinson,New York Knicks,80,C,makePlayer,src/data/players.ts,695
+Nick Young,Los Angeles Lakers,80,C,makePlayer,src/data/players.ts,707
+Ochai Agbaji (2025-26),Brooklyn Nets,80,C,makePlayer,src/data/players-current-2026.ts,634
+Olivier-Maxence Prosper (2025-26),Memphis Grizzlies,80,C,makePlayer,src/data/players-current-2026.ts,397
+Ousmane Dieng (2025-26),Milwaukee Bucks,80,C,makePlayer,src/data/players-current-2026.ts,571
+P.J. Tucker,Houston Rockets,80,C,makePlayer,src/data/players.ts,598
+Pat Spencer (2025-26),Golden State Warriors,80,C,makePlayer,src/data/players-current-2026.ts,524
+Pelle Larsson (2025-26),Miami Heat,80,C,makePlayer,src/data/players-current-2026.ts,374
+Rafer Alston,Orlando Magic,80,C,makePlayer,src/data/players.ts,647
+Rob Dillingham (2025-26),Chicago Bulls,80,C,makePlayer,src/data/players-current-2026.ts,636
+Ronnie Brewer (Jazz),Utah Jazz,80,C,makePlayer,src/data/players.ts,732
+Shaun Livingston (Warriors),Golden State Warriors,80,,makeHistoricalVariant,src/data/players.ts,921
+Spud Webb,Atlanta Hawks,80,C,makePlayer,src/data/players.ts,567
+Terance Mann (2025-26),Brooklyn Nets,80,C,makePlayer,src/data/players-current-2026.ts,505
+Trendon Watford (2025-26),Philadelphia 76ers,80,C,makePlayer,src/data/players-current-2026.ts,508
+Tyronn Lue,Los Angeles Lakers,80,C,makePlayer,src/data/players.ts,648
+Udonis Haslem,Miami Heat,80,C,makePlayer,src/data/players.ts,658
+Vince Williams Jr. (2025-26),Utah Jazz,80,C,makePlayer,src/data/players-current-2026.ts,509
+Walter Clayton (2025-26),Memphis Grizzlies,80,C,makePlayer,src/data/players-current-2026.ts,574
+Will Riley (2025-26),Washington Wizards,80,C,makePlayer,src/data/players-current-2026.ts,528
+Aaron Holiday (2025-26),Houston Rockets,79,D,makePlayer,src/data/players-current-2026.ts,592
+Alijah Martin (2025-26),Toronto Raptors,79,D,makePlayer,src/data/players-current-2026.ts,641
+Amir Coffey (2025-26),Phoenix Suns,79,D,makePlayer,src/data/players-current-2026.ts,624
+Asa Newell (2025-26),Atlanta Hawks,79,D,makePlayer,src/data/players-current-2026.ts,510
+Ben Saraf (2025-26),Brooklyn Nets,79,D,makePlayer,src/data/players-current-2026.ts,608
+Bradley Beal (2025-26),Los Angeles Clippers,79,D,makePlayer,src/data/players-current-2026.ts,652
+Branden Carlson (2025-26),Oklahoma City Thunder,79,D,makePlayer,src/data/players-current-2026.ts,472
+Brandon Clarke (2025-26),Memphis Grizzlies,79,D,makePlayer,src/data/players-current-2026.ts,610
+Bryce McGowens (2025-26),New Orleans Pelicans,79,D,makePlayer,src/data/players-current-2026.ts,511
+Buddy Hield (2025-26),Atlanta Hawks,79,D,makePlayer,src/data/players-current-2026.ts,492
+Cam Whitmore (2025-26),Washington Wizards,79,D,makePlayer,src/data/players-current-2026.ts,559
+Charles Bassey (2025-26),Golden State Warriors,79,D,makePlayer,src/data/players-current-2026.ts,474
+Charlie Ward (Knicks),New York Knicks,79,D,makePlayer,src/data/players.ts,723
+Cody Williams (2025-26),Utah Jazz,79,D,makePlayer,src/data/players-current-2026.ts,578
+D'Angelo Russell (2025-26),Dallas Mavericks,79,D,makePlayer,src/data/players-current-2026.ts,560
+Dalano Banton (2025-26),Boston Celtics,79,D,makePlayer,src/data/players-current-2026.ts,645
+Devin Carter (2025-26),Sacramento Kings,79,D,makePlayer,src/data/players-current-2026.ts,514
+Drew Gooden,Cleveland Cavaliers,79,D,makePlayer,src/data/players.ts,636
+Drew Timme (2025-26),Los Angeles Lakers,79,D,makePlayer,src/data/players-current-2026.ts,595
+Dwight Powell (2025-26),Dallas Mavericks,79,D,makePlayer,src/data/players-current-2026.ts,476
+Gerald Green,Houston Rockets,79,D,makePlayer,src/data/players.ts,694
+Jabari Walker (2025-26),Philadelphia 76ers,79,D,makePlayer,src/data/players-current-2026.ts,563
+Jaden Hardy (2025-26),Washington Wizards,79,D,makePlayer,src/data/players-current-2026.ts,598
+Jae'Sean Tate (2025-26),Houston Rockets,79,D,makePlayer,src/data/players-current-2026.ts,648
+James Wiseman (2025-26),Indiana Pacers,79,D,makePlayer,src/data/players-current-2026.ts,650
+Jamir Watkins (2025-26),Washington Wizards,79,D,makePlayer,src/data/players-current-2026.ts,498
+Jase Richardson (2025-26),Orlando Magic,79,D,makePlayer,src/data/players-current-2026.ts,600
+Jaxson Hayes (2025-26),Los Angeles Lakers,79,D,makePlayer,src/data/players-current-2026.ts,367
+John Konchar (2025-26),Utah Jazz,79,D,makePlayer,src/data/players-current-2026.ts,436
+Johnny Furphy (2025-26),Indiana Pacers,79,D,makePlayer,src/data/players-current-2026.ts,584
+Jonathan Isaac (2025-26),Orlando Magic,79,D,makePlayer,src/data/players-current-2026.ts,613
+Jonathan Mogbo (2025-26),Toronto Raptors,79,D,makePlayer,src/data/players-current-2026.ts,585
+Jordan Hawkins (2025-26),New Orleans Pelicans,79,D,makePlayer,src/data/players-current-2026.ts,674
+Josh Green (2025-26),Charlotte Hornets,79,D,makePlayer,src/data/players-current-2026.ts,535
+Josh Minott (2025-26),Brooklyn Nets,79,D,makePlayer,src/data/players-current-2026.ts,392
+Karlo Matkovic (2025-26),New Orleans Pelicans,79,D,makePlayer,src/data/players-current-2026.ts,438
+Kenrich Williams (2025-26),Oklahoma City Thunder,79,D,makePlayer,src/data/players-current-2026.ts,461
+Kentavious Caldwell-Pope (2025-26),Memphis Grizzlies,79,D,makePlayer,src/data/players-current-2026.ts,537
+Kevon Looney (2025-26),New Orleans Pelicans,79,D,makePlayer,src/data/players-current-2026.ts,602
+Kobe Sanders (2025-26),Los Angeles Clippers,79,D,makePlayer,src/data/players-current-2026.ts,521
+Larry Nance Jr. (2025-26),Cleveland Cavaliers,79,D,makePlayer,src/data/players-current-2026.ts,631
+Luka Garza (2025-26),Boston Celtics,79,D,makePlayer,src/data/players-current-2026.ts,348
+Mason Plumlee (2025-26),San Antonio Spurs,79,D,makePlayer,src/data/players-current-2026.ts,553
+Micah Peavy (2025-26),New Orleans Pelicans,79,D,makePlayer,src/data/players-current-2026.ts,659
+Nicolas Batum (2025-26),Los Angeles Clippers,79,D,makePlayer,src/data/players-current-2026.ts,539
+Nikola Topic (2025-26),Oklahoma City Thunder,79,D,makePlayer,src/data/players-current-2026.ts,633
+Oso Ighodaro (2025-26),Phoenix Suns,79,D,makePlayer,src/data/players-current-2026.ts,351
+Patrick Williams (2025-26),Chicago Bulls,79,D,makePlayer,src/data/players-current-2026.ts,605
+Precious Achiuwa (2025-26),Sacramento Kings,79,D,makePlayer,src/data/players-current-2026.ts,375
+Rasheer Fleming (2025-26),Phoenix Suns,79,D,makePlayer,src/data/players-current-2026.ts,635
+Ron Harper Jr. (2025-26),Boston Celtics,79,D,makePlayer,src/data/players-current-2026.ts,572
+Spencer Jones (2025-26),Denver Nuggets,79,D,makePlayer,src/data/players-current-2026.ts,467
+Terrence Shannon Jr. (2025-26),Minnesota Timberwolves,79,D,makePlayer,src/data/players-current-2026.ts,617
+Tony Allen (Celtics),Boston Celtics,79,,makeHistoricalVariant,src/data/players.ts,922
+Trayce Jackson-Davis (2025-26),Toronto Raptors,79,D,makePlayer,src/data/players-current-2026.ts,507
+Tre Mann (2025-26),Charlotte Hornets,79,D,makePlayer,src/data/players-current-2026.ts,639
+Tyler Kolek (2025-26),New York Knicks,79,D,makePlayer,src/data/players-current-2026.ts,573
+Tyrese Martin (2025-26),Philadelphia 76ers,79,D,makePlayer,src/data/players-current-2026.ts,618
+Tyrese Proctor (2025-26),Cleveland Cavaliers,79,D,makePlayer,src/data/players-current-2026.ts,606
+AJ Johnson (2025-26),Dallas Mavericks,78,D,makePlayer,src/data/players-current-2026.ts,678
+Andre Jackson Jr. (2025-26),Milwaukee Bucks,78,D,makePlayer,src/data/players-current-2026.ts,665
+Brandon Roy (Timberwolves),Minnesota Timberwolves,78,,makeHistoricalVariant,src/data/players.ts,923
+Caleb Houstan (2025-26),Atlanta Hawks,78,D,makePlayer,src/data/players-current-2026.ts,575
+Cameron Payne (2025-26),Philadelphia 76ers,78,D,makePlayer,src/data/players-current-2026.ts,512
+Cody Martin (2025-26),Indiana Pacers,78,D,makePlayer,src/data/players-current-2026.ts,644
+Craig Porter Jr. (2025-26),Cleveland Cavaliers,78,D,makePlayer,src/data/players-current-2026.ts,452
+Dalen Terry (2025-26),Philadelphia 76ers,78,D,makePlayer,src/data/players-current-2026.ts,580
+Dorian Finney-Smith (2025-26),Houston Rockets,78,D,makePlayer,src/data/players-current-2026.ts,669
+Drew Eubanks (2025-26),Sacramento Kings,78,D,makePlayer,src/data/players-current-2026.ts,562
+Duop Reath (2025-26),Portland Trail Blazers,78,D,makePlayer,src/data/players-current-2026.ts,596
+Gabe Vincent (2025-26),Atlanta Hawks,78,D,makePlayer,src/data/players-current-2026.ts,670
+Garrett Temple (2025-26),Toronto Raptors,78,D,makePlayer,src/data/players-current-2026.ts,671
+Garrison Mathews (2025-26),Indiana Pacers,78,D,makePlayer,src/data/players-current-2026.ts,581
+Jalen Pickett (2025-26),Denver Nuggets,78,D,makePlayer,src/data/players-current-2026.ts,599
+Jalen Wilson (2025-26),Brooklyn Nets,78,D,makePlayer,src/data/players-current-2026.ts,649
+Jeff Green (2025-26),Houston Rockets,78,D,makePlayer,src/data/players-current-2026.ts,673
+Jeremiah Robinson-Earl (2025-26),Dallas Mavericks,78,D,makePlayer,src/data/players-current-2026.ts,651
+Jericho Sims (2025-26),Milwaukee Bucks,78,D,makePlayer,src/data/players-current-2026.ts,478
+Jett Howard (2025-26),Orlando Magic,78,D,makePlayer,src/data/players-current-2026.ts,583
+Jevon Carter (2025-26),Orlando Magic,78,D,makePlayer,src/data/players-current-2026.ts,534
+Joan Beringer (2025-26),Minnesota Timberwolves,78,D,makePlayer,src/data/players-current-2026.ts,516
+Joe Ingles (2025-26),Minnesota Timberwolves,78,D,makePlayer,src/data/players-current-2026.ts,565
+Kobe Brown (2025-26),Indiana Pacers,78,D,makePlayer,src/data/players-current-2026.ts,520
+Kris Murray (2025-26),Portland Trail Blazers,78,D,makePlayer,src/data/players-current-2026.ts,522
+Kyle Anderson (2025-26),Minnesota Timberwolves,78,D,makePlayer,src/data/players-current-2026.ts,439
+Liam McNeeley (2025-26),Charlotte Hornets,78,D,makePlayer,src/data/players-current-2026.ts,566
+Mac McClung (2025-26),Chicago Bulls,78,D,makePlayer,src/data/players-current-2026.ts,614
+Matthew Dellavedova,Cleveland Cavaliers,78,D,makePlayer,src/data/players.ts,642
+Maxi Kleber (2025-26),Los Angeles Lakers,78,D,makePlayer,src/data/players-current-2026.ts,658
+Micah Potter (2025-26),Indiana Pacers,78,D,makePlayer,src/data/players-current-2026.ts,373
+Nick Smith Jr. (2025-26),Los Angeles Lakers,78,D,makePlayer,src/data/players-current-2026.ts,632
+Orlando Robinson (2025-26),Orlando Magic,78,D,makePlayer,src/data/players-current-2026.ts,570
+Pat Connaughton (2025-26),Charlotte Hornets,78,D,makePlayer,src/data/players-current-2026.ts,590
+Quenton Jackson (2025-26),Indiana Pacers,78,D,makePlayer,src/data/players-current-2026.ts,486
+Seth Curry (2025-26),Golden State Warriors,78,D,makePlayer,src/data/players-current-2026.ts,542
+Sidy Cissoko (2025-26),Portland Trail Blazers,78,D,makePlayer,src/data/players-current-2026.ts,616
+Svi Mykhailiuk (2025-26),Utah Jazz,78,D,makePlayer,src/data/players-current-2026.ts,487
+Taurean Prince (2025-26),Milwaukee Bucks,78,D,makePlayer,src/data/players-current-2026.ts,527
+Thomas Bryant (2025-26),Cleveland Cavaliers,78,D,makePlayer,src/data/players-current-2026.ts,468
+Tony Bradley (2025-26),Atlanta Hawks,78,D,makePlayer,src/data/players-current-2026.ts,591
+Tyus Jones (2025-26),Denver Nuggets,78,D,makePlayer,src/data/players-current-2026.ts,663
+Yuki Kawamura (2025-26),Chicago Bulls,78,D,makePlayer,src/data/players-current-2026.ts,640
+Zeke Nnaji (2025-26),Denver Nuggets,78,D,makePlayer,src/data/players-current-2026.ts,621
+Adou Thiero (2025-26),Los Angeles Lakers,77,D,makePlayer,src/data/players-current-2026.ts,622
+Amari Williams (2025-26),Boston Celtics,77,D,makePlayer,src/data/players-current-2026.ts,623
+Ariel Hukporti (2025-26),New York Knicks,77,D,makePlayer,src/data/players-current-2026.ts,558
+Bismack Biyombo (2025-26),San Antonio Spurs,77,D,makePlayer,src/data/players-current-2026.ts,642
+Blake Wesley (2025-26),Portland Trail Blazers,77,D,makePlayer,src/data/players-current-2026.ts,609
+Bobi Klintman (2025-26),Detroit Pistons,77,D,makePlayer,src/data/players-current-2026.ts,666
+Bronny James (2025-26),Los Angeles Lakers,77,D,makePlayer,src/data/players-current-2026.ts,653
+Brooks Barnhizer (2025-26),Oklahoma City Thunder,77,D,makePlayer,src/data/players-current-2026.ts,667
+Chaz Lanier (2025-26),Detroit Pistons,77,D,makePlayer,src/data/players-current-2026.ts,679
+Christian Koloko (2025-26),Atlanta Hawks,77,D,makePlayer,src/data/players-current-2026.ts,643
+Daniel Gibson,Cleveland Cavaliers,77,D,makePlayer,src/data/players.ts,641
+Dario Šaric (2025-26),Sacramento Kings,77,D,makePlayer,src/data/players-current-2026.ts,680
+Dariq Whitehead (2025-26),Memphis Grizzlies,77,D,makePlayer,src/data/players-current-2026.ts,594
+DaRon Holmes (2025-26),Denver Nuggets,77,D,makePlayer,src/data/players-current-2026.ts,561
+David Roddy (2025-26),Denver Nuggets,77,D,makePlayer,src/data/players-current-2026.ts,493
+Doug McDermott (2025-26),Sacramento Kings,77,D,makePlayer,src/data/players-current-2026.ts,647
+Eric Gordon (2025-26),Philadelphia 76ers,77,D,makePlayer,src/data/players-current-2026.ts,547
+Gary Harris (2025-26),Milwaukee Bucks,77,D,makePlayer,src/data/players-current-2026.ts,612
+Greg Oden,Portland Trail Blazers,77,D,makePlayer,src/data/players.ts,696
+Harrison Ingram (2025-26),San Antonio Spurs,77,D,makePlayer,src/data/players-current-2026.ts,625
+Isaac Jones (2025-26),Detroit Pistons,77,D,makePlayer,src/data/players-current-2026.ts,672
+Isaiah Stevens (2025-26),Sacramento Kings,77,D,makePlayer,src/data/players-current-2026.ts,582
+Jaylen Clark (2025-26),Minnesota Timberwolves,77,D,makePlayer,src/data/players-current-2026.ts,601
+JD Davison (2025-26),Houston Rockets,77,D,makePlayer,src/data/players-current-2026.ts,627
+Johni Broome (2025-26),Philadelphia 76ers,77,D,makePlayer,src/data/players-current-2026.ts,656
+Jordan McLaughlin (2025-26),San Antonio Spurs,77,D,makePlayer,src/data/players-current-2026.ts,628
+Julian Phillips (2025-26),Minnesota Timberwolves,77,D,makePlayer,src/data/players-current-2026.ts,657
+Keaton Wallace (2025-26),Atlanta Hawks,77,D,makePlayer,src/data/players-current-2026.ts,629
+Keshad Johnson (2025-26),Miami Heat,77,D,makePlayer,src/data/players-current-2026.ts,551
+KJ Simpson (2025-26),Denver Nuggets,77,D,makePlayer,src/data/players-current-2026.ts,630
+Koby Brea (2025-26),Phoenix Suns,77,D,makePlayer,src/data/players-current-2026.ts,586
+Kyle Lowry (2025-26),Philadelphia 76ers,77,D,makePlayer,src/data/players-current-2026.ts,681
+Lindy Waters III (2025-26),San Antonio Spurs,77,D,makePlayer,src/data/players-current-2026.ts,676
+Malaki Branham (2025-26),Washington Wizards,77,D,makePlayer,src/data/players-current-2026.ts,567
+Noa Essengue (2025-26),Chicago Bulls,77,D,makePlayer,src/data/players-current-2026.ts,684
+Oscar Tshiebwe (2025-26),Utah Jazz,77,D,makePlayer,src/data/players-current-2026.ts,485
+Sharife Cooper (2025-26),Washington Wizards,77,D,makePlayer,src/data/players-current-2026.ts,543
+Thanasis Antetokounmpo (2025-26),Milwaukee Bucks,77,D,makePlayer,src/data/players-current-2026.ts,638
+TyTy Washington Jr. (2025-26),Los Angeles Clippers,77,D,makePlayer,src/data/players-current-2026.ts,619
+Yang Hansen (2025-26),Portland Trail Blazers,77,D,makePlayer,src/data/players-current-2026.ts,677
+Alex Antetokounmpo (2025-26),Milwaukee Bucks,76,D,makePlayer,src/data/players-current-2026.ts,557
+Anthony Bennett,Cleveland Cavaliers,76,D,makePlayer,src/data/players.ts,697
+Anthony Gill (2025-26),Washington Wizards,76,D,makePlayer,src/data/players-current-2026.ts,490
+Brian Scalabrine,Boston Celtics,76,D,makePlayer,src/data/players.ts,644
+Cam Christie (2025-26),Los Angeles Clippers,76,D,makePlayer,src/data/players-current-2026.ts,668
+DeAndre Jordan (2025-26),New Orleans Pelicans,76,D,makePlayer,src/data/players-current-2026.ts,513
+Hasheem Thabeet,Memphis Grizzlies,76,D,makePlayer,src/data/players.ts,706
+Jacob Toppin (2025-26),Atlanta Hawks,76,D,makePlayer,src/data/players-current-2026.ts,626
+Kam Jones (2025-26),Indiana Pacers,76,D,makePlayer,src/data/players-current-2026.ts,675
+Kwame Brown,Washington Wizards,76,D,makePlayer,src/data/players.ts,699
+Mark Sears (2025-26),Milwaukee Bucks,76,D,makePlayer,src/data/players-current-2026.ts,604
+Markelle Fultz (2025-26),Orlando Magic,76,D,makePlayer,src/data/players-current-2026.ts,682
+Mohamed Diawara (2025-26),New York Knicks,76,D,makePlayer,src/data/players-current-2026.ts,615
+Monte Morris (2025-26),Indiana Pacers,76,D,makePlayer,src/data/players-current-2026.ts,660
+N'Faly Dante (2025-26),Atlanta Hawks,76,D,makePlayer,src/data/players-current-2026.ts,661
+Nigel Hayes-Davis (2025-26),Phoenix Suns,76,D,makePlayer,src/data/players-current-2026.ts,683
+Pacôme Dadiet (2025-26),New York Knicks,76,D,makePlayer,src/data/players-current-2026.ts,662
+PJ Hall (2025-26),Charlotte Hornets,76,D,makePlayer,src/data/players-current-2026.ts,540
+Rocco Zikarsky (2025-26),Minnesota Timberwolves,76,D,makePlayer,src/data/players-current-2026.ts,541
+Tacko Fall,Boston Celtics,76,D,makePlayer,src/data/players.ts,700
+Vladislav Goldin (2025-26),Miami Heat,76,D,makePlayer,src/data/players-current-2026.ts,607
+Wendell Moore Jr. (2025-26),Detroit Pistons,76,D,makePlayer,src/data/players-current-2026.ts,620
+Xavier Tillman Sr. (2025-26),Charlotte Hornets,76,D,makePlayer,src/data/players-current-2026.ts,664

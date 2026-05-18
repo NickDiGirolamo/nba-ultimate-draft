@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CategoryChallengeSelection, DailyRogueChallengeProgress, DraftChallengeSelection, DraftState, Player, PlayerTier, PrestigeChallengeDefinition, RareEventSelection, RoguePersonalBests, RunHistoryEntry, Screen } from "../types";
+import { CategoryChallengeSelection, DailyRogueChallengeProgress, DraftChallengeSelection, DraftState, Player, PlayerTier, Position, PrestigeChallengeDefinition, RareEventSelection, RoguePersonalBests, RunHistoryEntry, Screen } from "../types";
 import { STORAGE_KEY, assignPlayerToRoster, createSeed, generateChoices, rosterTemplate } from "../lib/draft";
 import { allPlayers } from "../data/players";
 import { evaluateDraftChemistry, getCategoryChallengeTarget, runSeasonSimulation } from "../lib/simulate";
@@ -651,6 +651,52 @@ const drawRogueChallengePackRewardPlayerId = (
   return packPool[Math.floor(Math.random() * packPool.length)]?.id ?? null;
 };
 
+const canPlayerFillPosition = (player: Player, position: Position) =>
+  player.primaryPosition === position || player.secondaryPositions.includes(position);
+
+const drawRogueChallengePoolRewardPlayerId = (
+  tier: PlayerTier,
+  position: Position | undefined,
+  draftState: Pick<DraftState, "ownedRogueStarIds" | "ownedCollectionPlayerIds" | "rogueChallengePackRewardPlayerIds">,
+) => {
+  const excludedPlayerIds = new Set([
+    ...draftState.ownedRogueStarIds,
+    ...draftState.ownedCollectionPlayerIds,
+    ...Object.values(draftState.rogueChallengePackRewardPlayerIds ?? {}),
+  ]);
+  const playerPool = allPlayers
+    .filter((player) => getPlayerTier(player) === tier)
+    .filter((player) => !position || canPlayerFillPosition(player, position))
+    .filter((player) => !excludedPlayerIds.has(player.id));
+
+  return playerPool[Math.floor(Math.random() * playerPool.length)]?.id ?? null;
+};
+
+const getRogueChallengeRewardPackTiers = (challengeId: string) => {
+  const challenge = getRogueChallengeById(challengeId);
+  if (!challenge) return [];
+
+  return [
+    challenge.rewardPackTier ?? null,
+    ...(challenge.rewardPackTiers ?? []),
+  ].filter((tier): tier is PlayerTier => Boolean(tier));
+};
+
+const getRogueChallengePackRewardKey = (challengeId: string, packIndex: number) =>
+  packIndex === 0 ? challengeId : `${challengeId}:${packIndex}`;
+
+export interface RogueChallengeClaimResult {
+  claimed: true;
+  packRewards?: Array<{
+    tier: PlayerTier;
+    playerId: string;
+  }>;
+  packReward?: {
+    tier: PlayerTier;
+    playerId: string;
+  } | null;
+}
+
 const getStoreUnlockQuantity = (
   unlocks: UserStoreUnlockQuantities,
   unlockId: (typeof STORE_UNLOCK_IDS)[number],
@@ -864,28 +910,32 @@ export const useDraftGame = () => {
   ]);
 
   useEffect(() => {
-    const pendingPackRewardChallengeIds = state.claimedRogueChallengeIds.filter((challengeId) => {
-      const challenge = getRogueChallengeById(challengeId);
-      return Boolean(challenge?.rewardPackTier) && !state.rogueChallengePackRewardPlayerIds[challengeId];
-    });
-    if (pendingPackRewardChallengeIds.length === 0) return;
+    const pendingPackRewards = state.claimedRogueChallengeIds.flatMap((challengeId) =>
+      getRogueChallengeRewardPackTiers(challengeId)
+        .map((tier, packIndex) => ({
+          challengeId,
+          tier,
+          packIndex,
+          rewardKey: getRogueChallengePackRewardKey(challengeId, packIndex),
+        }))
+        .filter((reward) => !state.rogueChallengePackRewardPlayerIds[reward.rewardKey]),
+    );
+    if (pendingPackRewards.length === 0) return;
 
     setState((current) => {
       const nextPackRewardPlayerIds = { ...current.rogueChallengePackRewardPlayerIds };
       const packPlayerIds: string[] = [];
 
-      pendingPackRewardChallengeIds.forEach((challengeId) => {
-        if (nextPackRewardPlayerIds[challengeId]) return;
-        const challenge = getRogueChallengeById(challengeId);
-        if (!challenge?.rewardPackTier) return;
+      pendingPackRewards.forEach(({ rewardKey, tier }) => {
+        if (nextPackRewardPlayerIds[rewardKey]) return;
 
-        const playerId = drawRogueChallengePackRewardPlayerId(challenge.rewardPackTier, {
+        const playerId = drawRogueChallengePackRewardPlayerId(tier, {
           ...current,
           rogueChallengePackRewardPlayerIds: nextPackRewardPlayerIds,
         });
         if (!playerId) return;
 
-        nextPackRewardPlayerIds[challengeId] = playerId;
+        nextPackRewardPlayerIds[rewardKey] = playerId;
         packPlayerIds.push(playerId);
       });
 
@@ -2010,10 +2060,6 @@ export const useDraftGame = () => {
             ...uniquePlayerIds,
           ]),
         ),
-        dailyChallengeProgress: {
-          ...next.dailyChallengeProgress,
-          packsOpened: next.dailyChallengeProgress.packsOpened + 1,
-        },
       };
     });
 
@@ -2141,12 +2187,34 @@ export const useDraftGame = () => {
           claimedDailyChallengeIds: [...next.claimedDailyChallengeIds, challengeId],
         };
       });
-      return true;
+      return { claimed: true, packRewards: [], packReward: null };
     }
 
     if (state.claimedRogueChallengeIds.includes(challengeId)) return false;
     if (!state.completedRogueChallengeIds.includes(challengeId)) return false;
     const rewardPlayerId = getRogueChallengeRewardPlayerIds([challengeId])[0] ?? null;
+    const pooledRewardPlayerId = challenge.rewardPlayerPool
+      ? drawRogueChallengePoolRewardPlayerId(
+          challenge.rewardPlayerPool.tier,
+          challenge.rewardPlayerPool.position,
+          state,
+        )
+      : null;
+    const packRewardTiers = getRogueChallengeRewardPackTiers(challengeId);
+    const pendingPackRewardPlayerIds = { ...state.rogueChallengePackRewardPlayerIds };
+    const packRewardPlayerEntries = packRewardTiers.map((tier, packIndex) => {
+      const rewardKey = getRogueChallengePackRewardKey(challengeId, packIndex);
+      const playerId =
+        pendingPackRewardPlayerIds[rewardKey] ??
+        drawRogueChallengePackRewardPlayerId(tier, {
+          ...state,
+          rogueChallengePackRewardPlayerIds: pendingPackRewardPlayerIds,
+        });
+      if (playerId) pendingPackRewardPlayerIds[rewardKey] = playerId;
+      return { tier, packIndex, rewardKey, playerId };
+    });
+    if (packRewardPlayerEntries.some((entry) => !entry.playerId)) return false;
+    if (challenge.rewardPlayerPool && !pooledRewardPlayerId) return false;
 
     setState((current) => {
       if (current.claimedRogueChallengeIds.includes(challengeId)) return current;
@@ -2155,11 +2223,10 @@ export const useDraftGame = () => {
         challenge.rewardCoachId && !current.ownedCoachIds.includes(challenge.rewardCoachId)
           ? [...current.ownedCoachIds, challenge.rewardCoachId]
           : current.ownedCoachIds;
-      const packRewardPlayerId =
-        challenge.rewardPackTier && !current.rogueChallengePackRewardPlayerIds[challengeId]
-          ? drawRogueChallengePackRewardPlayerId(challenge.rewardPackTier, current)
-          : null;
-      const rewardPlayerIds = [rewardPlayerId, packRewardPlayerId].filter(
+      const packRewardPlayerIds = packRewardPlayerEntries
+        .map((entry) => entry.playerId)
+        .filter((playerId): playerId is string => Boolean(playerId));
+      const rewardPlayerIds = [rewardPlayerId, pooledRewardPlayerId, ...packRewardPlayerIds].filter(
         (playerId): playerId is string => Boolean(playerId),
       );
       const ownedRogueStarIds =
@@ -2170,12 +2237,16 @@ export const useDraftGame = () => {
         rewardPlayerIds.length > 0
           ? Array.from(new Set([...current.ownedCollectionPlayerIds, ...rewardPlayerIds]))
           : current.ownedCollectionPlayerIds;
-      const rogueChallengePackRewardPlayerIds = packRewardPlayerId
-        ? {
-            ...current.rogueChallengePackRewardPlayerIds,
-            [challengeId]: packRewardPlayerId,
-          }
-        : current.rogueChallengePackRewardPlayerIds;
+      const rogueChallengePackRewardPlayerIds =
+        packRewardPlayerEntries.length > 0
+          ? packRewardPlayerEntries.reduce(
+              (nextRewardPlayerIds, entry) => {
+                if (entry.playerId) nextRewardPlayerIds[entry.rewardKey] = entry.playerId;
+                return nextRewardPlayerIds;
+              },
+              { ...current.rogueChallengePackRewardPlayerIds },
+            )
+          : current.rogueChallengePackRewardPlayerIds;
 
       return {
         ...current,
@@ -2190,7 +2261,22 @@ export const useDraftGame = () => {
         claimedRogueChallengeIds: [...current.claimedRogueChallengeIds, challengeId],
       };
     });
-    return true;
+    return {
+      claimed: true,
+      packRewards: packRewardPlayerEntries
+        .filter((entry): entry is typeof entry & { playerId: string } => Boolean(entry.playerId))
+        .map((entry) => ({
+          tier: entry.tier,
+          playerId: entry.playerId,
+        })),
+      packReward:
+        packRewardPlayerEntries[0]?.playerId
+          ? {
+              tier: packRewardPlayerEntries[0].tier,
+              playerId: packRewardPlayerEntries[0].playerId,
+            }
+          : null,
+    };
   };
 
   const useTrainingCampTicket = () => {

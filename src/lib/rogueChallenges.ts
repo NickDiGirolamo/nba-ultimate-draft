@@ -1,6 +1,12 @@
 import { allPlayers } from "../data/players";
-import { DailyRogueChallengeProgress, MetaProgress, Player, PlayerTier } from "../types";
-import { teamChemistryGroups } from "./dynamicDuos";
+import { DailyRogueChallengeProgress, MetaProgress, Player, PlayerTier, Position } from "../types";
+import {
+  getActiveBigThrees,
+  getActiveDynamicDuos,
+  getActiveRivalBadges,
+  getActiveTeamChemistryGroups,
+  teamChemistryGroups,
+} from "./dynamicDuos";
 import { getPlayerTier } from "./playerTier";
 import {
   getRoguelikeCoachTeamKey,
@@ -20,7 +26,13 @@ export interface RogueChallengeDefinition {
   subgroupId?: RogueChallengeSubgroupId;
   rewardCoachId?: string;
   rewardPlayerId?: string;
+  rewardPlayerPool?: {
+    tier: PlayerTier;
+    position?: Position;
+    label: string;
+  };
   rewardPackTier?: PlayerTier;
+  rewardPackTiers?: PlayerTier[];
   requiredTeamName?: string;
   progress?: RogueChallengeProgressDefinition;
 }
@@ -216,14 +228,14 @@ const dailyChallenges: RogueChallengeDefinition[] = [
   {
     id: "daily-open-pack",
     title: "Daily Pack Rip",
-    description: "Open any Rogue starter or token-store pack today.",
+    description: "Open 1 player pack from the token store today.",
     reward: 500,
-    requirement: "Open 1 pack today",
+    requirement: "Open 1 token-store player pack today",
     groupId: "daily",
     progress: {
       metric: "dailyPacksOpened",
       target: 1,
-      label: "Packs opened",
+      label: "Token-store packs opened",
       unit: "packs",
     },
   },
@@ -296,6 +308,86 @@ export const ROGUE_CHALLENGES: RogueChallengeDefinition[] = [
   ...exchangeChallenges,
   ...milestoneChallenges,
   {
+    id: "emerald-foundation",
+    title: "Emerald Foundation",
+    description: "Beat the Year 1 NBA Finals with at least 4 Emerald players still on your run roster.",
+    reward: 0,
+    requirement: "4 Emerald players in run roster, clear Year 1 Finals",
+    groupId: "rookie",
+    rewardPackTier: "Emerald",
+  },
+  {
+    id: "point-guard-empire",
+    title: "Point Guard Empire",
+    description: "Beat the Year 1 NBA Finals with 5 players who can play point guard.",
+    reward: 0,
+    requirement: "5 PG-eligible players in run roster, clear Year 1 Finals",
+    groupId: "rookie",
+    rewardPlayerPool: {
+      tier: "Emerald",
+      position: "PG",
+      label: "Emerald PG Player",
+    },
+  },
+  {
+    id: "big-man-takeover",
+    title: "Big Man Takeover",
+    description: "Beat the Year 1 NBA Finals with 5 players who can play center.",
+    reward: 0,
+    requirement: "5 C-eligible players in run roster, clear Year 1 Finals",
+    groupId: "rookie",
+    rewardPlayerPool: {
+      tier: "Emerald",
+      position: "C",
+      label: "Emerald Center Player",
+    },
+  },
+  {
+    id: "no-training-wheels",
+    title: "No Training Wheels",
+    description: "Beat the Year 1 NBA Finals without using a Training Camp during the run.",
+    reward: 0,
+    requirement: "No Training Camps used, clear Year 1 Finals",
+    groupId: "rookie",
+    rewardPackTier: "Emerald",
+  },
+  {
+    id: "trade-deadline-silence",
+    title: "Trade Deadline Silence",
+    description: "Beat the Year 1 NBA Finals without completing a trade during the run.",
+    reward: 0,
+    requirement: "No trades completed, clear Year 1 Finals",
+    groupId: "rookie",
+    rewardPackTier: "Emerald",
+  },
+  {
+    id: "current-era-kings",
+    title: "Current Era Kings",
+    description: "Beat the Year 1 NBA Finals using only current-season players on your run roster.",
+    reward: 0,
+    requirement: "Only current-season players in run roster, clear Year 1 Finals",
+    groupId: "rookie",
+    rewardPackTier: "Emerald",
+  },
+  {
+    id: "legends-never-die",
+    title: "Legends Never Die",
+    description: "Beat the Year 1 NBA Finals using only non-current-season players on your run roster.",
+    reward: 0,
+    requirement: "Only non-current-season players in run roster, clear Year 1 Finals",
+    groupId: "rookie",
+    rewardPackTier: "Emerald",
+  },
+  {
+    id: "positionless-basketball",
+    title: "Positionless Basketball",
+    description: "Beat the Year 1 NBA Finals with 5 players who can play at least 3 positions.",
+    reward: 750,
+    requirement: "5 players with 3+ playable positions in run roster, clear Year 1 Finals",
+    groupId: "pro",
+    rewardPackTier: "Emerald",
+  },
+  {
     id: "first-championship",
     title: "First Championship",
     description: "Beat the Year 1 NBA Finals in a Rogue run and earn an Emerald player pack.",
@@ -347,12 +439,69 @@ export const ROGUE_CHALLENGES: RogueChallengeDefinition[] = [
     groupId: "pro",
   },
   {
+    id: "emerald-empire",
+    title: "Emerald Empire",
+    description: "Beat the Year 1 NBA Finals with only Emerald players in your starting lineup.",
+    reward: 0,
+    requirement: "Starting lineup only: Emerald players, clear Year 1 Finals",
+    groupId: "pro",
+    rewardPackTier: "Sapphire",
+    rewardPackTiers: ["Emerald"],
+  },
+  {
     id: "iconic-team-chem-finals-core",
     title: "Iconic Chemistry Core",
     description: "Beat the Year 2 NBA Finals with 5 starters from the same Team Chemistry group.",
     reward: 2500,
     requirement: "5 same Team Chemistry group starters, clear Year 2 Finals",
     groupId: "superstar",
+  },
+  {
+    id: "all-tiers-year-two-finals",
+    title: "All Tiers",
+    description:
+      "Beat the Year 2 NBA Finals with exactly 1 Galaxy, 1 Amethyst, 1 Ruby, 1 Sapphire, and 1 Emerald player in your starting lineup.",
+    reward: 2_500,
+    requirement: "Starting lineup: exactly 1 player from each tier, clear Year 2 Finals",
+    groupId: "superstar",
+    rewardPackTier: "Sapphire",
+  },
+  {
+    id: "rogue-chemistry-lab",
+    title: "Chemistry Lab",
+    description:
+      "Beat the Year 2 NBA Finals with 3 active Dynamic Duo, Big 3, Rival, or Team Chemistry bonuses.",
+    reward: 0,
+    requirement: "3 active chemistry bonuses, clear Year 2 Finals",
+    groupId: "superstar",
+    rewardPackTier: "Ruby",
+  },
+  {
+    id: "duo-duos",
+    title: "Duo Duos",
+    description: "Beat the Year 2 NBA Finals with 2 active Dynamic Duos in your run roster.",
+    reward: 2_500,
+    requirement: "2 active Dynamic Duos in run roster, clear Year 2 Finals",
+    groupId: "all-star",
+    rewardPackTier: "Sapphire",
+  },
+  {
+    id: "triple-double-duos",
+    title: "Triple Double",
+    description: "Beat the Year 2 NBA Finals with 3 active Dynamic Duos in your run roster.",
+    reward: 2_500,
+    requirement: "3 active Dynamic Duos in run roster, clear Year 2 Finals",
+    groupId: "superstar",
+    rewardPackTier: "Ruby",
+  },
+  {
+    id: "no-galaxy-shortcut",
+    title: "No Galaxy Shortcut",
+    description: "Beat the GOAT node with no Galaxy players on your run roster.",
+    reward: 0,
+    requirement: "No Galaxy players in run roster, clear GOAT node",
+    groupId: "hall-of-fame",
+    rewardPackTier: "Ruby",
   },
   ...teamTakeoverChallenges,
   ...yearTwoTakeoverChallenges,
@@ -532,6 +681,57 @@ const hasFiveSameTeamChemistryGroupStarters = (startingLineup: Player[]) => {
   );
 };
 
+const hasAtLeastTierPlayers = (players: Player[], tier: PlayerTier, requiredCount: number) =>
+  players.filter((player) => getPlayerTier(player) === tier).length >= requiredCount;
+
+const canPlayPosition = (player: Player, position: Position) =>
+  player.primaryPosition === position || player.secondaryPositions.includes(position);
+
+const hasAtLeastPositionEligiblePlayers = (players: Player[], position: Position, requiredCount: number) =>
+  players.filter((player) => canPlayPosition(player, position)).length >= requiredCount;
+
+const getPlayablePositionCount = (player: Player) =>
+  new Set([player.primaryPosition, ...player.secondaryPositions]).size;
+
+const hasAtLeastMultiPositionPlayers = (players: Player[], positionCount: number, requiredCount: number) =>
+  players.filter((player) => getPlayablePositionCount(player) >= positionCount).length >= requiredCount;
+
+const isCurrentSeasonPlayer = (player: Player) => player.id.endsWith("-2025-26") || player.era === "2025-26";
+
+const hasOnlyCurrentSeasonPlayers = (players: Player[]) =>
+  players.length > 0 && players.every((player) => isCurrentSeasonPlayer(player));
+
+const hasOnlyNonCurrentSeasonPlayers = (players: Player[]) =>
+  players.length > 0 && players.every((player) => !isCurrentSeasonPlayer(player));
+
+const hasNoTierPlayers = (players: Player[], tier: PlayerTier) =>
+  players.every((player) => getPlayerTier(player) !== tier);
+
+const hasExactlyOneStarterFromEachTier = (startingLineup: Player[]) => {
+  const starterTiers = startingLineup.slice(0, 5).map((player) => getPlayerTier(player));
+  if (starterTiers.length < 5) return false;
+
+  return (["Galaxy", "Amethyst", "Ruby", "Sapphire", "Emerald"] as PlayerTier[]).every(
+    (tier) => starterTiers.filter((starterTier) => starterTier === tier).length === 1,
+  );
+};
+
+const hasOnlyEmeraldStarters = (startingLineup: Player[]) =>
+  startingLineup.length >= 5 && startingLineup.slice(0, 5).every((player) => getPlayerTier(player) === "Emerald");
+
+const getActiveChemistryBonusCount = (players: Player[]) => {
+  const playerIds = players.map((player) => player.id);
+  return (
+    getActiveDynamicDuos(playerIds).length +
+    getActiveBigThrees(playerIds).length +
+    getActiveRivalBadges(playerIds).length +
+    getActiveTeamChemistryGroups(playerIds).length
+  );
+};
+
+const getActiveDynamicDuoCount = (players: Player[]) =>
+  getActiveDynamicDuos(players.map((player) => player.id)).length;
+
 const hasAtLeastPlayersFromTeam = (players: Player[], teamName: string, requiredCount: number) => {
   const matchingPlayerIds = new Set(
     players
@@ -555,6 +755,8 @@ export interface RogueChallengeCompletionContext {
   startingLineup: Player[];
   rosterPlayers: Player[];
   hiredCoachId: string | null;
+  trainingSessionCount?: number;
+  completedTradeCount?: number;
 }
 
 export const getCompletedRogueChallengeIdsForClear = ({
@@ -563,12 +765,23 @@ export const getCompletedRogueChallengeIdsForClear = ({
   startingLineup,
   rosterPlayers,
   hiredCoachId,
+  trainingSessionCount = 0,
+  completedTradeCount = 0,
 }: RogueChallengeCompletionContext) => {
   const completedIds: string[] = [];
 
   if (clearedNodeId === YEAR_ONE_FINALS_NODE_ID) {
     completedIds.push("first-championship");
     if (hasNoRubyOrHigherStarters(startingLineup)) completedIds.push("sapphire-year-one-finals");
+    if (hasAtLeastTierPlayers(rosterPlayers, "Emerald", 4)) completedIds.push("emerald-foundation");
+    if (hasAtLeastPositionEligiblePlayers(rosterPlayers, "PG", 5)) completedIds.push("point-guard-empire");
+    if (hasAtLeastPositionEligiblePlayers(rosterPlayers, "C", 5)) completedIds.push("big-man-takeover");
+    if (trainingSessionCount === 0) completedIds.push("no-training-wheels");
+    if (completedTradeCount === 0) completedIds.push("trade-deadline-silence");
+    if (hasOnlyCurrentSeasonPlayers(rosterPlayers)) completedIds.push("current-era-kings");
+    if (hasOnlyNonCurrentSeasonPlayers(rosterPlayers)) completedIds.push("legends-never-die");
+    if (hasAtLeastMultiPositionPlayers(rosterPlayers, 3, 5)) completedIds.push("positionless-basketball");
+    if (hasOnlyEmeraldStarters(startingLineup)) completedIds.push("emerald-empire");
     teamTakeoverChallenges.forEach((challenge) => {
       if (
         challenge.requiredTeamName &&
@@ -595,6 +808,10 @@ export const getCompletedRogueChallengeIdsForClear = ({
     if (settings.disableTrainingNodes) completedIds.push("no-training-year-two-finals");
     if (hasFiveCoachTeamStarters(startingLineup, hiredCoachId)) completedIds.push("coach-team-finals-core");
     if (hasFiveSameTeamChemistryGroupStarters(startingLineup)) completedIds.push("iconic-team-chem-finals-core");
+    if (hasExactlyOneStarterFromEachTier(startingLineup)) completedIds.push("all-tiers-year-two-finals");
+    if (getActiveChemistryBonusCount(rosterPlayers) >= 3) completedIds.push("rogue-chemistry-lab");
+    if (getActiveDynamicDuoCount(rosterPlayers) >= 2) completedIds.push("duo-duos");
+    if (getActiveDynamicDuoCount(rosterPlayers) >= 3) completedIds.push("triple-double-duos");
     yearTwoTakeoverChallenges.forEach((challenge) => {
       if (
         challenge.requiredTeamName &&
@@ -610,6 +827,7 @@ export const getCompletedRogueChallengeIdsForClear = ({
   }
 
   if (clearedNodeId === GOAT_NODE_ID) {
+    if (hasNoTierPlayers(rosterPlayers, "Galaxy")) completedIds.push("no-galaxy-shortcut");
     totalTakeoverChallenges.forEach((challenge) => {
       if (
         challenge.requiredTeamName &&
