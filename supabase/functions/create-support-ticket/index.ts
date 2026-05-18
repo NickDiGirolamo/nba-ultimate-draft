@@ -67,6 +67,16 @@ const escapeHtml = (value: string) =>
 const formatDiagnostics = (diagnostics: Record<string, unknown>) =>
   JSON.stringify(diagnostics, null, 2);
 
+const getNotificationRecipients = () => {
+  const configuredRecipients = Deno.env.get("SUPPORT_NOTIFY_TO") ?? defaultSupportNotifyTo;
+  const recipients = configuredRecipients
+    .split(/[;,]/)
+    .map((recipient) => recipient.trim())
+    .filter(Boolean);
+
+  return recipients.length > 0 ? recipients : [defaultSupportNotifyTo];
+};
+
 const buildTicketEmailText = (ticketNumber: number, ticket: {
   categoryLabel: string;
   impactLabel: string;
@@ -149,7 +159,7 @@ const sendSupportNotificationEmail = async (ticketId: string, ticketNumber: numb
     },
     body: JSON.stringify({
       from: Deno.env.get("SUPPORT_NOTIFY_FROM") ?? defaultSupportNotifyFrom,
-      to: [Deno.env.get("SUPPORT_NOTIFY_TO") ?? defaultSupportNotifyTo],
+      to: getNotificationRecipients(),
       subject,
       text: buildTicketEmailText(ticketNumber, ticket),
       html: buildTicketEmailHtml(ticketNumber, ticket),
