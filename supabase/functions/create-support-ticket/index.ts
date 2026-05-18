@@ -292,10 +292,10 @@ Deno.serve(async (request) => {
         .eq("id", ticket.id);
 
       return jsonResponse({
-        error: "Support ticket was created, but the notification email could not be sent.",
         ticketId: ticket.id,
         ticketNumber,
-      }, 502);
+        notificationSent: false,
+      });
     }
 
     await adminClient

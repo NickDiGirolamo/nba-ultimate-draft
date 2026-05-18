@@ -3,8 +3,6 @@ import { createPortal } from "react-dom";
 import { AlertTriangle, CheckCircle2, ClipboardList, LifeBuoy, Mail, Send, X } from "lucide-react";
 import { createSupportTicket } from "../lib/supportTickets";
 
-const FEEDBACK_SUPPORT_EMAIL = "Support@RogueHoops.com";
-
 type FeedbackCategoryId =
   | "bug"
   | "account-save"
@@ -119,6 +117,7 @@ export const FeedbackSupportModal = ({
   const [includeDiagnostics, setIncludeDiagnostics] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submittedTicketReference, setSubmittedTicketReference] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const selectedCategory = useMemo(
     () => feedbackCategories.find((category) => category.id === categoryId) ?? feedbackCategories[0],
@@ -140,53 +139,11 @@ export const FeedbackSupportModal = ({
     };
   }, [onClose]);
 
-  const buildTicketBody = () => {
-    const lines = [
-      "NBA Ultimate Draft support ticket",
-      "",
-      `Ticket type: ${selectedCategory.label}`,
-      `Impact: ${selectedImpact.label}`,
-      `Reply email: ${replyEmail.trim()}`,
-      `Game area: ${gameArea.trim()}`,
-      "",
-      "Summary:",
-      summary.trim(),
-      "",
-      "Details / steps to reproduce:",
-      details.trim(),
-    ];
-
-    if (includeDiagnostics) {
-      lines.push(
-        "",
-        "Diagnostics:",
-        `Account: ${diagnostics.accountLabel}`,
-        `Auth state: ${diagnostics.isGuest ? "Guest Mode" : diagnostics.isLoggedIn ? "Signed in" : "Unknown"}`,
-        `Current area: ${diagnostics.currentArea}`,
-        `Current screen: ${diagnostics.currentScreen}`,
-        `Token balance: ${diagnostics.tokenBalance}`,
-        `Lifetime tokens earned: ${diagnostics.lifetimeTokensEarned}`,
-        `Page: ${getCurrentPage()}`,
-        `Browser: ${getBrowserDetails()}`,
-      );
-    }
-
-    return lines.join("\n");
-  };
-
-  const openSupportEmail = () => {
-    const subject = encodeURIComponent(
-      `NBA Ultimate Draft ${selectedCategory.label}: ${summary.trim() || "Support request"}`,
-    );
-    const body = encodeURIComponent(buildTicketBody());
-
-    window.location.href = `mailto:${FEEDBACK_SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
-  };
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (submitting) return;
 
+    setSubmitError(null);
     setSubmitting(true);
     const result = await createSupportTicket({
       categoryId,
@@ -215,8 +172,7 @@ export const FeedbackSupportModal = ({
       return;
     }
 
-    onClose();
-    openSupportEmail();
+    setSubmitError(result.error);
   };
 
   if (typeof document === "undefined") return null;
@@ -397,6 +353,15 @@ export const FeedbackSupportModal = ({
             Include diagnostics: account mode, current screen, token totals, page URL, and browser details.
           </span>
         </label>
+
+        {submitError && (
+          <div
+            role="alert"
+            className="mt-3 rounded-2xl border border-rose-200/25 bg-rose-500/10 px-3 py-2.5 text-[12px] font-semibold leading-5 text-rose-100"
+          >
+            We could not submit that ticket yet. Please try again in a moment.
+          </div>
+        )}
 
         <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
           <button
